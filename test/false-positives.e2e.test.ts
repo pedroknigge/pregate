@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -32,9 +32,9 @@ function pinRepo(work: string): string {
   return git("rev-parse", "HEAD");
 }
 
-function run(corpus: string, out: string, markdown: string, labelFile: string | null, cache: string) {
+function run(corpus: string, out: string, markdown: string, labelFile: string | null, cache: string, extra: string[] = []) {
   const args = [script, "--no-core", "--packs", join(repoRoot, "test/false-positive-corpus/packs"), "--catalog", join(repoRoot, "catalog"),
-    "--corpus", corpus, "--cache", cache, "--out", out, "--markdown", markdown];
+    "--corpus", corpus, "--cache", cache, "--out", out, "--markdown", markdown, ...extra];
   if (labelFile) args.push("--labels", labelFile);
   const result = Bun.spawnSync([process.execPath, ...args], { cwd: repoRoot, stdout: "pipe", stderr: "pipe", timeout: 60000 });
   return { status: result.exitCode, stderr: result.stderr.toString(), stdout: result.stdout.toString() };
@@ -98,5 +98,23 @@ test("false-positive measurement is stable on a pinned fixture corpus", () => {
     const rejected = run(corpus, join(area, "bad.json"), join(area, "bad.md"), null, join(area, "cache-d"));
     expect(rejected.status).not.toBe(0);
     expect(rejected.stderr).toContain("does not match HEAD");
+  } finally { rmSync(area, { recursive: true, force: true }); }
+});
+
+test("an offline full corpus is skipped and does not rewrite results", () => {
+  const area = mkdtempSync(join(tmpdir(), "pregate-fp-offline-"));
+  try {
+    const corpus = join(area, "corpus.json");
+    const out = join(area, "out.json");
+    const markdown = join(area, "out.md");
+    writeFileSync(corpus, JSON.stringify({ entries: [{ id: "offline", kind: "git", url: "https://127.0.0.1:1/offline.git", commit: "0".repeat(40), sha256: "a".repeat(64) }] }));
+    const skipped = run(corpus, out, markdown, null, join(area, "cache"), ["--skip-offline"]);
+    expect(skipped.status, skipped.stderr).toBe(0);
+    expect(skipped.stderr).toContain("skipped (offline)");
+    expect(existsSync(out)).toBe(false);
+    expect(existsSync(markdown)).toBe(false);
+    const failed = run(corpus, out, markdown, null, join(area, "cache-required"));
+    expect(failed.status).not.toBe(0);
+    expect(existsSync(out)).toBe(false);
   } finally { rmSync(area, { recursive: true, force: true }); }
 });

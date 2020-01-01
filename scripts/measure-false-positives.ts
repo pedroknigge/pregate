@@ -7,8 +7,7 @@
 //     [--corpus <file>] [--labels <file>] [--cache <dir>] [--out <file>]
 //     [--markdown <file>] [--core | --no-core]
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { setUpGrammars } from "../src/assets.ts";
 import { auditRules } from "../src/audit.ts";
@@ -24,7 +23,7 @@ import type { Files, Host, Lock, Manifest, Violation } from "../src/types.ts";
 import { VERSIONS } from "../src/versions.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
-const USAGE = `usage: measure-false-positives.ts [--packs <dir>] [--catalog <dir>] [--corpus <file>] [--labels <file>] [--cache <dir>] [--out <file>] [--markdown <file>] [--core | --no-core]`;
+const USAGE = `usage: measure-false-positives.ts [--packs <dir>] [--catalog <dir>] [--corpus <file>] [--labels <file>] [--cache <dir>] [--out <file>] [--markdown <file>] [--skip-offline] [--core | --no-core]`;
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|svelte|py|go|rs)$/i;
 const EXCLUDE = new Set(["node_modules", "vendor", "dist", "build", "coverage", ".next", "target", ".git"]);
 const MAX_SOURCE_BYTES = 32 * 1024 * 1024;
@@ -76,12 +75,13 @@ interface Report {
 }
 
 interface Options {
-  packs: string; catalog: string; corpus: string; labels: string | null; cache: string; out: string | null; markdown: string | null; core: boolean;
+  packs: string; catalog: string; corpus: string; labels: string | null; cache: string; out: string | null; markdown: string | null; core: boolean; skipOffline: boolean;
 }
 
 function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   return measure(options).then((report) => {
+    if (report === null) return;
     const json = stableJson(report), markdown = render(report);
     if (options.out) writeFileSync(options.out, json);
     else process.stdout.write(json);
@@ -93,7 +93,7 @@ function main(): Promise<void> {
 function parseArgs(argv: string[]): Options {
   const o: Options = {
     packs: resolve(ROOT, "packs"), catalog: resolve(ROOT, "catalog"), corpus: resolve(ROOT, "docs/benchmarks/corpus.json"),
-    labels: null, cache: resolve(tmpdir(), "pregate-fp-corpus"), out: null, markdown: null, core: true,
+    labels: null, cache: resolve(ROOT, ".cache/false-positives"), out: null, markdown: null, core: true, skipOffline: false,
   };
   const args = [...argv];
   const take = (flag: string): string => {
@@ -112,21 +112,30 @@ function parseArgs(argv: string[]): Options {
     else if (flag === "--markdown") o.markdown = resolve(take(flag));
     else if (flag === "--core") o.core = true;
     else if (flag === "--no-core") o.core = false;
+    else if (flag === "--skip-offline") o.skipOffline = true;
     else throw new Error(`unknown argument ${flag}\n${USAGE}`);
   }
   return o;
 }
 
-async function measure(options: Options): Promise<Report> {
+async function measure(options: Options): Promise<Report | null> {
+  const entries = loadCorpus(options.corpus);
+  const repos: LoadedRepo[] = [];
+  for (const entry of entries) {
+    const repo = loadRepo(entry, options.cache, options.skipOffline);
+    if (repo === null) {
+      console.error("measure: full corpus fetch skipped (offline); results were not rewritten");
+      return null;
+    }
+    repos.push(repo);
+  }
   await setUpGrammars();
   const labels = options.labels === null ? [] : loadLabels(options.labels);
-  const entries = loadCorpus(options.corpus);
   const catalog = readTree(options.catalog, options.core);
   const dirs = packDirs(options.packs);
   console.error(`measure: preparing ${dirs.length} packs${options.core ? " and core" : ""}`);
   const prepared = options.core ? [preparePack(options.catalog, catalog, catalog, true)] : [];
   for (const dir of dirs) prepared.push(preparePack(dir, readTree(dir, true), catalog, false));
-  const repos = entries.map((entry) => loadRepo(entry, options.cache));
   const activations = prepared.flatMap((pack) => pack.activations.flatMap((activation) => activation.lock === null ? [] : [{ pack: pack.ns, activation }]));
   const methodologyByRule = new Map(prepared.flatMap((pack) => pack.density.perRule.map((rule) => [rule.rule, rule.methodology] as const)));
   const findings: Finding[] = [], fileErrors: FileError[] = [];
@@ -356,7 +365,7 @@ function toFinding(corpus: string, pack: string, activation: Activation, violati
   };
 }
 
-type ManifestEntry = { id: string; kind: "git"; url: string; commit: string } | { id: string; kind: "path"; path: string; commit: string }
+type ManifestEntry = { id: string; kind: "git"; url: string; commit: string; sha256: string } | { id: string; kind: "path"; path: string; commit: string }
 
 function loadCorpus(file: string): ManifestEntry[] {
   if (!existsSync(file)) throw new Error(`corpus not found: ${file}`);
@@ -379,7 +388,8 @@ function manifestEntry(value: unknown): ManifestEntry {
   if (typeof commit !== "string" || !/^[0-9a-f]{40}$/.test(commit)) throw new Error(`${id}: commit must be a 40-character sha`);
   if (kind === "git") {
     if (typeof entry.url !== "string" || !/^https:\/\/[^@\s]+$/.test(entry.url)) throw new Error(`${id}: git url must be https`);
-    return { id, kind, url: entry.url, commit };
+    if (typeof entry.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(entry.sha256)) throw new Error(`${id}: sha256 must pin the scanned source bytes`);
+    return { id, kind, url: entry.url, commit, sha256: entry.sha256 };
   }
   if (kind === "path") {
     if (typeof entry.path !== "string" || entry.path.startsWith("-")) throw new Error(`${id}: path is required`);
@@ -394,8 +404,15 @@ interface LoadedRepo {
   files: { rel: string; text: string }[]; texts: Map<string, string>;
 }
 
-function loadRepo(entry: ManifestEntry, cache: string): LoadedRepo {
-  const dir = entry.kind === "git" ? checkoutGit(entry, cache) : entry.path;
+function loadRepo(entry: ManifestEntry, cache: string, skipOffline: boolean): LoadedRepo | null {
+  let dir: string;
+  try {
+    dir = entry.kind === "git" ? checkoutGit(entry, cache) : entry.path;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (entry.kind === "git" && skipOffline && offline(message)) return null;
+    throw error;
+  }
   const head = git(dir, ["rev-parse", "HEAD"]).trim();
   if (head !== entry.commit) throw new Error(`${entry.id}: pinned commit ${entry.commit} does not match HEAD ${head}`);
   if (git(dir, ["status", "--porcelain"]).trim()) throw new Error(`${entry.id}: checkout is dirty`);
@@ -422,21 +439,36 @@ function loadRepo(entry: ManifestEntry, cache: string): LoadedRepo {
     texts.set(rel, text);
     files.push({ rel, text });
   }
+  const contentHash = hash.digest("hex");
+  if (entry.kind === "git" && contentHash !== entry.sha256) throw new Error(`${entry.id}: sha256 ${contentHash} does not match pin ${entry.sha256}`);
   return {
-    id: entry.id, kind: entry.kind, url: entry.kind === "git" ? entry.url : null, commit: entry.commit, contentHash: hash.digest("hex"),
+    id: entry.id, kind: entry.kind, url: entry.kind === "git" ? entry.url : null, commit: entry.commit, contentHash,
     sourceFiles, parsed: 0, syntaxErrors: [], binary, oversize, symlinks, missing, files, texts,
   };
 }
 
 function checkoutGit(entry: Extract<ManifestEntry, { kind: "git" }>, cache: string): string {
   const dir = resolve(cache, entry.id);
-  mkdirSync(cache, { recursive: true });
-  if (!existsSync(resolve(dir, ".git"))) git(cache, ["clone", "--quiet", entry.url, entry.id]);
-  if (git(dir, ["rev-parse", "HEAD"]).trim() !== entry.commit) {
-    git(dir, ["fetch", "--quiet", "--depth", "1", "origin", entry.commit]);
-    git(dir, ["checkout", "--quiet", "--detach", entry.commit]);
-  }
+  if (cachedCommit(dir) === entry.commit) return dir;
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  git(dir, ["init", "-q"]);
+  git(dir, ["remote", "add", "origin", entry.url]);
+  git(dir, ["fetch", "--quiet", "--depth", "1", "origin", entry.commit]);
+  git(dir, ["checkout", "--quiet", "--detach", "FETCH_HEAD"]);
   return dir;
+}
+
+function cachedCommit(dir: string): string | null {
+  if (!existsSync(resolve(dir, ".git"))) return null;
+  try {
+    if (git(dir, ["status", "--porcelain"]).trim()) return null;
+    return git(dir, ["rev-parse", "HEAD"]).trim();
+  } catch { return null; }
+}
+
+function offline(message: string): boolean {
+  return /connect|resolve host|unable to access|network is unreachable|name or service not known|early eof|timed out/i.test(message);
 }
 
 function git(cwd: string, args: string[]): string {
@@ -528,7 +560,7 @@ function render(report: Report): string {
     "",
     "## Method",
     "",
-    "1. Check out each corpus entry at the pinned commit. A path entry must already be a git checkout of that commit. A git entry is cloned into the cache and fetched at that commit.",
+    "1. Shallow-fetch each git corpus entry at its pinned commit into the gitignored cache (`.cache/false-positives` unless `--cache` is set). Reuse a clean cache whose HEAD is that commit. Verify the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves committed results untouched. A path entry must already be a checkout of its commit and is never skipped.",
     "2. For each pack, compile a shadow preset containing the builtin core and that pack's methodologies. Core methodologies are always part of a compiled preset. If the pack methodologies do not compile together, compile each methodology on its own.",
     "3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. Fitness, diff, and placement checks are counted as not field-audited.",
     "4. Run the same check execution as `pregate rules test` on every check, and count `pass` fixtures as negative and `fail` plus `trap` fixtures as positive.",
@@ -548,7 +580,7 @@ function render(report: Report): string {
     "",
     `Fixtures per rule: min ${num(report.fixtureDensity.fixturesPerRule.min)}, median ${num(report.fixtureDensity.fixturesPerRule.median)}, max ${num(report.fixtureDensity.fixturesPerRule.max)}. Positive fixtures: ${report.fixtureDensity.positiveFixtures}. Negative fixtures: ${report.fixtureDensity.negativeFixtures}. Invalid fixtures: ${report.fixtureDensity.invalidFixtures}. \`pregate rules test\` failing lines: ${report.packs.reduce((sum, pack) => sum + pack.rulesTest.failLines.length, 0)}.`,
     "",
-    "A positive fixture is a valid `fail/` or `trap/` case. A negative fixture is a valid `pass/` case. Totals count each fixture once per check. Min, median, and max count that check's fixtures again for every alias, so two aliases of one check contribute the same number twice. A rule with no positive or negative fixture is an alias whose check has none. The JSON report lists every rule.",
+    "A positive fixture is a valid `fail/` or `trap/` case. A negative fixture is a valid `pass/` case. Totals count each fixture once per check. Min, median, and max count that check's fixtures again for every alias, so two aliases of one check contribute the same number twice. A rule with no positive or negative fixture is an alias whose check has none. `--out` writes per-rule counts to a local JSON file. That file is not part of the repository.",
     "",
     listOrNone("Rules with no positive fixture", report.fixtureDensity.rulesWithNoPositiveFixture),
     "",
@@ -591,10 +623,10 @@ function render(report: Report): string {
     "## Reproduce",
     "",
     "```sh",
-    "bun scripts/measure-false-positives.ts \\",
+    "bun scripts/measure-false-positives.ts --skip-offline \\",
     "  --corpus docs/benchmarks/corpus.json \\",
     "  --labels docs/benchmarks/labels.json \\",
-    "  --out docs/benchmarks/false-positives.json \\",
+    "  --cache .cache/false-positives \\",
     "  --markdown docs/benchmarks/false-positives.md",
     "```",
     "",

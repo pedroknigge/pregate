@@ -8,7 +8,7 @@ Labeled sample (not a rate): 11 correct, 12 false-positive, 0 uncertain, 11714 u
 
 ## Method
 
-1. Check out each corpus entry at the pinned commit. A path entry must already be a git checkout of that commit. A git entry is cloned into the cache and fetched at that commit.
+1. Shallow-fetch each git corpus entry at its pinned commit into the gitignored cache (`.cache/false-positives` unless `--cache` is set). Reuse a clean cache whose HEAD is that commit. Verify the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves committed results untouched. A path entry must already be a checkout of its commit and is never skipped.
 2. For each pack, compile a shadow preset containing the builtin core and that pack's methodologies. Core methodologies are always part of a compiled preset. If the pack methodologies do not compile together, compile each methodology on its own.
 3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. Fitness, diff, and placement checks are counted as not field-audited.
 4. Run the same check execution as `pregate rules test` on every check, and count `pass` fixtures as negative and `fail` plus `trap` fixtures as positive.
@@ -42,7 +42,7 @@ Engine 0.0.1, core 0.0.1. Evaluator fingerprint `ed602e645e7acf4c7196039075c2cf1
 
 Fixtures per rule: min 5, median 5, max 48. Positive fixtures: 3679. Negative fixtures: 2602. Invalid fixtures: 0. `pregate rules test` failing lines: 0.
 
-A positive fixture is a valid `fail/` or `trap/` case. A negative fixture is a valid `pass/` case. Totals count each fixture once per check. Min, median, and max count that check's fixtures again for every alias, so two aliases of one check contribute the same number twice. A rule with no positive or negative fixture is an alias whose check has none. The JSON report lists every rule.
+A positive fixture is a valid `fail/` or `trap/` case. A negative fixture is a valid `pass/` case. Totals count each fixture once per check. Min, median, and max count that check's fixtures again for every alias, so two aliases of one check contribute the same number twice. A rule with no positive or negative fixture is an alias whose check has none. `--out` writes per-rule counts to a local JSON file. That file is not part of the repository.
 
 **Rules with no positive fixture:** none.
 
@@ -176,10 +176,10 @@ Every label matched a finding.
 ## Reproduce
 
 ```sh
-bun scripts/measure-false-positives.ts \
+bun scripts/measure-false-positives.ts --skip-offline \
   --corpus docs/benchmarks/corpus.json \
   --labels docs/benchmarks/labels.json \
-  --out docs/benchmarks/false-positives.json \
+  --cache .cache/false-positives \
   --markdown docs/benchmarks/false-positives.md
 ```
 
