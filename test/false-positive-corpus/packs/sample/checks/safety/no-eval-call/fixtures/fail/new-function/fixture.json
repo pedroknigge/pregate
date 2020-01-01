@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/parse/builder.ts",
+  "before": null,
+  "expect": { "verdict": "fail", "violations": [{ "line": 1 }] }
+}

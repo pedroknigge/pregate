@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "id": "classnames",
+      "kind": "git",
+      "url": "https://github.com/JedWatson/classnames.git",
+      "commit": "abd6314010de053a09df5acc53e474ff65cea470"
+    },
+    {
+      "id": "errors",
+      "kind": "git",
+      "url": "https://github.com/pkg/errors.git",
+      "commit": "87f8819acf6dc28bf5d3c14b334268236d686f48"
+    },
+    {
+      "id": "express",
+      "kind": "git",
+      "url": "https://github.com/expressjs/express.git",
+      "commit": "1c6f1b0fe4000977b9a7b4f34097e4d527dd9824"
+    },
+    {
+      "id": "markupsafe",
+      "kind": "git",
+      "url": "https://github.com/pallets/markupsafe.git",
+      "commit": "4e111271b1494995708a9e878a10829b5e10c7ba"
+    },
+    {
+      "id": "ms",
+      "kind": "git",
+      "url": "https://github.com/vercel/ms.git",
+      "commit": "4ff48cec099f0514c3e9bbca18706c9c21122bfb"
+    },
+    {
+      "id": "react-markdown",
+      "kind": "git",
+      "url": "https://github.com/remarkjs/react-markdown.git",
+      "commit": "f9ca66ec73d218127bff56b41a583bba1fb96125"
+    },
+    {
+      "id": "toml",
+      "kind": "git",
+      "url": "https://github.com/BurntSushi/toml.git",
+      "commit": "d733fc535e4a9f3c454e421a87b90ade5d49bf31"
+    },
+    {
+      "id": "tslib",
+      "kind": "git",
+      "url": "https://github.com/microsoft/tslib.git",
+      "commit": "1fd51ada1a20ce315805cdf63d0555a8b5fb33bb"
+    }
+  ]
+}

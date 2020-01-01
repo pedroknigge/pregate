@@ -1,0 +1,17 @@
+{
+  "id": "sample/gaps/no-debugger",
+  "version": "1.0.0",
+  "area": "gaps",
+  "cardinality": "singleton",
+  "dimension": "sample.debugger",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [{ "id": "debugger", "rule": { "kind": "debugger_statement" } }]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": { "message": "{symbol} contains a debugger statement." }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "sample/measure",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "SAMPLE-EVAL-001",
+      "check": "sample/safety/no-eval-call",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Measurement fixture",
+        "locator": "eval call",
+        "paraphrase": "eval compiles a string into code."
+      },
+      "why": "A string passed to eval becomes code.",
+      "fixHint": "Parse the value or call a function.",
+      "avoid": "Calling eval as a member still compiles the string.",
+      "examples": { "pass": "pass/json-parse", "fail": "fail/bare-eval" }
+    },
+    {
+      "id": "SAMPLE-DEBUG-001",
+      "check": "sample/gaps/no-debugger",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Measurement fixture",
+        "locator": "debugger statement",
+        "paraphrase": "A debugger statement stops an attached debugger."
+      },
+      "why": "This fixture check intentionally has no failing case.",
+      "fixHint": "Remove the debugger statement.",
+      "avoid": "A comment that mentions debugger is not a statement."
+    },
+    {
+      "id": "SAMPLE-ALERT-001",
+      "check": "sample/gaps/no-alert",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Measurement fixture",
+        "locator": "alert call",
+        "paraphrase": "alert blocks the caller with a dialog."
+      },
+      "why": "This fixture check intentionally has no passing case.",
+      "fixHint": "Return the message to the caller.",
+      "avoid": "A function named alertAll is not the alert builtin."
+    }
+  ]
+}

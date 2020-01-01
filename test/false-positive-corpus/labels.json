@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "corpus": "pinned-tree",
+      "pack": "sample",
+      "methodology": "sample/measure",
+      "rule": "sample/SAMPLE-EVAL-001",
+      "path": "src/run.js",
+      "line": 2,
+      "symbol": "run",
+      "verdict": "correct",
+      "note": "run calls eval on its parameter. That is the call this rule describes."
+    }
+  ]
+}

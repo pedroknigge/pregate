@@ -67,7 +67,7 @@ preservation, original control failures and remaining latency limits.
 Remaining work includes native Windows/Linux admission, trusted Cursor human
 approval, persistent dependency-graph reuse, arbitrary dcouplr semantic/data flow,
 and broader empirical maintainability evaluation. Rule fixtures and limited paired
-experiments do not establish an 80% false-positive confidence estimate or general
+experiments do not establish an 80% false-positive confidence estimate ([measurement](benchmarks/false-positives.md)) or general
 maintainability certification. Keep no-new defaults and honest evidence limits.
 
 The [published 0.2.10 repository controls](research/post-release-0210.md) add seven

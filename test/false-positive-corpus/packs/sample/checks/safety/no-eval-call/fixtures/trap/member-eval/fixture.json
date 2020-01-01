@@ -1,0 +1,13 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/parse/scoped.ts",
+  "before": null,
+  "expect": { "verdict": "fail", "violations": [{ "line": 2 }] },
+  "trap": {
+    "family": "indirect-eval",
+    "origin": "forge",
+    "discovered": "2026-10-03",
+    "note": "Calling eval through another object still compiles the string."
+  }
+}

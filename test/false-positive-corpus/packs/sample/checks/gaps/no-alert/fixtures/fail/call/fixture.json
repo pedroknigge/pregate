@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/warn.ts",
+  "before": null,
+  "expect": { "verdict": "fail", "violations": [{ "line": 2 }] }
+}

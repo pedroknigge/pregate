@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/quiet.ts",
+  "before": null,
+  "expect": { "verdict": "pass" }
+}

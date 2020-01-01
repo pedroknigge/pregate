@@ -1,0 +1,246 @@
+{
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "clean-code",
+      "methodology": "clean-code/clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "bind.js",
+      "line": 16,
+      "symbol": "parseValue",
+      "verdict": "correct",
+      "note": "parseValue occupies lines 16-42, past the rule's limit of 20. The finding reports measured 21."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "typescript",
+      "methodology": "typescript/strict-types",
+      "rule": "typescript/TS-ANY-001",
+      "path": "index.d.ts",
+      "line": 11,
+      "symbol": "Mapping",
+      "verdict": "correct",
+      "note": "Mapping is declared as Record<string, any>, which is the explicit any this rule names."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "tailwind",
+      "methodology": "tailwind/classes",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "bind.js",
+      "line": 49,
+      "symbol": "appendClass",
+      "verdict": "false-positive",
+      "note": "appendClass joins two runtime class strings with a space. It is not a Tailwind utility fragment hidden from the content scanner."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "vibe-proof",
+      "methodology": "vibe-proof/hygiene",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "benchmarks/benchmarks.js",
+      "line": 46,
+      "symbol": "runBenchmarks",
+      "verdict": "false-positive",
+      "note": "console.log prints the benchmark name. It is the runner's output, not a debug leftover in feature code."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "vibe-proof",
+      "methodology": "vibe-proof/hygiene",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "benchmarks/benchmarks.js",
+      "line": 51,
+      "symbol": "runBenchmarks",
+      "verdict": "false-positive",
+      "note": "console.log prints that the benchmark run finished. It is the runner's output, not a debug leftover."
+    },
+    {
+      "corpus": "errors",
+      "pack": "go",
+      "methodology": "go/quality",
+      "rule": "go/GO-FN-001",
+      "path": "format_test.go",
+      "line": 161,
+      "symbol": "TestFormatWithStack",
+      "verdict": "correct",
+      "note": "TestFormatWithStack starts at line 161 and the next test starts at line 230, past the limit of 50. The finding reports measured 67."
+    },
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "methodology": "authjs/config",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/auth/index.js",
+      "line": 25,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "secret: 'shhhh, very secret' is the express-session option in an example. It is not an Auth.js config."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "methodology": "express/requests",
+      "rule": "express/EX-STATUS-001",
+      "path": "examples/downloads/index.js",
+      "line": 26,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The handler sets res.statusCode = 404 and then calls res.send. The response is sent, so the connection is not left open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "methodology": "express/requests",
+      "rule": "express/EX-STATUS-001",
+      "path": "examples/downloads/index.js",
+      "line": 27,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Same handler as line 26: res.statusCode = 404 is followed by res.send, so the body is sent."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "methodology": "javascript/esm",
+      "rule": "javascript/JS-REQ-001",
+      "path": "examples/auth/index.js",
+      "line": 7,
+      "symbol": "express",
+      "verdict": "correct",
+      "note": "The line is var express = require('../..'), the require call this rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "methodology": "javascript/esm",
+      "rule": "javascript/JS-REQ-001",
+      "path": "examples/auth/index.js",
+      "line": 10,
+      "symbol": "session",
+      "verdict": "correct",
+      "note": "The line is var session = require('express-session'), a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "mongodb",
+      "methodology": "mongodb/models",
+      "rule": "mongodb/MONGO-CONNECT-001",
+      "path": "examples/search/index.js",
+      "line": 33,
+      "symbol": "initializeRedis",
+      "verdict": "false-positive",
+      "note": "initializeRedis calls db.connect() on the Redis client described in the comment above it. It is not a MongoDB driver connect."
+    },
+    {
+      "corpus": "express",
+      "pack": "redis",
+      "methodology": "redis/keys",
+      "rule": "redis/REDIS-KEY-001",
+      "path": "examples/auth/index.js",
+      "line": 100,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "app.get('/login') registers an Express route. The string is a path, not a Redis key."
+    },
+    {
+      "corpus": "express",
+      "pack": "redis",
+      "methodology": "redis/keys",
+      "rule": "redis/REDIS-KEY-001",
+      "path": "examples/auth/index.js",
+      "line": 104,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The matched call text includes req.get('Referrer'), an HTTP header read inside app.post. It is not a Redis key."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "methodology": "senior/style",
+      "rule": "senior/SR-VAR-001",
+      "path": "examples/auth/index.js",
+      "line": 10,
+      "symbol": "<module>",
+      "verdict": "correct",
+      "note": "The line declares var session. That is the var binding this rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "methodology": "senior/style",
+      "rule": "senior/SR-VAR-001",
+      "path": "examples/auth/index.js",
+      "line": 12,
+      "symbol": "<module>",
+      "verdict": "correct",
+      "note": "The line declares var app. That is the var binding this rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "vue",
+      "methodology": "vue/reactivity",
+      "rule": "vue/VUE-PUSH-001",
+      "path": "test/req.baseUrl.js",
+      "line": 60,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "urls.push concatenates a string onto an array in an Express routing test. It is not vue-router push."
+    },
+    {
+      "corpus": "markupsafe",
+      "pack": "python",
+      "methodology": "python/quality",
+      "rule": "python/PY-NEST-001",
+      "path": "src/markupsafe/__init__.py",
+      "line": 213,
+      "symbol": "Markup.striptags",
+      "verdict": "correct",
+      "note": "The if that checks an unclosed comment sits inside the comment branch of a while. That is three nested controls, over the limit of 2."
+    },
+    {
+      "corpus": "markupsafe",
+      "pack": "python",
+      "methodology": "python/quality",
+      "rule": "python/PY-NEST-001",
+      "path": "src/markupsafe/__init__.py",
+      "line": 220,
+      "symbol": "Markup.striptags",
+      "verdict": "correct",
+      "note": "The if that checks an unclosed tag sits inside the else branch of a while. That is three nested controls, over the limit of 2."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "react-native",
+      "methodology": "react-native/platform",
+      "rule": "react-native/RN-PLAT-001",
+      "path": "test.jsx",
+      "line": 537,
+      "symbol": "p",
+      "verdict": "false-positive",
+      "note": "The test returns a DOM div from a web Markdown component and checks it with renderToStaticMarkup. It is not a React Native render."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "node",
+      "methodology": "node/runtime",
+      "rule": "node/NODE-PREFIX-001",
+      "path": "test/runTests.js",
+      "line": 2,
+      "symbol": "<module>",
+      "verdict": "correct",
+      "note": "require(\"child_process\") is a bare builtin specifier, without the node: prefix this rule names."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "node",
+      "methodology": "node/runtime",
+      "rule": "node/NODE-PREFIX-001",
+      "path": "test/runTests.js",
+      "line": 3,
+      "symbol": "fs",
+      "verdict": "correct",
+      "note": "require(\"fs\") is a bare builtin specifier, without the node: prefix this rule names."
+    }
+  ]
+}
