@@ -711,7 +711,7 @@ Son 17 checks, porque `banned-imports` es `multi`. La columna de trampas es la s
 `introduced(lock, rel, before, after)` (modo = `lock.ratchet`; `rel` porque `Analysis` no lleva ruta):
 - **`strict`, o `before` nulo:** todo lo que hay en `after`.
 - **`no-new`:**
-  1. una violación sobre un símbolo que no está en `before.symbols` es nueva, salvo que su cuerpo (sin el nombre declarado) sea el de un símbolo anterior cuyo cuerpo ya no está: un renombre, un movimiento o una extracción en el mismo archivo no renuevan esa deuda. Una copia, con ese cuerpo todavía presente, sí es nueva;
+  1. una violación sobre un símbolo que no está en `before.symbols` es nueva, salvo que su cuerpo (sin el nombre declarado) sea el de un símbolo anterior cuyo cuerpo ya no está, y solo por las violaciones que ese símbolo ya no tiene, cada una una vez: un renombre, un movimiento o una extracción en el mismo archivo no renuevan esa deuda. Una copia junto a un original que todavía la tiene, con el mismo cuerpo u otro, sí es nueva. `symbolBodies` solo se calcula cuando el análisis tiene alguna violación;
   2. entre los preexistentes, si el conteo por (regla, archivo) sube, se reportan los símbolos cuyo conteo creció.
 - **`diff`:** el conteo de `after` comparado con el de `before`, según `op`. `measured` = después, `limit` = antes (0 si no hay), en la línea 1 con símbolo `<module>`.
 

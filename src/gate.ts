@@ -4,12 +4,12 @@ import { approvalDeadline, finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
-import { canonical, findRoot, leavesAcceptedRoot } from "./disk.ts";
+import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { feedbackPreview, feedbackReview } from "./feedback-command.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./inertia.ts";
 import { issuePreview, issueReview } from "./issue-command.ts";
 import { gatedHarnesses } from "./machine.ts";
-import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder } from "./paths.ts";
+import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
 import { APPROVE_CODE, batchReview, literalPregate, pendingBatch, pendingReview } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import { pendingRoot, type Batch } from "./proposal.ts";
@@ -176,6 +176,10 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     }
     return h;
   };
+  const judged = (p: string): string => {
+    const abs = canonical(p);
+    return escapedRoot(p, abs, enabled) === null ? abs : slash(resolve(p));
+  };
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
@@ -186,17 +190,15 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
       const h = machineOnly ? reach(abs, dirname(abs)) : null;
       return h !== null && protects(abs, globsOf(sid, h.root, h.loaded));
     },
+    // A path whose real target leaves every accepted root is judged where it is spelled.
     inScope: (p) => {
-      const abs = canonical(p);
-      // An in-repo path whose real target leaves the root is still a write the guard must see.
-      if (leavesAcceptedRoot(p, abs, enabled)) return true;
+      const abs = judged(p);
       const h = reach(abs, dirname(abs));
       return h !== null && inScope(h.lock, h.rel);
     },
     // A directory written whole writes into every root it holds, as well as below itself.
     under: (p) => {
-      const abs = canonical(p);
-      if (leavesAcceptedRoot(p, abs, enabled)) return true;
+      const abs = judged(p);
       const h = reach(abs, abs);
       return known.some((r) => within(abs, r)) || (h !== null && scopeUnder(h.lock, h.rel));
     },

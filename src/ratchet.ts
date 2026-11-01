@@ -65,18 +65,22 @@ export function comparedLock(lock: Lock, after: Analysis): Lock {
 
 // no-new: on a symbol the "before" had, a rule whose count in the file grew reports the symbols whose
 // own count grew. A symbol it did not have is new, unless its body is an unchanged body that moved
-// here by rename, move or extraction. Each old violation is spent once. A copy of a body that is
-// still present has nothing left to spend.
+// here by rename, move or extraction. Only the violations the old symbol no longer carries can move,
+// each spent once: a copy next to an original that still has the violation has nothing to spend.
 function noNew(before: Analysis, after: Analysis, violations: Violation[]): Violation[] {
   const existed = new Set(before.symbols);
   const count = (vs: Violation[], rule: string, symbol?: string) =>
     vs.filter((v) => v.rule === rule && (symbol === undefined || v.symbol === symbol)).length;
   const old = violations.filter((v) => existed.has(v.symbol));
   const pool = new Map<string, number>();
-  for (const v of before.violations) {
-    if (!bodyMoved(before, after, v.symbol)) continue;
-    const key = `${v.rule}\0${before.symbolBodies[v.symbol]}`;
-    pool.set(key, (pool.get(key) ?? 0) + 1);
+  for (const symbol of new Set(before.violations.map((v) => v.symbol))) {
+    if (!bodyMoved(before, after, symbol)) continue;
+    for (const rule of new Set(before.violations.filter((v) => v.symbol === symbol).map((v) => v.rule))) {
+      const freed = count(before.violations, rule, symbol) - count(old, rule, symbol);
+      if (freed <= 0) continue;
+      const key = `${rule}\0${before.symbolBodies[symbol]}`;
+      pool.set(key, (pool.get(key) ?? 0) + freed);
+    }
   }
   const introduced: Violation[] = [];
   for (const v of violations) {

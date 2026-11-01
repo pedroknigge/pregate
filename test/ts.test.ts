@@ -1,6 +1,6 @@
 import { beforeAll, expect, test } from "bun:test";
 import { grammarWasm, setUpGrammars } from "../src/assets.ts";
-import { astHash, classes, errorIn, functions, grammarOf, imports, metricBodies, parse, setGrammars, symbolOf } from "../src/ts.ts";
+import { astHash, classes, errorIn, functions, grammarOf, imports, parse, setGrammars, symbolBodies, symbolOf } from "../src/ts.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -382,16 +382,19 @@ test("an injected parser runtime preserves actual trees, lazy grammars and cache
   }, async () => { await setUpGrammars(); });
 });
 
-test("metric bodies distinguish symbols on one line and preserve duplicate anonymous body order", () => {
-  const parsed = parse("x.ts", "function first() { return 1; } function second() { return 2; }\nconst run = () => { [1].map(() => 3); [2].map(() => 4); };\nfunction ignored() { return 5; }");
+test("symbol bodies hash one body per declared symbol, with the name outside and callbacks inside", () => {
+  const parsed = parse("x.ts", "function first() { return 1; } function second() { return 2; }\nconst run = () => { [1].map(() => 3); [2].map(() => 4); };\nfunction second() { return 9; }");
   withCleanup(() => {
-    const targets = new Set(["second\0" + 1, "run\0" + 2]);
-    const expected = Object.fromEntries(parsed.root.descendantsOfType(["function_declaration", "arrow_function"])
-      .filter(n => targets.has(`${symbolOf(n)}\0${n.startPosition.row + 1}`))
-      .map(n => [`${symbolOf(n)}\0${n.startPosition.row + 1}`, astHash({ ...parsed, root: n.childForFieldName("body") ?? n })]));
-    expect(Object.keys(expected).sort()).toEqual([...targets].sort());
-    expect(metricBodies(parsed, targets)).toEqual(expected);
-    expect(metricBodies(parsed, new Set())).toEqual({});
+    const bodies = symbolBodies(parsed);
+    const hashOf = (name: string) => astHash({ ...parsed, root: parsed.root.descendantsOfType(["function_declaration", "arrow_function"])
+      .find((n) => symbolOf(n) === name)!.childForFieldName("body")! });
+    // `second` is declared twice with different bodies, so no single hash can follow it.
+    expect(Object.keys(bodies).sort()).toEqual(["first", "run"]);
+    expect(bodies).toEqual({ first: hashOf("first"), run: hashOf("run") });
+    const renamed = parse("y.ts", "function primary() { return 1; }\nconst go = () => { [1].map(() => 3); [2].map(() => 4); };");
+    try {
+      expect(symbolBodies(renamed)).toEqual({ primary: bodies.first!, go: bodies.run! });
+    } finally { renamed.root.tree.delete(); }
   }, () => { parsed.root.tree.delete(); });
 });
 

@@ -7,7 +7,7 @@ import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Lo
 import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
-import { canonical, findRoot, leavesAcceptedRoot, readTree } from "./disk.ts";
+import { canonical, escapedRoot, findRoot, readTree } from "./disk.ts";
 import { analyze, placement } from "./evaluate.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { fitnessViolations, projectFitness } from "./fitness-command.ts";
@@ -195,10 +195,16 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const paths = changes.map((c) => canonical(c.path));
   for (const [i, c] of changes.entries()) {
     const abs = paths[i]!;
-    if (leavesAcceptedRoot(c.path, abs, enabled)) {
-      const root = findRoot(dirname(resolve(c.path)), enabled)!;
-      const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root, rel: relative(root, resolve(c.path)), startedAt };
-      return decide(inputOf(call, { ...NOTHING, form: form("protected-path"), protectedPath: true }));
+    // A judged path whose real target leaves every accepted root cannot take the write. Judged by
+    // the spelled path: a target out of this root's scope stays out of scope, as before.
+    const escaped = escapedRoot(c.path, abs, enabled);
+    if (escaped !== null) {
+      const rel = relative(escaped, resolve(c.path));
+      const contract = lockOf(escaped);
+      if (inScope(isCause(contract) ? null : contract.lock, rel)) {
+        const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root: escaped, rel, startedAt };
+        return decide(inputOf(call, PROTECTED));
+      }
     }
     const root = pendingRoot(dirname(abs));
     if (root !== null && !enabled(root) && protects(abs, machine())) {

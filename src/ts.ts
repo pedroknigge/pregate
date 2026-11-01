@@ -234,17 +234,6 @@ export function classes(p: Parsed): { symbol: string; line: number; publicMethod
 
 type Import = CodeImport;
 
-// Declaration names are outside the body: a rename or layout change cannot renew metric debt.
-export function metricBodies(p: Parsed, targets: Set<string>): Record<string, string> {
-  const kinds = grammarOf(p.rel) === "rust" ? RUST_FUNCTIONS : ["python", "go"].includes(grammarOf(p.rel)!) ? [...OTHER_FUNCTIONS, ...OTHER_CLASSES] : [...FUNCTION_KINDS, ...CLASS_KINDS];
-  const lines = new Set([...targets].map(target => Number(target.slice(target.lastIndexOf("\0") + 1))));
-  return Object.fromEntries(descendants(p.root, kinds)
-    .filter((n) => lines.has(lineOf(n)) && targets.has(`${symbolOf(n)}\0${lineOf(n)}`)).map((n) => {
-    const body = n.childForFieldName("body") ?? n;
-    return [`${symbolOf(n)}\0${lineOf(n)}`, astHash({ ...p, root: body })];
-  }));
-}
-
 // One hash per symbol the node itself declares. The name and parameters sit outside the body, so a
 // rename does not change it. An anonymous callback inherits its parent's symbol and is not a second body.
 export function symbolBodies(p: Parsed): Record<string, string> {

@@ -214,6 +214,33 @@ test("an unchanged body can be renamed, moved or extracted, and a copy cannot", 
   blocks(r, "clean-code/CC-ER-002");
 });
 
+test("a copy cannot borrow debt from an original that changed and still carries it", () => {
+  const r = fresh();
+  const rel = "src/domain/pay.ts";
+  put(r, rel, swallowed("legacy"));
+  commit(r, "swallowed legacy");
+  const touched = `export function legacy(): string {\n  const label = "legacy";\n  try {\n    return label;\n  } catch {}\n  return "b";\n}\n`;
+  put(r, rel, touched);
+  allows(r);
+  // The original keeps its swallow under a new body; the copy of the old body is new debt.
+  put(r, rel, `${touched}\n${swallowed("legacyCopy")}`);
+  blocks(r, "clean-code/CC-ER-002");
+  // The original lost its swallow: the one it had may follow the old body, once.
+  put(r, rel, `export function legacy(): string {\n  return "a";\n}\n${swallowed("legacyCopy")}`);
+  allows(r);
+  put(r, rel, `export function legacy(): string {\n  return "a";\n}\n${swallowed("legacyCopy")}\n${swallowed("legacyTwin")}`);
+  blocks(r, "clean-code/CC-ER-002");
+  const metric = "src/domain/total.ts";
+  put(r, metric, long("legacy"));
+  commit(r, "long legacy");
+  // Same length, different body: the original keeps its own baseline and the copy gets none.
+  const touchedLong = long("legacy").replace("  total += 0;\n", "  total += 7;\n");
+  put(r, metric, touchedLong);
+  allows(r);
+  put(r, metric, `${touchedLong}\n${long("legacyCopy")}`);
+  blocks(r, "clean-code/CC-FN-001");
+});
+
 // sindresorhus/got `parseBody`: an arrow with four parameters, a try that is not the whole
 // function, and a branch nested three deep. Renaming only the binding used to report those
 // pre-existing findings as new because the symbol name changed.
@@ -319,6 +346,28 @@ test("a symlink that leaves the repository cannot take a judged write", () => {
   denied(a.write("src/domain/escaped.ts", "export const after = 1;\n"), "protected-path");
   denied(a.bash(`printf '%s' 'export const after = 1;' > '${join(r.dir, "src/domain/escaped.ts")}'`), "shell-write");
   expect(readFileSync(target, "utf8")).toBe(violation);
+});
+
+test("a symlink into a nested root is judged by the root that holds its target", () => {
+  const r = fresh();
+  const nested = join(r.dir, "packages/app");
+  cpSync(template, nested, { recursive: true });
+  rmSync(join(nested, ".git"), { recursive: true, force: true });
+  enable(nested, ENGINE_DATA);
+  put(r, "packages/app/src/domain/real.ts", "export const value = 1;\n");
+  symlinkSync("../../packages/app/src/domain/real.ts", join(r.dir, "src/domain/link.ts"));
+  commit(r, "nested root");
+  const a = claude(r);
+  ok(a.start(), "session");
+  const out = a.write("src/domain/link.ts", swallowed("pay"));
+  denied(out, "clean-code/CC-ER-002");
+  expect(said(out)).not.toContain("protected-path");
+  // A target outside every root, reached from a path the lock does not judge, stays out of scope.
+  const outside = join(TMP, "outside", randomUUID());
+  mkdirSync(outside, { recursive: true });
+  writeFileSync(join(outside, "notes.md"), "");
+  symlinkSync(join(outside, "notes.md"), join(r.dir, "notes.md"));
+  silent(a.write("notes.md", "# notes\n"));
 });
 
 test("a symlink that stays inside the repository is still judged", () => {

@@ -167,14 +167,15 @@ export function findRoot(abs: string, accepted: (root: string) => boolean): stri
   }
 }
 
-// The spelled path sits in an accepted root and its canonical target does not. A symlink, or a
-// path through one, would write outside that root. Roots are compared after realpath so a checkout
-// reached by its own symlink is not treated as an escape.
-export function leavesAcceptedRoot(spelled: string, landed: string, accepted: (root: string) => boolean): boolean {
+// The accepted root the spelled path sits in, when its canonical target sits in no accepted root:
+// a symlink, or a path through one, would write where no lock can see it. Null when the target
+// lands in an accepted root, the same or another one (a nested root, a sibling): the root that
+// holds the target judges it, as any canonical path. Callers judge an escape by the spelled path,
+// so a target out of the root's scope stays out of scope and a judged path cannot slip out.
+export function escapedRoot(spelled: string, landed: string, accepted: (root: string) => boolean): string | null {
   const home = findRoot(dirname(resolve(spelled)), accepted);
-  if (home === null) return false;
-  const there = findRoot(dirname(landed), accepted);
-  return there === null || canonical(home) !== canonical(there);
+  if (home === null || findRoot(dirname(landed), accepted) !== null) return null;
+  return home;
 }
 
 // Readers see the old file or the new one, never a partial write.
