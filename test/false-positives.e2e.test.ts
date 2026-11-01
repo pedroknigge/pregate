@@ -8,7 +8,7 @@ const tree = join(repoRoot, "test/false-positive-corpus/tree");
 const labels = join(repoRoot, "test/false-positive-corpus/labels.json");
 const script = join(repoRoot, "scripts/measure-false-positives.ts");
 // Frozen commit of test/false-positive-corpus/tree with the identity in pinRepo.
-const PIN = "3323441cbe4ab9499d69e1a794050a29fb280898";
+const PIN = "ab3d21c8395b356f93f188c35c65e01e8b645742";
 
 function pinRepo(work: string): string {
   rmSync(work, { recursive: true, force: true });
@@ -58,13 +58,16 @@ test("false-positive measurement is stable on a pinned fixture corpus", () => {
     expect(readFileSync(join(area, "b.md"), "utf8")).toBe(markdown);
     const report = JSON.parse(json);
     expect(report.fpRate).toBe("unmeasured");
-    expect(report.corpus).toEqual([expect.objectContaining({ id: "pinned-tree", kind: "path", commit, sourceFiles: 5, parsed: 5, syntaxErrors: [] })]);
+    expect(report.corpus).toEqual([expect.objectContaining({ id: "pinned-tree", kind: "path", commit, sourceFiles: 6, parsed: 6, syntaxErrors: [] })]);
     expect(report.findings.map((finding: { rule: string; path: string; line: number }) => [finding.rule, finding.path, finding.line])).toEqual([
       ["sample/SAMPLE-ALERT-001", "src/alert.js", 2],
       ["sample/SAMPLE-EVAL-001", "src/member.js", 2],
       ["sample/SAMPLE-EVAL-001", "src/run.js", 2],
+      ["sample/SAMPLE-EVAL-001", "src/twice.js", 2],
     ]);
-    expect(report.labeledSample).toMatchObject({ correct: 1, falsePositive: 0, uncertain: 0, unlabeledFindings: 2, unmatchedLabels: [] });
+    // twice.js calls eval twice on one line: two raw matches, one site, one finding.
+    expect(report.rawMatches).toBe(5);
+    expect(report.labeledSample).toMatchObject({ correct: 1, falsePositive: 0, uncertain: 0, unlabeledFindings: 3, unmatchedLabels: [] });
     expect(report.labeledSample.items[0].note).toContain("calls eval");
     expect(report.fixtureDensity).toMatchObject({
       checks: 3, rules: 3, fixtures: 7, positiveFixtures: 4, negativeFixtures: 3, invalidFixtures: 0,
@@ -75,7 +78,7 @@ test("false-positive measurement is stable on a pinned fixture corpus", () => {
       fixturesPerRule: { min: 1, median: 1, max: 5 },
     });
     const pack = report.packs[0];
-    expect(pack).toMatchObject({ ns: "sample", activation: "combined", findings: 3, fpRate: "unmeasured", idleRules: 0, compileErrors: [] });
+    expect(pack).toMatchObject({ ns: "sample", activation: "combined", findings: 4, fpRate: "unmeasured", idleRules: 0, compileErrors: [] });
     expect(pack.rulesTest.failLines.filter((line: string) => line.includes("no-eval-call"))).toEqual([]);
     expect(pack.rulesTest.failLines.some((line: string) => line.includes("no-debugger") && line.includes("needs at least 2 fail fixtures"))).toBe(true);
     expect(pack.rulesTest.failLines.some((line: string) => line.includes("no-alert") && line.includes("needs at least 2 pass fixtures"))).toBe(true);
@@ -92,13 +95,29 @@ test("false-positive measurement is stable on a pinned fixture corpus", () => {
     writeFileSync(labelFile, JSON.stringify(allLabeled));
     const rated = run(corpus, join(area, "rated.json"), join(area, "rated.md"), labelFile, join(area, "cache-c"));
     expect(rated.status, rated.stderr).toBe(0);
-    expect(JSON.parse(readFileSync(join(area, "rated.json"), "utf8")).fpRate).toEqual({ falsePositives: 1, labeledFindings: 3 });
+    expect(JSON.parse(readFileSync(join(area, "rated.json"), "utf8")).fpRate).toEqual({ falsePositives: 1, labeledFindings: 4 });
 
     writeFileSync(corpus, JSON.stringify({ entries: [{ id: "pinned-tree", kind: "path", path: work, commit: "0".repeat(40) }] }));
     const rejected = run(corpus, join(area, "bad.json"), join(area, "bad.md"), null, join(area, "cache-d"));
     expect(rejected.status).not.toBe(0);
     expect(rejected.stderr).toContain("does not match HEAD");
   } finally { rmSync(area, { recursive: true, force: true }); }
+});
+
+test("the committed report agrees with the committed labels", () => {
+  const markdown = readFileSync(join(repoRoot, "docs/benchmarks/false-positives.md"), "utf8");
+  const labelDoc = JSON.parse(readFileSync(join(repoRoot, "docs/benchmarks/labels.json"), "utf8")) as { items: { verdict: string }[] };
+  const count = (verdict: string) => labelDoc.items.filter((item) => item.verdict === verdict).length;
+  const summary = /Labeled sample \(not a rate\): (\d+) correct, (\d+) false-positive, (\d+) uncertain, (\d+) unlabeled findings\./.exec(markdown);
+  expect(summary).not.toBeNull();
+  expect(markdown).toContain("Every label matched a finding.");
+  expect([Number(summary![1]), Number(summary![2]), Number(summary![3])]).toEqual([count("correct"), count("false-positive"), count("uncertain")]);
+  const table = markdown.slice(markdown.indexOf("## Labeled sample"), markdown.indexOf("## Limits"));
+  const rows = table.split("\n").filter((line) => /^\| (correct|false-positive|uncertain) \|/.test(line));
+  expect(rows.length).toBe(labelDoc.items.length);
+  const total = /recorded \*\*(\d+) findings\*\*/.exec(markdown);
+  expect(total).not.toBeNull();
+  expect(Number(total![1])).toBe(labelDoc.items.length + Number(summary![4]));
 });
 
 test("an offline full corpus is skipped and does not rewrite results", () => {

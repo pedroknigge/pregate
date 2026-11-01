@@ -67,7 +67,7 @@ interface CorpusResult {
 }
 interface Report {
   schemaVersion: 1; engine: string; core: string; evaluatorFingerprint: string; fpRate: Rate;
-  limits: string[]; corpus: CorpusResult[];
+  rawMatches: number; limits: string[]; corpus: CorpusResult[];
   fixtureDensity: PackResult["fixtureDensity"] & { fixturesPerRule: { min: number | null; median: number | null; max: number | null } };
   packs: Omit<PackResult, "fixtureDensity">[];
   findings: Finding[]; fileErrors: FileError[];
@@ -138,7 +138,7 @@ async function measure(options: Options): Promise<Report | null> {
   for (const dir of dirs) prepared.push(preparePack(dir, readTree(dir, true), catalog, false));
   const activations = prepared.flatMap((pack) => pack.activations.flatMap((activation) => activation.lock === null ? [] : [{ pack: pack.ns, activation }]));
   const methodologyByRule = new Map(prepared.flatMap((pack) => pack.density.perRule.map((rule) => [rule.rule, rule.methodology] as const)));
-  const findings: Finding[] = [], fileErrors: FileError[] = [];
+  const matches: Finding[] = [], fileErrors: FileError[] = [];
   const applied = new Map<string, number>();
   for (const repo of repos) {
     console.error(`measure: auditing ${repo.id} (${repo.files.length} parsed candidates)`);
@@ -156,7 +156,7 @@ async function measure(options: Options): Promise<Report | null> {
           for (const rule of rules) applied.set(appliedKey(item.pack, rule.id), (applied.get(appliedKey(item.pack, rule.id)) ?? 0) + 1);
           const result = analyze({ ...item.activation.lock!, rules }, "ci", file.rel, parsed, host);
           if ("cause" in result) fileErrors.push({ corpus: repo.id, pack: item.pack, path: file.rel, cause: result.cause, line: result.line, message: result.detail ?? null });
-          else for (const violation of result.violations) findings.push(toFinding(repo.id, item.pack, item.activation, violation, methodologyByRule));
+          else for (const violation of result.violations) matches.push(toFinding(repo.id, item.pack, item.activation, violation, methodologyByRule));
         }
       } catch (e) {
         fileErrors.push({ corpus: repo.id, pack: "", path: file.rel, cause: "threw", line: null, message: e instanceof Error ? e.message : String(e) });
@@ -164,7 +164,8 @@ async function measure(options: Options): Promise<Report | null> {
     }
     repo.syntaxErrors.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line);
   }
-  findings.sort(compareFinding);
+  const rawMatches = matches.length;
+  const findings = distinctSites(matches);
   fileErrors.sort((a, b) => a.corpus < b.corpus ? -1 : a.corpus > b.corpus ? 1 : a.pack < b.pack ? -1 : a.pack > b.pack ? 1 : a.path < b.path ? -1 : a.path > b.path ? 1 : (a.line ?? 0) - (b.line ?? 0));
   const labelBySite = new Map(labels.map((label) => [siteKey(label), label]));
   const packs = prepared.map((pack) => finishPack(pack, findings, applied, labelBySite)).sort((a, b) => a.ns < b.ns ? -1 : a.ns > b.ns ? 1 : 0);
@@ -186,7 +187,7 @@ async function measure(options: Options): Promise<Report | null> {
   const fixtureDensity = combineDensity(prepared);
   return {
     schemaVersion: 1, engine: VERSIONS.engine, core: VERSIONS.core, evaluatorFingerprint: evaluationFingerprint(ROOT),
-    fpRate: rateOf(findings, labelBySite), limits: LIMITS,
+    fpRate: rateOf(findings, labelBySite), rawMatches, limits: LIMITS,
     corpus: repos.map(corpusResult), fixtureDensity,
     packs: packs.map(({ fixtureDensity: _density, ...pack }) => pack),
     findings, fileErrors, labeledSample,
@@ -554,7 +555,7 @@ function render(report: Report): string {
     "",
     `**False-positive rate: ${rateText(report.fpRate)}.**`,
     "",
-    `This run audited ${optional} optional pack${optional === 1 ? "" : "s"}${core ? " and the builtin core" : ""} against ${report.corpus.length} pinned ${report.corpus.length === 1 ? "tree" : "repositories"} (${report.corpus.reduce((sum, repo) => sum + repo.sourceFiles, 0)} source files) and recorded **${report.findings.length} raw findings**. ${rateSentence(report)} Fixture density for \`pregate rules test\` is separate: ${report.fixtureDensity.checks} checks, ${report.fixtureDensity.rules} rules, ${report.fixtureDensity.fixtures} fixtures, ${report.fixtureDensity.rulesWithNoPositiveFixture.length} rules with no positive fixture, and ${report.fixtureDensity.rulesWithNoNegativeFixture.length} rules with no negative fixture.`,
+    `This run audited ${optional} optional pack${optional === 1 ? "" : "s"}${core ? " and the builtin core" : ""} against ${report.corpus.length} pinned ${report.corpus.length === 1 ? "tree" : "repositories"} (${report.corpus.reduce((sum, repo) => sum + repo.sourceFiles, 0)} source files) and recorded **${report.findings.length} findings** (${report.rawMatches} raw match${report.rawMatches === 1 ? "" : "es"}; a site that a rule matched more than once is one finding). ${rateSentence(report)} Fixture density for \`pregate rules test\` is separate: ${report.fixtureDensity.checks} checks, ${report.fixtureDensity.rules} rules, ${report.fixtureDensity.fixtures} fixtures, ${report.fixtureDensity.rulesWithNoPositiveFixture.length} rules with no positive fixture, and ${report.fixtureDensity.rulesWithNoNegativeFixture.length} rules with no negative fixture.`,
     "",
     "Labeled sample (not a rate): " + `${report.labeledSample.correct} correct, ${report.labeledSample.falsePositive} false-positive, ${report.labeledSample.uncertain} uncertain, ${report.labeledSample.unlabeledFindings} unlabeled findings.`,
     "",
@@ -562,7 +563,7 @@ function render(report: Report): string {
     "",
     "1. Shallow-fetch each git corpus entry at its pinned commit into the gitignored cache (`.cache/false-positives` unless `--cache` is set). Reuse a clean cache whose HEAD is that commit. Verify the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves committed results untouched. A path entry must already be a checkout of its commit and is never skipped.",
     "2. For each pack, compile a shadow preset containing the builtin core and that pack's methodologies. Core methodologies are always part of a compiled preset. If the pack methodologies do not compile together, compile each methodology on its own.",
-    "3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. Fitness, diff, and placement checks are counted as not field-audited.",
+    "3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. One finding is one site: corpus, pack, methodology, rule, path, line, and symbol. A rule that matches that site more than once still produces one finding. Fitness, diff, and placement checks are counted as not field-audited.",
     "4. Run the same check execution as `pregate rules test` on every check, and count `pass` fixtures as negative and `fail` plus `trap` fixtures as positive.",
     "5. Apply labels from the label file. Each label names one site. The rate is `falsePositives / labeledFindings` only when every finding in that set is labeled `correct` or `false-positive`.",
     "",
@@ -603,7 +604,7 @@ function render(report: Report): string {
       return `| ${pack.ns} | ${pack.activation} | ${pack.findings} | ${rateText(pack.fpRate)} | ${pack.rulesAudited} | ${pack.idleRules} | ${skipped} | ${failures} | ${missingPositive} | ${missingNegative} |`;
     }),
     "",
-    "Idle rules are static rules that applied to no parsed file. Not field-audited rules are fitness, diff, or placement checks. A zero in Findings is a raw count, not a measured false-positive rate. A pack false-positive cell is `k / n` only when every finding that pack produced on this corpus is labeled `correct` or `false-positive`. Otherwise that cell stays unmeasured, and `k / n` still describes only this corpus.",
+    "Idle rules are static rules that applied to no parsed file. Not field-audited rules are fitness, diff, or placement checks. A zero in Findings is a raw count of sites, not a measured false-positive rate. A pack false-positive cell is `k / n` only when every finding that pack produced on this corpus is labeled `correct` or `false-positive`. Otherwise that cell stays unmeasured, and `k / n` still describes only this corpus.",
     "",
     ...compileSection(report),
     "## Labeled sample",
@@ -660,6 +661,21 @@ function excluded(rel: string): boolean { return rel.split("/").some((part) => E
 function appliedKey(pack: string, rule: string): string { return `${pack}\0${rule}`; }
 function siteKey(site: { corpus: string; pack: string; methodology: string; rule: string; path: string; line: number; symbol: string }): string {
   return [site.corpus, site.pack, site.methodology, site.rule, site.path, String(site.line), site.symbol].join("\0");
+}
+// One site is one finding. A rule that matches the same line of the same symbol more than once
+// (two `+` operands in one expression, two captures of one call) is still one site to label, so
+// the report, the per-pack counts, and the labeled sample count each site once.
+function distinctSites(matches: Finding[]): Finding[] {
+  const sorted = [...matches].sort(compareFinding);
+  const out: Finding[] = [];
+  let last: string | null = null;
+  for (const finding of sorted) {
+    const key = siteKey(finding);
+    if (key === last) continue;
+    last = key;
+    out.push(finding);
+  }
+  return out;
 }
 function compareFinding(a: Finding, b: Finding): number {
   return siteKey(a) < siteKey(b) ? -1 : siteKey(a) > siteKey(b) ? 1 : (a.measured ?? -1) - (b.measured ?? -1);

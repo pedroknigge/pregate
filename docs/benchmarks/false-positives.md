@@ -2,19 +2,19 @@
 
 **False-positive rate: unmeasured.**
 
-This run audited 45 optional packs and the builtin core against 8 pinned repositories (238 source files) and recorded **11737 raw findings**. The findings are not fully labeled, so the false-positive rate is unmeasured. Fixture density for `pregate rules test` is separate: 1114 checks, 1117 rules, 6281 fixtures, 0 rules with no positive fixture, and 0 rules with no negative fixture.
+This run audited 45 optional packs and the builtin core against 8 pinned repositories (238 source files) and recorded **9103 findings** (11737 raw matches; a site that a rule matched more than once is one finding). The findings are not fully labeled, so the false-positive rate is unmeasured. Fixture density for `pregate rules test` is separate: 1114 checks, 1117 rules, 6281 fixtures, 0 rules with no positive fixture, and 0 rules with no negative fixture.
 
-Labeled sample (not a rate): 11 correct, 12 false-positive, 0 uncertain, 11714 unlabeled findings.
+Labeled sample (not a rate): 11 correct, 11 false-positive, 0 uncertain, 9081 unlabeled findings.
 
 ## Method
 
 1. Shallow-fetch each git corpus entry at its pinned commit into the gitignored cache (`.cache/false-positives` unless `--cache` is set). Reuse a clean cache whose HEAD is that commit. Verify the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves committed results untouched. A path entry must already be a checkout of its commit and is never skipped.
 2. For each pack, compile a shadow preset containing the builtin core and that pack's methodologies. Core methodologies are always part of a compiled preset. If the pack methodologies do not compile together, compile each methodology on its own.
-3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. Fitness, diff, and placement checks are counted as not field-audited.
+3. Parse every tracked source file with an extension the engine supports, skipping `node_modules`, `vendor`, `dist`, `build`, `coverage`, `.next`, and `target`. Record static findings. One finding is one site: corpus, pack, methodology, rule, path, line, and symbol. A rule that matches that site more than once still produces one finding. Fitness, diff, and placement checks are counted as not field-audited.
 4. Run the same check execution as `pregate rules test` on every check, and count `pass` fixtures as negative and `fail` plus `trap` fixtures as positive.
 5. Apply labels from the label file. Each label names one site. The rate is `falsePositives / labeledFindings` only when every finding in that set is labeled `correct` or `false-positive`.
 
-Engine 0.0.1, core 0.0.1. Evaluator fingerprint `ed602e645e7acf4c7196039075c2cf1135bf8e31ecfc69a4e57f0ffb36124a79` covers `src`, `schema`, the parser wasm, and the Bun version that ran this script.
+Engine 0.0.1, core 0.0.1. Evaluator fingerprint `50ea49ff386c8ecd56cd6c35443ba0c762d4f5a99a079466fe9e42a2cb20bc6c` covers `src`, `schema`, the parser wasm, and the Bun version that ran this script.
 
 ## Corpus
 
@@ -87,23 +87,23 @@ A positive fixture is a valid `fail/` or `trap/` case. A negative fixture is a v
 | python | split | 3 | unmeasured | 10 | 0 | 0 | 0 | 0 | 0 |
 | react | combined | 0 | unmeasured | 13 | 0 | 0 | 0 | 0 | 0 |
 | react-native | combined | 1 | 1 / 1 | 10 | 0 | 0 | 0 | 0 | 0 |
-| redis | combined | 4686 | unmeasured | 8 | 0 | 0 | 0 | 0 | 0 |
+| redis | combined | 3039 | unmeasured | 8 | 0 | 0 | 0 | 0 | 0 |
 | rust | split | 0 | unmeasured | 8 | 8 | 0 | 0 | 0 | 0 |
 | security-audit | combined | 0 | unmeasured | 18 | 1 | 0 | 0 | 0 | 0 |
-| senior | combined | 4355 | unmeasured | 12 | 0 | 0 | 0 | 0 | 0 |
+| senior | combined | 3420 | unmeasured | 12 | 0 | 0 | 0 | 0 | 0 |
 | solana | combined | 0 | unmeasured | 12 | 0 | 0 | 0 | 0 | 0 |
 | supabase | combined | 0 | unmeasured | 10 | 2 | 0 | 0 | 0 | 0 |
 | svelte | combined | 0 | unmeasured | 13 | 2 | 0 | 0 | 0 | 0 |
 | sveltekit | combined | 0 | unmeasured | 12 | 12 | 0 | 0 | 0 | 0 |
-| tailwind | combined | 17 | unmeasured | 7 | 0 | 0 | 0 | 0 | 0 |
+| tailwind | combined | 6 | unmeasured | 7 | 0 | 0 | 0 | 0 | 0 |
 | testing | combined | 0 | unmeasured | 3 | 0 | 1 | 0 | 0 | 0 |
 | trpc | combined | 51 | unmeasured | 7 | 0 | 0 | 0 | 0 | 0 |
-| typescript | combined | 164 | unmeasured | 24 | 2 | 0 | 0 | 0 | 0 |
+| typescript | combined | 123 | unmeasured | 24 | 2 | 0 | 0 | 0 | 0 |
 | vercel | combined | 0 | unmeasured | 0 | 0 | 15 | 0 | 0 | 0 |
 | vibe-proof | combined | 55 | unmeasured | 17 | 0 | 0 | 0 | 0 | 0 |
 | vue | combined | 8 | unmeasured | 8 | 1 | 0 | 0 | 0 | 0 |
 
-Idle rules are static rules that applied to no parsed file. Not field-audited rules are fitness, diff, or placement checks. A zero in Findings is a raw count, not a measured false-positive rate. A pack false-positive cell is `k / n` only when every finding that pack produced on this corpus is labeled `correct` or `false-positive`. Otherwise that cell stays unmeasured, and `k / n` still describes only this corpus.
+Idle rules are static rules that applied to no parsed file. Not field-audited rules are fitness, diff, or placement checks. A zero in Findings is a raw count of sites, not a measured false-positive rate. A pack false-positive cell is `k / n` only when every finding that pack produced on this corpus is labeled `correct` or `false-positive`. Otherwise that cell stays unmeasured, and `k / n` still describes only this corpus.
 
 ## Compile errors
 
@@ -137,7 +137,6 @@ Idle rules are static rules that applied to no parsed file. Not field-audited ru
 | Verdict | Pack | Rule | Location | Note |
 | --- | --- | --- | --- | --- |
 | correct | clean-code | `clean-code/CC-FN-001` | classnames `bind.js:16` `parseValue` | parseValue occupies lines 16-42, past the rule's limit of 20. The finding reports measured 21. |
-| false-positive | tailwind | `tailwind/TW-DYN-001` | classnames `bind.js:49` `appendClass` | appendClass joins two runtime class strings with a space. It is not a Tailwind utility fragment hidden from the content scanner. |
 | false-positive | tailwind | `tailwind/TW-DYN-001` | classnames `bind.js:49` `appendClass` | appendClass joins two runtime class strings with a space. It is not a Tailwind utility fragment hidden from the content scanner. |
 | correct | typescript | `typescript/TS-ANY-001` | classnames `index.d.ts:11` `Mapping` | Mapping is declared as Record<string, any>, which is the explicit any this rule names. |
 | false-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | classnames `benchmarks/benchmarks.js:46` `runBenchmarks` | console.log prints the benchmark name. It is the runner's output, not a debug leftover in feature code. |
