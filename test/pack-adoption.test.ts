@@ -308,7 +308,7 @@ test("project update names sibling worktrees that pin another engine, with the e
   writeFileSync(join(sibling, ".pregate/pregate.lock.json"), JSON.stringify({ ...lock, engine: "0.0.0" }));
   const preview = p.cli(["update", "--project", "--preview"]);
   expect(preview.text).toContain(`Other worktrees of this repository pin another engine: ${slash(realpathSync(sibling))}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${slash(realpathSync(sibling))} --preview`);
+  expect(preview.text).toContain(`Review them together: pregate update --projects ${JSON.stringify(slash(realpathSync(sibling)))} --preview`);
 });
 
 test("multi-project --yes applies and commits each prepared project; --no-commit leaves the files uncommitted", () => {

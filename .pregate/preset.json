@@ -120,6 +120,7 @@
         "src/issue-submission.ts",
         "src/git.ts",
         "src/cli.ts",
+        "src/write-all.ts",
         "src/guided.ts",
         "src/guided-terminal.ts",
         "src/guided-review.ts",

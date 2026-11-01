@@ -80,6 +80,7 @@
         "src/issue-submission.ts",
         "src/git.ts",
         "src/cli.ts",
+        "src/write-all.ts",
         "src/guided.ts",
         "src/guided-terminal.ts",
         "src/guided-review.ts",
@@ -151,7 +152,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "de5c066bda9741bd5d4f07f81bcc4d3a2ff67de22cd0c43cb8e9302689c40c95",
+  "presetHash": "a801e41d1a834feba2532bbe841187443fd8ebcbf0fd6fdbd1640b5fcda02bb2",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5362,6 +5363,7 @@
           "src/issue-submission.ts",
           "src/git.ts",
           "src/cli.ts",
+          "src/write-all.ts",
           "src/guided.ts",
           "src/guided-terminal.ts",
           "src/guided-review.ts",

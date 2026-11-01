@@ -6,6 +6,7 @@ import pkg from "../package.json" with { type: "json" };
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { enable } from "../src/consent.ts";
 import { sha256 } from "../src/state.ts";
+import { slash } from "../src/paths.ts";
 
 // The compiled engine's Pre hook, cold (cache deleted) against warm (compiled lock reused).
 // Decisions must match. Changing the lock or a path rule must miss. A corrupt cache recompiles.
@@ -128,7 +129,7 @@ function decision(sample: Out): { code: number; stdout: string; stderr: string }
 }
 
 function cachePath(): string {
-  return join(xdgState, "pregate", "locks", `${sha256(repo)}.json`);
+  return join(xdgState, "pregate", "locks", `${sha256(slash(repo))}.json`);
 }
 
 function latencyReport(cold: Out[], warm: Out[]): string {

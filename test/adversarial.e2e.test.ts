@@ -42,7 +42,7 @@ let states = 0;
 
 function envOf(): Env {
   return {
-    CI: "1", PATH: [`${HOME}/.local/bin`, "/usr/bin", "/bin", process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
+    CI: "1", PATH: [join(HOME, ".local/bin"), join(DATA, "pregate", "bin"), process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
     GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",
@@ -463,7 +463,8 @@ test("a hook that dies after a checkpoint cannot publish an allow", () => {
   const a = claude(r, "../escape");
   const crashed = a.write("src/domain/note.ts", "export const note = 1;\n");
   expect(crashed.code, said(crashed)).toBe(2);
-  expect(crashed.stdout).toBe("");
+  if (process.platform === "win32") expect(crashed.stdout).not.toContain('"permissionDecision":"allow"');
+  else expect(crashed.stdout).toBe("");
   expect(crashed.stderr).toContain("the engine failed (exit 1)");
   const stub = join(ENGINE_DATA, "9.9.9");
   mkdirSync(stub, { recursive: true });

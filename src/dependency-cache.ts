@@ -1,6 +1,6 @@
 import { chmodSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, readSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
-import { absolutePath } from "./paths.ts";
+import { absolutePath, slash } from "./paths.ts";
 import { sha256, stateDir } from "./state.ts";
 import type { DependencyGraph } from "./dependencies.ts";
 
@@ -20,7 +20,8 @@ export interface DependencyCache extends DependencyGraph {
 // Persist the resolver's exact reads, including absent candidates. Never store
 // findings, forms or a passing verdict. A cache failure falls back to resolution.
 export function openDependencyCache(root: string): DependencyCache {
-  const cache: DependencyCache = { root, file: join(stateDir(), "dependencies", sha256(root) + ".json"), entries: new Map(), bytes: 0, dirty: false,
+  const canonicalRoot = slash(root);
+  const cache: DependencyCache = { root: canonicalRoot, file: join(stateDir(), "dependencies", sha256(canonicalRoot) + ".json"), entries: new Map(), bytes: 0, dirty: false,
     fingerprint: hashText,
     lookup: (path, text, context, hash, identity) => cachedDependencyInputs(cache, path, text, context, { hash, identity }),
     remember: (path, text, context, inputs, identity) => rememberDependencyInputs(cache, path, text, context, { inputs, identity }),
