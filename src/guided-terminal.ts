@@ -1,14 +1,14 @@
-import { writeSync } from "node:fs";
 import type { Interface } from "node:readline/promises";
 import { visible } from "./contract.ts";
 import { APPROVAL_MS } from "./approval.ts";
+import { writeAll } from "./write-all.ts";
 
 export function interactiveTerminal(): boolean {
   return !!process.stdin.isTTY && !!process.stdout.isTTY && !process.env.CI;
 }
 
 export function say(text: string): void {
-  writeSync(1, Buffer.from(visible(text) + "\n", "utf8"));
+  writeAll(1, Buffer.from(visible(text) + "\n", "utf8"));
 }
 
 // Each question releases its reader before contract approval opens the human TTY.

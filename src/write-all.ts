@@ -3,10 +3,12 @@ import { writeSync } from "node:fs";
 const RETRYABLE = new Set(["EAGAIN", "EWOULDBLOCK", "EINTR"]);
 const pause = new Int32Array(new SharedArrayBuffer(4));
 
-// stdout is non-blocking in the compiled binary. A pipe that is full returns EAGAIN
-// instead of a short count: the bytes were not accepted, so the write is not finished.
-// Wait for the reader and continue. Any other error still fails the command.
-export function writeAll(fd: number, bytes: Buffer): void {
+// Bun makes a piped stdout or stderr non-blocking as soon as `process.stdout` or
+// `process.stderr` is touched (even `.isTTY`). A write to that pipe then accepts only what
+// fits: a short count, or EAGAIN when it is full. Neither finishes the write, so wait for
+// the reader and continue. Any other error still fails the command.
+export function writeAll(fd: number, data: string | Uint8Array): void {
+  const bytes = typeof data === "string" ? Buffer.from(data, "utf8") : data;
   let offset = 0;
   while (offset < bytes.length) {
     try {

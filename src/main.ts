@@ -1,5 +1,6 @@
-import { readFileSync, writeSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
 import { HARNESSES, profile } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
@@ -28,7 +29,7 @@ async function main(argv: string[]): Promise<number> {
   const input = await readStdin(), raw = input.text;
   // Oversized and stalled input read as empty text but are invalid: they keep their rejection.
   if (argv.length === 0 && !input.invalid && blank(raw)) {
-    writeSync(2, NO_COMMAND);
+    writeAll(2, NO_COMMAND);
     return 0;
   }
   const env = harnessEnv();
@@ -46,13 +47,13 @@ async function main(argv: string[]): Promise<number> {
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
   if (pin !== null) {
-    writeSync(1, `${pin}\n${kind === "pre" ? raw : ""}`);
+    writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;
   }
   const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut)) : adapter.encode(e.kind, await dispatch(e, gate));
   // One write per channel: the launcher captures them to files.
-  if (out.stdout !== "") writeSync(1, out.stdout);
-  if (out.stderr !== "") writeSync(2, out.stderr);
+  if (out.stdout !== "") writeAll(1, out.stdout);
+  if (out.stderr !== "") writeAll(2, out.stderr);
   return out.exit;
 }
 
@@ -62,8 +63,8 @@ async function superviseEngine(argv: string[]): Promise<number> {
   const input = await readStdin();
   const { supervise } = await import("./supervisor.ts");
   const out = await supervise(argv[1]!, argv[2]!, argv.slice(3), input.bytes, { startedAt, inputTimeout: input.timedOut, invalid: input.invalid });
-  if (out.stdout) writeSync(1, out.stdout);
-  if (out.stderr) writeSync(2, out.stderr);
+  if (out.stdout) writeAll(1, out.stdout);
+  if (out.stderr) writeAll(2, out.stderr);
   return out.exit;
 }
 
@@ -82,7 +83,7 @@ function dormant(e: HookEvent | Rejected | null, adapter: (typeof HARNESSES)[Har
   const line = e !== null && !("cause" in e) && e.kind === "session-start" ? dormantNotice(e.cwd) : null;
   if (line === null) return 0;
   const out = adapter.encode("session-start", told(null, line));
-  if (out.stdout !== "") writeSync(1, out.stdout);
+  if (out.stdout !== "") writeAll(1, out.stdout);
   return 0;
 }
 

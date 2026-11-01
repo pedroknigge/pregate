@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeSync, closeSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readFileSync, rmSync, closeSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { writeAll } from "./write-all.ts";
 import type { Interface } from "node:readline/promises";
 import type { ReadStream } from "node:tty";
 import { approvalText } from "./contract.ts";
@@ -100,11 +101,11 @@ export async function approve(summary: string, warning: boolean, yes = false): P
   const prompting = answer !== undefined ? !yes : !(process.env.CI && yes);
   const text = Buffer.from(approvalText(summary, warning, prompting), "utf8");
   if (answer !== undefined) {
-    writeSync(1, text);
+    writeAll(1, text);
     return /^(y|yes)$/i.test(answer.trim());
   }
   if (process.env.CI && yes) {
-    writeSync(1, text);
+    writeAll(1, text);
     return true;
   }
   // The caller's stdin must be a terminal. A pipe that contains "y" is the agent, not the human.
@@ -124,8 +125,8 @@ type Prompt = { fd: number; text: Buffer; input: ReadStream; terminal: Interface
 async function terminalAnswer(prompt: Prompt): Promise<boolean> {
   try {
     // Materialize UTF-8 bytes once: no subprocess argv, format string or rope conversion.
-    if (WINDOWS) writeSync(2, prompt.text);
-    else writeSync(prompt.fd, prompt.text);
+    if (WINDOWS) writeAll(2, prompt.text);
+    else writeAll(prompt.fd, prompt.text);
     return /^(y|yes)$/i.test((await prompt.terminal.question("", { signal: prompt.signal })).trim());
   } catch {
     return false;
