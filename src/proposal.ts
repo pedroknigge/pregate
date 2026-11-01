@@ -33,14 +33,14 @@ export function engineLabel(stamp: EngineStamp): string {
   return `${stamp.version}${stamp.source ? " (run from source)" : ""}`;
 }
 
-function proposalFile(root: string, data: string): string { return join(data, "proposals", `${H(root)}.json`); }
+function proposalFile(root: string, data: string): string { return join(data, "proposals", `${H(slash(root))}.json`); }
 
 // One pending proposal per root: a newer one (another agent's, a retry) replaces it, and its review
 // names the replaced approval code so nobody approves the wrong change. With `stable`, an identical
 // rerun (an agent repeating a preview) keeps the earlier proposal and the code the human already
 // saw, unless half its approval window is gone. Guided flows always re-prepare.
 export function proposeContract(input: Omit<Proposal, "at" | "engine">, stable = false): Proposal {
-  const proposal = { ...input, engine: engineStamp() };
+  const proposal = { ...input, root: slash(input.root), engine: engineStamp() };
   const file = proposalFile(proposal.root, dataHome());
   mkdirSync(dirname(file), { recursive: true });
   const earlier = readProposal(proposal.root);
@@ -62,7 +62,7 @@ export function readProposal(root: string, data = dataHome()): Proposal | null {
   const file = proposalFile(root, data);
   if (!existsSync(file)) return null;
   const proposal = JSON.parse(readFileSync(file, "utf8")) as Proposal;
-  if (proposal.root === root && Date.now() - proposal.at <= PENDING_MS) return proposal;
+  if (slash(proposal.root) === slash(root) && Date.now() - proposal.at <= PENDING_MS) return proposal;
   discardProposal(root, data);
   return null;
 }

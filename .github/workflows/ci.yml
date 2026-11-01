@@ -98,7 +98,7 @@ jobs:
           dist/pregate-*-linux-x64/pregate check --ratchet --base "$BASE"
   windows:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:

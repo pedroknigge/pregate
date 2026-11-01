@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { progressOutput } from "../src/progress.ts";
+
+const progressModule = JSON.stringify(fileURLToPath(new URL("../src/progress.ts", import.meta.url)));
 
 test("checkpoint output preserves ordinary stderr byte for byte", () => {
   for (const stderr of ["", "note", "note\n", "\r\n", "PREGATE-CHECKPOINT unknown\n", "PREGATE-CHECKPOINT rules /private/source\n"]) {
@@ -34,7 +37,7 @@ test("a later review resets its duration and a later stage does not attribute a 
 });
 
 test("a real review emits winning alias IDs and bounds oversized diagnostic lists", () => {
-  const script = `import { checkpoint, importReviewProgress } from ${JSON.stringify(new URL("../src/progress.ts", import.meta.url).pathname)};
+  const script = `import { checkpoint, importReviewProgress } from ${progressModule};
     checkpoint("dependency-review");
     const result = importReviewProgress(["architecture/FCIS-DEP-001", "architecture/FCIS-IO-001"], () => 42);
     if (result !== 42) process.exit(1);
@@ -79,7 +82,7 @@ test("a Stop root ordinal names the fan-out and restarts the stage for the next 
   for (const marker of ["PREGATE-STOP-ROOT 0/19 /work\n", "PREGATE-STOP-ROOT 1/19 relative\n", "PREGATE-STOP-ROOT 1/19\n"]) {
     expect(progressOutput(marker)).toEqual({ stderr: marker, detail: "" });
   }
-  const script = `import { checkpoint, stopRootProgress } from ${JSON.stringify(new URL("../src/progress.ts", import.meta.url).pathname)};
+  const script = `import { checkpoint, stopRootProgress } from ${progressModule};
     stopRootProgress(1, 2, "/a"); checkpoint("stop-inventory"); stopRootProgress(2, 2, "/b"); checkpoint("stop-inventory");`;
   const run = Bun.spawnSync([process.execPath, "-e", script], { env: { ...process.env, PREGATE_PROGRESS: "1" }, stdout: "pipe", stderr: "pipe" });
   expect(run.stderr.toString()).toBe("PREGATE-STOP-ROOT 1/2 /a\nPREGATE-CHECKPOINT stop-inventory\nPREGATE-STOP-ROOT 2/2 /b\nPREGATE-CHECKPOINT stop-inventory\n");

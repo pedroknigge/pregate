@@ -125,8 +125,12 @@ function writtenLock(root: string): Lock | null {
 }
 
 function pinnedAdmits(engine: string, root: string): boolean {
-  const run = Bun.spawnSync([engine, "status", "--json"], { cwd: root, stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: 10_000 });
-  return run.exitCode === 0 && validContract(run.stdout.toString());
+  try {
+    const run = Bun.spawnSync([engine, "status", "--json"], { cwd: root, stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: 10_000 });
+    return run.exitCode === 0 && validContract(run.stdout.toString());
+  } catch {
+    return false;   // an engine image that cannot be started does not admit the lock
+  }
 }
 
 function validContract(status: string): boolean {

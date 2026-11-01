@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, openSync, readFileSync, readSync, writeSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { applyPreset } from "./approval-command.ts";
 import { auditFile, auditRules, auditSummaryCollector, type AuditError, type AuditFinding } from "./audit.ts";
@@ -20,6 +20,7 @@ import { fileRole, refactorPlan, refactorPlanText } from "./refactor-plan.ts";
 import { sarifReport } from "./sarif.ts";
 import type { Lock, LockRule, Preset, Read } from "./types.ts";
 import { cachedAnalysis, openAuditCache, rememberAnalysis, saveAuditCache, type AuditCache } from "./audit-cache.ts";
+import { writeAll } from "./write-all.ts";
 
 const EVALUATOR = (require("./embedded.ts") as typeof import("./embedded.ts")).evaluator();
 
@@ -50,13 +51,7 @@ async function completedAudit(args: string[], emit: Emit): Promise<{ code: numbe
 }
 
 function writeRecord(record: Record<string, unknown>): void {
-  const bytes = Buffer.from(JSON.stringify(record) + "\n", "utf8");
-  let offset = 0;
-  while (offset < bytes.length) {
-    const written = writeSync(1, bytes, offset, bytes.length - offset);
-    if (written === 0) throw new Error("Audit output stopped accepting records.");
-    offset += written;
-  }
+  writeAll(1, Buffer.from(JSON.stringify(record) + "\n", "utf8"));
 }
 
 function auditOptions(args: string[]): AuditOptions | { code: number; text: string } {

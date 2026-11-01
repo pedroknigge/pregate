@@ -96,13 +96,15 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     // The pinned engine decides admission: one that refuses the lock (stale or edited for it) serves nothing.
     const pinned = join(data, "0.2.5", ENGINE_FILE);
     const pinnedEngine = (valid: boolean) => { put(pinned, `#!/bin/sh\necho '{"contract":{"valid":${valid}}}'\n`); chmodSync(pinned, 0o755); };
-    pinnedEngine(false);
-    expect(protectionStatus(root)).toMatchObject({ state: "degraded", servedBy: null, rules: [] });
-    pinnedEngine(true);
-    const served = protectionStatus(root);
-    expect(served).toMatchObject({ state: "active", servedBy: "0.2.5", contract: { valid: false } });
-    expect(served.rules.length).toBeGreaterThan(0);
-    expect(statusText({ ...served, engine: "0.3.0" })).toContain("Update ready: project pins 0.2.5, which still answers its hooks, installed 0.3.0.");
+    if (!WINDOWS) {
+      pinnedEngine(false);
+      expect(protectionStatus(root)).toMatchObject({ state: "degraded", servedBy: null, rules: [] });
+      pinnedEngine(true);
+      const served = protectionStatus(root);
+      expect(served).toMatchObject({ state: "active", servedBy: "0.2.5", contract: { valid: false } });
+      expect(served.rules.length).toBeGreaterThan(0);
+      expect(statusText({ ...served, engine: "0.3.0" })).toContain("Update ready: project pins 0.2.5, which still answers its hooks, installed 0.3.0.");
+    }
     // A pending review names its code; a batch only while it binds this project's current review.
     const proposal = proposeContract({ root, lockText: r.text, baseline: "", writes: [] });
     const own = sha256(JSON.stringify(proposal));

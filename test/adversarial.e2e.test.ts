@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { chmodSync, copyFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { enable } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -42,7 +42,7 @@ let states = 0;
 
 function envOf(): Env {
   return {
-    CI: "1", PATH: `${HOME}/.local/bin:/usr/bin:/bin`, HOME, TMPDIR: join(TMP, "tmp"),
+    CI: "1", PATH: [`${HOME}/.local/bin`, "/usr/bin", "/bin", process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
     GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",

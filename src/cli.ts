@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
@@ -13,6 +13,7 @@ import { guide } from "./guided.ts";
 import { validateContract } from "./contract.ts";
 import { dirname, join, resolve } from "node:path";
 import { relativePath as relative } from "./paths.ts";
+import { writeAll } from "./write-all.ts";
 import { applyRequest, listChecks } from "./compile.ts";
 import { canonical, findRoot, readStdin, readTree, STDIN_TIMEOUT, writeAtomic } from "./disk.ts";
 import { disable, enable } from "./consent.ts";
@@ -96,17 +97,6 @@ export async function run(argv: string[]): Promise<number> {
   const text = withholdApprovalCode(r.text);
   if (text !== "") writeAll(1, Buffer.from(`${text}\n`, "utf8"));
   return r.code;
-}
-
-// A pipe can accept a short write. Audit JSON is larger than a pipe buffer, so keep writing until
-// every byte is out; a short write would otherwise cut the report off mid-string.
-function writeAll(fd: number, bytes: Buffer): void {
-  let offset = 0;
-  while (offset < bytes.length) {
-    const wrote = writeSync(fd, bytes, offset, bytes.length - offset);
-    if (wrote <= 0) throw new Error("Could not write command output.");
-    offset += wrote;
-  }
 }
 
 async function command([cmd, ...args]: string[]): Promise<Result> {

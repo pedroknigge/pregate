@@ -9,6 +9,7 @@ import { WINDOWS } from "../src/platform.ts";
 import { compareVersions } from "../src/product.ts";
 import { pinnedEngine, staleProjects } from "../src/project-updates.ts";
 import { VERSIONS } from "../src/versions.ts";
+import { slash } from "../src/paths.ts";
 
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-registry-")));
 afterAll(() => rmSync(area, { recursive: true, force: true }));
@@ -38,7 +39,7 @@ test("the consent registry lists enabled and disabled projects, skipping reposit
   rmSync(join(gone, ".pregate"), { recursive: true });
   put(join(data, "consent/damaged.json"), "{");
   put(join(data, "consent/repo.json"), JSON.stringify({ repo: join(area, ".git") }));
-  expect(consentedRoots(data)).toEqual([{ root: off, enabled: false }, { root: on, enabled: true }]);
+  expect(consentedRoots(data)).toEqual([{ root: slash(off), enabled: false }, { root: slash(on), enabled: true }]);
   expect(consentedRoots(join(area, "data-empty"))).toEqual([]);
 });
 

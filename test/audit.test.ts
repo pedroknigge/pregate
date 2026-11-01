@@ -1,4 +1,7 @@
 import { expect, setDefaultTimeout, test } from "bun:test";
+
+// Windows rejects ESC in a file name. POSIX keeps it so the report must escape the byte.
+const HOSTILE = process.platform === "win32" ? "" : "\u001b";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -97,7 +100,7 @@ function humanAuditFixture() {
   const compiled = compile(text, sourcesOf(root), VERSIONS);
   if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
   writeFileSync(join(root, LOCK), compiled.text);
-  for (let i = 0; i < 30; i++) writeFileSync(join(root, `src/domain/debt${String(i).padStart(2, "0")}${i === 0 ? "\u001b" : ""}.ts`),
+  for (let i = 0; i < 30; i++) writeFileSync(join(root, `src/domain/debt${String(i).padStart(2, "0")}${i === 0 ? HOSTILE : ""}.ts`),
     "export function debt(a: number, b: number, c: number) { return a + b + c; }\n");
   for (let i = 0; i < 6; i++) {
     writeFileSync(join(root, `src/domain/syntax${i}.ts`), "export const = ;\n");
@@ -120,7 +123,7 @@ test("compact human audit bounds every detail category while full and machine ou
       expect(output.text).toContain("30 violations in 30 files");
       expect(output.text).toContain("0 verified; 0 failed; 64 unverified requirements");
       expect(output.text).toContain("Existing debt is included");
-      expect(output.text).not.toContain("\u001b"); expect(output.text).toContain("debt00\\u001b.ts:1");
+      if (HOSTILE !== "") { expect(output.text).not.toContain(HOSTILE); expect(output.text).toContain("debt00\\u001b.ts:1"); }
     }
     expect(compact.text).toContain("Locations (showing 25 of 30)");
     expect(compact.text.match(/    Fix:/g)).toHaveLength(1);
@@ -157,7 +160,7 @@ test("compact human audit preserves debt and clean exit codes and the complete r
     expect((await audit(["--repo", root, "--strict"])).code).toBe(1);
     expect(plan.text).toContain("Locations (showing 25 of 30)"); expect(plan.text).toContain("debt29.ts");
     expect(plan.text.slice(plan.text.indexOf("Refactoring plan (advisory):"))).toBe(fullPlan.text.slice(fullPlan.text.indexOf("Refactoring plan (advisory):")));
-    for (let i = 0; i < 30; i++) writeFileSync(join(root, `src/domain/debt${String(i).padStart(2, "0")}${i === 0 ? "\u001b" : ""}.ts`), "export {};\n");
+    for (let i = 0; i < 30; i++) writeFileSync(join(root, `src/domain/debt${String(i).padStart(2, "0")}${i === 0 ? HOSTILE : ""}.ts`), "export {};\n");
     for (const flags of [[], ["--full"], ["--json"]]) expect((await audit(["--repo", root, ...flags])).code).toBe(0);
   });
 });

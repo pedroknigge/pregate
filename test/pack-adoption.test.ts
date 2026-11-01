@@ -6,6 +6,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { packTemplate } from "../src/pack-template.ts";
 import { VERSIONS } from "../src/versions.ts";
+import { slash } from "../src/paths.ts";
 import { librarySource } from "../src/library.ts";
 import type { Preset } from "../src/types.ts";
 
@@ -200,7 +201,7 @@ test("a newer engine or core pin is held, never downgraded, and a held project i
     expect(result.text).not.toContain("Digest:");
     expect(p.contract()).toEqual(before);
   }
-  const held = `1 projects pin a newer engine, core or pack than this engine and are not current: ${realpathSync(p.root)}.`;
+  const held = `1 projects pin a newer engine, core or pack than this engine and are not current: ${slash(realpathSync(p.root))}.`;
   const preview = p.cli(["update", "--projects", p.root, current.root, "--preview"]);
   expect(preview.code).toBe(0);
   expect(preview.text).toContain(held);
@@ -210,7 +211,7 @@ test("a newer engine or core pin is held, never downgraded, and a held project i
   const applied = p.cli(["update", "--projects", p.root, current.root, "--yes"]);
   expect(applied.code).toBe(1);
   expect(applied.text).toContain(held);
-  expect(applied.text).not.toContain(`Current ${realpathSync(p.root)}: already current`);
+  expect(applied.text).not.toContain(`Current ${slash(realpathSync(p.root))}: already current`);
   expect(p.contract()).toEqual(before);
   const diagnosis = JSON.parse(p.cli(["preset", "diagnose", "--json"]).text).errors.join("\n");
   for (const line of lines) expect(diagnosis).toContain(line);
@@ -306,8 +307,8 @@ test("project update names sibling worktrees that pin another engine, with the e
   const lock = JSON.parse(readFileSync(join(sibling, ".pregate/pregate.lock.json"), "utf8"));
   writeFileSync(join(sibling, ".pregate/pregate.lock.json"), JSON.stringify({ ...lock, engine: "0.0.0" }));
   const preview = p.cli(["update", "--project", "--preview"]);
-  expect(preview.text).toContain(`Other worktrees of this repository pin another engine: ${realpathSync(sibling)}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${realpathSync(sibling)} --preview`);
+  expect(preview.text).toContain(`Other worktrees of this repository pin another engine: ${slash(realpathSync(sibling))}.`);
+  expect(preview.text).toContain(`Review them together: pregate update --projects ${slash(realpathSync(sibling))} --preview`);
 });
 
 test("multi-project --yes applies and commits each prepared project; --no-commit leaves the files uncommitted", () => {
@@ -335,7 +336,7 @@ test("multi-project --yes applies and commits each prepared project; --no-commit
   const applied = a.cli(["update", "--projects", a.root, b.root, "--yes"]);
   expect(applied.code, applied.text).toBe(0);
   for (const p of repos) {
-    expect(applied.text).toContain(`Updated ${realpathSync(p.root)}: Committed 1 file (.pregate/) as `);
+    expect(applied.text).toContain(`Updated ${slash(realpathSync(p.root))}: Committed 1 file (.pregate/) as `);
     expect(git(p.root, "status", "--porcelain")).toBe("");
     expect(git(p.root, "log", "-1", "--format=%s")).toStartWith("chore: apply reviewed PREGATE contract ");
   }
@@ -344,7 +345,7 @@ test("multi-project --yes applies and commits each prepared project; --no-commit
   const kept = a.cli(["update", "--projects", a.root, b.root, "--yes", "--no-commit"]);
   expect(kept.code, kept.text).toBe(0);
   for (const p of repos) {
-    expect(kept.text).toContain(`Updated ${realpathSync(p.root)}: Approved contract applied and lock compiled.`);
+    expect(kept.text).toContain(`Updated ${slash(realpathSync(p.root))}: Approved contract applied and lock compiled.`);
     expect(git(p.root, "status", "--porcelain")).toContain(".pregate/preset.json");
   }
   const current = a.cli(["update", "--projects", a.root, b.root, "--preview"]);
@@ -361,8 +362,8 @@ test("a single-project update preview names other registered projects that pin o
     expect(p.cli(["enable", "--yes"], main.env).code).toBe(0);
   }
   const preview = main.cli(["update", "--project", "--preview"]);
-  expect(preview.text).toContain(`1 other registered projects pin older engines: ${realpathSync(other.root)}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${JSON.stringify(realpathSync(other.root))} --preview`);
+  expect(preview.text).toContain(`1 other registered projects pin older engines: ${slash(realpathSync(other.root))}.`);
+  expect(preview.text).toContain(`Review them together: pregate update --projects ${JSON.stringify(slash(realpathSync(other.root)))} --preview`);
   expect(preview.text).not.toContain("registry newer");
 });
 
@@ -382,7 +383,7 @@ test("multi-project update validates every path and candidate before applying an
   // A preview reports each project: one broken project does not hide the review of another.
   const preview = a.cli(["update", "--projects", a.root, b.root, "--preview"]);
   expect(preview.code).toBe(1);
-  expect(preview.text).toContain(`1 project reviews failed: ${realpathSync(b.root)}.`);
+  expect(preview.text).toContain(`1 project reviews failed: ${slash(realpathSync(b.root))}.`);
   expect(preview.text).toContain("1 project reviews prepared; 0 already current. No project contracts changed.");
   expect([a.contract(), b.contract()]).toEqual(before);
 });

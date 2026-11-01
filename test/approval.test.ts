@@ -59,5 +59,20 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
 }, 30_000);
 
 function removedAfter(area: string, use: (area: string) => void): void {
-  try { use(area); } finally { rmSync(area, { recursive: true, force: true }); }
+  try { use(area); } finally { removeTree(area); }
+}
+
+// Windows keeps a just-executed pregate.exe mapped for a moment. The test already finished;
+// the delete is repeated only while the image is still locked, and a lasting lock still fails.
+function removeTree(area: string): void {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try { rmSync(area, { recursive: true, force: true }); return; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EBUSY" && code !== "EPERM" && code !== "ENOTEMPTY") throw error;
+      Atomics.wait(pause, 0, 0, 50);
+    }
+  }
+  rmSync(area, { recursive: true, force: true });
 }

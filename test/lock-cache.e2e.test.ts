@@ -1,7 +1,7 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { enable } from "../src/consent.ts";
@@ -29,7 +29,7 @@ process.env.XDG_STATE_HOME = xdgState;
 const env: Record<string, string> = {
   ...process.env,
   HOME: home, XDG_DATA_HOME: xdgData, XDG_STATE_HOME: xdgState, TMPDIR: join(work, "tmp"),
-  PATH: "/usr/bin:/bin", GIT_CONFIG_NOSYSTEM: "1",
+  PATH: ["/usr/bin", "/bin", process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), GIT_CONFIG_NOSYSTEM: "1",
   GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
   GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",
 } as Record<string, string>;
