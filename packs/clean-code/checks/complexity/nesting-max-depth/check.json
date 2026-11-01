@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "clean-code/complexity/nesting-max-depth",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "complexity",
   "cardinality": "singleton",
   "dimension": "clean-code.control.nesting",
@@ -24,6 +24,6 @@
     "ci"
   ],
   "feedback": {
-    "message": "{symbol} has {measured} levels of control-flow nesting (limit {limit}). Extract nested branches or use early returns."
+    "message": "{symbol} has {measured} levels of control-flow nesting (limit {limit}). Extract nested branches. An if that only returns, continues, breaks, or throws is a guard clause and is not counted."
   }
 }

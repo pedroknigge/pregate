@@ -54,6 +54,12 @@ test("Python public methods are declared names, including decorators, excluding 
   });
 });
 
+test("guard clauses do not add TypeScript nesting depth", () => {
+  parsed("a.ts", "export function keep(items: { parts: { ok: boolean }[] }[]): number {\n  for (const item of items) {\n    if (!item) continue;\n    for (const part of item.parts) {\n      if (!part.ok) {\n        continue;\n      }\n      if (part.ok) return 1;\n    }\n  }\n  return 0;\n}\n", (p) => {
+    expect(nestings(p).map((x) => [x.line, x.measured])).toEqual([[2, 1], [4, 2]]);
+  });
+});
+
 test("Python nesting covers mixed controls and resets at nested functions", () => {
   parsed("a.py", "def f():\n    if a:\n        for item in items:\n            with resource:\n                pass\n            def nested():\n                while ready:\n                    pass\n    elif b:\n        for item in items:\n            pass\n", (p) => {
     expect(nestings(p).map((x) => [x.line, x.measured, x.symbol])).toEqual([

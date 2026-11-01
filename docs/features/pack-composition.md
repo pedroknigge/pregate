@@ -77,7 +77,7 @@ for protocol boundaries and outstanding runtime verification.
 
 ```sh
 pregate pack enable docs-demo/migration --preview
-pregate pack enable typescript/strict-types --only TS-ANY-001,TS-BANG-001 --preview
+pregate pack enable typescript/strict-types --only TS-SWITCH-001 --preview
 ```
 
 The second example requires the `typescript` source to be registered first.

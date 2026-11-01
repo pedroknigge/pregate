@@ -11,7 +11,7 @@
         {
           "with": "clean-code/CC-NEST-001",
           "kind": "duplicates",
-          "why": "Both measure control-flow nesting depth in TypeScript and JavaScript functions with a default maximum of 2.",
+          "why": "Both measure control-flow nesting depth in TypeScript and JavaScript functions. clean-code/CC-NEST-001 defaults to 4 and ignores guard clauses. maintainability/MAINT-NEST-001 defaults to 2.",
           "settle": "Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit."
         }
       ],
@@ -23,7 +23,7 @@
         "locator": "FH Rule 24 / SE Rule 40",
         "paraphrase": "Control-flow nesting never exceeds two levels; deeper decisions are named functions."
       },
-      "why": "Deeply nested control structures strain working memory and obscure intent for future readers.",
+      "why": "Deeply nested control structures strain working memory and obscure intent for future readers. An if whose body is only a return, continue, break, or throw is a guard clause and does not add a level.",
       "fixHint": "Extract inner conditionals into small, well-named helper functions or use early return guard clauses.",
       "avoid": "Hiding deep nesting in loops, switch branches, try blocks, or mixed control structures.",
       "examples": {

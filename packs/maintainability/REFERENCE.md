@@ -7426,7 +7426,7 @@ Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `control.nesting`. Minimum severity: `none`.
 
-Deeply nested control structures strain working memory and obscure intent for future readers.
+Deeply nested control structures strain working memory and obscure intent for future readers. An if whose body is only a return, continue, break, or throw is a guard clause and does not add a level.
 
 Default parameters: `{"max":2}`.
 
@@ -7436,7 +7436,7 @@ Default parameters: `{"max":2}`.
 
 **Interactions when active together:**
 
-- Duplicates `clean-code/CC-NEST-001`: Both measure control-flow nesting depth in TypeScript and JavaScript functions with a default maximum of 2. Settle: Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit.
+- Duplicates `clean-code/CC-NEST-001`: Both measure control-flow nesting depth in TypeScript and JavaScript functions. clean-code/CC-NEST-001 defaults to 4 and ignores guard clauses. maintainability/MAINT-NEST-001 defaults to 2. Settle: Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

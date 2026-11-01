@@ -2,7 +2,7 @@
   "$schema": "../../../../../../../schema/fixture.v1.json",
   "language": "typescript",
   "params": {
-    "max": 2
+    "max": 4
   },
   "target": "src/orders/discount.ts",
   "before": null,

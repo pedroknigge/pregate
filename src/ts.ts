@@ -5,7 +5,7 @@ import type { Node, Parser, Tree, TreeCursor } from "web-tree-sitter";
 import type { CodeImport, Grammar, ScopeKind } from "./types.ts";
 import { commentKinds, grammarOf } from "./languages.ts";
 import { RUST_FUNCTIONS, rustFunctions, rustImports, rustNestings, rustSymbol } from "./rust-facts.ts";
-import { languageClasses, languageFunctions, languageImports, languageNestings, languageSymbol, OTHER_CLASSES, OTHER_FUNCTIONS } from "./language-facts.ts";
+import { isGuardClause, languageClasses, languageFunctions, languageImports, languageNestings, languageSymbol, OTHER_CLASSES, OTHER_FUNCTIONS } from "./language-facts.ts";
 export { grammarOf } from "./languages.ts";
 
 export type { Node };
@@ -105,18 +105,20 @@ const FUNCTION_KINDS = [
 const CONTROL_KINDS = ["if_statement", "for_statement", "for_in_statement", "while_statement", "do_statement", "switch_statement", "try_statement"];
 
 // Blocks do not add depth; else-if stays at its branch's depth. A nested function starts anew.
+// A guard clause (if with no else whose body is only return, continue, break, or throw) is not a level.
 export function nestings(p: Parsed): { symbol: string; line: number; measured: number; own: null }[] {
   if (grammarOf(p.rel) === "rust") return rustNestings(p);
   if (["python", "go"].includes(grammarOf(p.rel)!)) return languageNestings(p);
-  return descendants(p.root, CONTROL_KINDS).map((node) => {
+  return descendants(p.root, CONTROL_KINDS).flatMap((node) => {
+    if (isGuardClause(node)) return [];
     let depth = 1;
     let child = node;
     for (let parent = node.parent; parent !== null && !FUNCTION_KINDS.includes(parent.type); parent = parent.parent) {
       const chain = child.type === "if_statement" || (child.type === "else_clause" && child.namedChildren.some((n) => n.type === "if_statement"));
-      if (CONTROL_KINDS.includes(parent.type) && !(chain && parent.type === "if_statement" && parent.childForFieldName("alternative")?.id === child.id)) depth++;
+      if (CONTROL_KINDS.includes(parent.type) && !(chain && parent.type === "if_statement" && parent.childForFieldName("alternative")?.id === child.id) && !isGuardClause(parent)) depth++;
       child = parent;
     }
-    return { symbol: symbolOf(node), line: lineOf(node), measured: depth, own: null };
+    return [{ symbol: symbolOf(node), line: lineOf(node), measured: depth, own: null }];
   });
 }
 // The "statement" supertype of the grammar, without blocks and empty statements.

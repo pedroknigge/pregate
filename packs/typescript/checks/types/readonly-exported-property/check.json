@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "typescript/types/readonly-exported-property",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "area": "types",
   "cardinality": "singleton",
   "dimension": "types.readonly-export",
@@ -16,7 +16,33 @@
           "rule": {
             "kind": "property_signature",
             "not": {
-              "regex": "^\\s*readonly\\b"
+              "any": [
+                {
+                  "regex": "^\\s*readonly\\b"
+                },
+                {
+                  "inside": {
+                    "stopBy": "end",
+                    "kind": "interface_declaration",
+                    "has": {
+                      "field": "name",
+                      "kind": "type_identifier",
+                      "regex": "^(?:[A-Z][A-Za-z0-9]*)?(?:Options|Config|Configuration|Input)(?:[A-Z][A-Za-z0-9]*)?$"
+                    }
+                  }
+                },
+                {
+                  "inside": {
+                    "stopBy": "end",
+                    "kind": "type_alias_declaration",
+                    "has": {
+                      "field": "name",
+                      "kind": "type_identifier",
+                      "regex": "^(?:[A-Z][A-Za-z0-9]*)?(?:Options|Config|Configuration|Input)(?:[A-Z][A-Za-z0-9]*)?$"
+                    }
+                  }
+                }
+              ]
             },
             "inside": {
               "stopBy": {

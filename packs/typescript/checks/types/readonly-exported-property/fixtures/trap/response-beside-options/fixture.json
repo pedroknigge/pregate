@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/http/response.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 6
+      }
+    ]
+  },
+  "trap": {
+    "family": "options-name-exemption",
+    "origin": "forge",
+    "discovered": "2026-11-01",
+    "note": "RetryOptions is an options bag and stays mutable. PlainResponse is not, so status is still reported."
+  }
+}

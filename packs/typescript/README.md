@@ -18,14 +18,14 @@ Ready-made combinations live in `packs/presets/`.
 
 | ID | Forbids | Why | Default severity |
 | --- | --- | --- | --- |
-| `TS-ANY-001` | The any type, unless the immediately previous statement is a comment containing pregate-allow-any:. | any turns off checking for every value that flows through it, so a wrong field access compiles. | deny |
-| `TS-SWITCH-001` | A switch whose own default does not throw, return, or mention never. | A union that gains a member stays compilable when the switch has no exhaustiveness check, and the new member falls through. | deny |
-| `TS-BANG-001` | A non-null assertion (! after an expression). | The assertion silences null and undefined. When the value is absent, the failure moves to a property access far from the check that should have handled it. | deny |
-| `TS-ENUM-001` | enum and const enum declarations. | A numeric enum invents a reverse map and a value that is not the name callers use. A string union is the set of values and needs no emit. | deny |
-| `TS-BOOL-001` | An if, while, do, or for condition whose expression is .length, a string literal, a number literal, or a ! chain on .length. | A length or a literal used as a condition hides the comparison. 0 and "" are easy to misread as a boolean the domain named. | deny |
-| `TS-EXPORT-ANY-001` | An unannotated TS parameter directly owned by a directly exported function or unannotated exported function-valued variable, including defaulted parameters. | Optional explicit-boundary policy; inference is valid TypeScript but this selected policy asks for a written public annotation. JS/MJS are excluded. | deny |
-| `TS-READONLY-001` | A property signature that is not readonly, inside an exported interface or type alias. | A mutable field on an exported type lets any caller reassign data the owner thought it controlled. | deny |
-| `TS-NS-001` | A namespace declaration, including one that is exported. | A namespace merges values and types in a way modules already express, and it encourages a second module system inside the file. | deny |
+| `TS-ANY-001` | The any type, unless the immediately previous statement is a comment containing pregate-allow-any:. | any turns off checking for every value that flows through it. Opt-in project policy. | off |
+| `TS-SWITCH-001` | A switch whose own default does not throw, return, or mention never. | A union that gains a member stays compilable when the switch has no exhaustiveness check, and the new member falls through. | warn |
+| `TS-BANG-001` | A non-null assertion (! after an expression). | The assertion is a local presence claim. Opt-in. | off |
+| `TS-ENUM-001` | enum and const enum declarations. | Enums are valid TypeScript. Opt-in style choice. | off |
+| `TS-BOOL-001` | An if, while, do, or for condition whose expression is .length, a string literal, a number literal, or a ! chain on .length. | A length or a literal used as a condition hides the comparison. 0 and "" are easy to misread as a boolean the domain named. | warn |
+| `TS-EXPORT-ANY-001` | An unannotated TS parameter directly owned by a directly exported function or unannotated exported function-valued variable, including defaulted parameters. | Optional explicit-boundary policy; inference is valid TypeScript. Opt-in. JS/MJS are excluded. | off |
+| `TS-READONLY-001` | A property signature that is not readonly, inside an exported interface or type alias, except options, config, and input types. | Opt-in. Readonly on every public property changes library APIs. Options, config, and input bags stay exempt when the check is enabled. | off |
+| `TS-NS-001` | A namespace declaration, including one that is exported. | A namespace merges values and types in a way modules already express, and it encourages a second module system inside the file. | warn |
 | `TS-WRAPPER-001` | The boxed types `String`, `Number`, `Boolean`, `Symbol` or `Object` in a TS type position, including generic constraints. | They name object wrappers, and Object accepts every primitive, so the annotation stops describing the value. | warn |
 | `TS-FLOAT-001` | A statement whose expression is an async-shaped call or new Promise, and is not awaited. | A floating promise rejects into an unhandled rejection. The caller continues as if the work had been scheduled with a result. | deny |
 | `TS-THROW-001` | A throw inside a function, method, or arrow that is declared in an export. | A throw on the exported boundary forces every caller into try/catch and loses the typed failure the caller could have handled. | deny |

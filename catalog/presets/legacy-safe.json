@@ -53,14 +53,14 @@
       "params": {
         "max": 60
       },
-      "note": "Legacy modules: new functions stay moderate, and the ratchet keeps existing ones from getting worse."
+      "note": "Legacy modules: the advisory line budget is 60. Raise clean-code/CC-FN-001 to deny when this project wants the budget to block."
     },
     "fn.params": {
       "use": "CC-FN-002",
       "params": {
         "max": 5
       },
-      "note": "Existing call sites pass many arguments; five lets new code follow them while the ratchet blocks growth."
+      "note": "Existing call sites pass many arguments. Five is the advisory budget; raise clean-code/CC-FN-002 to deny when this project wants it to block."
     }
   },
   "ratchet": {

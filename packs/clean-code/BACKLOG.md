@@ -6,9 +6,9 @@ Practices from *Clean Code* (R. C. Martin, 2008) that are not binary syntax-tree
 
 - **`CC-FN-001` (`clean-code/complexity/fn-max-lines`):** Caps function and method statement lines (`fn.lines`, default `max: 20`).
 - **`CC-FN-002` (`clean-code/complexity/fn-max-params`):** Caps function parameter count (`fn.params`, default `max: 3`, constructors exempt).
-- **`CC-NEST-001` (`clean-code/complexity/nesting-max-depth`):** Caps control-flow nesting depth (`control.nesting`, default `max: 2`).
+- **`CC-NEST-001` (`clean-code/complexity/nesting-max-depth`):** Caps control-flow nesting depth (`control.nesting`, default `max: 4`). Guard clauses are not a level.
 - **`CC-ERR-001` (`clean-code/errors/no-empty-catch`):** Denies empty or log-only `catch` blocks that swallow exceptions without throwing, returning, or handling fallback state.
-- **`CC-ERR-002` (`clean-code/errors/try-is-whole-function`):** Requires `try / catch / finally` to be the entire body of a function when present.
+- **`CC-ER-003` (`clean-code/errors/try-is-whole-function`):** Opt-in and advisory. Off in the default contract; enable with severity `warn`.
 
 ## Non-decidable practices kept out of static AST checks
 

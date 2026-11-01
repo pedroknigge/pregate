@@ -27,7 +27,7 @@ pregate pack show --library typescript --json
 pregate rules test --library typescript
 pregate pack add --library typescript --preview
 # Approve the displayed digest, then select what is useful.
-pregate pack enable typescript/strict-types --only TS-ANY-001,TS-BANG-001 --preview
+pregate pack enable typescript/strict-types --only TS-SWITCH-001 --preview
 ```
 
 Categories are `invariants`, `language`, `pattern`, `library`, `practice` and

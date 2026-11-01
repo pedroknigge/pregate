@@ -1,11 +1,11 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "typescript/integrity/double-type-assertion",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "integrity",
   "cardinality": "singleton",
   "dimension": "integrity.type-erasure",
-  "minSeverity": "deny",
+  "minSeverity": null,
   "params": {},
   "impl": {
     "kind": "pattern",
