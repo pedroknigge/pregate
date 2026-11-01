@@ -29,4 +29,4 @@ Initial public open-source release of **Pregate** (`v0.0.1`, core `0.0.1`).
   - `pregate check --format sarif` and `pregate audit --sarif` emit OASIS SARIF 2.1.0 reports compatible with `github/codeql-action/upload-sarif`.
 - **Cross-Platform Distribution**:
   - Self-contained native binaries for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, and `windows-x64`.
-  - Public installers (`install.sh` and `install.ps1`), npm/npx launcher (`npx pregate`), root GitHub Action (`uses: pedroknigge/pregate@v0.0.1`), Homebrew formula (`dist/pregate.rb`), and Scoop manifest (`dist/pregate.json`).
+  - Public installers (`install.sh` and `install.ps1`) from the GitHub release, root GitHub Action (`uses: pedroknigge/pregate@3260996631bf29c93caa98fedc8e24d9ec14ffd5 # v0.0.1`), Homebrew formula (`dist/pregate.rb`), and Scoop manifest (`dist/pregate.json`). No npm package in this release.

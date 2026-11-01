@@ -60,4 +60,26 @@ test("relative markdown links resolve and engine/core versions match package.jso
   expect(architecture).toContain(`core ${pkg.version}`);
   expect(broken).toEqual([]);
   expect(versions).toEqual([]);
+
+  const published = [join(ROOT, "README.md"), join(ROOT, "CHANGELOG.md"), ...walk(join(ROOT, "docs"))];
+  const npm: string[] = [];
+  const actions: string[] = [];
+  for (const file of published) {
+    const text = readFileSync(file, "utf8");
+    const rel = file.slice(ROOT.length + 1);
+    const lines = text.split("\n");
+    lines.forEach((line, index) => {
+      if (/npx\s+pregate\b/.test(line) || /npm\s+(?:install|i|add)\b[^\n]*\bpregate\b/.test(line)) npm.push(`${rel}:${index + 1}`);
+    });
+    const uses = /uses:\s*pedroknigge\/pregate@(\S+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = uses.exec(text))) {
+      const ref = match[1] ?? "";
+      const line = text.slice(0, match.index).split("\n").length;
+      const around = `${lines[line - 2] ?? ""}\n${lines[line - 1] ?? ""}`;
+      if (!/^[0-9a-f]{40}$/.test(ref) || !/#\s*v\d+\.\d+\.\d+/.test(around)) actions.push(`${rel}:${line} @${ref}`);
+    }
+  }
+  expect(npm).toEqual([]);
+  expect(actions).toEqual([]);
 });

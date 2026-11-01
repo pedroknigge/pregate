@@ -69,7 +69,7 @@ Windows PowerShell:
 irm https://github.com/pedroknigge/pregate/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the archive for this machine (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, or `windows-x64`) and `SHA256SUMS`, checks the SHA-256 before extraction, and, when `cosign` is installed, also verifies the Sigstore signature of that archive and `SHA256SUMS`. It installs the engine and launcher, and registers global hooks for coding agents it finds. See the [installation guide](docs/guides/installation.md) for checksum and signature verification, Homebrew (`dist/pregate.rb`), Scoop (`dist/pregate.json`), and `npx pregate`.
+The installer downloads the archive for this machine (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, or `windows-x64`) and `SHA256SUMS`, checks the SHA-256 before extraction, and, when `cosign` is installed, also verifies the Sigstore signature of that archive and `SHA256SUMS`. It installs the engine and launcher, and registers global hooks for coding agents it finds. See the [installation guide](docs/guides/installation.md) for checksum and signature verification, Homebrew (`dist/pregate.rb`), and Scoop (`dist/pregate.json`). There is no npm package yet. Install from the [GitHub release](https://github.com/pedroknigge/pregate/releases) with `install.sh` or `install.ps1`.
 
 Global setup also installs the `/pregate` companion skill. You can sync it with [`npx skills`](https://github.com/vercel-labs/skills):
 
@@ -153,7 +153,7 @@ Gate a pull request in CI without installing hooks on a laptop. `mode: ratchet` 
 - uses: actions/checkout@v4
   with:
     fetch-depth: 0
-- uses: pedroknigge/pregate@v0.0.1
+- uses: pedroknigge/pregate@3260996631bf29c93caa98fedc8e24d9ec14ffd5 # v0.0.1
   with:
     mode: ratchet
     base: ${{ github.event.pull_request.base.sha }}
