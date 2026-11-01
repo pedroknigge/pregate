@@ -76,7 +76,6 @@ export function inert(event: HookEvent | Rejected): boolean {
     });
   }
   if (event.kind === "stop") return !accepted(event.session);
-  if (event.kind === "pre-read") return false;
   if (event.kind === "pre-command") return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
   return !accepted(event.session) && !active(event.cwd);
 }

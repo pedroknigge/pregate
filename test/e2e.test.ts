@@ -1267,16 +1267,11 @@ test("a recomputed digest cannot approve without a terminal, and a human TTY con
   expect(read(r, ".pregate/pregate.lock.json")).not.toBe(before);
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("shadow");
 
+  // Reads are not hooked (MH-22): the digest is in the proposal file, and knowing it is not approval.
   const matcher = JSON.parse(readFileSync(join(r.env.HOME!, ".claude/settings.json"), "utf8")) as {
     hooks: { PreToolUse: { matcher: string }[] };
   };
-  expect(matcher.hooks.PreToolUse[0]!.matcher).toContain("Read|Grep|Glob");
-  expect(denied(hook(a.session, "PreToolUse", tool("Read", { file_path: file })))).toContain("protected-path");
-  expect(denied(hook(a.session, "PreToolUse", tool("Grep", { pattern: "lockText", path: proposals })))).toContain("protected-path");
-  expect(denied(hook(a.session, "PreToolUse", tool("Glob", { pattern: "*.json", path: proposals })))).toContain("protected-path");
-  silent(hook(a.session, "PreToolUse", tool("Read", { file_path: at(r, INVOICE_REL) })));
-  silent(hook(a.session, "PreToolUse", tool("Grep", { pattern: "Invoice", path: at(r, "src") })));
-  silent(hook(a.session, "PreToolUse", tool("Glob", { pattern: "**/*.ts", path: at(r, "src") })));
+  expect(matcher.hooks.PreToolUse[0]!.matcher).not.toMatch(/\b(Read|Grep|Glob)\b/);
 });
 
 // A real terminal: stdin is a pty, and the confirmation is typed on that pty's /dev/tty.

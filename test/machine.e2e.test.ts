@@ -46,7 +46,7 @@ test("D25: setup installs versioned skills; doctor detects missing/stale copies;
   rmSync(file);
   expect(pregate(m, "doctor").stdout).toContain(`Missing /pregate skill at ${file}`);
   ok(pregate(m, "setup"), "repair skill");
-  ok(pregate(m, "uninstall"), "uninstall");
+  ok(uninstall(m), "uninstall");
   for (const folder of folders) expect(existsSync(join(m.home, folder, "pregate"))).toBe(false);
 });
 
@@ -125,6 +125,9 @@ function ok(o: Out, what: string): Out {
 }
 
 const pregate = (m: Machine, ...args: string[]): Out => run([BIN, ...args], m);
+// uninstall asks the human for y on the terminal; a CI job passes --yes instead.
+const human = (m: Machine, cmd: string[]): Out => run(cmd, { ...m, env: { ...m.env, CI: "1" } });
+const uninstall = (m: Machine, ...args: string[]): Out => human(m, [BIN, "uninstall", "--yes", ...args]);
 const read = (path: string): string | null => (existsSync(path) ? readFileSync(path, "utf8") : null);
 const json = (path: string): Json => JSON.parse(read(path)!) as Json;
 const marker = (m: Machine): string => `'${m.data}/bin/pregate'`;
@@ -392,7 +395,7 @@ describe("uninstall", () => {
     ok(pregate(m, "setup"), "setup");
     const diagnosis = ok(pregate(m, "doctor"), "doctor");
     for (const h of ALL) expect(diagnosis.stdout).toContain(`${h}: canary denied in its native dialect.`);
-    ok(run([m.link, "uninstall"], m), "uninstall");
+    ok(human(m, [m.link, "uninstall", "--yes"]), "uninstall");
     expect(read(m.settings)).toBe(settings);
     expect(read(m.hooks)).toBe(hooks);
     expect(read(join(m.codex, "config.toml"))).toBe(toml);
@@ -417,7 +420,7 @@ describe("uninstall", () => {
     const later = json(m.hooks);
     later.hooks.Stop.push({ hooks: [{ type: "command", command: "/usr/local/bin/later", timeout: 5 }] });
     put(m.hooks, JSON.stringify(later, null, 2));
-    const out = ok(run([m.link, "uninstall"], m), "uninstall");
+    const out = ok(human(m, [m.link, "uninstall", "--yes"]), "uninstall");
     expect(json(m.settings)).toEqual(original.settings);
     expect(json(m.hooks)).toEqual({ hooks: { ...original.hooks.hooks, Stop: [...(original.hooks.hooks.Stop ?? []), later.hooks.Stop.at(-1)] } });
     expect(out.stdout).toContain(`Codex requires approval in /hooks: ${m.hooks}:stop:${(original.hooks.hooks.Stop ?? []).length}:0.`);
@@ -434,7 +437,12 @@ describe("uninstall", () => {
     mkdirSync(join(m.state, "sessions/s1"), { recursive: true });
     rmSync(m.link);
     put(m.link, "#!/bin/sh\n", 0o755);
-    ok(pregate(m, "uninstall", "--purge"), "uninstall --purge");
+    // Without a terminal and without CI, uninstall refuses and changes nothing.
+    const refused = pregate(m, "uninstall", "--purge");
+    expect(refused.code).toBe(1);
+    expect(refused.stdout).toContain("human-only command");
+    expect(existsSync(m.state)).toBe(true);
+    ok(uninstall(m, "--purge"), "uninstall --purge");
     expect(existsSync(m.state)).toBe(false);
     expect(read(m.link)).toBe("#!/bin/sh\n");
     expect(foreign(m, json(m.settings))).toEqual(json(m.settings));

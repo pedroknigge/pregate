@@ -50,16 +50,6 @@ function tool(p: Payload, session: Session): HookEvent | null {
   const input = p.tool_input;
   if (typeof p.tool_name !== "string" || typeof p.tool_use_id !== "string" || !isObject(input)) return null;
   const base = { session, callId: p.tool_use_id, tool: p.tool_name };
-  if (p.tool_name === "Read" || p.tool_name === "Grep" || p.tool_name === "Glob") {
-    const roots = p.workspace_roots;
-    const cwd = Array.isArray(roots) && typeof roots[0] === "string" ? roots[0] : typeof input.file_path === "string" ? input.file_path : "";
-    if (!absolute(cwd) && typeof input.file_path !== "string") return null;
-    const hint = [input.pattern, input.glob].filter((v) => typeof v === "string").join("\n");
-    const named = p.tool_name === "Read" ? input.file_path : input.path;
-    if (p.tool_name === "Read" && typeof named !== "string") return null;
-    const here = absolute(cwd) ? cwd : named as string;
-    return { kind: "pre-read", ...base, cwd: absolute(here) ? here : cwd, paths: typeof named === "string" ? [named] : [], hint };
-  }
   if (p.tool_name === "Shell") {
     // An empty cwd is the workspace root, ambiguous unless there is exactly one; a top-level cwd that
     // disagrees with the tool's leaves where the command runs ambiguous too (MH-06).

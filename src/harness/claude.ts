@@ -11,7 +11,6 @@ const BAD: Cause = "payload-unrecognized";
 const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SubagentStop: "stop", SessionStart: "session-start" };
 const EDITS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 const COMMANDS = new Set(["Bash", "PowerShell", "Monitor"]);
-const READS = new Set(["Read", "Grep", "Glob"]);
 // The camelCase twins another harness sends (Grok Build): this profile does not describe that payload.
 const FOREIGN = ["hookEventName", "toolName", "toolInput", "toolInputTruncated"];
 const INTERACTIVE = new Set(["default", "acceptEdits", "auto", "plan"]);
@@ -79,7 +78,6 @@ function tool(p: Payload, session: Session, cwd: string): HookEvent | null {
   const base = { session, callId: p.tool_use_id, tool: p.tool_name };
   // Only `command` decides what runs; description, timeout or sandbox flags do not.
   if (COMMANDS.has(p.tool_name)) return typeof input.command === "string" ? { kind: "pre-command", command: { ...base, command: input.command, cwd } } : null;
-  if (READS.has(p.tool_name)) return readOf(p.tool_name, input, base, cwd);
   if (!EDITS.has(p.tool_name)) return null;
   const path = p.tool_name === "NotebookEdit" ? input.notebook_path : input.file_path;
   const edit = editOf(p.tool_name, input);
@@ -95,16 +93,6 @@ function editOf(tool: string, i: Payload): Edit | null {
     && typeof i.new_string === "string" && (i.replace_all === undefined || typeof i.replace_all === "boolean");
   if (!valid) return null;
   return { form: "oldnew", old: i.old_string as string, neu: i.new_string as string, all: i.replace_all === true, lines: null };
-}
-
-// Read names a file. Grep and Glob name a directory, or search the cwd when they name none.
-// The pattern is only a hint: it does not widen a read of an unrelated tree.
-function readOf(tool: string, input: Payload, base: { session: Session; callId: string; tool: string }, cwd: string): HookEvent | null {
-  const hint = [input.pattern, input.glob].filter((v) => typeof v === "string").join("\n");
-  const named = tool === "Read" ? input.file_path : input.path;
-  if (tool === "Read" && typeof named !== "string") return null;
-  const paths = typeof named === "string" ? [named] : [];
-  return { kind: "pre-read", ...base, cwd, paths, hint };
 }
 
 function optional(v: unknown): boolean {

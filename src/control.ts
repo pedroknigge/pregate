@@ -3,23 +3,31 @@ import { basename } from "node:path";
 import type { Cause } from "./types.ts";
 
 // Bounded scan of one literal script, Makefile or interpreter program. This is a text heuristic:
-// it does not execute the program, expand variables, or decode encodings.
+// it does not execute the program, expand variables, or decode encodings. Only the first MAX_SCAN
+// characters of a longer text are judged; the rest is not proof either way.
 const MAX_SCAN = 1_048_576;
 const SWITCH = new Set(["uninstall", "setup", "install"]);
 const ADMIN = new Set(["approve", "disable", "enable"]);
 const PACK = new Set(["enable", "disable", "remove", "add", "apply", "update"]);
 
-// `pregate` as a command word, then a shell separator or a quoted-list separator, then a verb.
+// `pregate` as a command word, then a separator on the same line, then a verb. A quoted-list
+// separator (`'pregate',` then the next quoted word) may continue on the next line: that is one
+// argument list, not prose. Plain whitespace does not cross a line: `# notes on pregate` followed
+// by a line that starts with `install:` is two lines, not an invocation.
 const HEAD = /\bpregate(?:\.(?:exe|cmd|bat))?\b/gi;
-const SEPARATOR = /^(?:['"`]\s*,\s*['"`\s]*|[\s'"`]+|\)\s*)/;
+const SEPARATOR = /^(?:['"`][ \t]*,\s*['"`\s]*|[ \t'"`]+|\)[ \t]*)/;
+// A line that is only a comment: shell, Python, Makefile (`#`) or JavaScript (`//`).
+const COMMENT_LINE = /^[ \t]*(?:#|\/\/).*$/gm;
+// `CI=1 pregate …`, `export CI=1`, `CI=1` on its own line, `CI = 1` as a Makefile variable.
+const CI_ASSIGNMENT = /(?:^|[ \t;&|(])(?:export[ \t]+)?CI=|^[ \t]*CI[ \t]*[:?]?=/m;
 
 // A pregate invocation an agent must not run: approve/disable/enable, install/setup/update/uninstall,
 // a pack mutation, or a hook-trust edit. Read-only previews (`approve --preview`, `update --preview`,
 // `pack … --preview` without `--yes`) stay visible.
-export function pregateControlCause(text: string): Cause | null {
-  if (text.length > MAX_SCAN) return "shell-admin";
+export function pregateControlCause(input: string): Cause | null {
+  const text = (input.length > MAX_SCAN ? input.slice(0, MAX_SCAN) : input).replace(COMMENT_LINE, "");
   // CI in the environment shows approval codes. Inline code must not set it and call pregate.
-  if (/\bpregate\b/i.test(text) && (/\bCI\s*=/.test(text) || /(?:environ|env|putenv|setenv)[^;\n]{0,80}['"]CI['"]/.test(text))) return "hook-switch";
+  if (/\bpregate\b/i.test(text) && (CI_ASSIGNMENT.test(text) || /(?:environ|env|putenv|setenv)[^;\n]{0,80}['"]CI['"]/.test(text))) return "hook-switch";
   if (/trusted_hash\s*["']?\s*[:=]|dangerously-bypass-hook-trust|hooks\.state\s*=/i.test(text)) return "hook-switch";
   // The test hook reveals approval codes. The shell guard already rejects PREGATE_* assignments;
   // inline programs and scripts must not set it either.
@@ -50,12 +58,14 @@ function classify(verb: string, rest: string): Cause | null {
     return "shell-admin";
   }
   if (verb !== "pack") return null;
-  const sub = /^(?:['"`]\s*,\s*['"`\s]*|\s+)([A-Za-z]+)/.exec(rest);
+  const sub = /^(?:['"`][ \t]*,\s*['"`\s]*|[ \t]+)([A-Za-z]+)/.exec(rest);
   const name = sub?.[1]?.toLowerCase() ?? "";
   return PACK.has(name) && !preview ? "shell-admin" : null;
 }
 
-// The first 1 MiB of a literal file, or null when it cannot be read as a regular file.
+// The first 1 MiB of a literal text file, or null when it cannot be read as a regular file or
+// is a binary (a NUL byte in its first 8 KiB): `/usr/bin/git` is not a script.
+const SNIFF = 8_192;
 export function controlInFile(path: string | null): Cause | null {
   if (path === null || path === "") return null;
   let fd: number | null = null;
@@ -63,8 +73,10 @@ export function controlInFile(path: string | null): Cause | null {
     if (!statSync(path).isFile()) return null;
     fd = openSync(path, "r");
     const buf = Buffer.alloc(MAX_SCAN);
-    const n = readSync(fd, buf, 0, MAX_SCAN, 0);
-    return n > 0 ? pregateControlCause(buf.toString("utf8", 0, n)) : null;
+    let n = readSync(fd, buf, 0, SNIFF, 0);
+    if (n === 0 || buf.subarray(0, n).includes(0)) return null;
+    if (n === SNIFF) n += readSync(fd, buf, SNIFF, MAX_SCAN - SNIFF, SNIFF);
+    return pregateControlCause(buf.toString("utf8", 0, n));
   } catch {
     return null;
   } finally {

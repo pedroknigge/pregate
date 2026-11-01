@@ -37,10 +37,13 @@ export function withholdApprovalCode(text: string): string {
     .replace(/("pendingApproval": )"[0-9a-f]{12,64}"/g, "$1null");
 }
 
+// The command applies only where stdin is a terminal and the human can type on /dev/tty (CONIN$ on
+// Windows). A harness `!` line qualifies only when that harness gives it an interactive stdin;
+// otherwise the human opens a terminal of their own.
 export function humanApprovalInstructions(command: string): string[] {
-  return [`After reviewing, type inside Claude Code, Codex, Grok or agy: ! ${command}`,
-    `Cursor requires a separate human terminal: ${command}`,
-    "The agent must not run the approval command."];
+  return [`After reviewing, the human runs in a terminal: ${command}`,
+    "Inside Claude Code, Codex, Grok or agy, the ! prefix works only when that harness gives the command an interactive stdin; Cursor needs a separate terminal. The command then asks for y on the terminal.",
+    "The agent must not run the approval command. --yes skips the question only when CI is already set in the environment."];
 }
 
 // The launcher arms a separate deadline before validating a contract proposal.

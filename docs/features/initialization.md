@@ -11,10 +11,12 @@ candidate folders and resolvable import edges. It recommends a builtin preset,
 shows example findings and the exact preset/rule changes, then prints:
 
 ```text
-! pregate approve <displayed code>
+pregate approve <displayed code>
 ```
 
-Review the proposal and type that command in the harness's human shell input.
+Review the proposal and run that command in a terminal. A harness `!` line works
+only when the harness gives the command an interactive stdin; otherwise open a
+terminal of your own. The command asks for `y` on `/dev/tty` (`CONIN$` on Windows).
 Preview saves an expiring proposal in local engine data. It does not create the
 project preset or lock, or enable local consent. The initial proposal can also be
 reviewed with `pregate approve --preview` from a project subdirectory before any
@@ -76,8 +78,9 @@ are missing or consent is disabled; its status explains those separate condition
 An invalid contract or a different requested preset returns 1 with next actions.
 
 The direct human terminal prompt remains available with `pregate init`; piped input
-cannot answer it. `--yes` explicitly accepts human automation and cannot be
-combined with `--preview`. Agents can prepare literal previews through the shell
+cannot answer it. `--yes` skips the question only when `CI` is already set in the
+environment; elsewhere it still asks on the terminal. It cannot be combined with
+`--preview`. Agents can prepare literal previews through the shell
 guard; applying an established protected contract uses the human review path.
 
 ## Inventory boundaries

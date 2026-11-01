@@ -47,7 +47,9 @@ const ALWAYS: ReadonlySet<Cause> = new Set<Cause>(["protected-path", "hook-switc
 // `literal`: no expansion happens, so `text` is the exact argument. `subs`: nested scripts
 // ($(…), `…`, <(…), >(…)) that run too and are analyzed on their own. `blocks`: the bodies of
 // `{…}` words, which only PowerShell runs (script blocks); a POSIX shell expands them as text.
-interface Word { text: string; literal: boolean; subs: string[]; blocks?: string[] }
+// `file`: the literal path a `<` redirection reads stdin from; a script fed that way is scanned
+// for pregate control commands when a shell or an interpreter runs it.
+interface Word { text: string; literal: boolean; subs: string[]; blocks?: string[]; file?: string }
 // `stdin`: the text a heredoc or a here-string feeds to the command.
 interface Redir { op: string; target: Word; stdin: Word | null }
 // A simple command and the operator that ends it.
@@ -655,9 +657,11 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
     && ctx.configurationRead?.(resolve(cwd, w.text) ?? "") === true;
   if (paths.some((w) => !exempt.has(w) && !((precheck || engineInspection) && w === head) && !(inspectedPython && w === words.at(-1)) && w !== contractInput && !guideInputs.includes(w) && !descriptions.includes(w) && mentionsProtected(w, cwd, ctx) && !policyInput(w) && !configurationInput(w))) return "protected-path";
   if (usedVar && (precheck || engineInspection)) ctx.pendingProtected.delete(usedVar);
-  // A redirection from a file, like a script file, is not read. null: the terminal.
+  // A redirection from a literal file keeps the path: a shell or an interpreter that runs its stdin
+  // reads that file for control commands. The text itself is not analyzed. null: the terminal.
   const input = redirs.findLast((r) => r.op === "<" || DATA_REDIRS.has(r.op));
-  const stdin = input === undefined ? (pipedIn ? UNKNOWN : null) : input.stdin ?? UNREAD;
+  const fromFile = input?.op === "<" && input.target.literal ? resolve(cwd, input.target.text) : null;
+  const stdin = input === undefined ? (pipedIn ? UNKNOWN : null) : input.stdin ?? (fromFile === null ? UNREAD : { ...UNREAD, file: fromFile });
   const outputs = redirs.filter((r) => WRITE_REDIRS.has(r.op) && !(r.op === ">&" && /^(\d+-?|-)$/.test(r.target.text)));
   return run(words, cwd, ctx, stdin) ?? writes(outputs.map((r) => r.target), cwd, ctx.inScope);
 }
@@ -887,11 +891,17 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   const at = words.findIndex((w) => !ASSIGNMENT.test(w.text));
   const assigned = (at < 0 ? words : words.slice(0, at)).map((w) => ASSIGNMENT.exec(w.text)![1]!);
   const [head, ...args] = at < 0 ? [] : words.slice(at);
-  if (assigned.includes("CI")) ctx.ciSet = true;
+  // `CI=1` alone (or exported) binds the rest of the line; `CI=1 cmd` binds cmd and its children
+  // only: `CI=1 bun test && pregate status` does not run pregate under CI.
+  const ci = assigned.includes("CI");
+  if (ci && head === undefined) ctx.ciSet = true;
   const descriptions = commandDescriptions(words);
   const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx.gated);
   if (admin === "hook-switch" || head === undefined) return admin;
+  const was = ctx.ciSet;
+  if (ci) ctx.ciSet = true;
   const cause = invoke(head, args, cwd, ctx, stdin);
+  if (ci) ctx.ciSet = was;   // `export CI=1` inside invoke binds the rest of the line and is kept
   return admin === null || (cause !== null && ALWAYS.has(cause)) ? cause : admin;
 }
 
@@ -917,7 +927,9 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
   if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd) ?? writes(targets(name, args), cwd, ctx.inScope);
-  if (/\.(?:sh|bash|zsh|ksh)$/i.test(name) && head.literal) {
+  // A literal script run by path: `./run.sh`, `./run` (no suffix), `scripts/deploy`. A bare
+  // command name is looked up on PATH and not read.
+  if (head.literal && (/\.(?:sh|bash|zsh|ksh)$/i.test(name) || /[\\/]/.test(head.text))) {
     const script = controlInFile(resolve(cwd, head.text));
     if (script !== null) return script;
   }
@@ -1153,6 +1165,11 @@ function shell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): 
     const cause = controlInFile(resolve(cwd, script.text));
     if (cause !== null) return cause;
   }
+  // `bash < run.sh`, `sh -s < run.sh`: the script arrives on stdin from a literal file.
+  if (fromStdin && stdin?.file !== undefined) {
+    const cause = controlInFile(stdin.file);
+    if (cause !== null) return cause;
+  }
   // A script file is not otherwise executed here, but it is named like a command: `sh "$(which pregate)" approve`.
   return fromStdin ? interactive(args, stdin) ?? inline(stdin, cwd, ctx) : run(operands, cwd, ctx, stdin);
 }
@@ -1237,7 +1254,7 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
   // Inline code and a literal script file: `python3 -c "subprocess.run(['pregate','approve'...])"`,
   // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
-  const control = first(program, (w) => w.literal ? pregateControlCause(w.text) : null)
+  const control = first(program, (w) => w.literal ? (w.file === undefined ? pregateControlCause(w.text) : controlInFile(w.file)) : null)
     ?? (!inlined && operands[0]?.literal && !["-", "repl"].includes(operands[0].text) ? controlInFile(resolve(cwd, operands[0].text)) : null);
   if (control !== null) return control;
   // Code that reads its arguments (`sys.argv[1]`, `process.argv`, `@ARGV`) may write the files they

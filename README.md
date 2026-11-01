@@ -62,8 +62,8 @@ Inside a coding agent (**Claude Code**, **Cursor**, **Codex**, **Grok**, or **An
 # 1. Inspect stack and prepare a zero-friction Advisor contract
 pregate guide --preview --enforcement advisor
 
-# 2. Human approves with the short 12-character digest code printed by the preview
-! pregate approve <code>
+# 2. Human approves in a terminal with the short 12-character digest code printed by the preview
+pregate approve <code>
 ```
 
 Want to see PREGATE in action before configuring a repo? Run the self-cleaning sandbox demo:

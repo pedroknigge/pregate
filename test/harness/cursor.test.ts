@@ -53,12 +53,7 @@ describe("decode: captured payloads", () => {
     },
     "stop.json": { event: "stop", out: { kind: "stop", session: session("8", "9"), cwd: PROJECT, reentry: false } },
     "stop-loop1.json": { event: "stop", out: { kind: "stop", session: session("8", "a"), cwd: PROJECT, reentry: true } },
-    "pre-read-edit-probe.json": {
-      event: "pre", out: {
-        kind: "pre-read", session: session("1", "1"), callId: toolu(1), cwd: PROJECT, tool: "Read",
-        paths: [`${PROJECT}/a.ts`], hint: "",
-      },
-    },
+    "pre-read-edit-probe.json": { unregistered: MATCHER },
     "pre-task.json": { unregistered: MATCHER },
     "before-shell-execution.json": { unregistered: EVENT },
     "before-read-file.json": { unregistered: EVENT },
@@ -159,17 +154,9 @@ describe("decode: edits", () => {
     expect(causeOf(change("pre-delete.json", { file_path: path }))).toBe(BAD);
   });
 
-  // The matcher keeps unknown tools away; should one arrive anyway, nothing passes unjudged.
-  test.each(["Task", "write", "MultiEdit", "MCP:write_file"])("tool_name %p is outside the exact set", (tool) => {
+  // The matcher keeps them away; should one arrive anyway, nothing passes unjudged.
+  test.each(["Read", "Task", "Grep", "write", "MultiEdit", "MCP:write_file"])("tool_name %p is outside the exact set", (tool) => {
     expect(causeOf(decode("pre", raw({ ...json("pre-write-create.json"), tool_name: tool }), ENV))).toBe(BAD);
-  });
-  test("Read and Grep are read checks", () => {
-    expect(decode("pre", raw({ ...json("pre-write-create.json"), tool_name: "Read" }), ENV)).toMatchObject({
-      kind: "pre-read", tool: "Read", paths: [`${PROJECT}/a.ts`],
-    });
-    expect(decode("pre", raw({ ...json("pre-write-create.json"), tool_name: "Grep", tool_input: { pattern: "x", path: PROJECT } }), ENV)).toMatchObject({
-      kind: "pre-read", tool: "Grep", paths: [PROJECT], hint: "x",
-    });
   });
 });
 

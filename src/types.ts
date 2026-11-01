@@ -66,7 +66,6 @@ export type HookEvent =
   | { kind: "session-start"; session: Session; cwd: string }
   | { kind: "pre-edit"; changes: ProposedChange[] }           // ≥ 1, all from one tool call
   | { kind: "pre-command"; command: ProposedCommand }
-  | { kind: "pre-read"; session: Session; callId: string; cwd: string; tool: string; paths: string[] }
   | { kind: "stop"; session: Session; cwd: string; reentry: boolean };
 // A call the adapter cannot turn into a HookEvent. `kind` and `reentry` pick the channel of the
 // refusal; `dirs` are the envelope's directories, which tell whether the call reaches a root (MH-06).

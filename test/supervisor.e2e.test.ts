@@ -658,7 +658,7 @@ if (WINDOWS) {
     expect(cli("update", "--engine", pkg.version).code).toBe(0);
     expect(cli("update", "--version", pkg.version).code).toBe(0);
     expect(readFileSync(join(repo, ".pregate/pregate.lock.json"), "utf8")).toBe(lock);
-    const out = run(["cmd.exe", "/d", "/c", join(data, "bin/pregate.cmd"), "uninstall"]);
+    const out = run(["cmd.exe", "/d", "/c", join(data, "bin/pregate.cmd"), "uninstall", "--yes"]);
     expect(out.code).toBe(0);
     for (let n = 0; n < 100 && existsSync(data); n++) await Bun.sleep(50);
     expect(existsSync(data)).toBe(false);

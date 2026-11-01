@@ -48,6 +48,13 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
     expect(automated.stdout.toString()).toContain(`Enable protection for worktree ${root}.`);
     expect(automated.stdout.toString()).not.toContain("Approve? [y/N]");
     expect(status()).toContain("is active");
+    // uninstall removes every project's protection: the same terminal rule as disable.
+    const piped = Bun.spawnSync([binary, "uninstall"], { cwd: root, env, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
+    expect(piped.exitCode).toBe(1);
+    expect(piped.stdout.toString()).toContain("pregate uninstall is a human-only command");
+    expect(tty("n", "uninstall").code).toBe(1);
+    expect(tty("", "uninstall", "--purge").text).toContain("Approve? [y/N] ");
+    expect(tty("y", "uninstall", "--purge").code).toBe(0);
   });
 }, 30_000);
 

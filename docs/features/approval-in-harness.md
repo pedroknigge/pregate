@@ -66,8 +66,13 @@ Ordinary project rules do not activate during preview. See
 It prints the review and the digest-bound human command:
 
 ```text
-! pregate approve <code>
+pregate approve <code>
 ```
+
+The command applies only where stdin is an interactive terminal and the human types
+`y` on `/dev/tty` (`CONIN$` on Windows). A harness `!` line qualifies only when that
+harness gives the command an interactive stdin; otherwise the human runs it in a
+terminal of their own.
 
 The code is the first 12 hex digits of the digest. An agent cannot cheaply create a
 different proposal that starts with the same 12 digits. The long form
@@ -87,15 +92,15 @@ Current controlled observations pass in Claude Code, Codex, Grok and agy.
 Cursor's tested Shell Mode invokes the same gated Pre without a trusted human
 origin marker; use a separate human terminal there. Do not bypass its guard or
 disable PREGATE. See [native observations](../research/other-harness-human-shell-026.md).
-There is no `/dev/tty` interaction or unanswered question with `--yes`. Native Claude permission can
+Under `CI`, `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Native Claude permission can
 also approve that exact literal command. Other harnesses reject the agent's attempt
 and explain the human route. The digest binds the writes, compiled lock, baseline
 and expiry; a replaced proposal, changed baseline or altered sources cannot apply
 the reviewed proposal. It expires 24 hours after preparation.
 
 `pregate approve` retains its direct terminal prompt for existing users. A bare
-`--yes` remains an explicit human automation interface; the recommended harness
-workflow always supplies the digest. Protected shell calls reject unsupported
+`--yes` is a CI automation interface, not a way around the terminal; the recommended
+harness workflow always supplies the digest. Protected shell calls reject unsupported
 approval commands; eligible exact commands request native permission. Preventing
 self-approval also depends on that harness enforcing the human decision.
 

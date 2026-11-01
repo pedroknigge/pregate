@@ -85,7 +85,7 @@ const USAGE = `usage:
   pregate pack disable <ns/methodology> | remove <ns> | update <ns> [--preview|--yes]
   pregate pack update --all [--preview|--yes]
   pregate install [--git-hook] [--ci github]
-  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] | doctor
+  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
   pregate --version | --help | -h`;
@@ -133,7 +133,13 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "install": return installCommand(args);
     case "setup": return args.length === 0 ? setup() : BAD;
     case "update": return updateCommand(args);
-    case "uninstall": return args.length === 0 || (args.length === 1 && args[0] === "--purge") ? uninstall(args.length === 1) : BAD;
+    case "uninstall": {
+      // Removing the hooks ends protection for every project: the same human confirmation as disable.
+      const purge = args.includes("--purge"), yes = args.includes("--yes");
+      if (args.some((a) => a !== "--purge" && a !== "--yes") || args.length > 2) return BAD;
+      if (!await approve(`Remove the pregate hooks, launcher and engines from this machine${purge ? " and its state" : ""}. Every project loses protection until setup runs again.`, true, yes)) return { code: 1, text: `pregate uninstall is a human-only command: ${approvalRefusal()}` };
+      return uninstall(purge);
+    }
     case "doctor": return args.length === 0 ? doctor() : BAD;
     case "--help": case "-h": return args.length === 0 ? { code: 0, text: USAGE } : BAD;
     case "--version": return args.length === 0 ? { code: 0, text: `pregate ${VERSIONS.engine} (core ${VERSIONS.core})` } : BAD;

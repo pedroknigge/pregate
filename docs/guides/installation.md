@@ -154,6 +154,7 @@ command. The 0.2.12 catalog also includes the optional Rust pack; check
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.
+Both ask the human for `y` on the terminal (`--yes` skips that only under `CI`).
 Repository contracts and pre-install backups remain. Windows removes a running
 engine after its process exits.
 

@@ -72,7 +72,7 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
     expect(run("--version").stdout.toString().trim()).toBe(`pregate ${pkg.version} (core ${VERSIONS.core})`);
     expect(run("update", "--engine", pkg.version).exitCode).toBe(0);
     expect(run("update", "--version", pkg.version).exitCode).toBe(0);
-    expect(run("uninstall", "--purge").exitCode).toBe(0);
+    expect(run("uninstall", "--purge", "--yes").exitCode).toBe(0);
     expect(userPath(r.key)).toEqual({ type: "REG_EXPAND_SZ", value: "" });
     for (let n = 0; n < 100 && existsSync(join(r.dir, "data/pregate")); n++) await Bun.sleep(50);
     expect(existsSync(join(r.dir, "data/pregate"))).toBe(false);

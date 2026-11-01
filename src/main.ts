@@ -41,13 +41,6 @@ async function main(argv: string[]): Promise<number> {
   const adapter = HARNESSES[harness];
   const decoded = ours && KINDS.has(kind) ? adapter.decode(kind as HookKind, raw, env) : refused(kind);
   const e = input.invalid ? inputRejection(decoded, kind) : decoded;
-  if (e !== null && !("cause" in e) && e.kind === "pre-read") {
-    const { readDecision } = await import("./proposal-read.ts");
-    const out = adapter.encode(e.kind, readDecision(e));
-    if (out.stdout !== "") writeSync(1, out.stdout);
-    if (out.stderr !== "") writeSync(2, out.stderr);
-    return out.exit;
-  }
   if (e === null || inert(e)) return dormant(e, adapter);
   checkpoint("admission");
   const gate = await import("./gate.ts");
@@ -127,12 +120,11 @@ function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolea
   return { ...d, full: d.full.replace("payload-unrecognized", label), compact: d.compact.replace("payload-unrecognized", label) };
 }
 
-async function dispatch(e: HookEvent, gate: Gate): Promise<Decision> {
+function dispatch(e: HookEvent, gate: Gate): Decision | Promise<Decision> {
   switch (e.kind) {
     case "session-start": return gate.onSessionStart(e);
     case "pre-edit": return gate.onPreEdit(e.changes);
     case "pre-command": return gate.onPreCommand(e.command);
-    case "pre-read": return (await import("./proposal-read.ts")).readDecision(e);
     case "stop": return gate.onStop(e);
   }
 }
