@@ -3,12 +3,17 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { ENGINE_FILE } from "../src/platform.ts";
 
 // Default auto-detected contract budget.
 //
 // The contract is whatever `pregate init --yes` selects for a new repository plus
 // `pregate scan --plan` and `pregate pack apply`. These trees are fetched at a
 // pinned commit during the test. They are not vendored.
+//
+// The fetch needs the network and the run compiles a binary, so the suite is opt-in:
+// it runs only with PREGATE_BUDGET_E2E=1 (CI sets it in its own step) and is skipped,
+// with the reason printed, from a plain `bun test`.
 //
 // A finding counts once per reported site. KLOC is 1,000 non-blank lines in the
 // files the audit's fileCoverage lists (in-scope, parser-supported source).
@@ -49,12 +54,14 @@ const OPT_IN = [
   "typescript/TS-READONLY-001",
 ];
 
+const ENABLED = process.env.PREGATE_BUDGET_E2E === "1";
+
 setDefaultTimeout(180_000);
 
 const root = mkdtempSync(join(tmpdir(), "pregate-budget-"));
 const home = join(root, "home");
 const data = join(root, "data");
-const binary = join(root, "pregate");
+const binary = join(root, ENGINE_FILE);
 const env = {
   ...process.env,
   CI: "1",
@@ -72,6 +79,7 @@ const env = {
 };
 
 beforeAll(() => {
+  if (!ENABLED) return;
   mkdirSync(home, { recursive: true });
   mkdirSync(env.TMPDIR, { recursive: true });
   compileBinary(hostTarget(), binary);
@@ -81,7 +89,8 @@ beforeAll(() => {
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-test("fetched got and zod stay under the default-contract findings budget", () => {
+// Skipped unless PREGATE_BUDGET_E2E=1: the fetch needs the network.
+test.skipIf(!ENABLED)("fetched got and zod stay under the default-contract findings budget (PREGATE_BUDGET_E2E=1)", () => {
   for (const pin of PINS) {
     const dir = join(root, pin.name);
     fetchPin(dir, pin.url, pin.sha);
