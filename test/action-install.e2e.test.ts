@@ -135,11 +135,9 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     expect(existsSync(join(installed.home, ".local/bin/pregate"))).toBe(false);
   });
 
-  // cosign only: the action verifies Sigstore bundles, never minisign. Without cosign on PATH
-  // or downloadable, the cosign tests skip and say why.
-  const signer = prepareSigner(join(root, "signer"), "cosign");
-  const noCosign = signer === null;
-  if (noCosign) console.warn("GitHub Action install script: cosign tests skipped, no usable cosign signer (no cosign on PATH or downloadable, PREGATE_TEST_OFFLINE, or Sigstore unreachable)");
+  // The action verifies Sigstore bundles. The default suite uses the offline cosign shim at
+  // test/shims/cosign (a fixed path, no network). Real cosign runs in test/signing.e2e.test.ts.
+  const signer = prepareSigner(join(root, "signer"));
 
   test("without cosign a required signature fails closed; an optional one prints a notice", async () => {
     const dir = mkdtempSync(join(root, "no-cosign-"));
@@ -158,8 +156,7 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     expect(existsSync(join(optional.home, ".local/bin/pregate"))).toBe(true);
   });
 
-  test.skipIf(noCosign)("with cosign a release without bundles fails closed when the signature is required", async () => {
-    if (!signer) return;
+  test("with cosign a release without bundles fails closed when the signature is required", async () => {
     const dir = mkdtempSync(join(root, "no-bundle-"));
     const name = `pregate-${pkg.version}-${target()}.tar.gz`;
     const file = archive(dir, name);
@@ -175,8 +172,7 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     expect(existsSync(join(optional.home, ".local/bin/pregate"))).toBe(true);
   });
 
-  test.skipIf(noCosign)("with cosign a signed release installs when the signature is required", async () => {
-    if (!signer) return;
+  test("with cosign a signed release installs when the signature is required", async () => {
     const dir = mkdtempSync(join(root, "signed-"));
     const name = `pregate-${pkg.version}-${target()}.tar.gz`;
     const file = archive(dir, name);
@@ -188,8 +184,7 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     expect(existsSync(join(installed.home, ".local/bin/pregate"))).toBe(true);
   });
 
-  test.skipIf(noCosign)("a checksum-valid archive with a bad cosign bundle fails closed", async () => {
-    if (!signer) return;
+  test("a checksum-valid archive with a bad cosign bundle fails closed", async () => {
     const dir = mkdtempSync(join(root, "bad-sig-"));
     const name = `pregate-${pkg.version}-${target()}.tar.gz`;
     const file = archive(dir, name);

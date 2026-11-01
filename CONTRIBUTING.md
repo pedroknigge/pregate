@@ -31,6 +31,19 @@ bun run typecheck
 bun test
 ```
 
+`bun test` signs and verifies release archives offline. It uses the cosign shim at
+`test/shims/cosign` (a fixed path in this repository). It does not download cosign, does
+not copy a cosign binary into a temporary directory, and does not contact Sigstore.
+
+To run the real Sigstore checks (keyed `cosign sign-blob` / `verify-blob` through
+`install.sh` and the GitHub Action installer), install [cosign](https://docs.sigstore.dev/cosign/installation/)
+3.x and opt in. GitHub Actions sets this variable after installing cosign. Without it,
+`test/signing.e2e.test.ts` skips.
+
+```sh
+PREGATE_E2E_SIGSTORE=1 bun test test/signing.e2e.test.ts
+```
+
 ## Authoring Checks and Rule Packs
 
 1. Built-in core checks live under [`catalog/checks/`](catalog/checks/), core methodologies under [`catalog/methodologies/`](catalog/methodologies/), and optional bundled packs under [`packs/`](packs/).

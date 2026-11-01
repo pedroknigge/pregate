@@ -1,0 +1,129 @@
+#!/bin/sh
+# Offline stand-in for the cosign commands the installers call.
+# This file lives at a fixed path in the repository. Tests put this directory on PATH.
+# Do not replace it with a downloaded cosign, and do not copy it into a temp directory:
+# a fresh binary makes host firewalls prompt, and the real cosign contacts Sigstore.
+# Real Sigstore verification is test/signing.e2e.test.ts, and only when PREGATE_E2E_SIGSTORE=1.
+set -eu
+
+die() {
+  printf 'fake-cosign: %s\n' "$1" >&2
+  exit 1
+}
+
+digest() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{ print $1 }'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{ print $1 }'
+  else
+    die "sha256sum or shasum is required"
+  fi
+}
+
+[ $# -ge 1 ] || die "usage: cosign generate-key-pair | sign-blob | verify-blob"
+cmd=$1
+shift
+
+case "$cmd" in
+  generate-key-pair)
+    prefix=
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --output-key-prefix)
+          [ $# -ge 2 ] || die "--output-key-prefix needs a value"
+          prefix=$2
+          shift 2
+          ;;
+        *) die "unsupported generate-key-pair argument: $1" ;;
+      esac
+    done
+    [ -n "$prefix" ] || die "generate-key-pair requires --output-key-prefix"
+    id=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+    [ -n "$id" ] || die "could not generate a key id"
+    printf 'pregate-fake-cosign-private\n%s\n' "$id" > "$prefix.key"
+    printf 'pregate-fake-cosign-public\n%s\n' "$id" > "$prefix.pub"
+    ;;
+  sign-blob)
+    key= bundle= file=
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --yes) shift ;;
+        --key)
+          [ $# -ge 2 ] || die "--key needs a value"
+          key=$2
+          shift 2
+          ;;
+        --bundle)
+          [ $# -ge 2 ] || die "--bundle needs a value"
+          bundle=$2
+          shift 2
+          ;;
+        --*) die "unsupported sign-blob argument: $1" ;;
+        *)
+          [ -z "$file" ] || die "unexpected argument: $1"
+          file=$1
+          shift
+          ;;
+      esac
+    done
+    [ -n "$key" ] && [ -n "$bundle" ] && [ -n "$file" ] || die "sign-blob requires --key, --bundle, and a file"
+    [ -f "$key" ] || die "private key not found: $key"
+    [ -f "$file" ] || die "file not found: $file"
+    kind=$(awk 'NR==1 { print; exit }' "$key")
+    id=$(awk 'NR==2 { print; exit }' "$key")
+    [ "$kind" = "pregate-fake-cosign-private" ] || die "not an offline cosign private key"
+    [ -n "$id" ] || die "empty key id"
+    printf 'pregate-fake-cosign-bundle\nkey %s\npayload %s\n' "$id" "$(digest "$file")" > "$bundle"
+    ;;
+  verify-blob)
+    key= bundle= file=
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --key)
+          [ $# -ge 2 ] || die "--key needs a value"
+          key=$2
+          shift 2
+          ;;
+        --bundle)
+          [ $# -ge 2 ] || die "--bundle needs a value"
+          bundle=$2
+          shift 2
+          ;;
+        --certificate-identity-regexp)
+          [ $# -ge 2 ] || die "--certificate-identity-regexp needs a value"
+          shift 2
+          ;;
+        --certificate-oidc-issuer)
+          [ $# -ge 2 ] || die "--certificate-oidc-issuer needs a value"
+          shift 2
+          ;;
+        --*) die "unsupported verify-blob argument: $1" ;;
+        *)
+          [ -z "$file" ] || die "unexpected argument: $1"
+          file=$1
+          shift
+          ;;
+      esac
+    done
+    [ -n "$bundle" ] && [ -n "$file" ] || die "verify-blob requires --bundle and a file"
+    [ -f "$bundle" ] || die "bundle not found: $bundle"
+    [ -f "$file" ] || die "file not found: $file"
+    header=$(awk 'NR==1 { print; exit }' "$bundle")
+    [ "$header" = "pregate-fake-cosign-bundle" ] || die "signature mismatch"
+    bkey=$(awk 'NR==2 && $1 == "key" { print $2; exit }' "$bundle")
+    bsum=$(awk 'NR==3 && $1 == "payload" { print $2; exit }' "$bundle")
+    [ "$(digest "$file")" = "$bsum" ] || die "signature mismatch"
+    # Keyless Sigstore bundles are not produced here. Installers pass --key for this shim.
+    [ -n "$key" ] || die "signature mismatch"
+    [ -f "$key" ] || die "public key not found: $key"
+    kind=$(awk 'NR==1 { print; exit }' "$key")
+    id=$(awk 'NR==2 { print; exit }' "$key")
+    [ "$kind" = "pregate-fake-cosign-public" ] || die "signature mismatch"
+    [ "$id" = "$bkey" ] || die "signature mismatch"
+    ;;
+  version|--version|-v)
+    printf 'pregate-fake-cosign\n'
+    ;;
+  *) die "unsupported command: $cmd" ;;
+esac

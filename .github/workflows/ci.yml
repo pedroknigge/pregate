@@ -62,7 +62,12 @@ jobs:
           bun scripts/source-invariants.ts --check
           bun scripts/invariant-coverage.ts --check
           bun scripts/docs-reference.ts --check
+      # Real Sigstore coverage. The default suite stays offline unless this variable is set.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Unit tests
+        env:
+          PREGATE_E2E_SIGSTORE: "1"
         run: bun test --path-ignore-patterns 'test/{e2e,default-contract-budget.e2e}.test.ts'
       - name: End to end
         run: bun test test/e2e.test.ts

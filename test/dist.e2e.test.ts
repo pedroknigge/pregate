@@ -6,7 +6,7 @@ import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { VERSIONS } from "../src/versions.ts";
 import { hostTarget } from "../scripts/build.ts";
-import { prepareSigner, type Signer } from "./signing-tool.ts";
+import { prepareSigner } from "./signing-tool.ts";
 
 // The distribution (MULTI-HARNESS MH-31, MH-32): install.sh against fake gh, uname and xattr on a
 // PATH that holds only the tools it needs, so the release mode and both targets run on any host and
@@ -390,18 +390,15 @@ describe("the built release", () => {
     expect(existsSync(join(m.dir, ".pregate/preset.json"))).toBe(false);
   });
 
-  // Real host build from the parent beforeAll, then a throwaway cosign key (minisign if cosign
-  // cannot be used). The checksum of the tampered bytes is updated so only the signature check can fail.
-  // Without cosign on PATH, without network and without minisign, these two tests skip.
+  // Host build from the parent beforeAll, signed with the offline cosign shim. The checksum of
+  // the tampered bytes is updated so only the signature check can fail. Real Sigstore is
+  // test/signing.e2e.test.ts and does not run here.
   describe("signed release artifacts", () => {
     const work = join(TMP, "signing");
     mkdirSync(work, { recursive: true });
-    const signer: Signer | null = prepareSigner(work);
-    const noSigner = signer === null;
-    if (noSigner) console.warn("signed release artifacts: skipped, no usable signer (no cosign on PATH or downloadable, PREGATE_TEST_OFFLINE or Sigstore unreachable, and no minisign)");
+    const signer = prepareSigner(work);
 
     beforeAll(() => {
-      if (!signer) return;
       signer.sign(join(DIST, tar));
       signer.sign(join(DIST, "SHA256SUMS"));
       const archive = signer.verify(join(DIST, tar));
@@ -409,8 +406,7 @@ describe("the built release", () => {
       if (!archive.ok || !sums.ok) throw new Error(`${archive.text}\n${sums.text}`);
     }, 180_000);
 
-    test.skipIf(noSigner)("install.sh accepts the signed archive", () => {
-      if (!signer) return;
+    test("install.sh accepts the signed archive", () => {
       const m = machine();
       const archivePath = join(DIST, tar);
       const installed = install({
@@ -425,15 +421,14 @@ describe("the built release", () => {
       expect(installed.code, installed.stderr).toBe(0);
     }, 120_000);
 
-    test.skipIf(noSigner)("install.sh refuses a tampered archive whose checksum was recomputed", () => {
-      if (!signer) return;
+    test("install.sh refuses a tampered archive whose checksum was recomputed", () => {
       const m = machine();
       const archivePath = join(DIST, tar);
       const tampered = join(m.dir, "tampered.tar.gz");
       const bytes = readFileSync(archivePath);
       bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff;
       writeFileSync(tampered, bytes);
-      const signature = signer.kind === "cosign" ? `${archivePath}.bundle` : `${archivePath}.minisig`;
+      const signature = `${archivePath}.bundle`;
       const installed = install({
         ...m.env,
         PATH: `${signer.binDir}:${m.env.PATH}`,

@@ -1,26 +1,27 @@
-import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, sep } from "node:path";
 
-// Pinned to the cosign release the release workflow installs (cosign-installer v4.1.1 → cosign 3.x).
-const COSIGN_VERSION = "v3.1.4";
-const COSIGN_SHA256: Record<string, string> = {
-  "linux-amd64": "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa",
-  "linux-arm64": "ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2",
-  "darwin-amd64": "9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f",
-  "darwin-arm64": "9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4",
-};
+// Offline signing for the default suite. The shim is a script at a fixed path in this
+// repository. Tests must not download cosign and must not copy a cosign binary into a fresh
+// temp directory: that new path is a different program to a host firewall, and the real
+// cosign contacts tuf-repo-cdn.sigstore.dev even for a keyed signature.
+export const FAKE_COSIGN = join(import.meta.dir, "shims", "cosign");
+
+// Set only in GitHub Actions. Local `bun test` leaves it unset and skips test/signing.e2e.test.ts.
+export const SIGSTORE_E2E_ENV = "PREGATE_E2E_SIGSTORE";
 
 export interface Signer {
-  kind: "cosign" | "minisign";
+  kind: "cosign";
+  /** Directory to prepend to PATH so installers find this cosign. Never a fresh temp copy. */
   binDir: string;
+  /** Absolute cosign path. The default suite always points at FAKE_COSIGN. */
+  bin: string;
   sign(file: string): void;
   verify(file: string): { ok: boolean; text: string };
-  /** Installer env. `signature` selects a bundle or .minisig that is not the sidecar of `archive`. */
+  /** Installer env. `signature` selects a bundle that is not the sidecar of `archive`. */
   installEnv(archive: string, signature?: string): Record<string, string>;
 }
-
-const sha256 = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 function run(bin: string, args: string[]): { ok: boolean; text: string } {
   const result = Bun.spawnSync([bin, ...args], {
@@ -31,96 +32,75 @@ function run(bin: string, args: string[]): { ok: boolean; text: string } {
   return { ok: result.exitCode === 0, text: result.stdout.toString() + result.stderr.toString() };
 }
 
-function place(bin: string, dir: string, name: string): string {
-  const dest = join(dir, name);
-  writeFileSync(dest, readFileSync(bin));
-  chmodSync(dest, 0o755);
-  return dest;
-}
-
-function downloadCosign(dir: string): string | null {
-  const os = process.platform === "darwin" ? "darwin" : process.platform === "linux" ? "linux" : "";
-  const arch = process.arch === "arm64" ? "arm64" : process.arch === "x64" ? "amd64" : "";
-  const sum = COSIGN_SHA256[`${os}-${arch}`];
-  if (!os || !sum) return null;
-  const dest = join(dir, "cosign");
-  const asset = `cosign-${os}-${arch}`;
-  // Short timeouts: offline, the suite skips the signature tests instead of hanging.
-  const result = Bun.spawnSync(["curl", "-fsSL", "--connect-timeout", "5", "--max-time", "60", "-o", dest, `https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/${asset}`], {
-    stdout: "pipe", stderr: "pipe",
-  });
-  if (result.exitCode !== 0) return null;
-  if (sha256(dest) !== sum) throw new Error(`cosign ${asset} checksum mismatch`);
-  chmodSync(dest, 0o755);
-  return dest;
-}
-
-/** A cosign on PATH is used as is. Otherwise the pinned release is downloaded, unless
- * PREGATE_TEST_OFFLINE=1. Returns null when no signer can be obtained: the callers skip. */
-export function prepareSigner(dir: string, kind: "cosign" | "any" = "any"): Signer | null {
-  const binDir = join(dir, "signer-bin");
-  mkdirSync(binDir, { recursive: true });
-  const existing = Bun.which("cosign");
-  const offline = process.env.PREGATE_TEST_OFFLINE === "1";
-  const cosign = existing ? place(existing, binDir, "cosign") : offline ? null : downloadCosign(binDir);
-  if (cosign) {
-    const keyDir = join(dir, "keys");
-    mkdirSync(keyDir, { recursive: true });
-    const made = run(cosign, ["generate-key-pair", "--output-key-prefix", join(keyDir, "cosign")]);
-    if (!made.ok) throw new Error(made.text);
-    const pub = join(keyDir, "cosign.pub");
-    const key = join(keyDir, "cosign.key");
-    // cosign 3 fetches its signing config from the Sigstore TUF repository even for a keyed
-    // sign-blob. A probe signature tells an unreachable Sigstore apart from a broken cosign.
-    const probe = join(keyDir, "probe");
-    writeFileSync(probe, "probe\n");
-    const probed = run(cosign, ["sign-blob", "--yes", "--key", key, "--bundle", `${probe}.bundle`, probe]);
-    if (!probed.ok) {
-      if (/TUF|i\/o timeout|dial tcp|no such host|connection refused|context deadline/i.test(probed.text)) {
-        console.warn(`signing-tool: Sigstore is unreachable, cosign tests skip: ${probed.text.trim().split("\n")[0]}`);
-        return kind === "cosign" ? null : minisign(dir, binDir);
-      }
-      throw new Error(probed.text);
-    }
-    return {
-      kind: "cosign",
-      binDir,
-      sign(file) {
-        const signed = run(cosign, ["sign-blob", "--yes", "--key", key, "--bundle", `${file}.bundle`, file]);
-        if (!signed.ok) throw new Error(signed.text);
-      },
-      verify(file) {
-        return run(cosign, ["verify-blob", "--key", pub, "--bundle", `${file}.bundle`, file]);
-      },
-      installEnv(archive, signature) {
-        return { PREGATE_COSIGN_KEY: pub, PREGATE_COSIGN_BUNDLE: signature ?? `${archive}.bundle` };
-      },
-    };
-  }
-  if (kind === "cosign") return null;
-  return minisign(dir, binDir);
-}
-
-function minisign(dir: string, binDir: string): Signer | null {
-  const mini = Bun.which("minisign");
-  if (!mini) return null;
-  const bin = place(mini, binDir, "minisign");
-  const pub = join(dir, "minisign.pub");
-  const sec = join(dir, "minisign.key");
-  const made = run(bin, ["-G", "-p", pub, "-s", sec, "-W"]);
+function keyedSigner(dir: string, bin: string): Signer {
+  const keyDir = join(dir, "keys");
+  mkdirSync(keyDir, { recursive: true });
+  const pub = join(keyDir, "cosign.pub");
+  const key = join(keyDir, "cosign.key");
+  const made = run(bin, ["generate-key-pair", "--output-key-prefix", join(keyDir, "cosign")]);
   if (!made.ok) throw new Error(made.text);
+  // A probe catches a shim or cosign that cannot sign at all. The offline shim never leaves the machine.
+  const probe = join(keyDir, "probe");
+  writeFileSync(probe, "probe\n");
+  const probed = run(bin, ["sign-blob", "--yes", "--key", key, "--bundle", `${probe}.bundle`, probe]);
+  if (!probed.ok) throw new Error(probed.text);
   return {
-    kind: "minisign",
-    binDir,
+    kind: "cosign",
+    binDir: dirname(bin),
+    bin,
     sign(file) {
-      const signed = run(bin, ["-S", "-s", sec, "-m", file, "-x", `${file}.minisig`]);
+      const signed = run(bin, ["sign-blob", "--yes", "--key", key, "--bundle", `${file}.bundle`, file]);
       if (!signed.ok) throw new Error(signed.text);
     },
     verify(file) {
-      return run(bin, ["-V", "-p", pub, "-m", file, "-x", `${file}.minisig`]);
+      return run(bin, ["verify-blob", "--key", pub, "--bundle", `${file}.bundle`, file]);
     },
     installEnv(archive, signature) {
-      return { PREGATE_MINISIGN_PUB: pub, PREGATE_MINISIGN_SIG: signature ?? `${archive}.minisig` };
+      return { PREGATE_COSIGN_KEY: pub, PREGATE_COSIGN_BUNDLE: signature ?? `${archive}.bundle` };
     },
   };
+}
+
+/** Offline signer. Ignores any cosign on PATH. The same shim path is used for every test run. */
+export function prepareSigner(dir: string): Signer {
+  if (!existsSync(FAKE_COSIGN)) throw new Error(`offline cosign shim missing: ${FAKE_COSIGN}`);
+  return keyedSigner(dir, FAKE_COSIGN);
+}
+
+export function sigstoreE2EEnabled(): boolean {
+  return process.env[SIGSTORE_E2E_ENV] === "1";
+}
+
+function realCosignOnPath(): string {
+  const shim = realpathSync(FAKE_COSIGN);
+  const tempRoot = realpathSync(tmpdir());
+  for (const dir of (process.env.PATH ?? "").split(sep === "\\" ? ";" : ":")) {
+    if (!dir) continue;
+    const candidate = join(dir, "cosign");
+    if (!existsSync(candidate)) continue;
+    let resolved: string;
+    try {
+      resolved = realpathSync(candidate);
+    } catch {
+      continue;
+    }
+    if (resolved === shim) continue;
+    // A binary under the temp dir is a per-run copy. Refuse it so tests cannot download one there.
+    if (resolved === tempRoot || resolved.startsWith(tempRoot + sep)) {
+      throw new Error(`refusing to run a cosign from a temp directory (${resolved}); install cosign on PATH`);
+    }
+    return candidate;
+  }
+  throw new Error(`${SIGSTORE_E2E_ENV}=1 but no real cosign is on PATH. Install cosign 3.x (the offline shim does not count).`);
+}
+
+/**
+ * Keyed cosign from its installed path. Contacts Sigstore. Call only from the opt-in end-to-end
+ * test. Does not download cosign and does not copy the binary.
+ */
+export function prepareRealCosign(dir: string): Signer {
+  if (!sigstoreE2EEnabled()) {
+    throw new Error(`prepareRealCosign refused: set ${SIGSTORE_E2E_ENV}=1 to contact Sigstore`);
+  }
+  return keyedSigner(dir, realCosignOnPath());
 }
