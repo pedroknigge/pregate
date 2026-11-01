@@ -510,7 +510,18 @@ Toda causa conocida pasa por `decide → encode`. Lo imprevisto sale con exit 1 
 
 El primer toque cuesta ~10 ms más que el segundo: el `git cat-file` de A12. Lo más caro que queda es `match.ts` (~24 ms en frío a 2.000 líneas: un recorrido del árbol por patrón).
 
-**El presupuesto es de la máquina de referencia (O31).** Estos números y el p95 ≤ 150 ms son de la máquina de desarrollo de referencia (macOS arm64, M5 Pro, 18 núcleos). Una llamada usa unas 3,5 veces su tiempo real en CPU (la compilación JIT de JavaScriptCore corre en otros hilos y se repite en cada proceso), así que en una máquina con 2 núcleos el mismo binario tarda varias veces más: en `ubuntu-latest` (2 vCPU x64), 2.000 líneas con deuda da p95 469–844 ms según el runner. En CI el bench informa (§8).
+**El presupuesto es de la máquina de referencia (O31).** Estos números y el p95 ≤ 150 ms son de la máquina de desarrollo de referencia (macOS arm64, M5 Pro, 18 núcleos). Una llamada usa unas 3,5 veces su tiempo real en CPU (la compilación JIT de JavaScriptCore corre en otros hilos y se repite en cada proceso), así que en una máquina con 2 núcleos el mismo binario tarda varias veces más: en `ubuntu-latest` (2 vCPU x64), 2.000 líneas con deuda da p95 469–844 ms según el runner. En CI el bench informa (§8). Esa cifra de 2 vCPU es anterior a la caché del lock compilado y no se volvió a medir en un runner de 2 núcleos.
+
+**Caché del lock compilado.** El paso 6 recompila solo cuando no hay una entrada válida. La clave es el hash del lock normalizado, del preset, de cada pack que lee el compilador (builtin, library, `path` y git pinneado) y de esta build (`engine`, `core` y la huella del compilador). El archivo está en el directorio de estado, `locks/<sha256(raíz)>.json`. Si falta, está truncado o el digest no cierra, el hook recompila. El análisis de `before_sesión` se sigue recalculando en cada llamada (A12).
+
+Medido con el binario real de `hook pre` sobre un fixture `backend-clean-ddd` más una regla `path`, sesión nueva por muestra, edición permitida de `src/domain/values/money.ts` (linux-x64, 4 vCPU, Bun 1.4.2). Antes de la caché, n=15: p50 72,6 ms, p95 100,9 ms. Con la caché, `bun test test/lock-cache.e2e.test.ts`, n=25:
+
+| Pasada | p50 | p95 |
+|---|---|---|
+| Fría (la caché se borra; recompila) | 60,6 ms | 64,4 ms |
+| Caliente (reutiliza el lock compilado) | 41,1 ms | 43,5 ms |
+
+La decisión fría y la caliente son idénticas. Cambiar el lock o esa regla invalida la entrada y deniega `lock-stale`; una entrada corrupta se recompila y deja la misma decisión.
 
 **Salida en Claude Code:**
 

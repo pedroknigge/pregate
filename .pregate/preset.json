@@ -160,6 +160,7 @@
         "src/session-command.ts",
         "src/contract-diagnostic.ts",
         "src/dependency-cache.ts",
+        "src/lock-cache.ts",
         "src/rules-draft-command.ts",
         "src/embedded.ts",
         "src/rules-add-command.ts"

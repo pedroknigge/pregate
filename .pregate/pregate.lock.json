@@ -120,6 +120,7 @@
         "src/session-command.ts",
         "src/contract-diagnostic.ts",
         "src/dependency-cache.ts",
+        "src/lock-cache.ts",
         "src/rules-draft-command.ts",
         "src/embedded.ts",
         "src/rules-add-command.ts"
@@ -148,7 +149,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "313360b6b7c931153d1514f0872dd1b2d76d9cb5a6a3b88cd22e52ae942c044e",
+  "presetHash": "658302a28b443d612b90fde673cc3d12fc024d24c1b8ebba156ae99e742c17eb",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5514,6 +5515,7 @@
           "src/session-command.ts",
           "src/contract-diagnostic.ts",
           "src/dependency-cache.ts",
+          "src/lock-cache.ts",
           "src/rules-draft-command.ts",
           "src/embedded.ts",
           "src/rules-add-command.ts"

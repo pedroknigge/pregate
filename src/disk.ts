@@ -24,6 +24,37 @@ export function readTree(dir: string, withFixtures: boolean): Files {
   return files;
 }
 
+// Content identity of a rule pack: sorted paths, each hashed, then the list. Callers that
+// compile and callers that only check the cache must use this same bytes.
+export function hashPolicy(files: Files): string {
+  const rows = Object.keys(files).sort().map((path) => [path, sha256(files[path]!)]);
+  return sha256(JSON.stringify(rows));
+}
+
+// Build-time identities. Macro callers pass no dynamic arguments, so the result inlines as data.
+export function builtinContentHash(): string {
+  return hashPolicy(readTree("catalog", false));
+}
+
+export function libraryPackHashes(): Record<string, string> {
+  const grouped = new Map<string, Files>();
+  for (const [path, text] of Object.entries(readLibrary(false))) {
+    const slash = path.indexOf("/");
+    const ns = path.slice(0, slash);
+    const rel = path.slice(slash + 1);
+    const pack = grouped.get(ns) ?? {};
+    pack[rel] = text;
+    grouped.set(ns, pack);
+  }
+  const hashes: Record<string, string> = {};
+  for (const [ns, files] of grouped) if (files["source.json"] !== undefined) hashes[ns] = hashPolicy(files);
+  return hashes;
+}
+
+function sha256(text: string): string {
+  return new Bun.CryptoHasher("sha256").update(text).digest("hex");
+}
+
 // The shipped library includes executable data and fixtures, not normative prose catalogs.
 export function readLibrary(withFixtures = true): Files {
   return Object.fromEntries(Object.entries(readTree("packs", withFixtures))
