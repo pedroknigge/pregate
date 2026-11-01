@@ -55,8 +55,8 @@ The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` 
 Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
 
 ```sh
-tag=v0.2.26
-asset=pregate-0.2.26-darwin-arm64.tar.gz
+tag=v0.0.1
+asset=pregate-0.0.1-darwin-arm64.tar.gz
 gh release download "$tag" --repo pedroknigge/pregate \
   --pattern "$asset" --pattern "$asset.bundle" \
   --pattern SHA256SUMS --pattern SHA256SUMS.bundle
@@ -87,11 +87,11 @@ cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
   "$dir\SHA256SUMS"
-cosign verify-blob --bundle "$dir\pregate-0.2.26-windows-x64.zip.bundle" `
+cosign verify-blob --bundle "$dir\pregate-0.0.1-windows-x64.zip.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
-  "$dir\pregate-0.2.26-windows-x64.zip"
-gh attestation verify "$dir\pregate-0.2.26-windows-x64.zip" --repo pedroknigge/pregate `
+  "$dir\pregate-0.0.1-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.0.1-windows-x64.zip" --repo pedroknigge/pregate `
   --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
 ```
 
