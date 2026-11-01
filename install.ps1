@@ -74,8 +74,9 @@ function Confirm-ReleaseSignatures([string]$Base, [string]$Name, [string]$Archiv
         return
     }
     foreach ($bundleName in @('SHA256SUMS.bundle', "$Name.bundle")) {
-        if (!(Get-ReleaseBundle $Base $bundleName) -and $env:PREGATE_REQUIRE_SIGNATURE -eq '1') {
-            throw "release has no $bundleName; nothing installed"
+        if (!(Get-ReleaseBundle $Base $bundleName)) {
+            if ($env:PREGATE_REQUIRE_SIGNATURE -eq '1') { throw "release has no $bundleName; nothing installed" }
+            Write-Warning "release v$Version has no $bundleName; signature not verified"
         }
     }
     $sumsBundle = Join-Path $tmp 'SHA256SUMS.bundle'

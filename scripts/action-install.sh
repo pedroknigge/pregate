@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # GitHub Action installer. Download one release archive and refuse to extract it unless
-# its SHA-256 matches SHA256SUMS. When cosign is installed and the release published a
-# Sigstore bundle, verify that bundle too. When gh can see a GitHub artifact attestation
-# for the downloaded bytes, verify it. A mismatch of any check that runs is fatal.
+# its SHA-256 matches SHA256SUMS and, by default (PREGATE_REQUIRE_SIGNATURE=1, which
+# action.yml sets from require-signature), its Sigstore bundle verifies with cosign. When
+# gh has a token and can see a GitHub artifact attestation for the downloaded bytes, verify
+# it. A mismatch of any check that runs is fatal.
 set -euo pipefail
 
 repo=pedroknigge/pregate
@@ -86,37 +87,61 @@ verify_bundle() {
   fi
 }
 
-# Bundles are optional so a release cut before signing still installs. A bundle that is
-# present must verify. PREGATE_REQUIRE_SIGNATURE=1 makes a missing bundle fatal.
+notice() {
+  echo "action-install: $1" >&2
+}
+
+# The action sets PREGATE_REQUIRE_SIGNATURE=1 by default (input require-signature), so a
+# missing cosign or a missing bundle installs nothing. With require-signature: false, a
+# bundle that is present must still verify; a missing one only prints a notice.
+require_signature() {
+  [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ] || [ -n "${PREGATE_COSIGN_KEY:-}" ]
+}
+
 maybe_cosign() {
   label=$1
   file=$2
   bundle_name=$3
   if ! command -v cosign >/dev/null 2>&1; then
-    if [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ] || [ -n "${PREGATE_COSIGN_KEY:-}" ]; then
-      fail "cosign is required to verify $label; nothing installed"
+    if require_signature; then
+      fail "cosign is required to verify $label (set require-signature: false to install on SHA-256 alone); nothing installed"
     fi
+    notice "cosign is not installed; the signature of $label was not verified"
     return 0
   fi
   code=$(fetch "$base/$bundle_name" "$dir/$bundle_name") || exit 1
   if [ "$code" = 404 ]; then
-    [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ] && fail "release has no $bundle_name; nothing installed"
+    if require_signature; then
+      fail "release has no $bundle_name (set require-signature: false to install on SHA-256 alone); nothing installed"
+    fi
+    notice "release has no $bundle_name; the signature of $label was not verified"
     return 0
   fi
   verify_bundle "$file" "$dir/$bundle_name" "$label"
 }
 
-# gh attestation verify returns 404 when this digest was never attested. That is
-# "not available". Any other failure means an attestation was found and rejected.
+# gh needs a token to query attestations; the action passes github.token as GH_TOKEN. Without
+# one, or when gh returns 404 because this digest was never attested, the attestation is "not
+# available" and only a notice is printed. Any other failure means an attestation was found
+# and rejected.
 verify_attestation() {
   file=$1
   label=$2
   command -v gh >/dev/null 2>&1 || return 0
+  if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ]; then
+    notice "GH_TOKEN is not set; the artifact attestation of $label was not verified"
+    return 0
+  fi
   if err=$(gh attestation verify "$file" --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" 2>&1); then
     return 0
   fi
   case "$err" in
+    *GH_TOKEN* | *gh\ auth\ login* | *not\ logged\ in* | *authentication\ token*)
+      notice "gh has no usable token; the artifact attestation of $label was not verified"
+      return 0
+      ;;
     *404* | *401* | *403* | *no\ attestation* | *No\ attestation* | *failed\ to\ fetch*)
+      notice "no artifact attestation found for $label"
       return 0
       ;;
   esac

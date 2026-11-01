@@ -45,7 +45,8 @@ function downloadCosign(dir: string): string | null {
   if (!os || !sum) return null;
   const dest = join(dir, "cosign");
   const asset = `cosign-${os}-${arch}`;
-  const result = Bun.spawnSync(["curl", "-fsSL", "-o", dest, `https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/${asset}`], {
+  // Short timeouts: offline, the suite skips the signature tests instead of hanging.
+  const result = Bun.spawnSync(["curl", "-fsSL", "--connect-timeout", "5", "--max-time", "60", "-o", dest, `https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/${asset}`], {
     stdout: "pipe", stderr: "pipe",
   });
   if (result.exitCode !== 0) return null;
@@ -54,12 +55,14 @@ function downloadCosign(dir: string): string | null {
   return dest;
 }
 
-// Prefer cosign. If it cannot be used, minisign is the CI fallback the installers also accept.
-export function prepareSigner(dir: string): Signer {
+/** A cosign on PATH is used as is. Otherwise the pinned release is downloaded, unless
+ * PREGATE_TEST_OFFLINE=1. Returns null when no signer can be obtained: the callers skip. */
+export function prepareSigner(dir: string, kind: "cosign" | "any" = "any"): Signer | null {
   const binDir = join(dir, "signer-bin");
   mkdirSync(binDir, { recursive: true });
   const existing = Bun.which("cosign");
-  const cosign = existing ? place(existing, binDir, "cosign") : downloadCosign(binDir);
+  const offline = process.env.PREGATE_TEST_OFFLINE === "1";
+  const cosign = existing ? place(existing, binDir, "cosign") : offline ? null : downloadCosign(binDir);
   if (cosign) {
     const keyDir = join(dir, "keys");
     mkdirSync(keyDir, { recursive: true });
@@ -67,6 +70,18 @@ export function prepareSigner(dir: string): Signer {
     if (!made.ok) throw new Error(made.text);
     const pub = join(keyDir, "cosign.pub");
     const key = join(keyDir, "cosign.key");
+    // cosign 3 fetches its signing config from the Sigstore TUF repository even for a keyed
+    // sign-blob. A probe signature tells an unreachable Sigstore apart from a broken cosign.
+    const probe = join(keyDir, "probe");
+    writeFileSync(probe, "probe\n");
+    const probed = run(cosign, ["sign-blob", "--yes", "--key", key, "--bundle", `${probe}.bundle`, probe]);
+    if (!probed.ok) {
+      if (/TUF|i\/o timeout|dial tcp|no such host|connection refused|context deadline/i.test(probed.text)) {
+        console.warn(`signing-tool: Sigstore is unreachable, cosign tests skip: ${probed.text.trim().split("\n")[0]}`);
+        return kind === "cosign" ? null : minisign(dir, binDir);
+      }
+      throw new Error(probed.text);
+    }
     return {
       kind: "cosign",
       binDir,
@@ -82,8 +97,13 @@ export function prepareSigner(dir: string): Signer {
       },
     };
   }
+  if (kind === "cosign") return null;
+  return minisign(dir, binDir);
+}
+
+function minisign(dir: string, binDir: string): Signer | null {
   const mini = Bun.which("minisign");
-  if (!mini) throw new Error("cosign is not available and minisign is not on PATH");
+  if (!mini) return null;
   const bin = place(mini, binDir, "minisign");
   const pub = join(dir, "minisign.pub");
   const sec = join(dir, "minisign.key");

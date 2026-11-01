@@ -116,7 +116,7 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     const file = archive(dir, name);
     const original = createHash("sha256").update(readFileSync(file)).digest("hex");
     const bytes = readFileSync(file);
-    bytes[bytes.length - 1] ^= 0xff;
+    bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff;
     writeFileSync(file, bytes);
     writeFileSync(join(dir, "SHA256SUMS"), `${original}  ${name}\n`);
     const installed = await run(serve(dir));
@@ -135,17 +135,71 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     expect(existsSync(join(installed.home, ".local/bin/pregate"))).toBe(false);
   });
 
-  test("a checksum-valid archive with a bad cosign bundle fails closed", async () => {
+  // cosign only: the action verifies Sigstore bundles, never minisign. Without cosign on PATH
+  // or downloadable, the cosign tests skip and say why.
+  const signer = prepareSigner(join(root, "signer"), "cosign");
+  const noCosign = signer === null;
+  if (noCosign) console.warn("GitHub Action install script: cosign tests skipped, no usable cosign signer (no cosign on PATH or downloadable, PREGATE_TEST_OFFLINE, or Sigstore unreachable)");
+
+  test("without cosign a required signature fails closed; an optional one prints a notice", async () => {
+    const dir = mkdtempSync(join(root, "no-cosign-"));
+    const name = `pregate-${pkg.version}-${target()}.tar.gz`;
+    const file = archive(dir, name);
+    writeFileSync(join(dir, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
+    const required = await run(serve(dir), { PREGATE_REQUIRE_SIGNATURE: "1" });
+    expect(required.code).not.toBe(0);
+    expect(required.text).toContain("cosign is required");
+    expect(required.text).toContain("nothing installed");
+    expect(existsSync(join(required.home, ".local/bin/pregate"))).toBe(false);
+
+    const optional = await run(serve(dir), { PREGATE_REQUIRE_SIGNATURE: "" });
+    expect(optional.code, optional.text).toBe(0);
+    expect(optional.text).toContain("cosign is not installed");
+    expect(existsSync(join(optional.home, ".local/bin/pregate"))).toBe(true);
+  });
+
+  test.skipIf(noCosign)("with cosign a release without bundles fails closed when the signature is required", async () => {
+    if (!signer) return;
+    const dir = mkdtempSync(join(root, "no-bundle-"));
+    const name = `pregate-${pkg.version}-${target()}.tar.gz`;
+    const file = archive(dir, name);
+    writeFileSync(join(dir, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
+    const required = await run(serve(dir), { PREGATE_REQUIRE_SIGNATURE: "1" }, signer.binDir);
+    expect(required.code).not.toBe(0);
+    expect(required.text).toContain("release has no SHA256SUMS.bundle");
+    expect(existsSync(join(required.home, ".local/bin/pregate"))).toBe(false);
+
+    const optional = await run(serve(dir), { PREGATE_REQUIRE_SIGNATURE: "" }, signer.binDir);
+    expect(optional.code, optional.text).toBe(0);
+    expect(optional.text).toContain("release has no SHA256SUMS.bundle");
+    expect(existsSync(join(optional.home, ".local/bin/pregate"))).toBe(true);
+  });
+
+  test.skipIf(noCosign)("with cosign a signed release installs when the signature is required", async () => {
+    if (!signer) return;
+    const dir = mkdtempSync(join(root, "signed-"));
+    const name = `pregate-${pkg.version}-${target()}.tar.gz`;
+    const file = archive(dir, name);
+    writeFileSync(join(dir, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
+    signer.sign(file);
+    signer.sign(join(dir, "SHA256SUMS"));
+    const installed = await run(serve(dir), { PREGATE_REQUIRE_SIGNATURE: "1", ...signer.installEnv(file) }, signer.binDir);
+    expect(installed.code, installed.text).toBe(0);
+    expect(existsSync(join(installed.home, ".local/bin/pregate"))).toBe(true);
+  });
+
+  test.skipIf(noCosign)("a checksum-valid archive with a bad cosign bundle fails closed", async () => {
+    if (!signer) return;
     const dir = mkdtempSync(join(root, "bad-sig-"));
     const name = `pregate-${pkg.version}-${target()}.tar.gz`;
     const file = archive(dir, name);
-    const signer = prepareSigner(dir);
-    expect(signer.kind).toBe("cosign");
     signer.sign(file);
     const bytes = readFileSync(file);
-    bytes[bytes.length - 1] ^= 0xff;
+    bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff;
     writeFileSync(file, bytes);
     writeFileSync(join(dir, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
+    // SHA256SUMS is signed correctly: only the archive bundle can fail.
+    signer.sign(join(dir, "SHA256SUMS"));
     const installed = await run(serve(dir), signer.installEnv(file), signer.binDir);
     expect(installed.code).not.toBe(0);
     expect(installed.text).toContain("cosign signature mismatch");
@@ -157,16 +211,40 @@ if (!WINDOWS) describe("GitHub Action install script", () => {
     const good = mkdtempSync(join(root, "attest-ok-"));
     const file = archive(good, name);
     writeFileSync(join(good, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
-    const absent = await run(serve(good), {}, gh("echo 'Error: HTTP 404: Not Found' >&2\nexit 1"));
+    const absent = await run(serve(good), { GH_TOKEN: "t" }, gh("echo 'Error: HTTP 404: Not Found' >&2\nexit 1"));
     expect(absent.code, absent.text).toBe(0);
+    expect(absent.text).toContain("no artifact attestation found");
     expect(existsSync(join(absent.home, ".local/bin/pregate"))).toBe(true);
 
     const bad = mkdtempSync(join(root, "attest-bad-"));
     const again = archive(bad, name);
     writeFileSync(join(bad, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(again)).digest("hex")}  ${name}\n`);
-    const rejected = await run(serve(bad), {}, gh("echo 'verification failed: certificate identity mismatch' >&2\nexit 1"));
+    const rejected = await run(serve(bad), { GH_TOKEN: "t" }, gh("echo 'verification failed: certificate identity mismatch' >&2\nexit 1"));
     expect(rejected.code).not.toBe(0);
     expect(rejected.text).toContain("artifact attestation mismatch");
     expect(existsSync(join(rejected.home, ".local/bin/pregate"))).toBe(false);
+  });
+
+  // gh on a hosted runner without GH_TOKEN prints this and exits 4. That is "attestation
+  // unavailable", not a mismatch; the action passes github.token so it does not happen there.
+  test("gh without a token is attestation-unavailable, not a mismatch", async () => {
+    const name = `pregate-${pkg.version}-${target()}.tar.gz`;
+    const noToken = "echo 'To get started with GitHub CLI, please run:  gh auth login' >&2\necho 'Alternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.' >&2\nexit 4";
+    const dir = mkdtempSync(join(root, "attest-notoken-"));
+    const file = archive(dir, name);
+    writeFileSync(join(dir, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(file)).digest("hex")}  ${name}\n`);
+    const unset = await run(serve(dir), {}, gh(noToken));
+    expect(unset.code, unset.text).toBe(0);
+    expect(unset.text).toContain("GH_TOKEN is not set");
+    expect(existsSync(join(unset.home, ".local/bin/pregate"))).toBe(true);
+
+    // A token that gh still rejects as absent (e.g. an empty secret): the message decides.
+    const other = mkdtempSync(join(root, "attest-badtoken-"));
+    const again = archive(other, name);
+    writeFileSync(join(other, "SHA256SUMS"), `${createHash("sha256").update(readFileSync(again)).digest("hex")}  ${name}\n`);
+    const tokened = await run(serve(other), { GH_TOKEN: "t" }, gh(noToken));
+    expect(tokened.code, tokened.text).toBe(0);
+    expect(tokened.text).toContain("gh has no usable token");
+    expect(existsSync(join(tokened.home, ".local/bin/pregate"))).toBe(true);
   });
 });

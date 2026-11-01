@@ -392,13 +392,16 @@ describe("the built release", () => {
 
   // Real host build from the parent beforeAll, then a throwaway cosign key (minisign if cosign
   // cannot be used). The checksum of the tampered bytes is updated so only the signature check can fail.
+  // Without cosign on PATH, without network and without minisign, these two tests skip.
   describe("signed release artifacts", () => {
-    let signer: Signer;
     const work = join(TMP, "signing");
+    mkdirSync(work, { recursive: true });
+    const signer: Signer | null = prepareSigner(work);
+    const noSigner = signer === null;
+    if (noSigner) console.warn("signed release artifacts: skipped, no usable signer (no cosign on PATH or downloadable, PREGATE_TEST_OFFLINE or Sigstore unreachable, and no minisign)");
 
     beforeAll(() => {
-      mkdirSync(work, { recursive: true });
-      signer = prepareSigner(work);
+      if (!signer) return;
       signer.sign(join(DIST, tar));
       signer.sign(join(DIST, "SHA256SUMS"));
       const archive = signer.verify(join(DIST, tar));
@@ -406,7 +409,8 @@ describe("the built release", () => {
       if (!archive.ok || !sums.ok) throw new Error(`${archive.text}\n${sums.text}`);
     }, 180_000);
 
-    test("install.sh accepts the signed archive", () => {
+    test.skipIf(noSigner)("install.sh accepts the signed archive", () => {
+      if (!signer) return;
       const m = machine();
       const archivePath = join(DIST, tar);
       const installed = install({
@@ -421,12 +425,13 @@ describe("the built release", () => {
       expect(installed.code, installed.stderr).toBe(0);
     }, 120_000);
 
-    test("install.sh refuses a tampered archive whose checksum was recomputed", () => {
+    test.skipIf(noSigner)("install.sh refuses a tampered archive whose checksum was recomputed", () => {
+      if (!signer) return;
       const m = machine();
       const archivePath = join(DIST, tar);
       const tampered = join(m.dir, "tampered.tar.gz");
       const bytes = readFileSync(archivePath);
-      bytes[bytes.length - 1] ^= 0xff;
+      bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff;
       writeFileSync(tampered, bytes);
       const signature = signer.kind === "cosign" ? `${archivePath}.bundle` : `${archivePath}.minisig`;
       const installed = install({

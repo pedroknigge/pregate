@@ -90,11 +90,24 @@ verify_release_signatures() {
   fi
   for bundle in SHA256SUMS.bundle "$name.bundle"; do
     if ! obtain_bundle "$bundle"; then
-      [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ] && die "release v$version has no $bundle; nothing installed"
+      if [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ]; then
+        die "release v$version has no $bundle; nothing installed"
+      fi
     fi
   done
-  [ -f "$tmp/SHA256SUMS.bundle" ] && verify_cosign_file "$tmp/SHA256SUMS" "$tmp/SHA256SUMS.bundle"
-  [ -f "$tmp/$name.bundle" ] && verify_cosign_file "$archive" "$tmp/$name.bundle"
+  # Explicit if: a trailing `[ -f ] && verify` would make the function return 1 when the
+  # bundle is absent, and set -e would then abort without a message.
+  if [ -f "$tmp/SHA256SUMS.bundle" ]; then
+    verify_cosign_file "$tmp/SHA256SUMS" "$tmp/SHA256SUMS.bundle"
+  else
+    printf 'install.sh: release v%s has no SHA256SUMS.bundle; signature not verified\n' "$version" >&2
+  fi
+  if [ -f "$tmp/$name.bundle" ]; then
+    verify_cosign_file "$archive" "$tmp/$name.bundle"
+  else
+    printf 'install.sh: release v%s has no %s.bundle; signature not verified\n' "$version" "$name" >&2
+  fi
+  return 0
 }
 
 verify_offline_signatures() {
