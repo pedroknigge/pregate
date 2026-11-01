@@ -137,8 +137,9 @@ A committed preset does not grant consent. The guide offers setup, migration or
 activation from the actual project state. In a harness, enter human
 `! pregate guide`, or load `/pregate` and ask the agent to prepare one `guide --preview`
 for your approval. Current cloned/disabled contracts need activation separately;
-choose it in the guide or enter human `! pregate enable --yes` after reviewing
-`status`. Use `status --json` to inspect contract validity, effective policy,
+choose it in the guide, or run `pregate enable` in a terminal after reviewing
+`status` and type `y`. `--yes` does not skip that question unless `CI` is already
+set. Use `status --json` to inspect contract validity, effective policy,
 capabilities and backstops. See [using the skill](pregate-skill.md).
 
 Optionally add repository backstops after initialization:

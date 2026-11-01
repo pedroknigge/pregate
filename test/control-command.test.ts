@@ -2,12 +2,13 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { controlInFile } from "../src/control-file.ts";
 import { pregateControlCause, scriptControlCause } from "../src/control.ts";
 import { guard } from "../src/shell.ts";
 
 const ctx = {
   machineOnly: false, harness: "claude-code" as const, touched: () => true, launcher: "/repo/.pregate/bin/pregate",
-  isProtected: () => false, inScope: () => false, under: () => false,
+  isProtected: () => false, inScope: () => false, under: () => false, readControlFile: controlInFile,
 };
 
 test("inline interpreters name pregate control commands and leave benign code alone", () => {

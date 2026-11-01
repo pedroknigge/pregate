@@ -257,7 +257,7 @@ test("preset request preview validates a bounded adaptation and requires exact h
   const preview = cli(root, "preset", "apply", request, "--preview");
   expect(preview.exitCode).toBe(0);
   const digest = preview.stdout.toString().match(/Digest: ([0-9a-f]{64})/)![1]!;
-  expect(preview.stdout.toString()).toContain(`! pregate approve ${digest.slice(0, 12)}`);
+  expect(preview.stdout.toString()).toContain(`pregate approve ${digest.slice(0, 12)}`);
   expect(preview.stdout.toString()).toContain("FCIS-IO-001");
   expect(preview.stdout.toString()).toContain("Pending human review. The active contract still applies.");
   expect(preview.stdout.toString()).toContain("show this review to the user and wait for approval. Preserve the proposed files.");
@@ -520,9 +520,9 @@ test("initial preview works without Git, can be reviewed from a subdirectory and
   const digest = preview.stdout.toString().match(/Digest: ([0-9a-f]{64})/)![1]!;
   const review = cli(join(root, "src"), "approve", "--preview");
   expect(review.exitCode).toBe(0);
-  expect(review.stdout.toString()).toContain("! pregate approve " + digest.slice(0, 12));
+  expect(review.stdout.toString()).toContain("pregate approve " + digest.slice(0, 12));
   expect(review.stdout.toString()).toContain("Claude Code, Codex, Grok or agy");
-  expect(review.stdout.toString()).toContain("Cursor requires a separate human terminal");
+  expect(review.stdout.toString()).toContain("Cursor needs a separate terminal");
   mkdirSync(join(root, ".pregate"));
   writeFileSync(join(root, ".pregate/pregate.lock.json"), "{}\n");
   expect(cli(root, "approve", "--yes", "--digest", digest).exitCode).toBe(1);

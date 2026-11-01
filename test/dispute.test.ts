@@ -34,7 +34,9 @@ async function inRepo(run: (root: string) => Promise<void>): Promise<void> {
   await withCleanupAsync(async () => {
     cpSync(join(cwd, "test/demo-repo"), root, { recursive: true });
     mkdirSync(join(root, ".pregate"));
-    writeFileSync(join(root, PRESET), policyFixture(readFileSync(join(cwd, "catalog/presets/backend-clean-ddd.json"), "utf8")));
+    const preset = JSON.parse(policyFixture(readFileSync(join(cwd, "catalog/presets/backend-clean-ddd.json"), "utf8"))) as { overrides?: Record<string, unknown> };
+    preset.overrides = { ...preset.overrides, "clean-code/CC-FN-002": "deny" };
+    writeFileSync(join(root, PRESET), JSON.stringify(preset));
     const compiled = compile(readFileSync(join(root, PRESET), "utf8"), sourcesOf(root), VERSIONS);
     if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
     writeFileSync(join(root, LOCK), compiled.text);

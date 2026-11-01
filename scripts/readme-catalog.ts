@@ -6,6 +6,17 @@ import { join } from "node:path";
 // A pattern check is counted once for each language key in impl.patterns.
 
 const root = join(import.meta.dir, "..");
+
+// Same ASCII case-fold as scripts/docs-reference.ts. localeCompare would follow LANG.
+function compareName(a: string, b: string): number {
+  const fold = (value: string) => value.replace(/[A-Z]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 32));
+  const left = fold(a), right = fold(b);
+  if (left < right) return -1;
+  if (left > right) return 1;
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
 const begin = "<!-- BEGIN readme catalog -->";
 const end = "<!-- END readme catalog -->";
 const checking = process.argv.includes("--check");
@@ -42,17 +53,17 @@ for (const path of packFiles) {
 const packs = readdirSync(join(root, "packs"))
   .filter((name) => existsSync(join(root, "packs", name, "source.json")))
   .map((name) => JSON.parse(readFileSync(join(root, "packs", name, "source.json"), "utf8")) as { ns: string; category?: string })
-  .sort((a, b) => a.ns.localeCompare(b.ns));
+  .sort((a, b) => compareName(a.ns, b.ns));
 const byCategory = new Map<string, string[]>();
 for (const pack of packs) {
   const category = pack.category ?? "unclassified";
   byCategory.set(category, [...(byCategory.get(category) ?? []), pack.ns]);
 }
 
-const languageLine = [...languages.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+const languageLine = [...languages.entries()].sort((a, b) => b[1] - a[1] || compareName(a[0], b[0]))
   .map(([language, count]) => `${language} ${count}`).join(", ");
-const rows = [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  .map(([category, names]) => `| **${category}** | ${names.sort().map((name) => `\`${name}\``).join(", ")} |`);
+const rows = [...byCategory.entries()].sort((a, b) => compareName(a[0], b[0]))
+  .map(([category, names]) => `| **${category}** | ${names.sort(compareName).map((name) => `\`${name}\``).join(", ")} |`);
 
 const block = [
   begin,

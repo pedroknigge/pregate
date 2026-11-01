@@ -3,6 +3,18 @@ import { dirname, join, resolve } from "node:path";
 import type { Check, RuleRelation } from "../src/types.ts";
 
 const root = resolve(import.meta.dir, "..");
+
+// localeCompare follows the process locale, so the same tree sorted differently under C than under
+// en_US. Fold ASCII letters, then compare code units. That order does not depend on LANG or LC_ALL.
+function compareName(a: string, b: string): number {
+  const fold = (value: string) => value.replace(/[A-Z]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 32));
+  const left = fold(a), right = fold(b);
+  if (left < right) return -1;
+  if (left > right) return 1;
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
 const checking = process.argv.includes("--check");
 const marker = "<!-- BEGIN generated reference -->";
 const endMarker = "<!-- END generated reference -->";
@@ -96,7 +108,7 @@ function presets(): string {
     ...entries.map(({ path, data }) => `| [${data.name}](../${path}) | ${data.enforcement ?? "enforce"} | ${data.methodologies.map((m: string) => `\`${m}\``).join(", ")} |`)].join("\n");
 }
 function documents(path: string, suffix = ".md"): string[] {
-  return readdirSync(join(root, path), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
+  return readdirSync(join(root, path), { withFileTypes: true }).sort((a, b) => compareName(a.name, b.name))
     .flatMap((p) => p.isDirectory() ? documents(`${path}/${p.name}`, suffix) : p.name.endsWith(suffix) ? [`${path}/${p.name}`] : []);
 }
 function documentIndex(): string {
@@ -104,6 +116,7 @@ function documentIndex(): string {
     .map((p) => {
       const kind = p.includes("/research/") ? "Dated research/evidence" : p.includes("/inputs/") ? "Original input"
         : p.includes("/pilot/") ? "Pilot record" : p.includes("/examples/") ? "Executable example"
+        : p.includes("/benchmarks/") ? "Measurement record"
         : readFileSync(join(root, p), "utf8").includes("\n> **Superseded.**") ? "Historical, superseded" : "Product/reference";
       return `| [${p.slice(5)}](${p.slice(5)}) | ${kind} |`;
     });
@@ -122,8 +135,8 @@ const commandIntro = ["# Command reference", "", generated, "", "Run `pregate --
   "`audit --jsonl` streams `start` and per-file finding/error records, then an `end` with exit code and aggregate report without a findings array. No `end` means interrupted/failed; an end with code 2 still means incomplete compliance. Final content/contract and fitness checks remain mandatory. JSONL supports cache flags but rejects `--json` and `--plan`; plans require a complete buffered report. It avoids retaining every finding, not all inventory/cache memory. See [streaming results](features/whole-project-audit.md#streaming-results).", "",
   "`init --preview`, `preset apply <request.json> --preview` and pack operations with `--preview` prepare a reviewed pending candidate without changing the active contract or consent. Request preview validates the patch and full candidate, displays the diff and binds approval to its digest. Invalid requests preserve any existing pending candidate. Use an absolute request path in Codex because its shell payload does not establish the execution directory. Pack fetching may populate a local cache. Draft commands and `pack init` write local drafts/scaffolds.", "",
   "Help prints the command reference without a preset, request file, stdin or approval. Version 0.2.7 supports `preset apply --help` and `check --help`; 0.2.8 also supports paths such as `update --help`, `pack update --help` and `fitness bind --help`. Output writes remain subject to the shell guard.", "",
-  "`approve`, `enable`, `disable`, plain `preset apply`, pack activation, `feedback apply`, `storage apply` and `issue submit` require human approval. `--yes` is explicit human automation, not agent authorization. `setup/update/uninstall` change the global installation; `install` adds selected Git/CI backstops. Issue submission publishes to PREGATE's native GitHub repository.", "",
-  "Digest-bound approval: review `pregate approve --preview` (a compact summary: the mode, one line per pack, every loosening or removal, the whole preset diff and every written file; `--full` adds every per-rule change and complete file contents), then let the human enter the displayed `! pregate approve <code>` (the first 12 hex digits of the digest) in a harness that supports human shell input. Approval commits exactly the contract files it wrote (`--no-commit` keeps them uncommitted) and removes the applied and stale requests. Interactive Claude Code parent sessions can request native permission. agy uses its human Bash input with or without skip-permissions; its agent approval commands deny with that route. Explicit human `--yes` prints the complete review without an unanswered terminal question. See [approval routes](features/approval-in-harness.md).", "",
+  "`approve`, `enable`, `disable`, `uninstall`, plain `preset apply`, pack activation, `feedback apply`, `storage apply` and `issue submit` require human approval: stdin must be an interactive terminal and the human types `y` on `/dev/tty` (`CONIN$` on Windows). A pipe, including one that contains `y`, does not qualify. `--yes` skips that question only when `CI` is already set in the environment (a CI job); elsewhere it prints the review and still asks on the terminal. It is not agent authorization. `setup/update/uninstall` change the global installation; `install` adds selected Git/CI backstops. Issue submission publishes to PREGATE's native GitHub repository.", "",
+  "Digest-bound approval: review `pregate approve --preview` (a compact summary: the mode, one line per pack, every loosening or removal, the whole preset diff and every written file; `--full` adds every per-rule change and complete file contents), then let the human run the displayed `pregate approve <code>` (the first 12 hex digits of the digest) in a terminal. A harness `!` line qualifies only when that harness gives the command an interactive stdin; otherwise the human opens a terminal of their own. Approval commits exactly the contract files it wrote (`--no-commit` keeps them uncommitted) and removes the applied and stale requests. Interactive Claude Code parent sessions can request native permission. agy uses its human Bash input with or without skip-permissions; its agent approval commands deny with that route. Under `CI`, `--yes` prints the complete review without a terminal question. See [approval routes](features/approval-in-harness.md).", "",
   "The tested Cursor Shell Mode reaches gated Pre without a trusted human-origin marker. Its digest-bound approval fallback requires a separate human terminal; agent approval remains denied. Claude Code, Codex, Grok and agy have controlled native human `!` observations; those are not actual user consent receipts.", "",
   "## Evaluation modes and exit codes", "",
   "`check` compares with HEAD in a Git repository and evaluates the current tree without Git. `--all` evaluates the complete selected tree; `--staged` compares the index with HEAD; `--ratchet --base <sha>` compares against a Git base. `--stdin --path <file>` checks proposed contents read from stdin; the input must be valid UTF-8, at most 16 MiB and reach EOF within five seconds after the engine starts reading. Pre-engine wrapper buffering is outside this deadline. These stdin limits do not limit the whole-project audit size. `--format` accepts `agent` or `sarif`. Evaluation modes are mutually exclusive. Bare `--ratchet` uses the default mode.", "",

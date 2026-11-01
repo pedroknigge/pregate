@@ -87,7 +87,7 @@ test("new contracts, added rules and stronger policy never warn; weaker policy d
   expect(contractDiff(null, shadow).warning).toBe(false);
   expect(contractDiff(shadow, advisor).warning).toBe(false);
   expect(contractDiff(advisor, shadow).warning).toBe(true);
-  expect(contractDiff(advisor, shadow).summary[0]).toBe("Mode: shadow — findings are recorded silently, except 8 rules set to enforce, which block (was advisor).");
+  expect(contractDiff(advisor, shadow).summary[0]).toBe("Mode: shadow — findings are recorded silently, except 4 rules set to enforce, which block (was advisor).");
   const enforced = structuredClone(advisor);
   enforced.enforcement = "enforce";
   expect(contractDiff(enforced, advisor).warning).toBe(true);

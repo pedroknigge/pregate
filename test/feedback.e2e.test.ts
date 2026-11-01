@@ -50,9 +50,10 @@ test("human feedback is local, digest-reviewed, reportable and deliberately repl
   const p = project();
   const digest = p.draft("false-positive", "A deliberate boundary exception.");
   const preview = p.run(["feedback", "show", digest]).text;
-  expect(preview).toContain("! pregate feedback apply " + digest + " --yes");
+  expect(preview).toContain("the human runs in a terminal: pregate feedback apply " + digest + " --yes");
   expect(preview).toContain("Claude Code, Codex, Grok or agy");
-  expect(preview).toContain(`Cursor requires a separate human terminal: pregate feedback apply ${digest} --yes`);
+  expect(preview).toContain(`pregate feedback apply ${digest} --yes`);
+  expect(preview).toContain("Cursor needs a separate terminal");
   expect(JSON.parse(p.run(["report", "--json"]).text).calibration.unlabeled).toBe(1);
   expect(p.run(["feedback", "apply", digest]).code).toBe(1);
   expect(p.run(["feedback", "apply", digest, "--yes"]).code).toBe(0);

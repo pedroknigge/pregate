@@ -140,7 +140,7 @@ test.skipIf(WINDOWS || !existsSync(old028))("the immutable published 0.2.8 engin
   const before = f.snapshot(); serve(f, "0.2.8");
   const out = f.helper("legacy");
   expect(out.code, out.text).toBe(0); expect(out.text).toContain("predates guided choices"); expect(out.text).toContain("Digest:");
-  expect(out.text).toMatch(/! pregate approve [0-9a-f]{12}$/m);
+  expect(out.text).toMatch(/pregate approve [0-9a-f]{12}$/m);
   expect(f.snapshot()).toEqual(before);
   expect(readFileSync(join(f.data, "0.2.8", ENGINE_FILE))).toEqual(readFileSync(old028));
 });

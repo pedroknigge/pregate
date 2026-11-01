@@ -94,8 +94,19 @@ const BAD: Result = { code: 1, text: USAGE };
 export async function run(argv: string[]): Promise<number> {
   const r = await command(argv);
   const text = withholdApprovalCode(r.text);
-  if (text !== "") writeSync(1, Buffer.from(`${text}\n`, "utf8"));
+  if (text !== "") writeAll(1, Buffer.from(`${text}\n`, "utf8"));
   return r.code;
+}
+
+// A pipe can accept a short write. Audit JSON is larger than a pipe buffer, so keep writing until
+// every byte is out; a short write would otherwise cut the report off mid-string.
+function writeAll(fd: number, bytes: Buffer): void {
+  let offset = 0;
+  while (offset < bytes.length) {
+    const wrote = writeSync(fd, bytes, offset, bytes.length - offset);
+    if (wrote <= 0) throw new Error("Could not write command output.");
+    offset += wrote;
+  }
 }
 
 async function command([cmd, ...args]: string[]): Promise<Result> {

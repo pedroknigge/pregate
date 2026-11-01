@@ -99,7 +99,7 @@ The shell guard is not a separate switch. It is the shell half of the same globa
 # 2. Human approves in a terminal with the short 12-character digest code printed by the preview
 pregate approve <code>
 ```
-- `pregate disable --yes` revokes consent for the current worktree and withdraws repository-wide consent. Project rules stop applying here. The global hook is still installed. While a consent record exists, the shell guard can still deny a command that rewrites Pregate's install paths or tries to turn hooks off.
+- `pregate disable` revokes consent for the current worktree and withdraws repository-wide consent. The human types `y` on the terminal. `--yes` skips that question only when `CI` is already set. Project rules stop applying here. The global hook is still installed. While a consent record exists, the shell guard can still deny a command that rewrites Pregate's install paths or tries to turn hooks off.
 - `pregate uninstall` removes the hook registrations Pregate owns, the launcher, the installed engines, and the companion skill. Harnesses stop calling Pregate, so the shell guard stops running. Repository `.pregate/` directories and the `.pregate.bak` copies of harness files from before the first setup stay.
 - `pregate uninstall --purge` does that and also deletes local state (sessions and consent under the state home). It still does not delete repository contracts.
 

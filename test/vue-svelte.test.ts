@@ -84,6 +84,7 @@ test("Svelte component with module and instance scripts evaluates TypeScript and
       { ns: "vue", kind: "library", version: "1.2.0" },
     ],
     methodologies: ["core/pregate-integrity", "typescript/strict-types", "typescript/anti-evasion", "vue/reactivity"],
+    overrides: { "TS-ANY-001": { severity: "deny" } },
   });
   const compiled = compile(preset, (s) => (s.kind === "builtin" ? BUILTIN : librarySource(s.ns)), VERSIONS);
   expect("lock" in compiled, "errors" in compiled ? compiled.errors.join("\n") : "").toBe(true);

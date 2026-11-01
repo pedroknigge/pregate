@@ -446,8 +446,9 @@ test("main redirects hooks once and the CLI delegates before reading stdin; comp
   expect(check).toMatchObject({ code: 37, stdout: `check --stdin --path ${INVOICE_REL}\nthe proposed bytes\n`, stderr: "" });
   ok(cli(r, "preset", "compile"), "compile must not delegate");
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).engine).toBe(pkg.version);
-  lock.engine = "0.1.0";
-  put(r, ".pregate/pregate.lock.json", JSON.stringify(lock));
+  const fresh = JSON.parse(read(r, ".pregate/pregate.lock.json"));
+  fresh.rules.push({ id: "stale" });
+  put(r, ".pregate/pregate.lock.json", JSON.stringify(fresh));
   expect(denied(a.write(INVOICE_REL, SETTER))).toContain("lock-stale");
 });
 
@@ -511,7 +512,8 @@ test.each(["enforce", "shadow"] as const)("per-rule enforcement reverses %s acro
   const r = repo({ ".": "backend-clean-ddd" }, true);
   recommit(r, (p) => {
     p.enforcement = mode;
-    p.overrides = { ...(p.overrides as object), "ddd/DDD-ENT-001": { enforcement: mode === "enforce" ? "shadow" : "enforce" } };
+    p.overrides = { ...(p.overrides as object), "ddd/DDD-ENT-001": { enforcement: mode === "enforce" ? "shadow" : "enforce" },
+      "clean-code/CC-FN-002": { severity: "deny" } };
   });
   const a = claude(r);
   const start = json(ok(a.start(), "SessionStart")).hookSpecificOutput.additionalContext!;
@@ -548,7 +550,7 @@ test("D29: headless edits queue validated changes; only the human command applie
   expect(denied(agent.write(".pregate/preset.json", content))).toContain("inside your harness with `pregate approve --preview`");
   const preview = revealed(r, "approve", "--preview");
   expect(preview.code).toBe(0);
-  expect(preview.stdout).toMatch(/! pregate approve [0-9a-f]{12}$/m);
+  expect(preview.stdout).toMatch(/pregate approve [0-9a-f]{12}$/m);
   expect(preview.stdout).toContain("WARNING");
   expect(cli(r, "approve", "--yes", "--digest", "0".repeat(64)).code).toBe(1);
   expect(run(["pregate", "approve"], r.dir, r.env, "y\n").code).toBe(1);
@@ -601,6 +603,7 @@ test("D29: enforced native Claude permission activates only the exact tool resul
 
 test("compiled issue reporting offers an offline review and sends only the approved body through gh", () => {
   const r = repo({ ".": "backend-clean-ddd" }), a = claude(r);
+  recommit(r, (p) => { p.overrides = { ...(p.overrides as object), "clean-code/CC-FN-002": { severity: "deny" } }; });
   const content = 'export function tooMany(a: number, b: number, c: number, d: number, e: number): number { return 0; }\n';
   expect(denied(a.write("src/domain/report.ts", content))).toContain("pregate issue draft --last");
   const draft = ok(revealed(r, "issue", "draft", "--last", "--note", "This finding needs investigation."), "issue draft");
@@ -742,7 +745,7 @@ test("pre-commit in shadow: an explicitly enforcing optional rule still fails th
   put(r, INVOICE_REL, SETTER);
   recommit(r, (p) => {
     p.enforcement = "shadow";
-    p.overrides = { ...(p.overrides as object), "typescript/EVA-CAST-001": { enforcement: "enforce" } };
+    p.overrides = { ...(p.overrides as object), "typescript/EVA-CAST-001": { severity: "deny", enforcement: "enforce" } };
   });   // the setter goes with it; the reviewed TypeScript rule remains enforcing
   put(r, INVOICE_REL, `${SETTER}\nexport const cents = "12" as unknown as number;\n`);
   ok(git(r, "add", INVOICE_REL), "git add");
@@ -1022,7 +1025,7 @@ async function killedEngineDenial(r: Repo, payload: string, pidFile: string): Pr
     process.kill(Number(engine), "SIGKILL");
     const [stdout, stderr, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
     const reason = failedPre({ code, stdout, stderr, ms: 0 });
-    expect(reason).toBe("PREGATE could not evaluate: the engine failed (exit 137); report it to the user");
+    expect(reason).toMatch(/^PREGATE could not evaluate: the engine failed \(exit 137\)(; last engine checkpoint: [a-z0-9-]+(?:; executing rule: local\/LOCAL-A-001)?)?; report it to the user$/);
     expect(performance.now() - t).toBeLessThan(1_900);
   } finally {
     rmSync(ENGINE);

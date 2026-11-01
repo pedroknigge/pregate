@@ -171,8 +171,10 @@ and field change, the whole preset diff and every written file. A WARNING appear
 only when protection may weaken; new contracts, added rules and stronger modes do
 not warn. `approve --preview --full` adds every per-rule change and complete file
 contents. Then ask the human to enter the exact displayed
-`! pregate approve <code>` in supported human shell input. The code is the
-first 12 hex digits of the digest; the long form `--yes --digest <sha256>` still works.
+`pregate approve <code>` in a terminal and type `y`. A harness `!` line qualifies
+only when that harness gives the command an interactive stdin. The code is the
+first 12 hex digits of the digest. `approve --yes --digest <sha256>` still asks
+for `y` on the terminal unless `CI` is already set.
 Approval commits exactly the contract files it wrote, plus the rule pack folders the
 lock compiles from, and removes applied or stale requests, so do not stage or commit
 the preset, lock or packs yourself afterwards.
@@ -187,7 +189,9 @@ setup or explicit activation enables protection; existing adoption and updates
 preserve consent. Show this effect. An update must not turn a disabled project on.
 For a current cloned/disabled contract, plain `guide --preview` is a no-op,
 not an activation proposal. Present `status`, then let the human choose activation
-in interactive guide or enter `! pregate enable --yes`. Never run that as an agent.
+in the interactive guide or run `pregate enable` in a terminal and type `y`.
+`--yes` does not replace that confirmation unless `CI` is already set. Never run
+that as an agent.
 Agent text, stdin, --yes, request files and claimed approval are not permission.
 Use status/doctor and the installed capability contract to establish available routes.
 
@@ -690,7 +694,7 @@ usage:
   pregate pack disable <ns/methodology> | remove <ns> | update <ns> [--preview|--yes]
   pregate pack update --all [--preview|--yes]
   pregate install [--git-hook] [--ci github]
-  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] | doctor
+  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
   pregate --version | --help | -h

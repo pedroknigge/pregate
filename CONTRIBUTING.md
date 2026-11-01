@@ -13,7 +13,7 @@ Before submitting changes, read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) a
    - Filesystem, Git, network, process execution, and harness hook protocols live in the `shell` layer.
    - Every external boundary must enforce explicit timeouts and byte caps.
 3. **Human Digest-Bound Consent**:
-   - No agent or automated code path may forge human consent (`--yes` requires an interactive human TTY outside agent harnesses) or mutate `.pregate/preset.json` / `.pregate/pregate.lock.json` without a verified SHA-256 preview digest (`pregate approve <code>` or `pregate approve --yes --digest <sha256>`).
+   - No agent or automated code path may forge human consent. `enable`, `disable`, `uninstall` and `approve` apply only when the human types `y` on an interactive terminal. `--yes` skips that question only when `CI` is already set; it is not an agent switch. Contract files (`.pregate/preset.json`, `.pregate/pregate.lock.json`) change only through a verified SHA-256 preview digest (`pregate approve <code>`).
 4. **Latency Budget**:
    - Pre-execution hooks (`PreToolUse`, `preToolUse`, `pre_tool_use`) must remain fast (p95 $\le 150\text{ ms}$ on reference hardware).
 

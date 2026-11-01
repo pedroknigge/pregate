@@ -11,7 +11,7 @@
 Pregate enforces a strict trust boundary between AI coding agents and repository governance:
 
 - **Protected Contract**: `.pregate/preset.json`, `.pregate/pregate.lock.json`, `.git/hooks`, and harness hook configurations (`~/.claude/settings.json`, `~/.cursor/hooks.json`, `~/.codex/`, `~/.grok/`, `~/.gemini/antigravity-cli/`) are guarded against unauthorized modification by agent tool calls and shell commands.
-- **Human-Only Approval**: Contract mutations, pack adoptions, and ratcheted exceptions require an interactive human terminal (`TTY`) and a SHA-256 digest-bound preview command (`pregate approve <code>` or `pregate approve --yes --digest <sha256>`).
+- **Human-Only Approval**: Contract mutations, pack adoptions, consent changes and ratcheted exceptions require an interactive human terminal. The human types `y` on `/dev/tty` (`CONIN$` on Windows). A pipe is not that confirmation. `--yes` skips the question only when `CI` is already set in the environment. The digest-bound command is `pregate approve <code>`.
 - **Deterministic Offline Gate**: Pre-execution and commit checks execute locally without network calls or arbitrary code execution from untrusted repositories.
 
 ## Reporting a Vulnerability

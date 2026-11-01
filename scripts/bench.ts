@@ -8,6 +8,7 @@ import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, realpathS
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "./build";
+import { confirmOnTerminal } from "./confirm-terminal.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const BUDGET_MS = 150;      // p95 of any Pre (§4.1)
@@ -71,9 +72,13 @@ function setUp(work: string): Repo {
   mkdirSync(join(work, "no-preset"));
   mkdirSync(join(env.HOME!, ".claude"), { recursive: true });
   env.PATH = `${env.HOME}/.local/bin:/usr/bin:/bin`;
-  for (const argv of [[engine, "setup"], ["git", "init", "-q", "-b", "main"], [engine, "preset", "compile"], [engine, "install"], ["git", "add", "-A"], ["git", "commit", "-q", "-m", "bench"], [engine, "enable", "--yes"]]) {
+  for (const argv of [[engine, "setup"], ["git", "init", "-q", "-b", "main"], [engine, "preset", "compile"], [engine, "install"], ["git", "add", "-A"], ["git", "commit", "-q", "-m", "bench"]]) {
     run(dir, env, argv);
   }
+  // The release binary asks a person to type y. The bench types it on a pty. It does not
+  // pass --yes and it does not set CI, so this is not a product shortcut.
+  const enabled = confirmOnTerminal([engine, "enable"], dir, env);
+  if (enabled.code !== 0) throw new Error(`pregate enable failed (exit ${enabled.code}): ${enabled.stdout}${enabled.stderr}`);
   const repo = { dir, env, ...hookCommands(env.HOME!) };
   activeCanary(repo);
   return repo;

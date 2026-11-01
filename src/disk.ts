@@ -31,9 +31,25 @@ export function hashPolicy(files: Files): string {
   return sha256(JSON.stringify(rows));
 }
 
+// Macros run with whatever directory the bundler inherited. The shipped trees live next to
+// this file, not in that directory.
+const sourceRoot = join(import.meta.dir, "..");
+
 // Build-time identities. Macro callers pass no dynamic arguments, so the result inlines as data.
+export function readCatalog(): Files {
+  return readTree(join(sourceRoot, "catalog"), false);
+}
+export function readAssets(): Files {
+  return readTree(join(sourceRoot, "assets"), true);
+}
+export function readDemo(): Files {
+  return readTree(join(sourceRoot, "examples/demo"), true);
+}
+export function installEvaluator(): string {
+  return evaluationFingerprint(sourceRoot);
+}
 export function builtinContentHash(): string {
-  return hashPolicy(readTree("catalog", false));
+  return hashPolicy(readCatalog());
 }
 
 export function libraryPackHashes(): Record<string, string> {
@@ -57,7 +73,7 @@ function sha256(text: string): string {
 
 // The shipped library includes executable data and fixtures, not normative prose catalogs.
 export function readLibrary(withFixtures = true): Files {
-  return Object.fromEntries(Object.entries(readTree("packs", withFixtures))
+  return Object.fromEntries(Object.entries(readTree(join(sourceRoot, "packs"), withFixtures))
     .filter(([path]) => /^[^/]+\/(source\.json$|checks\/|methodologies\/)/.test(path)));
 }
 

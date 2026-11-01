@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, truncateSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, truncateSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -22,11 +22,21 @@ function project(name: string) {
   const root = join(area, name);
   mkdirSync(root);
   const machine = join(area, name + "-machine");
+  mkdirSync(machine, { recursive: true });
   const env = { ...process.env, HOME: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
     XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1" };
   const cli = (args: string[], extra = {}) => {
-    const result = Bun.spawnSync([binary, ...args], { cwd: root, env: { ...env, ...extra }, stdout: "pipe", stderr: "pipe", timeout: 20_000 });
-    return { code: result.exitCode, text: result.stdout.toString() + result.stderr.toString() };
+    // A pipe can deliver a short read of a large audit report. Capture the bytes in files.
+    const out = join(machine, "stdout"), err = join(machine, "stderr");
+    const outFd = openSync(out, "w"), errFd = openSync(err, "w");
+    let result: ReturnType<typeof Bun.spawnSync>;
+    try {
+      result = Bun.spawnSync([binary, ...args], { cwd: root, env: { ...env, ...extra }, stdout: outFd, stderr: errFd, timeout: 20_000 });
+    } finally {
+      closeSync(outFd); closeSync(errFd);
+    }
+    const stdout = readFileSync(out, "utf8"), stderr = readFileSync(err, "utf8");
+    return { code: result.exitCode, text: stdout + stderr, stdout, stderr };
   };
   expect(cli(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
   const contract = () => ["preset.json", "pregate.lock.json"].map((file) => readFileSync(join(root, ".pregate", file), "utf8"));
@@ -265,8 +275,8 @@ test("one batch code from the multi-project preview approves every project from 
   const code = /^Approve all 2 project updates: ! pregate approve ([0-9a-f]{12})$/m.exec(preview.text)?.[1];
   expect(code, preview.text).toBeDefined();
   // Only the batch code is offered, with the Cursor terminal line the per-project codes carried.
-  expect(preview.text.match(/pregate approve [0-9a-f]{12}/g), preview.text).toEqual([`pregate approve ${code}`, `pregate approve ${code}`]);
-  expect(preview.text).toContain(`Cursor requires a separate human terminal: pregate approve ${code}`);
+  expect(preview.text.match(/pregate approve [0-9a-f]{12}/g), preview.text).toEqual([`pregate approve ${code}`]);
+  expect(preview.text).toContain("Cursor needs a separate terminal");
   const third = join(area, "batch third");
   mkdirSync(third);
   const approve = () => {
@@ -800,7 +810,7 @@ test("original source invariants can be adopted together and enforce real domain
   expect(p.cli(["pack", "apply", p.plan({ sources: namespaces.map(ns => ({ kind: "library", ns })), methodologies }), "--yes"]).code).toBe(0);
   const initial = p.cli(["audit", "--json", "--strict"]);
   expect(initial.code).toBe(2);
-  const requirements = JSON.parse(initial.text).fitness;
+  const requirements = JSON.parse(initial.stdout).fitness;
   expect(requirements).toHaveLength(350); // 64 core + 286 authored optional clauses; grouped source numbers share one obligation.
   expect(requirements.filter((r: { requirement: string }) => r.requirement === "PS-71-74")).toHaveLength(1);
   expect(requirements.some((r: { requirement: string }) => r.requirement === "PS-72")).toBe(false);

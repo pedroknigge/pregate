@@ -161,7 +161,10 @@ async function restoringHome(base: string, saved: (string | undefined)[], run: (
 function debtRepo(root: string): void {
   cpSync("test/demo-repo", root, { recursive: true });
   mkdirSync(join(root, ".pregate"));
-  writeFileSync(join(root, PRESET), policyFixture(readFileSync("catalog/presets/backend-clean-ddd.json", "utf8")));
+  const preset = JSON.parse(policyFixture(readFileSync("catalog/presets/backend-clean-ddd.json", "utf8"))) as { overrides?: Record<string, unknown> };
+  // The ratchet cases below count introduced debt. Manifest defaults for these two rules are warn.
+  preset.overrides = { ...preset.overrides, "clean-code/CC-FN-001": "deny", "typescript/EVA-CAST-001": "deny" };
+  writeFileSync(join(root, PRESET), JSON.stringify(preset));
   const out = compile(readFileSync(join(root, PRESET), "utf8"), sourcesOf(root), VERSIONS);
   if ("errors" in out) throw new Error(out.errors.join("\n"));
   writeFileSync(join(root, LOCK), out.text);

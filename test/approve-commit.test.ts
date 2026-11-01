@@ -76,7 +76,7 @@ test("approve <code> applies the reviewed request, commits only the contract and
   const prepared = await applyPreset(root, JSON.stringify(text, null, 2) + "\n", { preview: true, request: file });
   expect(prepared.text).toContain("Pending human review");
   const digest = /^Digest: ([0-9a-f]{64})$/m.exec(pendingReview(root).text)![1]!;
-  expect(pendingReview(root).text).toContain(`! pregate approve ${digest.slice(0, 12)}`);
+  expect(pendingReview(root).text).toContain(`pregate approve ${digest.slice(0, 12)}`);
   expect((await approvePending(root, true, digest.slice(0, 11))).code).toBe(1);
   expect((await approvePending(root, true, "0".repeat(12))).code).toBe(1);
   const done = await approvePending(root, true, digest.slice(0, 12));
@@ -273,6 +273,7 @@ test("one batch code asks natively with every project's review and applies them 
     expect(asked.full.split("\n").filter((line) => line.includes("(was enforce)")).length).toBeGreaterThanOrEqual(2);
   }
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
+  process.env.CI = "1";
   process.chdir(elsewhere);
   const done = (await approveBatch(code, true, true))!;
   expect(done.code, done.text).toBe(0);

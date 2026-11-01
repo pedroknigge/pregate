@@ -77,6 +77,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | Document | Role |
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Product/reference |
+| [benchmarks/false-positives.md](benchmarks/false-positives.md) | Measurement record |
 | [CLI.md](CLI.md) | Product/reference |
 | [core-catalog.md](core-catalog.md) | Product/reference |
 | [examples/dcouplr-delivery/README.md](examples/dcouplr-delivery/README.md) | Executable example |

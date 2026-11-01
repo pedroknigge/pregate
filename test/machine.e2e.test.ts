@@ -75,6 +75,9 @@ function machine(found: HarnessId[], fakes: Partial<Record<string, string>> = {}
     HOME: home, XDG_DATA_HOME: join(home, ".local/share"), XDG_STATE_HOME: join(home, ".local/state"), XDG_CONFIG_HOME: join(home, ".config"),
     XDG_CACHE_HOME: join(home, ".cache"), TMPDIR: join(root, "tmp"), CODEX_HOME: codex, GROK_HOME: join(home, ".grok"),
     PATH: `${bin}:${home}/.local/bin`, SHELL: "/bin/zsh", LOG: join(root, "log"),
+    // The fixture replaces the process environment. CI is the product's existing non-interactive
+    // channel for --yes; this machine is not an agent in a consumer project.
+    CI: "1",
   };
   const m: Machine = {
     root, home, data: join(env.XDG_DATA_HOME, "pregate"), state: join(env.XDG_STATE_HOME, "pregate"), codex, env,

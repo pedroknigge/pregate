@@ -85,7 +85,8 @@ test("reviewed recovery removes a killed writer's lease without source or counte
   const preview = p.run(["storage", "show", id]).text;
   expect(preview).toContain("PID " + pid);
   expect(preview).toContain("Claude Code, Codex, Grok or agy");
-  expect(preview).toContain(`Cursor requires a separate human terminal: pregate storage apply ${id} --yes`);
+  expect(preview).toContain(`pregate storage apply ${id} --yes`);
+  expect(preview).toContain("Cursor needs a separate terminal");
   expect(p.run(["storage", "apply", id]).code).toBe(1);
   expect(JSON.parse(p.run(["storage", "inspect", "--json"]).text).sessions[0].writers).toBe(1);
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(0);
@@ -161,7 +162,8 @@ test("reviewed retention removes only eligible code and preserves resumable base
   const preview = p.run(["storage", "show", digest]).text;
   expect(preview).toContain("1 blobs");
   expect(preview).toContain("Claude Code, Codex, Grok or agy");
-  expect(preview).toContain(`Cursor requires a separate human terminal: pregate storage apply ${digest} --yes`);
+  expect(preview).toContain(`pregate storage apply ${digest} --yes`);
+  expect(preview).toContain("Cursor needs a separate terminal");
   expect(p.run(["storage", "apply", digest]).code).toBe(1);
   expect(existsSync(join(p.folder, "blobs", old.hash))).toBe(true);
   expect(p.run(["storage", "apply", digest, "--yes"]).code).toBe(0);

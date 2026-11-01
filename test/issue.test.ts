@@ -169,7 +169,8 @@ test("issue draft is offline, omits code and paths, binds the destination and re
   expect(draft.text).not.toContain("private/path");
   const id = idOf(draft.text);
   expect(draft.text).toContain("Claude Code, Codex, Grok or agy");
-  expect(draft.text).toContain(`Cursor requires a separate human terminal: pregate issue submit ${id} --yes`);
+  expect(draft.text).toContain(`pregate issue submit ${id} --yes`);
+  expect(draft.text).toContain("Cursor needs a separate terminal");
   expect((await issue(["show", id], unexpected)).text).toBe(draft.text);
   expect((await issue(["submit", id], unexpected)).text).toContain("Report not approved");
   const codeDraft = await issue(["draft", "--last", "--include-code"], unexpected);
@@ -394,7 +395,7 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   expect((await onPreEdit([{ session, callId: "propose", tool: "Write", path: join(root, PRESET), edit: { form: "full", content: next }, from: null }])).verdict).toBe("deny");
   const preview = pendingReview(root), digest = idOf(preview.text);
   expect(preview.text).toContain('+{"');
-  expect(preview.text).toContain(`! pregate approve ${digest.slice(0, 12)}`);
+  expect(preview.text).toContain(`pregate approve ${digest.slice(0, 12)}`);
   expect((await approvePending(root, true, "0".repeat(64))).code).toBe(1);
   expect(readFileSync(join(root, PRESET), "utf8")).not.toBe(next);
   delete process.env.CI;
@@ -404,6 +405,7 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   const loosened = pendingReview(root, undefined, true).text.split("\n").filter((line) => line.startsWith("Changes (may loosen) "));
   expect(loosened.length).toBeGreaterThan(0);
   for (const line of loosened) expect(asked.full).toContain(line);
+  process.env.CI = "1";
   expect(await approvePending(root, true, digest)).toMatchObject({ code: 0 });
   expect(readFileSync(join(root, PRESET), "utf8")).toBe(next);
 }));

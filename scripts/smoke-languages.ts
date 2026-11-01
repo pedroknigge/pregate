@@ -3,11 +3,14 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { compile } from "../src/compile.ts";
+import { canonical } from "../src/disk.ts";
 import { sourcesOf, VERSIONS } from "../src/gate.ts";
 
 import { hostTarget } from "./build.ts";
+import { applyReviewedProposal } from "../src/approval-command.ts";
 import { librarySources } from "../src/library.ts";
 import { smokeBinary } from "./smoke-binary.ts";
+import { confirmOnTerminal } from "./confirm-terminal.ts";
 import { runNative } from "./smoke-native-command.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-language-native-"));
@@ -22,6 +25,30 @@ function run(args: string[], stdin?: string, cwd = root) {
     env: { ...process.env, CI: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") } });
 }
 function assert(condition: boolean, message: string) { if (!condition) throw new Error(message); }
+
+// init --preview runs with CI set so its digest is printed. Applying that review does not.
+// POSIX types y on a pty with CI removed. Windows has no /dev/tty, so the starter
+// contract is applied by the same in-process function the CLI calls after that
+// confirmation. That function is not a CLI flag.
+async function acceptStarter(binary: string, starter: string, digest: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  if (process.platform === "win32") {
+    const previous = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = join(area, "data");
+    try {
+      const applied = await applyReviewedProposal(canonical(starter), digest, { activate: true, commit: true });
+      return { exitCode: applied.code, stdout: applied.text, stderr: "" };
+    } finally {
+      if (previous === undefined) delete process.env.XDG_DATA_HOME;
+      else process.env.XDG_DATA_HOME = previous;
+    }
+  }
+  const env: Record<string, string | undefined> = {
+    ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
+  };
+  delete env.CI; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
+  const confirmed = confirmOnTerminal([binary, "approve", digest], starter, env);
+  return { exitCode: confirmed.code, stdout: confirmed.stdout, stderr: confirmed.stderr };
+}
 try {
   mkdirSync(root, { recursive: true });
   const library = run(["pack", "list", "--library", "--json"]);
@@ -88,8 +115,8 @@ try {
   assert(preview.exitCode === 0 && preview.stdout.toString().includes("Recommended: mixed-starter"), preview.stdout.toString());
   const digest = /Digest: ([a-f0-9]{64})/.exec(preview.stdout.toString())?.[1];
   assert(digest !== undefined, "Missing starter review digest");
-  const accepted = run(["approve", "--yes", "--digest", digest!], undefined, starter);
-  assert(accepted.exitCode === 0, accepted.stdout.toString() + accepted.stderr.toString());
+  const accepted = await acceptStarter(binary, starter, digest!);
+  assert(accepted.exitCode === 0, accepted.stdout + accepted.stderr);
   const debt = run(["audit", "--json", "--strict"], undefined, starter);
   const observed = JSON.parse(debt.stdout.toString());
   assert(debt.exitCode === 2 && observed.summary.violations === 2 && observed.summary.shadow === 2 && observed.fitness.length === 64, debt.stdout.toString());

@@ -63,8 +63,9 @@ including a disabled project. A cloned contract still needs local consent.
 Global installation does not migrate every private project automatically.
 
 For a current cloned/disabled contract, plain `guide --preview` makes no activation
-proposal. Choose activation in the interactive guide, or enter human
-`! pregate enable --yes` after reviewing `status`. Updates preserve disabled consent.
+proposal. Choose activation in the interactive guide, or run `pregate enable` in a
+terminal after reviewing `status` and type `y`. `--yes` does not skip that question
+unless `CI` is already set. Updates preserve disabled consent.
 
 ## Keep the guide current
 

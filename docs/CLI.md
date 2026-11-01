@@ -49,7 +49,7 @@ usage:
   pregate pack disable <ns/methodology> | remove <ns> | update <ns> [--preview|--yes]
   pregate pack update --all [--preview|--yes]
   pregate install [--git-hook] [--ci github]
-  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] | doctor
+  pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
   pregate --version | --help | -h

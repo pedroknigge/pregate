@@ -24,7 +24,7 @@ test("sarifReport, audit --sarif and check --format sarif emit valid SARIF 2.1.0
       ],
       methodologies: ["core/pregate-integrity", "clean-code/clean-code", "typescript/anti-evasion"],
       scope: { include: ["src/**"], exclude: [] },
-      overrides: { "CC-FN-002": { params: { max: 2 } } },
+      overrides: { "CC-FN-002": { params: { max: 2 }, severity: "deny" } },
     }, null, 2) + "\n";
     writeFileSync(join(root, PRESET), presetText);
     const compiled = compile(presetText, sourcesOf(root), VERSIONS);

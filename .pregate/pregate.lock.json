@@ -30,6 +30,7 @@
         "src/shell.ts",
         "src/schema.ts",
         "src/compile.ts",
+        "src/control.ts",
         "src/fixtures.ts",
         "src/fitness.ts",
         "src/refactor-plan.ts",
@@ -91,6 +92,7 @@
         "src/demo-run.ts",
         "src/demo-samples.ts",
         "src/consent.ts",
+        "src/control-file.ts",
         "src/versions.ts",
         "src/approval.ts",
         "src/approval-command.ts",
@@ -149,7 +151,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "658302a28b443d612b90fde673cc3d12fc024d24c1b8ebba156ae99e742c17eb",
+  "presetHash": "de5c066bda9741bd5d4f07f81bcc4d3a2ff67de22cd0c43cb8e9302689c40c95",
   "ratchet": "no-new",
   "rules": [
     {
@@ -193,6 +195,7 @@
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
+          "src/control.ts",
           "src/fixtures.ts",
           "src/fitness.ts",
           "src/refactor-plan.ts",
@@ -311,6 +314,7 @@
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
+          "src/control.ts",
           "src/fixtures.ts",
           "src/fitness.ts",
           "src/refactor-plan.ts",
@@ -832,6 +836,7 @@
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
+          "src/control.ts",
           "src/fixtures.ts",
           "src/fitness.ts",
           "src/refactor-plan.ts",
@@ -1053,124 +1058,6 @@
     },
     {
       "aliases": [
-        "clean-code/CC-ER-003"
-      ],
-      "check": "clean-code/errors/try-is-whole-function@1.0.0",
-      "enforcement": "enforce",
-      "id": "clean-code/CC-ER-003",
-      "impl": {
-        "kind": "pattern",
-        "patterns": {
-          "typescript": [
-            {
-              "id": "try-beside-other-work",
-              "rule": {
-                "any": [
-                  {
-                    "not": {
-                      "inside": {
-                        "matches": "function-body"
-                      }
-                    }
-                  },
-                  {
-                    "follows": {
-                      "matches": "statement",
-                      "stopBy": "end"
-                    }
-                  },
-                  {
-                    "precedes": {
-                      "matches": "statement",
-                      "stopBy": "end"
-                    }
-                  }
-                ],
-                "inside": {
-                  "matches": "function-like",
-                  "stopBy": "end"
-                },
-                "kind": "try_statement"
-              },
-              "utils": {
-                "function-body": {
-                  "inside": {
-                    "field": "body",
-                    "matches": "function-like"
-                  },
-                  "kind": "statement_block"
-                },
-                "function-like": {
-                  "any": [
-                    {
-                      "kind": "function_declaration"
-                    },
-                    {
-                      "kind": "generator_function_declaration"
-                    },
-                    {
-                      "kind": "function_expression"
-                    },
-                    {
-                      "kind": "generator_function"
-                    },
-                    {
-                      "kind": "arrow_function"
-                    },
-                    {
-                      "kind": "method_definition"
-                    }
-                  ]
-                },
-                "statement": {
-                  "not": {
-                    "any": [
-                      {
-                        "kind": "comment"
-                      },
-                      {
-                        "kind": "empty_statement"
-                      },
-                      {
-                        "regex": "^[{}]$"
-                      }
-                    ]
-                  }
-                }
-              },
-              "x-note": "A try inside a function must be the function body's only statement: a statement before it, a statement after its catch/finally, or a try nested in an if, loop, catch or other block is reported. Comments do not count. A try outside every function, such as a module-level script entry, is not checked."
-            }
-          ]
-        }
-      },
-      "integrity": false,
-      "origin": {
-        "enforcement": "preset",
-        "severity": "alias"
-      },
-      "params": {
-        "exclude": [],
-        "paths": [
-          "**"
-        ]
-      },
-      "phases": [
-        "pre",
-        "stop",
-        "commit",
-        "ci"
-      ],
-      "severity": "warn",
-      "text": {
-        "avoid": "Wrapping the try in an if or a nested block, or moving the surrounding statements into the try block so it becomes the only statement.",
-        "fix": "Extract the guarded work into its own function whose whole body is the try/catch, and call it from the original function.",
-        "message": "{symbol} handles an error and also does other work. Move the try/catch into a function of its own.",
-        "source": "Clean Code (R. C. Martin, 2008), ch. 3, Functions (Extract Try/Catch Blocks; Error Handling Is One Thing)",
-        "why": "A try in the middle of other work mixes the normal path with error processing, so a reader has to separate the two before understanding either."
-      }
-    },
-    {
-      "aliases": [
         "clean-code/CC-FN-001"
       ],
       "check": "clean-code/complexity/fn-max-lines@1.0.0",
@@ -1203,13 +1090,13 @@
         "commit",
         "ci"
       ],
-      "severity": "deny",
+      "severity": "warn",
       "text": {
         "avoid": "Packing statements onto one line, moving the body into a nested arrow function, or cutting it into fragments that are called once and mean nothing on their own.",
         "fix": "Extract each cohesive step into a function named after what it computes in this domain, and leave the original function as the sequence of those steps.",
         "message": "{symbol} has {measured} lines of code (limit {limit}).",
         "source": "Clean Code (R. C. Martin, 2008), ch. 3, Functions (Small!)",
-        "why": "A long function mixes steps at different levels of abstraction, and every extra branch multiplies what a reader and a test must cover."
+        "why": "A long function mixes steps at different levels of abstraction. The line budget is a project choice, not a defect, so the default contract advises instead of denying."
       }
     },
     {
@@ -1247,20 +1134,20 @@
         "commit",
         "ci"
       ],
-      "severity": "deny",
+      "severity": "warn",
       "text": {
         "avoid": "Untyped options bags, inline object types, destructured parameter objects and rest tuples that move the same inputs behind one name.",
         "fix": "Group parameters that always travel together into a named domain type, or split the function by responsibility. Take the type name from the glossary or the file's domain.",
         "message": "{symbol} takes {measured} parameters (limit {limit}).",
         "source": "Clean Code (R. C. Martin, 2008), ch. 3, Functions (Function Arguments)",
-        "why": "Many parameters usually hide an unnamed concept or a function doing too much."
+        "why": "Many parameters usually hide an unnamed concept. How many is too many is a project budget, so the default contract advises instead of denying."
       }
     },
     {
       "aliases": [
         "clean-code/CC-NEST-001"
       ],
-      "check": "clean-code/complexity/nesting-max-depth@1.0.0",
+      "check": "clean-code/complexity/nesting-max-depth@1.1.0",
       "enforcement": "enforce",
       "id": "clean-code/CC-NEST-001",
       "impl": {
@@ -1276,7 +1163,7 @@
       },
       "params": {
         "exclude": [],
-        "max": 2,
+        "max": 4,
         "paths": [
           "**"
         ]
@@ -1290,10 +1177,10 @@
       "severity": "warn",
       "text": {
         "avoid": "Collapsing nested if statements into a complex compound boolean or a nested ternary only hides the branching without simplifying the logic.",
-        "fix": "Use guard clauses for early returns or extract the inner control block into a well-named helper function.",
-        "message": "{symbol} has {measured} levels of control-flow nesting (limit {limit}). Extract nested branches or use early returns.",
+        "fix": "Use a guard clause (if with no else whose body is only return, continue, break, or throw) or extract the inner control block into a well-named helper function.",
+        "message": "{symbol} has {measured} levels of control-flow nesting (limit {limit}). Extract nested branches. An if that only returns, continues, breaks, or throws is a guard clause and is not counted.",
         "source": "Clean Code (R. C. Martin, 2008), ch. 3, Functions (Blocks and Indenting)",
-        "why": "Deeply nested control flow forces the reader to hold multiple active conditions and loop states in working memory at once."
+        "why": "Deeply nested control flow forces the reader to hold multiple active conditions at once. The default limit is 4, the same maximum ESLint max-depth ships, and an if that only returns, continues, breaks, or throws does not count."
       }
     },
     {
@@ -5123,7 +5010,7 @@
       "aliases": [
         "typescript/EVA-CAST-001"
       ],
-      "check": "typescript/integrity/double-type-assertion@1.0.0",
+      "check": "typescript/integrity/double-type-assertion@1.1.0",
       "enforcement": "enforce",
       "id": "typescript/EVA-CAST-001",
       "impl": {
@@ -5211,13 +5098,13 @@
         "commit",
         "ci"
       ],
-      "severity": "deny",
+      "severity": "warn",
       "text": {
         "avoid": "Parentheses around the inner assertion, angle-bracket assertions, going through never or unknown[] instead of unknown, or an intermediate variable typed as unknown.",
         "fix": "Validate the value with a type guard or a parser and build the target type from it, or fix the type where the value comes from.",
         "message": "{symbol} erases a type with a double assertion through unknown, any or never.",
         "source": "PREGATE anti-evasion policy, SPEC §6.2 (EVA-CAST-001)",
-        "why": "A double assertion silences the compiler exactly where the types disagree."
+        "why": "A double assertion silences the compiler where the types disagree. `as unknown as T` is also the documented way to cross a boundary the checker cannot see, so the default contract advises."
       }
     },
     {
@@ -5433,6 +5320,7 @@
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
+          "src/control.ts",
           "src/fixtures.ts",
           "src/fitness.ts",
           "src/refactor-plan.ts",
@@ -5486,6 +5374,7 @@
           "src/demo-run.ts",
           "src/demo-samples.ts",
           "src/consent.ts",
+          "src/control-file.ts",
           "src/versions.ts",
           "src/approval.ts",
           "src/approval-command.ts",
@@ -5574,13 +5463,13 @@
         "commit",
         "ci"
       ],
-      "severity": "deny",
+      "severity": "warn",
       "text": {
         "avoid": "Do not leave bare @ts-ignore without justification or in a block comment. Use narrowing or type assertions only when sound.",
         "fix": "Replace @ts-ignore with @ts-expect-error and provide an issue URL or description, or fix the underlying type error.",
         "message": "{symbol} suppresses compiler diagnostics with @ts-ignore. Use @ts-expect-error with a reason, or fix the type signature.",
         "source": "TypeScript Handbook: Release Notes 3.9, https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-9.html#-ts-expect-error-comments",
-        "why": "A @ts-ignore comment suppresses all type errors on the following line without checking whether an error is actually present, leaving stale suppressions that hide future regressions."
+        "why": "A @ts-ignore comment suppresses the next line without requiring an error to be present. Prefer @ts-expect-error, but an existing @ts-ignore is not itself a defect, so the default contract advises. New suppressions are still denied by core/EVA-SUP-001."
       }
     }
   ],
@@ -5596,5 +5485,5 @@
     ]
   },
   "sourceDirs": [],
-  "sourcesHash": "b3b0707728a149fa0cefb75985d9d80f046ce7abcede5dbace69913fa25b0120"
+  "sourcesHash": "59d5ad5c05b027469f053ea99a059f85a3a56563577cc693e683b759d9b19eca"
 }

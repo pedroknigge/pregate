@@ -93,7 +93,7 @@ test("local Git packs pin commit and content, never auto-update, reject corrupti
     expect(readFileSync(join(root, ".pregate/preset.json"), "utf8")).toBe(before);
     expect(readFileSync(join(root, ".pregate/pregate.lock.json"), "utf8")).toBe(oldLock);
     const digest = preview.stdout.match(/Digest: ([0-9a-f]{64})/)![1]!;
-    expect(preview.stdout).toContain(`! pregate approve ${digest.slice(0, 12)}`);
+    expect(preview.stdout).toContain(`pregate approve ${digest.slice(0, 12)}`);
     expect((await cli("approve", "--yes", "--digest", "0".repeat(64))).exitCode).toBe(1);
     expect((await cli("approve", "--yes", "--digest", digest)).exitCode).toBe(0);
     const listed = await cli("pack", "list", "--json");

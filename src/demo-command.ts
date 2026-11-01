@@ -70,7 +70,10 @@ function demoEnvironment(machine: string, git: string): Record<string, string> {
   return { ...system, PATH: [dirname(git), ...(process.platform === "win32" ? [join(system.SystemRoot!, "System32"), join(system.SystemRoot!, "System32/WindowsPowerShell/v1.0")] : ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])].join(process.platform === "win32" ? ";" : ":"),
     HOME: home, USERPROFILE: home, LOCALAPPDATA: join(machine, "local"), XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"),
     CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"), CLAUDE_CONFIG_DIR: join(machine, "claude"),
-    TMPDIR: machine, TMP: machine, TEMP: machine, CI: "1", LANG: "C.UTF-8", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(machine, "gitconfig"),
+    TMPDIR: machine, TMP: machine, TEMP: machine,
+    // Owned samples only. This lets the throwaway directory print its digest and apply
+    // `approve --yes`. It is not a switch a script may set to consent a consumer project.
+    CI: "1", LANG: "C.UTF-8", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(machine, "gitconfig"),
     GIT_CONFIG_SYSTEM: process.platform === "win32" ? "NUL" : "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_TEMPLATE_DIR: join(machine, "template"), PYTHONDONTWRITEBYTECODE: "1", PYTHONPATH: "src",
     GOPROXY: "off", GOSUMDB: "off", GOTOOLCHAIN: "local", GOCACHE: join(machine, "go-cache"), GOPATH: join(machine, "go"),
     CARGO_HOME: join(machine, "cargo"), RUSTUP_HOME: join(machine, "rustup") };
