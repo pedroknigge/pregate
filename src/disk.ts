@@ -167,6 +167,16 @@ export function findRoot(abs: string, accepted: (root: string) => boolean): stri
   }
 }
 
+// The spelled path sits in an accepted root and its canonical target does not. A symlink, or a
+// path through one, would write outside that root. Roots are compared after realpath so a checkout
+// reached by its own symlink is not treated as an escape.
+export function leavesAcceptedRoot(spelled: string, landed: string, accepted: (root: string) => boolean): boolean {
+  const home = findRoot(dirname(resolve(spelled)), accepted);
+  if (home === null) return false;
+  const there = findRoot(dirname(landed), accepted);
+  return there === null || canonical(home) !== canonical(there);
+}
+
 // Readers see the old file or the new one, never a partial write.
 export function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;

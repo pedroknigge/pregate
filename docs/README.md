@@ -124,6 +124,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [features/rule-drafting.md](features/rule-drafting.md) | Product/reference |
 | [features/vercel-pack.md](features/vercel-pack.md) | Product/reference |
 | [features/whole-project-audit.md](features/whole-project-audit.md) | Product/reference |
+| [guarantees.md](guarantees.md) | Product/reference |
 | [guides/core-verification-matrix.md](guides/core-verification-matrix.md) | Product/reference |
 | [guides/daily-use.md](guides/daily-use.md) | Product/reference |
 | [guides/demo.md](guides/demo.md) | Product/reference |

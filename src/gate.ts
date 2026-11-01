@@ -4,7 +4,7 @@ import { approvalDeadline, finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
-import { canonical, findRoot } from "./disk.ts";
+import { canonical, findRoot, leavesAcceptedRoot } from "./disk.ts";
 import { feedbackPreview, feedbackReview } from "./feedback-command.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./inertia.ts";
 import { issuePreview, issueReview } from "./issue-command.ts";
@@ -188,12 +188,15 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     },
     inScope: (p) => {
       const abs = canonical(p);
+      // An in-repo path whose real target leaves the root is still a write the guard must see.
+      if (leavesAcceptedRoot(p, abs, enabled)) return true;
       const h = reach(abs, dirname(abs));
       return h !== null && inScope(h.lock, h.rel);
     },
     // A directory written whole writes into every root it holds, as well as below itself.
     under: (p) => {
       const abs = canonical(p);
+      if (leavesAcceptedRoot(p, abs, enabled)) return true;
       const h = reach(abs, abs);
       return known.some((r) => within(abs, r)) || (h !== null && scopeUnder(h.lock, h.rel));
     },
