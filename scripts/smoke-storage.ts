@@ -52,11 +52,12 @@ try {
   checked(["hook", "session-start"], { hook_event_name: "SessionStart", session_id: "native-retention", cwd: root, source: "startup" });
   const folder = join(area, "state/pregate/sessions", WINDOWS ? "claude-code~native-retention" : "claude-code:native-retention");
   const snapshotFile = join(folder, H(root), "snapshot.json"), snapshot = readFileSync(snapshotFile, "utf8");
-  const source = "export function wide(a: number, b: number, c: number, d: number, e: number, f: number) { return a; }\n";
+  // A swallowed error is a deny rule; only a shadowed denial keeps a copy of the proposed source.
+  const source = "export function load(read: () => string): string { let text = \"\"; try { text = read(); } catch {} return text; }\n";
   checked(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "native-retention", cwd: root, permission_mode: "default",
-    tool_name: "Write", tool_use_id: "wide-function", tool_input: { file_path: join(root, "src/a.ts"), content: source } });
+    tool_name: "Write", tool_use_id: "empty-catch", tool_input: { file_path: join(root, "src/a.ts"), content: source } });
   const findings = JSON.parse(checked(["feedback", "list", "--json"])).findings;
-  assert(findings.length === 1 && findings[0].rule === "clean-code/CC-FN-002", "Expected one real recorded shadow observation");
+  assert(findings.length === 1 && findings[0].rule === "clean-code/CC-ER-002", "Expected one real recorded shadow observation");
   const before = JSON.parse(checked(["report", "--json"]));
   const inspection = JSON.parse(checked(["storage", "inspect", "--json"]));
   assert(inspection.sessions.length === 1 && inspection.sessions[0].events === 1, "Expected one recorded event");

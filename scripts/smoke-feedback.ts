@@ -25,17 +25,18 @@ try {
   const lock = readFileSync(join(root, ".pregate/pregate.lock.json"), "utf8");
   const observed = run(["hook", "pre", "--harness", "claude-code"], {
     cwd: root, session_id: "native-feedback", hook_event_name: "PreToolUse", permission_mode: "default",
-    tool_name: "Write", tool_use_id: "wide-function",
-    tool_input: { file_path: join(root, "src/a.ts"), content: "export function wide(a: number, b: number, c: number, d: number, e: number, f: number) { return a; }\n" },
+    tool_name: "Write", tool_use_id: "empty-catch",
+    // A swallowed error is a deny rule, so legacy-safe records a shadowed finding.
+    tool_input: { file_path: join(root, "src/a.ts"), content: "export function load(read: () => string): string { let text = \"\"; try { text = read(); } catch {} return text; }\n" },
   });
   assert(observed.exitCode === 0, observed.stdout.toString() + observed.stderr.toString());
   const listed = run(["feedback", "list", "--json"]);
   assert(listed.exitCode === 0, listed.stdout.toString() + listed.stderr.toString());
   const findings = JSON.parse(listed.stdout.toString()).findings;
-  assert(findings.length === 1 && findings[0].rule === "clean-code/CC-FN-002", listed.stdout.toString());
+  assert(findings.length === 1 && findings[0].rule === "clean-code/CC-ER-002", listed.stdout.toString());
   const snapshotFile = join(area, "state/pregate/sessions", WINDOWS ? "claude-code~native-feedback" : "claude-code:native-feedback", H(root), "snapshot.json");
   const snapshot = readFileSync(snapshotFile, "utf8");
-  const draft = run(["feedback", "draft", findings[0].id, "--as", "correct", "--note", "Six parameters exceed the reviewed limit of five."]);
+  const draft = run(["feedback", "draft", findings[0].id, "--as", "correct", "--note", "The empty catch drops the read failure."]);
   assert(draft.exitCode === 0, draft.stdout.toString() + draft.stderr.toString());
   const digest = /Digest: ([a-f0-9]{64})/.exec(draft.stdout.toString())?.[1];
   assert(digest !== undefined, "Missing feedback review digest");
