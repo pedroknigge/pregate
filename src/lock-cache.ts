@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { hashPolicy, readTree, writeAtomic } from "./disk.ts";
 import { LOCK, PRESET, readText } from "./inertia.ts";
-import { cachedPack } from "./packs.ts";
+import { cachedPackEntry } from "./packs.ts";
 import { sha256, stateDir } from "./state.ts";
 import type { Lock, Preset } from "./types.ts";
 import { VERSIONS } from "./versions.ts";
@@ -19,26 +19,34 @@ const CACHE_ID = "compiled-lock-v1";
 const MAX_BYTES = 32 * 1024 * 1024;
 
 interface Entry { v: number; key: string; text: string; digest: string }
-interface Hit { root: string; key: string }
+interface Hit { root: string; key: string; preset: string; lock: string }
 interface EmbeddedIdentity { builtin: string; libraries: Record<string, string>; compiler: string }
 
 const admitted = new WeakMap<Lock, Hit>();
+// The key loadCompiledLock last hashed for each root. storeCompiledLock follows a miss in the
+// same lockOf call with the same bytes, so it reuses that pass instead of reading packs again.
+const lastKey = new Map<string, Hit>();
 let embedded: EmbeddedIdentity | null = null;
 
 export function loadCompiledLock(root: string, presetText: string, lockText: string): { lock: Lock; hash: string } | null {
   const normalized = lockText.replaceAll("\r\n", "\n");
   const key = compiledLockKey(root, presetText, normalized);
   if (key === null) return null;
+  const hit: Hit = { root, key, preset: presetText, lock: normalized };
+  lastKey.set(root, hit);
   const text = readEntry(root, key);
   if (text === null || text !== normalized) return null;
   const lock = parseLock(text);
   if (lock === null) return null;
-  admitted.set(lock, { root, key });
+  admitted.set(lock, hit);
   return { lock, hash: sha256(lockText) };
 }
 
 export function storeCompiledLock(root: string, presetText: string, compiledText: string): void {
-  const key = compiledLockKey(root, presetText, compiledText);
+  const last = lastKey.get(root);
+  const key = last !== undefined && last.preset === presetText && last.lock === compiledText
+    ? last.key
+    : compiledLockKey(root, presetText, compiledText);
   if (key === null || Buffer.byteLength(compiledText) > MAX_BYTES) return;
   const file = cacheFile(root);
   try {
@@ -50,15 +58,16 @@ export function storeCompiledLock(root: string, presetText: string, compiledText
   }
 }
 
-// True when this process admitted `lock` from a cache entry whose key still matches disk.
-// Pack bytes are hashed again; embedded packs use their build-time content hashes.
+// True when this process admitted `lock` from a cache entry and the preset and lock files
+// still hold the bytes that admission keyed. Admission already hashed every pack in this
+// process; the key is not derived a second time.
 export function cachedSourcesMatch(root: string, lock: Lock): boolean {
   const hit = admitted.get(lock);
   if (hit === undefined || hit.root !== root) return false;
   const preset = readText(join(root, PRESET));
   const disk = readText(join(root, LOCK));
   if (preset === null || disk === null) return false;
-  return compiledLockKey(root, preset, disk.replaceAll("\r\n", "\n")) === hit.key;
+  return preset === hit.preset && disk.replaceAll("\r\n", "\n") === hit.lock;
 }
 
 function compiledLockKey(root: string, presetText: string, normalizedLock: string): string | null {
@@ -87,13 +96,16 @@ function presetSources(presetText: string): Preset["sources"] | null {
   }
 }
 
+// The key is computed before compile validates the preset, so a malformed source yields no
+// key (the caller compiles and reports the errors) rather than an exception.
 function packHash(root: string, source: Preset["sources"][number]): string | null {
   if (source === null || typeof source !== "object") return null;
   if (source.kind === "builtin") return identity().builtin;
-  if (source.kind === "library") return identity().libraries[source.ns] ?? null;
-  if (source.kind === "path") return pathHash(root, source.path);
-  const files = cachedPack(source);
-  return files === null ? null : hashPolicy(files);
+  if (source.kind === "library") return typeof source.ns === "string" ? identity().libraries[source.ns] ?? null : null;
+  if (source.kind === "path") return typeof source.path === "string" ? pathHash(root, source.path) : null;
+  if (source.kind !== "git") return null;
+  // The pin's data-tree hash already covers every byte of the verified pack.
+  return cachedPackEntry(source)?.hash ?? null;
 }
 
 function pathHash(root: string, path: string): string | null {

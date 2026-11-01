@@ -101,3 +101,17 @@ test("compiled lock cache hits, falls back when corrupt, and misses when the loc
   write(join(root, PRESET), `${JSON.stringify(edited, null, 2)}\n`);
   expect(lockOf(root)).toBe("lock-stale");
 });
+
+test("a path source without a path misses the cache and reports lock-stale instead of throwing", () => {
+  const { root, preset } = project();
+  admitted(root);
+  const edited = JSON.parse(preset) as { sources: Record<string, unknown>[] };
+  edited.sources.push({ ns: "broken", kind: "path" });
+  write(join(root, PRESET), `${JSON.stringify(edited, null, 2)}\n`);
+  expect(() => lockOf(root)).not.toThrow();
+  expect(lockOf(root)).toBe("lock-stale");
+  edited.sources.pop();
+  edited.sources.push({ ns: "typed", kind: "path", path: 7 });
+  write(join(root, PRESET), `${JSON.stringify(edited, null, 2)}\n`);
+  expect(lockOf(root)).toBe("lock-stale");
+});

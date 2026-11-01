@@ -1,5 +1,5 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
@@ -12,7 +12,8 @@ import { sha256 } from "../src/state.ts";
 
 setDefaultTimeout(180_000);
 const RUNS = 25;
-const work = mkdtempSync(join(tmpdir(), "pregate-lock-cache-e2e-"));
+// The engine keys the cache by the real root path; macOS tmpdir is a symlink.
+const work = realpathSync(mkdtempSync(join(tmpdir(), "pregate-lock-cache-e2e-")));
 const repo = join(work, "repo");
 const home = join(work, "home");
 const xdgData = join(work, "xdg-data");

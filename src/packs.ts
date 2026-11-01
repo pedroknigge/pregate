@@ -14,6 +14,12 @@ function index(url: string, ref: string): string {
 
 // Cache reads never resolve a moving ref or contact the remote.
 export function cachedPack(source: GitSource & { hash?: string }): Files | null {
+  return cachedPackEntry(source)?.files ?? null;
+}
+
+// The pinned pack with the data-tree hash its bytes were verified against.
+export function cachedPackEntry(source: GitSource & { hash?: string }): { files: Files; hash: string } | null {
+  if (typeof source.url !== "string" || typeof source.ref !== "string") return null;
   const pin = index(source.url, source.ref);
   if (!/^[0-9a-f]{40}$/.test(source.ref) || !existsSync(pin)) return null;
   const hash = JSON.parse(readFileSync(pin, "utf8")) as string;
@@ -21,7 +27,7 @@ export function cachedPack(source: GitSource & { hash?: string }): Files | null 
   const dir = join(dataHome(), "packs/objects", hash);
   if (!existsSync(dir)) return null;
   const files = readTree(dir, true);
-  return sha256(canonical(files)) === hash ? files : null;
+  return sha256(canonical(files)) === hash ? { files, hash } : null;
 }
 
 export function testPack(files: Files, now: Clock): string[] {
