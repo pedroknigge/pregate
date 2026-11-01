@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { DEMO_LANGUAGES, demoSample, type DemoLanguage } from "./demo-samples.ts";
 import { demoCase, type DemoContext, type DemoReceipt } from "./demo-run.ts";
@@ -82,13 +82,13 @@ function demoEnvironment(machine: string, git: string): Record<string, string> {
 function nativeTool(name: string): string | null {
   const path = Bun.which(name);
   if (path === null) return null;
-  const binary = realpathSync(path);
-  if (name !== "rustc" || basename(binary).replace(/\.exe$/, "") !== "rustup") return binary;
-  // Use an already installed compiler directly; the isolated demo never invokes rustup or installs a toolchain.
-  const installed = join(process.env.RUSTUP_HOME ?? join(process.env.HOME ?? process.env.USERPROFILE ?? "", ".rustup"), "toolchains");
-  if (!existsSync(installed)) return null;
+  if (name !== "rustc") return realpathSync(path);
+  // The PATH entry is often a rustup proxy named rustc.exe. Use an already installed compiler
+  // directly; the isolated demo never invokes rustup or installs a toolchain.
+  const installed = join(process.env.RUSTUP_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? "", ".rustup"), "toolchains");
+  if (!existsSync(installed)) return realpathSync(path);
   return readdirSync(installed).sort((a, b) => Number(b.startsWith("stable")) - Number(a.startsWith("stable")) || a.localeCompare(b))
-    .map(name => join(installed, name, "bin", process.platform === "win32" ? "rustc.exe" : "rustc")).find(existsSync) ?? null;
+    .map(toolchain => join(installed, toolchain, "bin", process.platform === "win32" ? "rustc.exe" : "rustc")).find(existsSync) ?? null;
 }
 
 function demoText(report: DemoReport): string {

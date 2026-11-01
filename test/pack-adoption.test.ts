@@ -7,6 +7,11 @@ import { ENGINE_FILE } from "../src/platform.ts";
 import { packTemplate } from "../src/pack-template.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { slash } from "../src/paths.ts";
+
+function commandPath(dir: string): string {
+  const path = slash(realpathSync(dir));
+  return /^[\w./-]+$/.test(path) ? path : JSON.stringify(path);
+}
 import { librarySource } from "../src/library.ts";
 import type { Preset } from "../src/types.ts";
 
@@ -308,7 +313,7 @@ test("project update names sibling worktrees that pin another engine, with the e
   writeFileSync(join(sibling, ".pregate/pregate.lock.json"), JSON.stringify({ ...lock, engine: "0.0.0" }));
   const preview = p.cli(["update", "--project", "--preview"]);
   expect(preview.text).toContain(`Other worktrees of this repository pin another engine: ${slash(realpathSync(sibling))}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${JSON.stringify(slash(realpathSync(sibling)))} --preview`);
+  expect(preview.text).toContain(`Review them together: pregate update --projects ${commandPath(sibling)} --preview`);
 });
 
 test("multi-project --yes applies and commits each prepared project; --no-commit leaves the files uncommitted", () => {

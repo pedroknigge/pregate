@@ -2,6 +2,7 @@ import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { enable } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { supervise } from "../src/supervisor.ts";
@@ -15,7 +16,7 @@ copyFileSync(process.execPath, join(data, version, ENGINE_FILE));
 enable(root, data);
 afterAll(() => rmSync(area, { recursive: true, force: true }));
 const raw = JSON.stringify({ cwd: root, session_id: "timeout", tool_name: "Write", tool_input: { file_path: join(root, "src/a.ts"), content: "export const a = 1;" } });
-const source = JSON.stringify(new URL("../src/progress.ts", import.meta.url).pathname);
+const source = JSON.stringify(fileURLToPath(new URL("../src/progress.ts", import.meta.url)));
 
 test("actual supervisor deadline names the individual rule still executing", async () => {
   const script = `import { checkpoint, ruleEvaluationProgress } from ${source};
