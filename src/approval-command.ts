@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathKey, relativePath as relative } from "./paths.ts";
-import { approve, discardProposal, proposeContract, readProposal, type Proposal } from "./approval.ts";
+import { approvalRefusal, approve, discardProposal, proposeContract, readProposal, type Proposal } from "./approval.ts";
 import { BUILTIN } from "./assets.ts";
 import { enable } from "./consent.ts";
 import { applyRequest, compile } from "./compile.ts";
@@ -48,7 +48,7 @@ export async function approvePending(root: string, yes = false, digest?: string,
     return { code: 1, text: failed.text };
   }
   const diff = proposalDiff(proposal);
-  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes)) return { code: 1, text: "Human approval unavailable or rejected; nothing applied. Use --yes for human automation." };
+  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes)) return { code: 1, text: approvalRefusal() };
   return applyReviewedProposal(root, sha256(JSON.stringify(proposal)), { activate: proposal.activate !== false, commit });
 }
 
@@ -66,7 +66,7 @@ export async function approveBatch(code: string, yes: boolean, commit: boolean):
   }
   if (errors.length > 0) return { code: 1, text: [...errors, BATCH_STALE].join("\n") };
   const review = batchReview(batch, false);
-  if (!await approve(review.text, review.warning, yes)) return { code: 1, text: "Human approval unavailable or rejected; nothing applied. Use --yes for human automation." };
+  if (!await approve(review.text, review.warning, yes)) return { code: 1, text: approvalRefusal() };
   const { lines, updated } = await applyReviews(batch.items, commit);
   discardBatch();
   return { code: updated === batch.items.length ? 0 : 1, text: [...lines, `${updated}/${batch.items.length} project contracts updated. Each project keeps its consent.`].join("\n") };

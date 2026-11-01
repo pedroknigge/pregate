@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeSync } from "node:fs";
-import { approve, withholdApprovalCode } from "./approval.ts";
+import { approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
@@ -108,7 +108,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       if (args.length > 1 || (args.length === 1 && args[0] !== "--yes")) return BAD;
       const root = here();
       if (root === null) return noPreset(process.cwd());
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for worktree ${root}.`, cmd === "disable", args.includes("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: approval unavailable or rejected; use --yes for human automation.` };
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for worktree ${root}.`, cmd === "disable", args.includes("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal()}` };
       if (cmd === "enable") enable(root); else disable(root);
       return { code: 0, text: statusText(protectionStatus(root)) };
     }

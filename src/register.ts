@@ -21,7 +21,7 @@ export type RepoFiles = Record<string, string>;
 
 // Closed tool lists (MH-22): `*` would spawn the hook on every read the agent makes.
 const MATCHER: Record<Exclude<Target, "cursor">, string> = {
-  shared: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command",
+  shared: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|Read|Grep|Glob|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command",
   codex: "^(apply_patch|Bash)$",
   agy: "^(write_to_file|replace_file_content|multi_replace_file_content|run_command|send_command_input)$",
 };

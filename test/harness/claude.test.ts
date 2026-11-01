@@ -191,8 +191,16 @@ describe("decode: anything else is rejected as payload-unrecognized", () => {
 
   test("a relative cwd", () => expect(causeOf(decode("stop", raw({ ...json("stop.json"), cwd: "project" }), ENV))).toBe(BAD));
 
-  test.each(["Read", "Grep", "write", "Task"])("tool_name %p is outside the exact set", (tool) => {
+  test.each(["write", "Task"])("tool_name %p is outside the exact set", (tool) => {
     expect(causeOf(decode("pre", raw({ ...json("pre-write.json"), tool_name: tool }), ENV))).toBe(BAD);
+  });
+  test("Read and Grep are read checks, not edits", () => {
+    expect(decode("pre", raw({ ...json("pre-write.json"), tool_name: "Read" }), ENV)).toMatchObject({
+      kind: "pre-read", tool: "Read", cwd: PROJECT, paths: [`${PROJECT}/a.ts`], hint: "",
+    });
+    expect(decode("pre", raw({ ...json("pre-write.json"), tool_name: "Grep", tool_input: { pattern: "x", path: PROJECT } }), ENV)).toMatchObject({
+      kind: "pre-read", tool: "Grep", paths: [PROJECT], hint: "x",
+    });
   });
 
   test.each([
@@ -215,7 +223,9 @@ describe("decode: anything else is rejected as payload-unrecognized", () => {
     expect(reentry).toEqual({ cause: BAD, kind: "stop", reentry: true, session: main, dirs: ["/home/user/other/"] });
     expect(decode("session-start", raw({ ...json("session-start.json"), source: 1, session_id: 2 }), ENV))
       .toEqual({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [PROJECT] });
-    expect(decode("pre", raw({ ...json("pre-write.json"), tool_name: "Read" }), ENV)).toMatchObject({ kind: "pre-edit", session: main, dirs: [PROJECT] });
+    expect(decode("pre", raw({ ...json("pre-write.json"), tool_name: "Read" }), ENV)).toMatchObject({
+      kind: "pre-read", session: main, cwd: PROJECT, paths: [`${PROJECT}/a.ts`],
+    });
   });
 });
 

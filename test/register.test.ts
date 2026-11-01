@@ -103,7 +103,7 @@ describe("merge", () => {
     expect(fresh.hooks.Stop).toEqual([{ hooks: [{ type: "command", command: HOOK_COMMAND["stop codex"], timeout: 60 }] }]);
     expect(fresh.hooks.SessionStart).toEqual([{ hooks: [{ type: "command", command: HOOK_COMMAND["session-start codex"], timeout: 15 }] }]);
     expect(obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].matcher)
-      .toBe("Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command");
+      .toBe("Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|Read|Grep|Glob|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command");
     const matcher = new RegExp(obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].matcher);
     for (const tool of ["write", "search_replace", "hashline_edit", "run_terminal_command"]) expect(matcher.test(tool)).toBe(true);
   });

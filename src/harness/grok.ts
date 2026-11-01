@@ -80,6 +80,12 @@ function tool(p: Payload, name: string, callId: string, session: Session, cwd: s
   const base = { session, callId, tool: name };
   // Only `command` decides what runs; `description` does not.
   if (name === COMMAND) return typeof input.command === "string" ? { kind: "pre-command", command: { ...base, command: input.command, cwd } } : null;
+  if (name === "Read" || name === "Grep" || name === "Glob") {
+    const hint = [input.pattern, input.glob].filter((v) => typeof v === "string").join("\n");
+    const named = name === "Read" ? input.file_path : input.path;
+    if (name === "Read" && typeof named !== "string") return null;
+    return { kind: "pre-read", ...base, cwd, paths: typeof named === "string" ? [named] : [], hint };
+  }
   if (!(name === "write" || name === "search_replace" || name === "hashline_edit") || typeof input.file_path !== "string") return null;
   if (!absolute(input.file_path)) return nowhere(name, session);
   return { kind: "pre-edit", changes: [{ ...base, path: input.file_path, edit: editOf(name, input), from: null }] };

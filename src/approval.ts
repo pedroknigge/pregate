@@ -82,14 +82,31 @@ export function hasTerminal(): boolean {
   return true;
 }
 
-export async function approve(summary: string, warning: boolean, yes = false): Promise<boolean> {
-  const text = Buffer.from(approvalText(summary, warning, !yes), "utf8");
-  const answer = testAnswer();
-  if (yes || answer !== undefined) {
-    writeSync(1, text);
-    return yes || /^(y|yes)$/i.test(answer!.trim());
+// Why a caller was not allowed to apply. CI and the test hook are the only non-terminal
+// exceptions; an agent tool pipes stdin and cannot type on /dev/tty.
+export function approvalRefusal(): string {
+  if (!process.env.CI && testAnswer() === undefined && !process.stdin.isTTY) {
+    return "Human approval requires an interactive stdin and a confirmation typed on the terminal (/dev/tty or CONIN$). An agent tool call cannot supply that. Nothing applied.";
   }
-  const fd = tty();
+  return "Human approval unavailable or rejected; nothing applied.";
+}
+
+export async function approve(summary: string, warning: boolean, yes = false): Promise<boolean> {
+  const answer = testAnswer();
+  // CI jobs pass --yes without a person at the keyboard. A digest alone is not that channel.
+  const prompting = answer !== undefined ? !yes : !(process.env.CI && yes);
+  const text = Buffer.from(approvalText(summary, warning, prompting), "utf8");
+  if (answer !== undefined) {
+    writeSync(1, text);
+    return /^(y|yes)$/i.test(answer.trim());
+  }
+  if (process.env.CI && yes) {
+    writeSync(1, text);
+    return true;
+  }
+  // The caller's stdin must be a terminal. A pipe that contains "y" is the agent, not the human.
+  if (!process.stdin.isTTY) return false;
+  const fd = openTerminal();
   if (fd === null) return false;
   const input = new (terminalIo().ReadStream)(fd);
   const terminal = prompts().createInterface({ input });
