@@ -156,14 +156,15 @@ test("a large review lists every deletion and test change before the cap and nam
   for (let i = 0; i < 250; i++) writeFileSync(join(p.root, `src/f${String(i).padStart(3, "0")}.ts`), `export const f${i} = ${i};\n`);
   writeFileSync(join(p.root, "src/big.txt"), ("x".repeat(99) + "\n").repeat(90_000)); rmSync(guard); writeFileSync(spec, "expect(a).toBe(1);\n");
   writeFileSync(join(p.root, "src/blob.bin"), new Uint8Array([0x81, 0x41])); chmodSync(join(p.root, "src/run.sh"), 0o755); git(p.root, "add", ".");
+  // Git for Windows sets core.fileMode=false, so it records the executable bit only when told to.
+  git(p.root, "update-index", "--chmod=+x", "src/run.sh");
   git(p.root, "commit", "-qm", "large catch-up hiding a weakened test");
   const preview = await sessionCommand(["rebase", sid, "--preview"]), lines = preview.text.split("\n");
   expect(preview.code, preview.text).toBe(0);
   const flagged = lines.indexOf("Deleted files and test changes (2, all listed):"), other = lines.indexOf("Other changes:");
   expect(flagged).toBeGreaterThan(0); expect(lines.slice(flagged + 1, other)).toEqual(["D zz/tests/guard.test.ts +0 -1 19 bytes", "M zz/guard.spec.ts +0 -1 19 bytes"]);
   expect(preview.text).toContain("...and 51 more files, listed in the draft.");
-  const nameless = process.platform === "win32" ? "src/blob.bin" : "src/blob.bin, src/run.sh";
-  expect(preview.text).toContain(`Changed with no text difference (file mode, symlink or binary bytes): ${nameless}.`);
+  expect(preview.text).toContain("Changed with no text difference (file mode, symlink or binary bytes): src/blob.bin, src/run.sh.");
 });
 
 test("a baseline review refuses content past 128 MiB before reading it", async () => {
