@@ -70,15 +70,44 @@ export function languageClasses(p: Parsed) {
 }
 
 export function languageNestings(p: Parsed) {
-  return nodes(p.root, CONTROLS).map((n) => {
+  return nodes(p.root, CONTROLS).flatMap((n) => {
+    if (isGuardClause(n)) return [];
     let depth = 1, child = n;
     for (let parent = n.parent; parent && !OTHER_FUNCTIONS.includes(parent.type); parent = parent.parent) {
       const alternative = child.type === "if_statement" && parent.childForFieldName("alternative")?.id === child.id;
-      if (CONTROLS.includes(parent.type) && !alternative) depth++;
+      if (CONTROLS.includes(parent.type) && !alternative && !isGuardClause(parent)) depth++;
       child = parent;
     }
-    return { symbol: languageSymbol(n), line: n.startPosition.row + 1, measured: depth, own: null };
+    return [{ symbol: languageSymbol(n), line: n.startPosition.row + 1, measured: depth, own: null }];
   });
+}
+
+// A guard clause does not add a nesting level. It is an if with no else whose body is only a
+// return, continue, break, or throw, and it sits in the function body or directly in a loop:
+// `for { if (!x) continue; ... }`. The same shape nested under another if is still that if.
+const EXIT_KINDS = new Set(["return_statement", "continue_statement", "break_statement", "throw_statement", "raise_statement", "return_expression", "continue_expression", "break_expression"]);
+const COMMENT_KINDS = new Set(["comment", "line_comment", "block_comment"]);
+const LOOP_KINDS = new Set(["for_statement", "for_in_statement", "while_statement", "do_statement", "for_expression", "while_expression", "loop_expression"]);
+const BRANCH_KINDS = new Set(["if_statement", "if_expression", "switch_statement", "try_statement", "with_statement", "match_statement", "match_expression", "select_statement", "expression_switch_statement", "type_switch_statement"]);
+const FUNCTION_BOUNDARY = new Set([...OTHER_FUNCTIONS, "function_declaration", "generator_function_declaration", "function_expression", "generator_function", "arrow_function", "method_definition", "function_item", "function_signature_item", "closure_expression"]);
+
+export function isGuardClause(node: Node): boolean {
+  if (node.type !== "if_statement" && node.type !== "if_expression") return false;
+  if (node.childForFieldName("alternative")) return false;
+  if (!onlyExit(node.childForFieldName("consequence") ?? node.childForFieldName("body"))) return false;
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (FUNCTION_BOUNDARY.has(parent.type)) return true;
+    if (LOOP_KINDS.has(parent.type)) return true;
+    if (BRANCH_KINDS.has(parent.type)) return false;
+  }
+  return true;
+}
+
+function onlyExit(node: Node | null): boolean {
+  if (!node) return false;
+  if (EXIT_KINDS.has(node.type)) return true;
+  const named = node.namedChildren.filter((child) => !COMMENT_KINDS.has(child.type));
+  return named.length === 1 && onlyExit(named[0] ?? null);
 }
 
 // Decode observable literal strings only; interpolated expressions remain unknown.

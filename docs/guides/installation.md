@@ -1,34 +1,23 @@
 # Install, update and remove PREGATE
 
-PREGATE distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
-x64. Published 0.2.26 targets macOS ARM64; Linux and Windows are experimental,
+PREGATE 0.0.1 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
+x64. macOS ARM64 is the stable platform. Linux and Windows are experimental
 test builds, not supported for production until native release validation passes.
 Focused source verification does not admit a final platform release.
-Bun is required only for development/builds. See
-[0.2.26 release notes](../releases/0.2.26.md) and [delivery status](../STATUS.md).
-Private project migration still needs its own review.
-The private pilot uses
-authenticated [GitHub CLI](https://cli.github.com/) with access to this repository.
-The installers and updater first try anonymous HTTPS, then
-authenticated `gh` if public transport/assets are unavailable. Public releases
-can therefore download without a GitHub account; this repository is still private.
-Public transport is verified with isolated mocks, not a claim that the private
-release is anonymously accessible.
-Choose a **published** tag from [GitHub Releases](https://github.com/pedroknigge/pregate/releases);
-the source tree can contain unreleased capabilities. Check [delivery status](../STATUS.md).
+Bun is required only for development and builds. See the
+[v0.0.1 release notes](../releases/0.0.1.md).
+The installers and updater try anonymous HTTPS first, then authenticated `gh`
+if that download is unavailable. A public release can be installed without a
+GitHub account. Choose a **published** tag from
+[GitHub Releases](https://github.com/pedroknigge/pregate/releases);
+the source tree can contain unreleased capabilities.
 
 ## Quick install (macOS and Linux)
 
-Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS` before setup):
+Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS`, and the Sigstore signature when `cosign` is installed, before setup):
 
 ```sh
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
-```
-
-Private pilot one-liner (using authenticated `gh`):
-
-```sh
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.sh -O - | sh
 ```
 
 You can also install or sync the `/pregate` companion skill via [`npx skills`](https://github.com/vercel-labs/skills):
@@ -40,38 +29,87 @@ npx skills add pedroknigge/pregate
 ## Manual checksum verification (macOS and Linux)
 
 Download the selected tag's installer and checksum manifest into an empty directory.
-The examples select the published 0.2.26 macOS pilot.
+The examples select published 0.0.1 for macOS ARM64.
 
 ```sh
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
+gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
 ```
 
 Verify the installer before running it. On macOS:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing
-sh install.sh --version 0.2.26
+sh install.sh --version 0.0.1
 ```
 
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
 command. A failed checksum must stop installation. The installer verifies the
 engine archive before setup. Add `~/.local/bin` to PATH.
 
+## Verify Sigstore signatures
+
+The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` with keyless [cosign](https://docs.sigstore.dev/cosign/signing/overview/) (`cosign sign-blob` through GitHub Actions OIDC). Each signed file is published as a `.bundle` (signature, certificate, and transparency-log proof). The same files also get a GitHub artifact attestation from `actions/attest-build-provenance`.
+
+`install.sh` and `install.ps1` always check SHA-256. When `cosign` is on `PATH` and the release contains a bundle, they verify that bundle and stop if it does not match. Without `cosign`, or when a bundle is missing, the checksum check still runs and the installer prints a notice; `PREGATE_REQUIRE_SIGNATURE=1` turns both cases into a failure. The GitHub Action installs `cosign` and requires the signature by default: it compares the downloaded archive with `SHA256SUMS`, verifies the cosign bundles of `SHA256SUMS` and the archive, and only then extracts. Set the input `require-signature: false` to install a release that has no bundles on SHA-256 alone. The Action also verifies the GitHub artifact attestation with `gh` and the input `github-token` (default `github.token`); a digest with no attestation, or a `gh` without a token, is a notice, not a failure. A checksum, signature, or attestation mismatch installs nothing.
+
+Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
+
+```sh
+tag=v0.0.1
+asset=pregate-0.0.1-darwin-arm64.tar.gz
+gh release download "$tag" --repo pedroknigge/pregate \
+  --pattern "$asset" --pattern "$asset.bundle" \
+  --pattern SHA256SUMS --pattern SHA256SUMS.bundle
+
+cosign verify-blob --bundle SHA256SUMS.bundle \
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  SHA256SUMS
+
+shasum -a 256 -c SHA256SUMS --ignore-missing
+
+cosign verify-blob --bundle "$asset.bundle" \
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "$asset"
+
+gh attestation verify "$asset" --repo pedroknigge/pregate \
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+gh attestation verify SHA256SUMS --repo pedroknigge/pregate \
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+```
+
+On Linux, use `sha256sum -c SHA256SUMS --ignore-missing` instead of `shasum`. On Windows, after the zip, `SHA256SUMS`, and both bundles are in one directory:
+
+```powershell
+# $dir is the folder that contains the zip, SHA256SUMS, and both .bundle files.
+cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com `
+  "$dir\SHA256SUMS"
+cosign verify-blob --bundle "$dir\pregate-0.0.1-windows-x64.zip.bundle" `
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com `
+  "$dir\pregate-0.0.1-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.0.1-windows-x64.zip" --repo pedroknigge/pregate `
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+```
+
 ## Windows
 
 Use PowerShell (Windows PowerShell 5.1 or newer):
 
-These commands select the published 0.2.26 experimental Windows archive;
+These commands select the published 0.0.1 experimental Windows archive;
 they do not establish native admission. See the [Windows retry](windows-verification.md).
 
 ```powershell
 $dir = Join-Path $env:TEMP ('pregate-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $dir | Out-Null
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
+gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
 if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 $sum = Get-Content "$dir/SHA256SUMS" | Where-Object { $_ -match '  install.ps1$' } | Select-Object -First 1
 if (!$sum -or (Get-FileHash "$dir/install.ps1" -Algorithm SHA256).Hash -ine $sum.Substring(0,64)) { throw 'Installer checksum mismatch' }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.2.26
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.1
 Remove-Item $dir -Recurse -Force
 ```
 
@@ -117,11 +155,11 @@ project locks, so inspect each contract before adopting different bundled pack d
 `setup` refreshes global registrations and installed companion instructions from
 the running engine. `doctor` reports missing or stale skills.
 
-Update the global engine to 0.2.13 and review one or several
+Update the global engine to 0.0.1 and review one or several
 project contracts together:
 
 ```sh
-pregate update --version 0.2.13
+pregate update --version 0.0.1
 pregate guide --projects "/path/project-a" "/path/project-b"
 ```
 
@@ -150,7 +188,7 @@ For interactive choices use `pregate guide --projects <path...>`. For one projec
 the guide inspects the complete installed catalog and offers a grouped pack/audit
 choice when it finds missing recommendations. Otherwise it prints the audit
 command. The 0.2.12 catalog also includes the optional Rust pack; check
-[delivery status](../STATUS.md) for verification and platform limits.
+[v0.0.1 release notes](../releases/0.0.1.md) for verification and platform limits.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.

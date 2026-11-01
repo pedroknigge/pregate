@@ -8,6 +8,10 @@
 # Offline and in tests, PREGATE_ARCHIVE=<tar.gz> with PREGATE_SHA256=<hex> replaces the download.
 # PREGATE_SHA256 alone pins the hash from outside: SHA256SUMS comes from the same release, so it
 # protects the transport and not a compromised release (MH-32).
+# When cosign is on PATH and the release published a Sigstore bundle, that bundle is verified too.
+# A bad signature installs nothing. A missing bundle does not, unless PREGATE_REQUIRE_SIGNATURE=1.
+# PREGATE_ARCHIVE checks a signature only when PREGATE_COSIGN_KEY, PREGATE_COSIGN_BUNDLE, or
+# PREGATE_MINISIGN_PUB is set (keyed cosign, or minisign when cosign is not the signer).
 set -eu
 
 # In lockstep with package.json: scripts/build.ts refuses to build otherwise.
@@ -42,6 +46,85 @@ public_release() {
   case $listed in *[!0-9a-f]* | '') die "SHA256SUMS has no unique valid SHA-256 for $name; nothing installed" ;; esac
   [ ${#listed} -eq 64 ] || die "SHA256SUMS has no unique valid SHA-256 for $name; nothing installed"
   public_file "$base/$name" "$tmp/$name" 268435456
+}
+
+# Keyless bundles are signed by .github/workflows/release.yml on a tag. A throwaway test key
+# sets PREGATE_COSIGN_KEY and is not checked against that GitHub identity.
+verify_cosign_file() {
+  file=$1
+  bundle=$2
+  if [ -n "${PREGATE_COSIGN_KEY:-}" ]; then
+    cosign verify-blob --key "$PREGATE_COSIGN_KEY" --bundle "$bundle" "$file" ||
+      die "cosign signature mismatch for ${file##*/}; nothing installed"
+  else
+    cosign verify-blob --bundle "$bundle" \
+      --certificate-identity-regexp "^https://github.com/${REPO}/\\.github/workflows/release\\.yml@refs/tags/v" \
+      --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+      "$file" || die "cosign signature mismatch for ${file##*/}; nothing installed"
+  fi
+}
+
+# One bundle beside the release files. Missing is success for the caller to interpret.
+obtain_bundle() {
+  bundle=$1
+  dest=$tmp/$bundle
+  [ -f "$dest" ] && return 0
+  if public_file "$base/$bundle" "$dest" 1048576; then
+    return 0
+  fi
+  rm -f "$dest"
+  if command -v gh >/dev/null 2>&1; then
+    # A release cut before signing has no bundle. That is not an error here; the caller decides.
+    if gh release download "v$version" --repo "$REPO" --pattern "$bundle" --dir "$tmp" >/dev/null 2>&1; then
+      [ -f "$dest" ] && return 0
+    fi
+  fi
+  rm -f "$dest"
+  return 1
+}
+
+verify_release_signatures() {
+  if ! command -v cosign >/dev/null 2>&1; then
+    [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ] && die "cosign is required to verify the release signature; nothing installed"
+    return 0
+  fi
+  for bundle in SHA256SUMS.bundle "$name.bundle"; do
+    if ! obtain_bundle "$bundle"; then
+      if [ "${PREGATE_REQUIRE_SIGNATURE:-}" = 1 ]; then
+        die "release v$version has no $bundle; nothing installed"
+      fi
+    fi
+  done
+  # Explicit if: a trailing `[ -f ] && verify` would make the function return 1 when the
+  # bundle is absent, and set -e would then abort without a message.
+  if [ -f "$tmp/SHA256SUMS.bundle" ]; then
+    verify_cosign_file "$tmp/SHA256SUMS" "$tmp/SHA256SUMS.bundle"
+  else
+    printf 'install.sh: release v%s has no SHA256SUMS.bundle; signature not verified\n' "$version" >&2
+  fi
+  if [ -f "$tmp/$name.bundle" ]; then
+    verify_cosign_file "$archive" "$tmp/$name.bundle"
+  else
+    printf 'install.sh: release v%s has no %s.bundle; signature not verified\n' "$version" "$name" >&2
+  fi
+  return 0
+}
+
+verify_offline_signatures() {
+  if [ -n "${PREGATE_COSIGN_KEY:-}" ] || [ -n "${PREGATE_COSIGN_BUNDLE:-}" ]; then
+    command -v cosign >/dev/null 2>&1 || die "cosign is required to verify the archive signature; nothing installed"
+    bundle=${PREGATE_COSIGN_BUNDLE:-$archive.bundle}
+    [ -f "$bundle" ] || die "cosign bundle missing for $archive; nothing installed"
+    verify_cosign_file "$archive" "$bundle"
+    return 0
+  fi
+  if [ -n "${PREGATE_MINISIGN_PUB:-}" ]; then
+    command -v minisign >/dev/null 2>&1 || die "minisign is required to verify the archive signature; nothing installed"
+    sig=${PREGATE_MINISIGN_SIG:-$archive.minisig}
+    [ -f "$sig" ] || die "minisign signature missing for $archive; nothing installed"
+    minisign -V -p "$PREGATE_MINISIGN_PUB" -m "$archive" -x "$sig" ||
+      die "minisign signature mismatch for $archive; nothing installed"
+  fi
 }
 
 version=$DEFAULT_VERSION
@@ -116,6 +199,11 @@ else
 fi
 actual=${actual%% *}
 [ "$actual" = "$expected" ] || die "SHA-256 mismatch for $archive: expected $expected, got $actual"
+if [ -n "${PREGATE_ARCHIVE:-}" ]; then
+  verify_offline_signatures
+else
+  verify_release_signatures
+fi
 
 mkdir "$tmp/x"
 tar -xzf "$archive" -C "$tmp/x"

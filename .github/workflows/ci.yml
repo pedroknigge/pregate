@@ -24,7 +24,7 @@ jobs:
         run: bun scripts/dcouplr-source-probe.ts --fetch
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     outputs:
       candidate_ready: ${{ steps.candidate.outcome == 'success' }}
     steps:
@@ -46,6 +46,11 @@ jobs:
             mkdir -p "$path"
             echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
           done
+      - name: Git identity for fixture commits
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - name: Typecheck
         run: bun run typecheck
@@ -58,9 +63,14 @@ jobs:
           bun scripts/invariant-coverage.ts --check
           bun scripts/docs-reference.ts --check
       - name: Unit tests
-        run: bun test --path-ignore-patterns 'test/e2e.test.ts'
+        run: bun test --path-ignore-patterns 'test/{e2e,default-contract-budget.e2e}.test.ts'
       - name: End to end
         run: bun test test/e2e.test.ts
+      # Fetches got and zod at pinned commits (network) and audits them with the auto-detected contract.
+      - name: Default-contract findings budget
+        env:
+          PREGATE_BUDGET_E2E: "1"
+        run: bun test test/default-contract-budget.e2e.test.ts
       # Catalog fixtures, all platform archives, both installers and SHA256SUMS.
       - name: Build
         run: bun run build
@@ -108,6 +118,12 @@ jobs:
           }
           # Without AppData\Local under USERPROFILE, PowerShell writes this cache into its working directory.
           "PSModuleAnalysisCachePath=$root/powershell-module-analysis-cache" >> $env:GITHUB_ENV
+      - name: Git identity for fixture commits
+        shell: pwsh
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - name: Documentation matches CLI and rule manifests
@@ -132,7 +148,7 @@ jobs:
       - name: Unit and native end-to-end tests
         id: windows-suite
         # Each file gets a fresh global object; deadlines and the selected tests stay unchanged.
-        run: bun test --isolate --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,e2e}.test.ts'
+        run: bun test --isolate --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,default-contract-budget.e2e,e2e,repo-hygiene.e2e}.test.ts'
       # Preserve the full-suite failure. Independent fresh processes help distinguish
       # a repeatable product defect from an accumulated test-runtime failure.
       - name: Diagnose failing Windows suites in fresh processes

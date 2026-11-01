@@ -258,7 +258,7 @@ export interface FitnessReceipt {
 // ── Analysis and state ──────────────────────────────────────────────────────────
 export interface Analysis {        // one file in one state
   symbols: string[]; violations: Violation[];
-  metricBodies: Record<string, string>; // symbol + line → normalized body hash, for rename matching
+  symbolBodies: Record<string, string>; // symbol → body hash with the declared name outside it
   counts: Record<string, number>;  // diff rules: rule → count
   markerSites?: Record<string, { line: number; key: string }[]>;
   astHash: string | null;          // tree without comments or trivia (no-progress detection)

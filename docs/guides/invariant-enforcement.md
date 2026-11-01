@@ -58,7 +58,7 @@ it cannot broaden a language-specific check. Explicit project-authored
 paths/exclusions remain authoritative. A nested owner topology that cannot fit
 one include/exclude contract requires scope review instead of guessed coverage.
 
-For core integrity markers, use the [shared comment contract](../research/core-marker-contract-0210.md).
+For core integrity markers, use the shared comment contract.
 Strings and documentation examples do not execute suppressions or mark supported
 source as generated. Actual source comments still count; unsupported executable
 source remains conservative. These controls establish their bounded cases, not

@@ -86,7 +86,7 @@ Feedback does not copy source blobs or alter snapshots, event histories, denial
 counters or pending contract approvals. Existing event storage can still contain
 complete source blobs; labels do not make that storage hash-only. Nothing is sent
 to GitHub or a model by this workflow. Explicit retention/cleanup remains separate
-work tracked in [PRODUCT-WORK.md](../PRODUCT-WORK.md).
+work tracked in [roadmap](../ROADMAP.md).
 
 After building, `bun run scripts/smoke-feedback.ts` exercises the production
 binary on a real recorded shadow observation in a temporary project. It checks

@@ -4,15 +4,15 @@ The published 0.2.11 pilot includes JS/TS, Python and Go analysis. The unpublish
 0.2.12 checkout adds Rust with the vendored `tree-sitter-rust` 0.24.2 WASM grammar,
 source metrics, structural patterns, comments and bounded Cargo module resolution.
 Language policies remain optional packs; core policy remains language-independent.
-See [delivery status](../STATUS.md) for verification of this checkout. Native pilot
+See [v0.0.1 release notes](../releases/0.0.1.md) for verification of this checkout. Native pilot
 release verification targets macOS ARM64; Linux and Windows remain experimental
 until their native gates close.
 
 Post-release public audits expose valid newline-separated generic type members
 and type-only wildcard exports rejected by 0.2.5. Version 0.2.6 repairs those
 cases and the subsequently reduced nested generic function type argument with
-compiler/parser controls. The [0.2.5 observations](../research/public-repository-audit-025.md)
-retain their historical scope. A new [0.2.6 held-out audit](../research/post-release-026.md)
+compiler/parser controls. The 0.2.5 observations
+retain their historical scope. A new 0.2.6 held-out audit
 finds valid `in`/`out` interface variance annotations rejected by the parser.
 Version 0.2.7 repairs that defect in both TS and TSX grammars. Valid annotations,
 constraints/defaults, AST names/spans and retained import locations pass; malformed
@@ -68,7 +68,7 @@ without a declaration retain their JS/TS scope. Integrity guards use supported
 parser comment tokens and a conservative fallback for unsupported executable
 source. In supported source, strings are not executable directives; JSON values
 and Markdown examples do not count as source comment directives.
-Read the [marker contract and limits](../research/core-marker-contract-0210.md).
+Read the marker contract and limits.
 Each promised language needs its own minimum two
 passing, two failing and one trap fixture, plus alias-default coverage. Empty
 implementations, duplicate languages and a Go class metric are rejected.

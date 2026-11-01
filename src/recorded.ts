@@ -8,7 +8,7 @@ import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
 import { scriptControlCause } from "./control.ts";
-import { canonical, findRoot, readTree } from "./disk.ts";
+import { canonical, escapedRoot, findRoot, readTree } from "./disk.ts";
 import { analyze, placement } from "./evaluate.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { fitnessViolations, projectFitness } from "./fitness-command.ts";
@@ -231,6 +231,17 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const paths = changes.map((c) => canonical(c.path));
   for (const [i, c] of changes.entries()) {
     const abs = paths[i]!;
+    // A judged path whose real target leaves every accepted root cannot take the write. Judged by
+    // the spelled path: a target out of this root's scope stays out of scope, as before.
+    const escaped = escapedRoot(c.path, abs, enabled);
+    if (escaped !== null) {
+      const rel = relative(escaped, resolve(c.path));
+      const contract = lockOf(escaped);
+      if (inScope(isCause(contract) ? null : contract.lock, rel)) {
+        const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root: escaped, rel, startedAt };
+        return decide(inputOf(call, PROTECTED));
+      }
+    }
     const root = pendingRoot(dirname(abs));
     if (root !== null && !enabled(root) && protects(abs, machine())) {
       const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root, rel: relative(root, abs), startedAt };
@@ -248,8 +259,9 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const overlay: Overlay = new Map(planned.filter((p) => p.r.status === "exact").map((p) => [pathKey(p.abs), p.r.after]));
   const approved = await contractEdit(planned, overlay, startedAt);
   if (approved !== null) return approved;
-  // One contract per root for this call's overlay and dependency review. Never reuse an
-  // admission across calls: the next hook still recompiles and compares complete disk bytes.
+  // One contract per root for this call's overlay and dependency review. A later process may
+  // reuse the compiled-lock cache; it still compares that text to the lock and never keeps
+  // this call's admission for the next one. Before-edit analysis stays uncached (A12).
   const locks = new Map<string, Loaded | Cause>();
   const load = (root: string): Loaded | Cause => {
     if (!locks.has(root)) locks.set(root, lockOf(root));

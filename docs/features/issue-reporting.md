@@ -168,7 +168,7 @@ a native local `gh` fixture. They reject late success, terminate excessive outpu
 preserve exact output boundaries and kill the CLI during creation before retrying.
 Retries retain uncertainty or restore the matching receipt without a second
 create. An isolated mutation of the real creation phase exposes a duplicate
-effect. See [transport and recovery evidence](../research/issue-transport-verification.md).
+effect. See transport and recovery evidence.
 These local fixture observations do not establish real GitHub or harness UI behavior.
 Public-reproduction coverage checks offline evaluation, debt baselines,
 expectation mismatch, exported JSON replay, invalid input refusal, exclusion of
@@ -180,7 +180,7 @@ The human shell interface is documented for
 [Grok](https://docs.x.ai/build/keyboard-shortcuts) and
 [Cursor's current client](https://cursor.com/en-US/download).
 Codex 0.160.0's actual Mac TUI human shell route now has
-[contract-approval evidence](../research/candidate-native-and-codex-shell.md);
+contract-approval evidence;
 issue submission in that UI, agy human-command behavior and supported native
 prompts remain separate runtime checks. A captured hook payload does not prove
 an interactive dialog was shown or approved.

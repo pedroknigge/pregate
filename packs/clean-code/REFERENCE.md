@@ -8,17 +8,17 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## clean-code/clean-code
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **complete**.
 
 ### clean-code/CC-FN-001
 
-Check: [`clean-code/complexity/fn-max-lines@1.0.0`](checks/complexity/fn-max-lines/check.json). Default severity: **deny**.
+Check: [`clean-code/complexity/fn-max-lines@1.0.0`](checks/complexity/fn-max-lines/check.json). Default severity: **warn**.
 
 Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `fn.size`. Minimum severity: `none`.
 
-A long function mixes steps at different levels of abstraction, and every extra branch multiplies what a reader and a test must cover.
+A long function mixes steps at different levels of abstraction. The line budget is a project choice, not a defect, so the default contract advises instead of denying.
 
 Default parameters: `{"max":20}`.
 
@@ -49,13 +49,13 @@ Source metadata:
 
 ### clean-code/CC-FN-002
 
-Check: [`clean-code/complexity/fn-max-params@1.0.0`](checks/complexity/fn-max-params/check.json). Default severity: **deny**.
+Check: [`clean-code/complexity/fn-max-params@1.0.0`](checks/complexity/fn-max-params/check.json). Default severity: **warn**.
 
 Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `fn.params`. Minimum severity: `none`.
 
-Many parameters usually hide an unnamed concept or a function doing too much.
+Many parameters usually hide an unnamed concept. How many is too many is a project budget, so the default contract advises instead of denying.
 
 Default parameters: `{"max":3,"exempt":["constructor"]}`.
 
@@ -128,19 +128,19 @@ Source metadata:
 
 ### clean-code/CC-ER-003
 
-Check: [`clean-code/errors/try-is-whole-function@1.0.0`](checks/errors/try-is-whole-function/check.json). Default severity: **warn**.
+Check: [`clean-code/errors/try-is-whole-function@1.0.0`](checks/errors/try-is-whole-function/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `errors.try-placement`. Minimum severity: `none`.
 
-A try in the middle of other work mixes the normal path with error processing, so a reader has to separate the two before understanding either.
+A try beside other work is a function-shape preference from Clean Code, not a defect. The default contract leaves this check off. Opt in with an override severity of warn so it stays advisory.
 
 Default parameters: `{}`.
 
-**Repair:** Extract the guarded work into its own function whose whole body is the try/catch, and call it from the original function.
+**Repair:** When the project opts in, extract the guarded work into its own function whose whole body is the try/catch. Keep the override at warn; deny treats the preference as a defect.
 
-**Scope and limits:** Wrapping the try in an if or a nested block, or moving the surrounding statements into the try block so it becomes the only statement.
+**Scope and limits:** The check is off until a reviewed override sets a severity. Wrapping the try in an if, or moving the surrounding statements into the try so it becomes the only statement, satisfies the pattern without separating the error path. Do not enable it as deny.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -160,23 +160,23 @@ Source metadata:
 
 ### clean-code/CC-NEST-001
 
-Check: [`clean-code/complexity/nesting-max-depth@1.0.0`](checks/complexity/nesting-max-depth/check.json). Default severity: **warn**.
+Check: [`clean-code/complexity/nesting-max-depth@1.1.0`](checks/complexity/nesting-max-depth/check.json). Default severity: **warn**.
 
 Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `clean-code.control.nesting`. Minimum severity: `none`.
 
-Deeply nested control flow forces the reader to hold multiple active conditions and loop states in working memory at once.
+Deeply nested control flow forces the reader to hold multiple active conditions at once. The default limit is 4, the same maximum ESLint max-depth ships, and an if that only returns, continues, breaks, or throws does not count.
 
-Default parameters: `{"max":2}`.
+Default parameters: `{"max":4}`.
 
-**Repair:** Use guard clauses for early returns or extract the inner control block into a well-named helper function.
+**Repair:** Use a guard clause (if with no else whose body is only return, continue, break, or throw) or extract the inner control block into a well-named helper function.
 
 **Scope and limits:** Collapsing nested if statements into a complex compound boolean or a nested ternary only hides the branching without simplifying the logic.
 
 **Interactions when active together:**
 
-- Duplicates `maintainability/MAINT-NEST-001`: Both measure control-flow nesting depth in TypeScript and JavaScript functions with a default maximum of 2. Settle: Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit.
+- Duplicates `maintainability/MAINT-NEST-001`: Both measure control-flow nesting depth in TypeScript and JavaScript functions. clean-code/CC-NEST-001 defaults to 4 and ignores guard clauses. maintainability/MAINT-NEST-001 defaults to 2. Settle: Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

@@ -1,6 +1,6 @@
 # react-native
 
-Data-only PREGATE rule pack for React Native + Expo apps (TypeScript, `.ts`/`.tsx`). Source version **1.0.0**, for engine **0.2.4**. Nine checks across `platform`, `security`, and `navigation`: no DOM tags in render paths, text outside `<Text>`, FlatList keys, process lifetime, unencrypted storage, client-visible secrets, dev-channel links, computed route names, and secrets in navigation params.
+Data-only PREGATE rule pack for React Native + Expo apps (TypeScript, `.ts`/`.tsx`). Source version **1.0.0**, for engine **0.0.1**. Nine checks across `platform`, `security`, and `navigation`: no DOM tags in render paths, text outside `<Text>`, FlatList keys, process lifetime, unencrypted storage, client-visible secrets, dev-channel links, computed route names, and secrets in navigation params.
 
 ## User control
 

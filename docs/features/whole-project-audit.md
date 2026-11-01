@@ -34,8 +34,8 @@ exclusions, check versions, lock/content hashes, scanned-file hashes, analysis
 errors and elapsed time. Findings are independent of the live enforcement policy:
 a shadow or warning policy does not make existing debt disappear.
 
-All 68 core defaults were introduced in core 0.3.0 with engine 0.2.6 and remain
-active in core 0.3.1.
+All 68 core defaults were introduced in the 0.2.6 pilot (core numbered 0.3.0) and remain
+active in core 0.0.1.
 The 64 software and maintainability obligations appear in
 the separate `fitness` array, evaluated once per project rather than once per
 file. Each entry includes its exact English `statement`, `fixHint`, status and
@@ -66,9 +66,9 @@ correctness, security, runtime performance or complete QA coverage.
 
 Directory imports resolve through their index files; a probed directory is not
 treated as unreadable source. The patched parser handles the admitted literal-NUL
-string/comment cases; [the source and binary controls](../research/typescript-nul-parser.md)
+string/comment cases; the source and binary controls
 document their scope. A syntax diagnostic is not proof of a compiler error.
-The [first private consumer diagnostic](../research/dcouplr-consumer-calibration.md)
+The first private consumer diagnostic
 records the directory-index repair, measured scope and remaining calibration limits.
 
 Exit codes:
@@ -145,7 +145,7 @@ the retained-project-file count.
 JSON `incremental` reports the evaluator identity, reused/evaluated/invalidated
 files, retained entries, checkpoint-write outcome, cache errors and limits. Text
 shows work counts. Invalid or unavailable caches fall back to analysis. See
-[tests, resume evidence and cold/warm measurements](../research/incremental-audit-026.md).
+tests, resume evidence and cold/warm measurements.
 
 `audit --plan [--json]` adds an advisory refactoring plan. Repairs are grouped by
 file/rule and ranked using effective severity/enforcement and observed counts.
@@ -185,7 +185,7 @@ one whole-report JSON string. It retains inventory, hashes, coverage, errors,
 per-rule/file counters and bounded source/result caches; one file record can
 still be large. It is not constant-memory auditing or a total-memory cap.
 Parallel parsing and model classification are separate pending work.
-See [compiled interruption controls and first-result measurements](../research/audit-streaming-026.md).
+See compiled interruption controls and first-result measurements.
 
 ## Initial scale evidence
 

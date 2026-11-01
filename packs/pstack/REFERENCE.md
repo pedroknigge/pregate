@@ -3184,7 +3184,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-87-89`. Minimum severity: `deny`.
 
-Cotizador universal: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.
+Universal quoter: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.
 
 Default parameters: `{"verifier":"PS-87-89"}`.
 
@@ -3209,7 +3209,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:106; PS-87, PS-88, PS-89",
-  "paraphrase": "Cotizador universal: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented."
+  "paraphrase": "Universal quoter: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented."
 }
 ```
 
@@ -3221,7 +3221,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-90-91`. Minimum severity: `deny`.
 
-Estimador de horas: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.
+Hour estimator: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.
 
 Default parameters: `{"verifier":"PS-90-91"}`.
 
@@ -3246,7 +3246,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:107; PS-90, PS-91",
-  "paraphrase": "Estimador de horas: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer."
+  "paraphrase": "Hour estimator: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer."
 }
 ```
 
@@ -3332,7 +3332,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-97-99`. Minimum severity: `deny`.
 
-Modelado de casos de uso: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.
+Use-case modeling: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.
 
 Default parameters: `{"verifier":"PS-97-99"}`.
 
@@ -3357,7 +3357,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:110; PS-97, PS-98, PS-99",
-  "paraphrase": "Modelado de casos de uso: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit."
+  "paraphrase": "Use-case modeling: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit."
 }
 ```
 
@@ -3369,7 +3369,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-100-103`. Minimum severity: `deny`.
 
-Winston / charla épica: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.
+Winston / epic talk: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.
 
 Default parameters: `{"verifier":"PS-100-103"}`.
 
@@ -3394,7 +3394,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:111; PS-100, PS-101, PS-102, PS-103",
-  "paraphrase": "Winston / charla épica: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise."
+  "paraphrase": "Winston / epic talk: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise."
 }
 ```
 
@@ -3480,7 +3480,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-108-109`. Minimum severity: `deny`.
 
-Revisor de calendarios: Inspects every calendar; report overlaps; clear calendar explicitly reported.
+Calendar reviewer: Inspects every calendar; report overlaps; clear calendar explicitly reported.
 
 Default parameters: `{"verifier":"PS-108-109"}`.
 
@@ -3505,7 +3505,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:114; PS-108, PS-109",
-  "paraphrase": "Revisor de calendarios: Inspects every calendar; report overlaps; clear calendar explicitly reported."
+  "paraphrase": "Calendar reviewer: Inspects every calendar; report overlaps; clear calendar explicitly reported."
 }
 ```
 

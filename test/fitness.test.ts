@@ -350,7 +350,7 @@ test("all 68 grammar-independent core requirements activate by default, with rev
   expect(all.lock.rules).toHaveLength(68);
   expect(all.lock.rules.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "fitness")).toHaveLength(64);
   expect(all.lock.rules.every((r) => r.integrity && r.enforcement === "enforce" && r.impl.kind === "primitive")).toBe(true);
-  expect(all.lock.preset.methodologies).toEqual(["core/software-invariants", "core/pregate-integrity"]);
+  expect(all.lock.preset.methodologies).toEqual(["core/pregate-integrity", "core/software-invariants"]);
   const disabled = build({ "CORE-INV-048": "off", "EVA-SUP-001": "off" });
   if ("errors" in disabled) throw new Error(disabled.errors.join("\n"));
   expect(disabled.lock.rules).toHaveLength(66);

@@ -103,14 +103,14 @@ This document integrates the complete 113 invariant rules converted from Lauren 
 77–80. **Musk algorithm builder:** Deletion before optimization; question requirements; critical path visible daily; named responsible ownership.
 81–83. **Webapp from first principles:** Phases advance only when gates are met; final artifact is implementation doc; open questions asked until answered.
 84–86. **Learn-anything coach:** User language; retrieval and proof-of-learning gates; live performance required.
-87–89. **Cotizador universal:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.
-90–91. **Estimador de horas:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.
+87–89. **Universal quoter:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.
+90–91. **Hour estimator:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.
 92–94. **Browser-game prototype:** Single-file HTML5 canvas; keyboard/touch loop; seven-step process followed.
 95–96. **Mega webapp generator:** One-sentence idea yields complete architecture; `ELEMENTOS_CLAVE.md` included.
-97–99. **Modelado de casos de uso:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.
-100–103. **Winston / charla épica:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.
+97–99. **Use-case modeling:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.
+100–103. **Winston / epic talk:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.
 104–105. **Gmail importance triage:** Ordered by urgency/importance with signals; no full unprioritized dump.
 106–107. **Gmail summarizer:** Read under label; summary precedes permanent deletion.
-108–109. **Revisor de calendarios:** Inspects every calendar; report overlaps; clear calendar explicitly reported.
+108–109. **Calendar reviewer:** Inspects every calendar; report overlaps; clear calendar explicitly reported.
 110–111. **Daily AI news:** Deduplicated against prior days; readable chat summary.
 112–113. **Cloudflared tunnel:** Tunnel duration bounded; credentials never written to chat transcript.

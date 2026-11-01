@@ -95,7 +95,8 @@ test("a parent workspace patch is a tracked resolver input for a member crate", 
   expect(contextFile(".cargo/config.toml")).toBe(true); expect(contextFile("member/.cargo/config")).toBe(true);
 });
 
-test.skipIf(Bun.which("rustc") === null)("independent rustc accepts positive controls and rejects an unknown item", () => {
+const rustcReady = Bun.which("rustc") !== null && Bun.spawnSync(["rustc", "--version"], { stdout: "pipe", stderr: "pipe" }).exitCode === 0;
+test.skipIf(!rustcReady)("independent rustc accepts positive controls and rejects an unknown item", () => {
   removedAfter(mkdtempSync(join(tmpdir(), "pregate-rust-review-")), area => {
     const cases = [facade, { ...facade, "src/facade.rs": "pub use crate::infra::Value;\n" }, generic, leading];
     for (const [index, files] of cases.entries()) {

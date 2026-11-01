@@ -26,7 +26,7 @@ definition needs a new reviewed fingerprint before execution.
 The native smoke introduces eight separate adapter regressions and checks that
 each fails the real assertion, blocks the enforcing check and passes after
 repair. It also rejects unreviewed verifier changes. See the
-[source and caller evidence](../../research/dcouplr-system-bus-completion.md).
+source and caller evidence.
 
 This example does not prove registration replacement, durable delivery,
 backpressure, cancellation, authorization or the behavior of a real consumer.

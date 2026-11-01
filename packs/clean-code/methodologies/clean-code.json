@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "clean-code/clean-code",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -11,13 +11,13 @@
       "defaults": {
         "max": 20
       },
-      "severity": "deny",
+      "severity": "warn",
       "source": {
         "work": "Clean Code (R. C. Martin, 2008)",
         "locator": "ch. 3, Functions (Small!)",
         "paraphrase": "Keep functions short; a function that keeps growing usually mixes several levels of abstraction and ends up doing more than one thing."
       },
-      "why": "A long function mixes steps at different levels of abstraction, and every extra branch multiplies what a reader and a test must cover.",
+      "why": "A long function mixes steps at different levels of abstraction. The line budget is a project choice, not a defect, so the default contract advises instead of denying.",
       "fixHint": "Extract each cohesive step into a function named after what it computes in this domain, and leave the original function as the sequence of those steps.",
       "avoid": "Packing statements onto one line, moving the body into a nested arrow function, or cutting it into fragments that are called once and mean nothing on their own.",
       "examples": {
@@ -42,13 +42,13 @@
           "constructor"
         ]
       },
-      "severity": "deny",
+      "severity": "warn",
       "source": {
         "work": "Clean Code (R. C. Martin, 2008)",
         "locator": "ch. 3, Functions (Function Arguments)",
         "paraphrase": "The fewer arguments the better; each extra argument makes a function harder to understand, to call correctly and to test in all its combinations."
       },
-      "why": "Many parameters usually hide an unnamed concept or a function doing too much.",
+      "why": "Many parameters usually hide an unnamed concept. How many is too many is a project budget, so the default contract advises instead of denying.",
       "fixHint": "Group parameters that always travel together into a named domain type, or split the function by responsibility. Take the type name from the glossary or the file's domain.",
       "avoid": "Untyped options bags, inline object types, destructured parameter objects and rest tuples that move the same inputs behind one name.",
       "examples": {
@@ -78,15 +78,15 @@
       "id": "CC-ER-003",
       "check": "clean-code/errors/try-is-whole-function",
       "defaults": {},
-      "severity": "warn",
+      "severity": "off",
       "source": {
         "work": "Clean Code (R. C. Martin, 2008)",
         "locator": "ch. 3, Functions (Extract Try/Catch Blocks; Error Handling Is One Thing)",
         "paraphrase": "Error handling is one thing, so a function that handles errors should do nothing else: if try appears in a function, it is the first word and nothing follows the catch/finally blocks."
       },
-      "why": "A try in the middle of other work mixes the normal path with error processing, so a reader has to separate the two before understanding either.",
-      "fixHint": "Extract the guarded work into its own function whose whole body is the try/catch, and call it from the original function.",
-      "avoid": "Wrapping the try in an if or a nested block, or moving the surrounding statements into the try block so it becomes the only statement.",
+      "why": "A try beside other work is a function-shape preference from Clean Code, not a defect. The default contract leaves this check off. Opt in with an override severity of warn so it stays advisory.",
+      "fixHint": "When the project opts in, extract the guarded work into its own function whose whole body is the try/catch. Keep the override at warn; deny treats the preference as a defect.",
+      "avoid": "The check is off until a reviewed override sets a severity. Wrapping the try in an if, or moving the surrounding statements into the try so it becomes the only statement, satisfies the pattern without separating the error path. Do not enable it as deny.",
       "examples": {
         "pass": "pass/extracted-handler",
         "fail": "fail/work-before-try"
@@ -98,13 +98,13 @@
         {
           "with": "maintainability/MAINT-NEST-001",
           "kind": "duplicates",
-          "why": "Both measure control-flow nesting depth in TypeScript and JavaScript functions with a default maximum of 2.",
+          "why": "Both measure control-flow nesting depth in TypeScript and JavaScript functions. clean-code/CC-NEST-001 defaults to 4 and ignores guard clauses. maintainability/MAINT-NEST-001 defaults to 2.",
           "settle": "Keep one active or turn clean-code/CC-NEST-001 off when maintainability/MAINT-NEST-001 already enforces the nesting limit."
         }
       ],
       "check": "clean-code/complexity/nesting-max-depth",
       "defaults": {
-        "max": 2
+        "max": 4
       },
       "severity": "warn",
       "source": {
@@ -112,12 +112,12 @@
         "locator": "ch. 3, Functions (Blocks and Indenting)",
         "paraphrase": "The indent level of a function should not be greater than one or two, which keeps functions small and easy to read."
       },
-      "why": "Deeply nested control flow forces the reader to hold multiple active conditions and loop states in working memory at once.",
-      "fixHint": "Use guard clauses for early returns or extract the inner control block into a well-named helper function.",
+      "why": "Deeply nested control flow forces the reader to hold multiple active conditions at once. The default limit is 4, the same maximum ESLint max-depth ships, and an if that only returns, continues, breaks, or throws does not count.",
+      "fixHint": "Use a guard clause (if with no else whose body is only return, continue, break, or throw) or extract the inner control block into a well-named helper function.",
       "avoid": "Collapsing nested if statements into a complex compound boolean or a nested ternary only hides the branching without simplifying the logic.",
       "examples": {
         "pass": "pass/guard-clauses",
-        "fail": "fail/triple-nested-if"
+        "fail": "fail/five-nested"
       }
     }
   ]

@@ -30,7 +30,7 @@ export function installSkill(): void {
 
 export function removeSkill(): void {
   for (const file of skillFiles()) {
-    if (existsSync(file) && readFileSync(file, "utf8").includes("name: tlt\n")) rmSync(dirname(file), { recursive: true, force: true });
+    if (existsSync(file) && readFileSync(file, "utf8").includes("name: pregate\n")) rmSync(dirname(file), { recursive: true, force: true });
   }
 }
 

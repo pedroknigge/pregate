@@ -135,7 +135,7 @@ They name installed, preset and lock engine/core versions. Start with
 `pregate preset diagnose --json` and `pregate preset schema`; the human restores or
 corrects the input, reviews `pregate update --project --preview` and approves only
 its displayed digest-bound command. Preparation does not change consent or
-activate a contract. See [delivery status](../STATUS.md) for release state.
+activate a contract. See [v0.0.1 release notes](../releases/0.0.1.md) for release state.
 An override such as `"testing/TDD-FOCUS-001": "enforce"` is invalid: the string
 form accepts severity (`deny`, `ask`, `warn`, `off`), while enforcement uses an
 object, for example `{"severity":"deny","enforcement":"enforce"}`. Preserve
@@ -228,7 +228,7 @@ dependency resolution when progress is valid. The existing hook deadline still
 applies. The wave 11 source and registered POSIX controls verify NUL stderr
 preservation and malformed nested-progress attribution. Its source overhead and
 final latency capture failed; passing byte controls do not certify performance.
-See [delivery status](../STATUS.md) for the current limits.
+See [v0.0.1 release notes](../releases/0.0.1.md) for the current limits.
 
 The source dependency checkpoint reuses authenticated resolver reads only after
 rehashing the importer and every recorded input, including missing candidates,
@@ -255,7 +255,7 @@ remain open. No original consumer source, policy or consent was changed.
 For Claude skill cost, use the live `/context` Skills row after the listing
 budget, rather than the supplied 21k raw estimate. Review router file reads
 before interpreting zero direct invocations as unused skills. Consult the
-[doctor investigation](../research/fix-open-issues-20261008.md#claude-doctor-report-investigation)
+doctor investigation
 before changing visibility or plugins.
 
 ## Review a contract change inside the harness

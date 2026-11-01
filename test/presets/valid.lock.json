@@ -1,6 +1,6 @@
 {
   "core": "0.1.0",
-  "coreHash": "053870c4967d495cf115a1918cb99d29ce88811d9447a7488abbdf5df1c9ee92",
+  "coreHash": "5d5b7d37b1d296cc4babc3ab87012472ee648618870b56ec10305585fda9e099",
   "enforcement": "shadow",
   "engine": "0.1.0",
   "generatedMarkers": [
@@ -58,7 +58,7 @@
     "name": "billing-backend",
     "version": "1.0.0"
   },
-  "presetHash": "7b01337d57b3563f73f8a4afdc3aecdf643e5cc7d61e5d1ac74a4898c29cac29",
+  "presetHash": "5243940bb8bd2b8ea93947b43c510c5467fe24bbd42ddb8d5576f56b67250024",
   "ratchet": "no-new",
   "rules": [
     {

@@ -3,34 +3,34 @@
 Use this worksheet with the [48 original requirements](../inputs/core-invariants-48.md)
 and the [additional maintainability reconciliation](../features/core-maintainability-update.md)
 with the [project fitness binding contract](../features/project-fitness.md).
-Core 0.3.1 retains all 64 project obligations introduced in core 0.3.0 and the
+Core 0.0.1 retains all 64 project obligations introduced when the core was numbered 0.3.0 and the
 four enforcing integrity guards, all active by default. The tables propose bounded assertions and
 negative controls; it does not supply commands, approve bindings or certify a
 project. A receipt proves what the reviewed verifier actually asserts.
 
-For this repository, the historical [nineteen concrete boundary verification
-bindings and their negative controls](../research/core-boundary-verification.md)
+For this repository, the historical nineteen concrete boundary verification
+bindings and their negative controls
 record proposed assertions for unknown-tool diagnostic privacy and gate telemetry.
-The new [dependency and decision assertions](../research/repository-dependency-verification.md)
+The new dependency and decision assertions
 also check the actual declared core graph and frozen decision inputs.
-The [stdin assertions](../research/stdin-boundary-verification.md) exercise
+The stdin assertions exercise
 actual compiled entry points with invalid encoding, oversized input and stalled EOF.
-The [configuration assertions](../research/repository-configuration-verification.md)
+The configuration assertions
 exercise actual preset compilation and detect removal of validation guards.
-The [process deadline assertions](../research/fitness-command-deadline.md)
+The process deadline assertions
 exercise real Git and fitness children that ignore ordinary termination.
-The [output budget assertions](../research/fitness-output-budget.md) terminate
+The output budget assertions terminate
 oversized stdout/stderr writers and preserve both exact-boundary channels.
 These research records retain the admission state and gaps of their tested
 candidate. Check `pregate fitness status --json` for the current contract; a bounded
 assertion does not establish full-project admission.
-The shared [contract admission assertion](../research/repository-contract-admission.md)
+The shared contract admission assertion
 checks direct domain admission and rejection of altered locks with matching metadata,
 without depending on CLI validation. It supplies three proposed bindings and keeps
 the historical 52 default rules active in both source and compiled controls.
-The [policy ownership and combined decision/effect assertions](../research/repository-policy-verification.md)
+The policy ownership and combined decision/effect assertions
 add six bounded proposals with actual shared-policy mutations and isolated decision controls.
-The [issue transport and recovery assertions](../research/issue-transport-verification.md)
+The issue transport and recovery assertions
 add two proposals with actual CLI interruption, timeout/output controls and an
 isolated creation-phase mutation that exposes duplicate effects. GitHub remains simulated.
 
@@ -76,7 +76,7 @@ from a test's execution timeout.
 
 The four general change guards need no project verifier. Their executable
 placement and marker conditions remain active alongside the semantic requirements.
-Read the [marker scope and limits](../research/core-marker-contract-0210.md), including
+Read the marker scope and limits, including
 the conservative unsupported-source fallback, separately from this fitness matrix.
 
 ## Boundaries and dependencies

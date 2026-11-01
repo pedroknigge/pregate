@@ -3,8 +3,8 @@
 These are contracts, not rule sources. Test a pack with `rules test --library <ns>`
 or `rules test packs/<ns>`. Do not point `rules test` at `packs/presets`.
 
-These source recipes pin engine 0.2.26 and builtin core 0.3.1; that engine is
-published. The [generated inventory](../../docs/packs.md) lists every source
+These source recipes pin engine 0.0.1 and builtin core 0.0.1; that engine is
+the published release. The [generated inventory](../../docs/packs.md) lists every source
 and methodology. For a new project, prefer `pregate init --preview --preset <name>`:
 it registers the bundled packs and proposes detected scope in one review. Manual
 copies of recipes with path sources need those pack directories at the specified

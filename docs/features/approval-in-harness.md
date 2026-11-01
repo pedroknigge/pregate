@@ -17,7 +17,7 @@ proposed files; further trial requests replace the review and its digest.
 Use an absolute request path in Codex because its shell payload does not
 establish the execution directory.
 
-An [actual command-discovery probe](../research/absolute-request-preview-guidance.md)
+An actual command-discovery probe
 reproduces a denied relative preview even after a valid request is created.
 The corrected rule-conflict and protected-path messages name the absolute
 path requirement. The repeated model turn prepares a valid review while
@@ -35,8 +35,8 @@ skip-permissions mode, so the engine no longer emits them. The actual agy 1.2.17
 Bash input reviews and applies the exact candidate in normal and skip-permissions
 sessions; a different digest applies nothing. These are controller-driven UI
 observations in disposable projects, not receipts for a user's real approval.
-See [the human shell repair](../research/agy-human-shell-026.md) and the preserved
-[earlier native request observations](../research/agy-approval-observation-026.md).
+See the human shell repair and the preserved
+earlier native request observations.
 
 For an expiring queued proposal, prepare the complete review:
 
@@ -61,7 +61,7 @@ supervisor retain this review. Missing-engine and missing-launcher fallbacks als
 protect the pending project. Fallbacks conservatively keep protection while the
 stored proposal exists; a working engine validates its 24-hour expiry.
 Ordinary project rules do not activate during preview. See
-[the reproduced initial-approval defect and controls](../research/initial-review-administration.md).
+the reproduced initial-approval defect and controls.
 
 It prints the review and the digest-bound human command:
 
@@ -91,7 +91,7 @@ The user types that command in supported human shell input after reviewing it.
 Current controlled observations pass in Claude Code, Codex, Grok and agy.
 Cursor's tested Shell Mode invokes the same gated Pre without a trusted human
 origin marker; use a separate human terminal there. Do not bypass its guard or
-disable PREGATE. See [native observations](../research/other-harness-human-shell-026.md).
+disable PREGATE. See native observations.
 Under `CI`, `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Native Claude permission can
 also approve that exact literal command. Other harnesses reject the agent's attempt
 and explain the human route. The digest binds the writes, compiled lock, baseline
@@ -112,19 +112,19 @@ An earlier Codex 0.160.0 TUI run on macOS ARM64 verifies the human `!` route:
 initial activation, a source-only pack preview, rejection of the prior digest and
 application of the current candidate's exact preset/lock bytes. Its transcript
 classifies these as human shell commands, with no model tool calls. See the
-[observation and scope](../research/candidate-native-and-codex-shell.md).
-The current [Codex 0.160.1 human-shell observation](../research/codex-human-shell-026.md)
-passes four initial/existing normal/bypass cases on engine/core 0.2.6/0.3.0.
+observation and scope.
+The current Codex 0.160.1 human-shell observation
+passes four initial/existing normal/bypass cases on the 0.2.6 pilot (core numbered 0.3.0).
 A different digest leaves preset/lock unchanged; the reviewed digest applies
 every expected write. All 68 core defaults remain active, with zero model Pre
 calls. Controlled test inputs are not actual user consent receipts.
 Actual Codex 0.160.0 headless and TUI model turns on the core-0.2.0 candidate
 reject one exact approval attempt per surface, record native tool denials and
 completed turns, and preserve the contract and pending proposals. See the
-[model scenarios and limits](../research/codex-approval-surfaces.md).
+model scenarios and limits.
 The 0.2.5 post-release runtime also passes four initial/existing headless/TUI model
 self-approval attempts while the existing fixtures retain all 52 core defaults.
-See [current harness verification](../research/current-harnesses-025.md).
+See current harness verification.
 Other approval commands, other harness UIs and native prompts remain separate
 verification. The current human shell checks do not recapture every model tool
 or certify every interaction in all five UIs.
@@ -133,11 +133,11 @@ Claude Code 2.1.289 and Grok 1.0.49 now also pass four initial/existing,
 normal/bypass human-input cases with exact reviewed writes, wrong-digest
 rejection and all 68 defaults. Read-only reporting probes in Codex and agy review
 the issue draft and find an existing report on real GitHub without publication.
-The [evidence and failed probes](../research/other-harness-human-shell-026.md)
+The evidence and failed probes
 retain Cursor's limitation and Claude's attempted model continuation.
 
-The later 0.2.6/core 0.3.0 working source also passes four exact model rejection
+The later 0.2.6 working source (core numbered 0.3.0) also passes four exact model rejection
 cases with Codex 0.160.1, retaining all 68 defaults: existing/initial proposals in
 headless/TUI surfaces. Native denial, displayed human command and unchanged
-contract/proposal hashes are recorded. See [current source evidence](../research/dcouplr-observability-contract.md#recorded-verification).
+contract/proposal hashes are recorded. See current source evidence.
 These are model rejection tests, not human approvals or checks of every command.

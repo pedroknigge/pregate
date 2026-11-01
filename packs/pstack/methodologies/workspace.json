@@ -115,9 +115,9 @@
       "source": {
         "work": "User-requested pstack and installed-workflow invariant catalog",
         "locator": "packs/pstack/INVARIANTS.md:106; PS-87, PS-88, PS-89",
-        "paraphrase": "Cotizador universal: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented."
+        "paraphrase": "Universal quoter: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented."
       },
-      "why": "Cotizador universal: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
+      "why": "Universal quoter: Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
       "fixHint": "Bind PS-87-89 to a reviewed project assertion with applicability, scope, evidence source, owner and freshness in its rationale. Test a violating control. Run pregate fitness run PS-87-89; repair failed evidence or propose a bounded adaptation that preserves the requirement.",
       "avoid": "This is a project evidence obligation, not a universal syntax detector or semantic certification. A receipt proves only the reviewed assertion ran on current inputs. Missing proof stays unverified; an adopted assertion with failed or stale proof blocks enforcing checks. Conditional workflow rules need explicit applicability and observed task evidence; selecting a rule does not run a skill or authorize an action. The source groups PS-87, PS-88, PS-89 in one clause; one assertion must cover the complete group, not one selected sentence. Existing syntax references are partial controls, not proof of this full statement. Fixtures test receipt admission, not the project's semantics. Packs provide no executable commands.",
       "examples": {
@@ -135,9 +135,9 @@
       "source": {
         "work": "User-requested pstack and installed-workflow invariant catalog",
         "locator": "packs/pstack/INVARIANTS.md:107; PS-90, PS-91",
-        "paraphrase": "Estimador de horas: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer."
+        "paraphrase": "Hour estimator: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer."
       },
-      "why": "Estimador de horas: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
+      "why": "Hour estimator: Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
       "fixHint": "Bind PS-90-91 to a reviewed project assertion with applicability, scope, evidence source, owner and freshness in its rationale. Test a violating control. Run pregate fitness run PS-90-91; repair failed evidence or propose a bounded adaptation that preserves the requirement.",
       "avoid": "This is a project evidence obligation, not a universal syntax detector or semantic certification. A receipt proves only the reviewed assertion ran on current inputs. Missing proof stays unverified; an adopted assertion with failed or stale proof blocks enforcing checks. Conditional workflow rules need explicit applicability and observed task evidence; selecting a rule does not run a skill or authorize an action. The source groups PS-90, PS-91 in one clause; one assertion must cover the complete group, not one selected sentence. Existing syntax references are partial controls, not proof of this full statement. Fixtures test receipt admission, not the project's semantics. Packs provide no executable commands.",
       "examples": {
@@ -195,9 +195,9 @@
       "source": {
         "work": "User-requested pstack and installed-workflow invariant catalog",
         "locator": "packs/pstack/INVARIANTS.md:110; PS-97, PS-98, PS-99",
-        "paraphrase": "Modelado de casos de uso: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit."
+        "paraphrase": "Use-case modeling: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit."
       },
-      "why": "Modelado de casos de uso: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
+      "why": "Use-case modeling: Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
       "fixHint": "Bind PS-97-99 to a reviewed project assertion with applicability, scope, evidence source, owner and freshness in its rationale. Test a violating control. Run pregate fitness run PS-97-99; repair failed evidence or propose a bounded adaptation that preserves the requirement.",
       "avoid": "This is a project evidence obligation, not a universal syntax detector or semantic certification. A receipt proves only the reviewed assertion ran on current inputs. Missing proof stays unverified; an adopted assertion with failed or stale proof blocks enforcing checks. Conditional workflow rules need explicit applicability and observed task evidence; selecting a rule does not run a skill or authorize an action. The source groups PS-97, PS-98, PS-99 in one clause; one assertion must cover the complete group, not one selected sentence. Existing syntax references are partial controls, not proof of this full statement. Fixtures test receipt admission, not the project's semantics. Packs provide no executable commands.",
       "examples": {
@@ -215,9 +215,9 @@
       "source": {
         "work": "User-requested pstack and installed-workflow invariant catalog",
         "locator": "packs/pstack/INVARIANTS.md:111; PS-100, PS-101, PS-102, PS-103",
-        "paraphrase": "Winston / charla épica: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise."
+        "paraphrase": "Winston / epic talk: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise."
       },
-      "why": "Winston / charla épica: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
+      "why": "Winston / epic talk: Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
       "fixHint": "Bind PS-100-103 to a reviewed project assertion with applicability, scope, evidence source, owner and freshness in its rationale. Test a violating control. Run pregate fitness run PS-100-103; repair failed evidence or propose a bounded adaptation that preserves the requirement.",
       "avoid": "This is a project evidence obligation, not a universal syntax detector or semantic certification. A receipt proves only the reviewed assertion ran on current inputs. Missing proof stays unverified; an adopted assertion with failed or stale proof blocks enforcing checks. Conditional workflow rules need explicit applicability and observed task evidence; selecting a rule does not run a skill or authorize an action. The source groups PS-100, PS-101, PS-102, PS-103 in one clause; one assertion must cover the complete group, not one selected sentence. Existing syntax references are partial controls, not proof of this full statement. Fixtures test receipt admission, not the project's semantics. Packs provide no executable commands.",
       "examples": {
@@ -275,9 +275,9 @@
       "source": {
         "work": "User-requested pstack and installed-workflow invariant catalog",
         "locator": "packs/pstack/INVARIANTS.md:114; PS-108, PS-109",
-        "paraphrase": "Revisor de calendarios: Inspects every calendar; report overlaps; clear calendar explicitly reported."
+        "paraphrase": "Calendar reviewer: Inspects every calendar; report overlaps; clear calendar explicitly reported."
       },
-      "why": "Revisor de calendarios: Inspects every calendar; report overlaps; clear calendar explicitly reported.",
+      "why": "Calendar reviewer: Inspects every calendar; report overlaps; clear calendar explicitly reported.",
       "fixHint": "Bind PS-108-109 to a reviewed project assertion with applicability, scope, evidence source, owner and freshness in its rationale. Test a violating control. Run pregate fitness run PS-108-109; repair failed evidence or propose a bounded adaptation that preserves the requirement.",
       "avoid": "This is a project evidence obligation, not a universal syntax detector or semantic certification. A receipt proves only the reviewed assertion ran on current inputs. Missing proof stays unverified; an adopted assertion with failed or stale proof blocks enforcing checks. Conditional workflow rules need explicit applicability and observed task evidence; selecting a rule does not run a skill or authorize an action. The source groups PS-108, PS-109 in one clause; one assertion must cover the complete group, not one selected sentence. Existing syntax references are partial controls, not proof of this full statement. Fixtures test receipt admission, not the project's semantics. Packs provide no executable commands.",
       "examples": {

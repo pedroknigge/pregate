@@ -1,0 +1,7 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/parse/cache.ts",
+  "before": null,
+  "expect": { "verdict": "pass" }
+}

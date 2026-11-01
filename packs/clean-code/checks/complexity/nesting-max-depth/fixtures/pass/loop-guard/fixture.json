@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "max": 2
+  },
+  "target": "src/orders/keep.ts",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

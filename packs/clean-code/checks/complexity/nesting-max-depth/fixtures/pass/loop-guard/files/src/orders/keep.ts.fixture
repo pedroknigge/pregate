@@ -1,0 +1,12 @@
+export function keep(items: { parts: { ok: boolean }[] }[]): number {
+  for (const item of items) {
+    if (!item) continue;
+    for (const part of item.parts) {
+      if (!part.ok) {
+        continue;
+      }
+      return 1;
+    }
+  }
+  return 0;
+}

@@ -1,0 +1,7 @@
+export interface RetryOptions {
+  limit: number;
+}
+
+export interface PlainResponse {
+  status: number;
+}

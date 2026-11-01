@@ -1,16 +1,16 @@
-# PREGATE en cinco harnesses, instalado una vez
+# PREGATE on five harnesses, installed once
 
 **Current implementation references:** [commands/options](CLI.md),
 [approval routes](features/approval-in-harness.md), [capability guarantees](features/harness-and-shell-guarantees.md)
-and [delivery status](STATUS.md). The dated protocol/design and acceptance records
+and [v0.0.1 release notes](releases/0.0.1.md). The dated protocol/design and acceptance records
 below describe their specific candidates. Current proposals can be reviewed and
 approved with an exact human `!` command inside supported harness shell input;
 they do not require an external-terminal round trip. Replay/native smoke is
 distinct from current real harness interaction evidence.
 
-**Estado:** diseño para construir (2026-10-02), revisado por dos revisiones adversariales (fail-open y simplicidad; §9 dice qué se aplicó y qué se descartó). Implementa D20: Codex CLI, Claude Code, Cursor (`cursor-agent`), Grok Build y Antigravity (`agy`), con instalación global, sin configuración por repo, con update y uninstall.
+**Status:** design to build (2026-10-02), reviewed in two adversarial reviews (fail-open and simplicity; §9 says what was applied and what was discarded). Implements D20: Codex CLI, Claude Code, Cursor (`cursor-agent`), Grok Build, and Antigravity (`agy`), with a global install, no per-repo configuration, plus update and uninstall.
 
-**Fuentes de verdad.** Los contratos verificados en vivo hoy: `docs/research/harness-{codex,cursor,grok,agy}-live.md` y `test/payloads/{codex,cursor,grok,agy}/`. El patrón de distribución: `docs/research/distribution-patterns.md`. El MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) y `docs/SPEC.md` §14. Si este documento contradice a `distribution-patterns.md`, gana este, porque se escribió con los contratos en vivo. Ejemplos: Grok no lee `~/.cursor/hooks.json` en 1.0.48, agy usa un plugin y no `~/.gemini/config/hooks.json`, y Cursor y Grok leen `~/.claude/settings.json` siempre, con su payload nativo.
+**Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
 
 0.2.4 update: Release 0.2.4 verifies multi-platform execution across macOS, Linux, and Windows,
 compiles Windows without bytecode to resolve runtime setup crashes, decouples Git/GitHub
@@ -21,82 +21,82 @@ interactive Claude Code and agy use enforced native permissions. Codex, Cursor,
 Grok and headless sessions deny contract edits and direct the human to
 `pregate approve` for the expiring validated proposal. OS dialogs are removed.
 
-**Marcas.** Las marcas **[V]**, **[C]**, **[D]** y **[S]** significan lo mismo que en los relevamientos. **[E2E]** marca algo que no está verificado y que la prueba real de §6.3 tiene que confirmar antes de la instalación en la máquina del usuario. Mientras no esté confirmado, se usa la opción que no depende de ello.
+**Markers.** The markers **[V]**, **[C]**, **[D]**, and **[S]** mean the same thing as in the surveys. **[E2E]** marks something that is not verified and that the real test in §6.3 must confirm before installation on the user's machine. Until it is confirmed, the option that does not depend on it is used.
 
-**Estándar.** D16 y D17: cero dependencias de runtime, núcleo puro y una abstracción solo si tiene dos usos reales. Cada decisión de abajo dice qué requisito la exige.
-
----
-
-## 0. Forma general en una pantalla
-
-- **Tres registros para cinco harnesses.** `~/.claude/settings.json` sirve a Claude Code, Cursor y Grok, porque Cursor y Grok lo leen siempre y le pasan su payload nativo [V]. `~/.codex/hooks.json` sirve a Codex, y un plugin global sirve a agy. Cada harness ejecuta **exactamente un** registro de PREGATE, así que no hay doble evaluación que deduplicar (MH-04).
-- **Un comando registrado, congelado entre versiones** (MH-22): un guard inline que hace `exec` del launcher global. Si falta el launcher, deniega solo si hay un preset.
-- **Launcher global** `<DATA>/bin/pregate` = el mismo `assets/launcher.sh` con `version=<x>`. Supervisa al motor y convierte toda falla en exit 2 + stderr, que bloquea en los cinco [V] (MH-15).
-- **El motor elige el perfil por sniff** (MH-03), decodifica, y si el lock del repo fija otro motor, sale con exit 3 para que el launcher lo reejecute (MH-19).
-- **Fuera de un repo con preset:** sin estado, sin git y sin WASM. Solo corren las protecciones de máquina, que impiden apagar PREGATE desde cualquier repo (MH-17).
+**Standard.** D16 and D17: zero runtime dependencies, a pure core, and an abstraction only if it has two real uses. Each decision below states which requirement demands it.
 
 ---
 
-## 1. Contrato de adaptador
+## 0. Overall shape on one screen
 
-**MH-01. Un módulo por harness, con funciones puras y su perfil como constantes. No hay `profile.json` ni intérprete.**
-- `src/claude.ts` pasa a `src/harness/claude.ts`. Se suman `codex.ts`, `cursor.ts`, `grok.ts` y `agy.ts`. Lo que hoy es privado de `claude.ts` y comparten varios módulos (`parse`, `isObject`, `keys`, `absolute`, `json`) se mueve a `src/harness/wire.ts`.
-- Cada módulo exporta lo mismo (las firmas exactas están en §10.1):
+- **Three registrations for five harnesses.** `~/.claude/settings.json` serves Claude Code, Cursor, and Grok, because Cursor and Grok always read it and pass it their native payload [V]. `~/.codex/hooks.json` serves Codex, and a global plugin serves agy. Each harness runs **exactly one** PREGATE registration, so there is no double evaluation to deduplicate (MH-04).
+- **One registered command, frozen across versions** (MH-22): an inline guard that `exec`s the global launcher. If the launcher is missing, it denies only when a preset is present.
+- **Global launcher** `<DATA>/bin/pregate` = the same `assets/launcher.sh` with `version=<x>`. It supervises the engine and turns every failure into exit 2 + stderr, which blocks on all five [V] (MH-15).
+- **The engine chooses the profile by sniff** (MH-03), decodes, and if the repo lock pins another engine, it exits with exit 3 so the launcher re-executes it (MH-19).
+- **Outside a repo with a preset:** no state, no git, and no WASM. Only the machine protections run, which prevent turning PREGATE off from any repo (MH-17).
+
+---
+
+## 1. Adapter contract
+
+**MH-01. One module per harness, with pure functions and its profile as constants. There is no `profile.json` and no interpreter.**
+- `src/claude.ts` moves to `src/harness/claude.ts`. `codex.ts`, `cursor.ts`, `grok.ts`, and `agy.ts` are added. What is private to `claude.ts` today and shared by several modules (`parse`, `isObject`, `keys`, `absolute`, `json`) moves to `src/harness/wire.ts`.
+- Each module exports the same thing (the exact signatures are in §10.1):
   ```ts
-  decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null   // null: evento que se ignora
+  decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null   // null: event that is ignored
   encode(kind: HookKind, d: Decision, stop: StopState | null): Emission
-  VERIFIED: string                                   // versión del CLI con contrato en test/payloads/<h>/
+  VERIFIED: string                                   // CLI version whose contract is in test/payloads/<h>/
   ```
-- `Rejected` reemplaza al `fallback` separado: cuando el decode falla, el mismo parse devuelve el canal del deny (`kind`, `reentry`) y los directorios del sobre que sirven para ubicar la raíz (`dirs`, MH-06). Es un parse por llamada en vez de dos.
-- **Por qué no se toman los datos de A17.** La extracción a datos estaba pensada para el segundo adaptador. Con cinco, lo que varía de uno a otro es estructural: un patch multiarchivo (Codex), protojson sin nombre de evento (agy), claves camelCase con alias snake (Grok) y `cursor_version` (Cursor). Un perfil declarativo no lo expresa sin volverse un lenguaje (DD-51 ya lo descartó). Lo que sí es dato (nombres de tools, matchers, timeouts, límites) queda como constantes al principio de cada módulo. Ese es el "perfil" de SPEC §14.1.5. Se reemplazan A17 y el principio 8 de ARCHITECTURE en lo que toca a "no existe un registry de harnesses": el mapa `HARNESSES = { "claude-code", codex, cursor, grok, agy }` vive en `main.ts`, y lo usan `main` y `doctor` (dos usos).
-- La registración (archivo, eventos, matcher, timeouts) no vive en los adaptadores, porque tres harnesses comparten un registro: vive en `src/register.ts` (MH-22).
+- `Rejected` replaces the separate `fallback`: when decode fails, the same parse returns the deny channel (`kind`, `reentry`) and the envelope directories used to locate the root (`dirs`, MH-06). It is one parse per call instead of two.
+- **Why A17's data is not taken.** Extracting into data was intended for the second adapter. With five, what varies from one to another is structural: a multi-file patch (Codex), protojson without an event name (agy), camelCase keys with snake aliases (Grok), and `cursor_version` (Cursor). A declarative profile cannot express that without becoming a language (DD-51 already discarded that). What is data (tool names, matchers, timeouts, limits) stays as constants at the top of each module. That is the "profile" of SPEC §14.1.5. A17 and principle 8 of ARCHITECTURE are replaced where they say "there is no harness registry": the map `HARNESSES = { "claude-code", codex, cursor, grok, agy }` lives in `main.ts`, and `main` and `doctor` use it (two uses).
+- Registration (file, events, matcher, timeouts) does not live in the adapters, because three harnesses share one registration: it lives in `src/register.ts` (MH-22).
 
-**MH-02. IDs y flag.** Los IDs son `claude-code`, `codex`, `cursor`, `grok` y `agy`. Todo registro global lleva `hook <evento> --harness <id>`, donde el evento es `pre`, `stop` o `session-start`. El registro compartido de `~/.claude/settings.json` lleva `--harness claude-code`, y Cursor y Grok se reconocen por sniff (MH-03). agy no manda el nombre del evento en el payload, así que lo único que lo identifica es argv [V]. `hook auto` sigue para §13.7.
+**MH-02. IDs and flag.** The IDs are `claude-code`, `codex`, `cursor`, `grok`, and `agy`. Every global registration carries `hook <event> --harness <id>`, where the event is `pre`, `stop`, or `session-start`. The shared registration in `~/.claude/settings.json` carries `--harness claude-code`, and Cursor and Grok are recognized by sniff (MH-03). agy does not send the event name in the payload, so the only thing that identifies it is argv [V]. `hook auto` remains for §13.7.
 
-**MH-03. Detección: primero el sniff, después el flag.** El perfil que decodifica se elige así:
-1. **Grok**, si `GROK_HOOK_EVENT` no está vacío **y** el payload tiene la clave de primer nivel `hookEventName`. `GROK_HOOK_EVENT` es la señal que Grok reserva y siempre pisa [V]. Exigir también la clave cubre el caso en que la variable se filtre a otro proceso. Ni "cualquier `GROK_*`" (lo que hace hoy `main.ts`) ni `CLAUDECODE` cuentan, porque los harnesses heredan el entorno del padre [V en Codex, Grok y agy].
-2. **Cursor**, si el payload tiene la clave de primer nivel `cursor_version`. Se comprueba después de `JSON.parse` y nunca con un grep: un `Write` de Claude cuyo contenido incluya `"cursor_version"` no puede cambiar el perfil. `CLAUDE_PROJECT_DIR` no sirve, porque Cursor también la define [V].
-3. En otro caso, el `--harness` del registro. Codex y agy se identifican **solo** por flag: el payload de Codex tiene la forma del de Claude, y el de agy no trae el evento.
+**MH-03. Detection: sniff first, then the flag.** The profile that decodes is chosen as follows:
+1. **Grok**, if `GROK_HOOK_EVENT` is not empty **and** the payload has the top-level key `hookEventName`. `GROK_HOOK_EVENT` is the signal Grok reserves and always overwrites [V]. Also requiring the key covers the case where the variable leaks to another process. Neither "any `GROK_*`" (what `main.ts` does today) nor `CLAUDECODE` counts, because harnesses inherit the parent's environment [V on Codex, Grok, and agy].
+2. **Cursor**, if the payload has the top-level key `cursor_version`. It is checked after `JSON.parse` and never with a grep: a Claude `Write` whose content includes `"cursor_version"` cannot change the profile. `CLAUDE_PROJECT_DIR` does not work, because Cursor also defines it [V].
+3. Otherwise, the registration's `--harness`. Codex and agy are identified **only** by flag: the Codex payload has the same shape as Claude's, and agy's does not carry the event.
 
-**MH-04. Una sola evaluación por llamada, por construcción.** Cada harness ejecuta un solo registro de PREGATE:
+**MH-04. One evaluation per call, by construction.** Each harness runs a single PREGATE registration:
 
-| Harness | Registro que ejecuta | Cómo se descarta el resto |
+| Harness | Registration it runs | How the rest is discarded |
 |---|---|---|
-| Claude Code | `~/.claude/settings.json` | MH-28 saca los hooks por repo de 0.1.0 |
-| Cursor | `~/.claude/settings.json` importado [V] | PREGATE no escribe `~/.cursor/hooks.json` |
-| Grok | `~/.claude/settings.json` [V] | PREGATE no escribe `~/.grok/hooks/` |
-| Codex | `~/.codex/hooks.json` | no lee hooks de Claude [V] |
-| agy | plugin `pregate` | no lee hooks de Claude [V] |
+| Claude Code | `~/.claude/settings.json` | MH-28 removes the per-repo hooks from 0.1.0 |
+| Cursor | `~/.claude/settings.json` imported [V] | PREGATE does not write `~/.cursor/hooks.json` |
+| Grok | `~/.claude/settings.json` [V] | PREGATE does not write `~/.grok/hooks/` |
+| Codex | `~/.codex/hooks.json` | does not read Claude hooks [V] |
+| agy | plugin `pregate` | does not read Claude hooks [V] |
 
-- **Qué se pierde y por qué se acepta** (U-6):
-  - En Cursor, `failClosed:true`: las entradas importadas lo llevan forzado a `false` [C]. Lo que `failClosed` cubría además del launcher es que el propio `sh` inline no pueda ejecutarse (exit 126/127) o que el launcher no responda dentro de los 30 s del harness. El launcher ya convierte el crash y el cuelgue del motor en exit 2 + stderr, que Cursor respeta [V]. Es el mismo residuo que Claude Code tiene desde el MVP.
-  - En Grok, la independencia del interruptor de compatibilidad con Claude (`GROK_CLAUDE_HOOKS_ENABLED=0`, `[compat.claude] hooks=false`, el toggle de `/hooks`). El agente no puede tocarlos (MH-17, MH-29). `doctor` y el pre-commit avisan si están apagados (MH-27).
-- **Qué se gana:** no se escribe en `~/.cursor/hooks.json`. Ese archivo es de Orca, y un error de esquema lo invalida entero [C], apagando también los hooks del usuario. Desaparecen la sonda "registro nativo presente", el concepto de llamada importada, la deduplicación por `callId` y dos de cinco merges.
+- **What is lost and why it is accepted** (U-6):
+  - On Cursor, `failClosed:true`: imported entries force it to `false` [C]. What `failClosed` covered beyond the launcher is that the inline `sh` itself cannot run (exit 126/127) or that the launcher does not respond within the harness's 30 s. The launcher already turns an engine crash and hang into exit 2 + stderr, which Cursor respects [V]. It is the same residue Claude Code has had since the MVP.
+  - On Grok, independence from the Claude compatibility switch (`GROK_CLAUDE_HOOKS_ENABLED=0`, `[compat.claude] hooks=false`, the `/hooks` toggle). The agent cannot touch them (MH-17, MH-29). `doctor` and the pre-commit warn if they are off (MH-27).
+- **What is gained:** nothing is written to `~/.cursor/hooks.json`. That file belongs to Orca, and a schema error invalidates it entirely [C], also turning off the user's hooks. The "native registration present" probe, the imported-call concept, deduplication by `callId`, and two of five merges disappear.
 
-**MH-05. Sesión por harness.**
+**MH-05. Session per harness.**
 
-| | `Session.id` | `turnId` | `agentId` | `callId` | Raíz o cwd |
+| | `Session.id` | `turnId` | `agentId` | `callId` | Root or cwd |
 |---|---|---|---|---|---|
 | claude-code | `session_id` | `prompt_id` | `agent_id` | `tool_use_id` | `cwd` |
-| codex | `session_id` | `turn_id` [V] | `agent_id` (subagente) [V] | `tool_use_id` + `~` + `H(tool_input.command)` (code mode comparte `exec-<uuid>` entre llamadas [V]) | `cwd` |
-| cursor | `session_id` | `generation_id` (cambia también por followup; Stop cuenta la continuidad de la sesión hasta terminar el turno, ver §6.4) | null (subagente = sesión propia [V]) | `tool_use_id` | Shell: `cwd` absoluto, o `workspace_roots[0]` si `cwd` es `""` y hay **una** raíz; el resto, `workspace_roots[0]` (MH-06) |
-| grok | `sessionId` | null (Pre no trae `promptId` [V]) | null (el subagente tiene `sessionId` propio [V]) | `toolUseId` | `cwd` |
-| agy | `conversationId` | null | null (sesión propia [V]) | `String(stepIdx)` | `run_command.Cwd`; el resto, `workspacePaths[0]` |
+| codex | `session_id` | `turn_id` [V] | `agent_id` (subagent) [V] | `tool_use_id` + `~` + `H(tool_input.command)` (code mode shares `exec-<uuid>` across calls [V]) | `cwd` |
+| cursor | `session_id` | `generation_id` (also changes per followup; Stop counts session continuity until the turn ends, see §6.4) | null (subagent = its own session [V]) | `tool_use_id` | Shell: absolute `cwd`, or `workspace_roots[0]` if `cwd` is `""` and there is **one** root; otherwise, `workspace_roots[0]` (MH-06) |
+| grok | `sessionId` | null (Pre does not carry `promptId` [V]) | null (the subagent has its own `sessionId` [V]) | `toolUseId` | `cwd` |
+| agy | `conversationId` | null | null (its own session [V]) | `String(stepIdx)` | `run_command.Cwd`; otherwise, `workspacePaths[0]` |
 
-- El estado se indexa por `<id>:<Session.id>`, para que dos harnesses no compartan una sesión por casualidad.
-- `interactive` es `false` en todo harness que no sea Claude Code. Así `decide` nunca emite `ask` donde no se puede confiar en él: Codex lo trata como fail-open [D], Cursor no lo aplica [D], Grok lo aprueba con `--always-approve` [V] y agy en headless no tiene a quién preguntarle [S].
+- State is indexed by `<id>:<Session.id>`, so two harnesses do not share a session by chance.
+- `interactive` is `false` on every harness other than Claude Code. So `decide` never emits `ask` where it cannot be trusted: Codex treats it as fail-open [D], Cursor does not apply it [D], Grok approves it with `--always-approve` [V], and headless agy has no one to ask [S].
 
-**MH-06. `decode` devuelve `HookEvent | Rejected | null`.**
-- `null` es un evento que se reconoce y se ignora, con salida neutra: hoy, solo la Stop de cierre de Grok (`reason:"shutdown"`) [V].
-- `Rejected` es un sobre o una tool que no se reconoce (`payload-unrecognized`), o un caso que se reconoce pero no se puede juzgar (`BAD`). Lleva `dirs`: los directorios del sobre (`cwd`, `workspace_roots`, `workspacePaths`, `workspaceRoot`, el project dir del entorno).
-- **Un cambio de contrato no rompe la máquina.** `main` responde "sin objeción" a un `Rejected` si **ninguno** de sus `dirs` alcanza una raíz y la sesión no registró ninguna. En otro caso, deniega. Si el sobre no es JSON o no trae ningún directorio, deniega siempre. Sin esto, un `cursor-agent update` que cambia el payload denegaría toda escritura en todos los repos de la máquina.
-- **Directorio ambiguo ⇒ `BAD`:** Shell de Cursor con `cwd:""` y `workspace_roots` vacío o con más de un elemento; un `cwd` no vacío que no es absoluto; un `run_command` de agy sin `Cwd` y con `workspacePaths` vacío. Hoy esos casos se resolverían contra el cwd del hook (`~/.claude`) y pasarían sin raíz.
+**MH-06. `decode` returns `HookEvent | Rejected | null`.**
+- `null` is an event that is recognized and ignored, with a neutral output: today, only Grok's shutdown Stop (`reason:"shutdown"`) [V].
+- `Rejected` is an envelope or a tool that is not recognized (`payload-unrecognized`), or a case that is recognized but cannot be judged (`BAD`). It carries `dirs`: the envelope directories (`cwd`, `workspace_roots`, `workspacePaths`, `workspaceRoot`, the environment project dir).
+- **A contract change does not break the machine.** `main` answers "no objection" to a `Rejected` if **none** of its `dirs` reaches a root and the session registered none. Otherwise, it denies. If the envelope is not JSON or carries no directory, it always denies. Without this, a `cursor-agent update` that changes the payload would deny every write in every repo on the machine.
+- **Ambiguous directory ⇒ `BAD`:** Cursor Shell with `cwd:""` and `workspace_roots` empty or with more than one element; a non-empty `cwd` that is not absolute; an agy `run_command` without `Cwd` and with `workspacePaths` empty. Today those cases would resolve against the hook cwd (`~/.claude`) and pass with no root.
 
 ---
 
-## 2. Formas de edición nuevas
+## 2. New edit forms
 
-**MH-07. Cambios mínimos de tipos (`types.ts`).**
+**MH-07. Minimal type changes (`types.ts`).**
 ```ts
 type Edit =
   | { form: "full"; content: string }
@@ -106,13 +106,13 @@ type Edit =
   | { form: "delete" }                                                         // Codex Delete, Cursor Delete
   | { form: "unknown"; cause: string };
 interface Hunk { anchor: string | null; old: string[]; neu: string[]; eof: boolean }
-interface ProposedChange { session; callId; tool; path; edit; from: string | null }   // from: origen de un Move
-type HookEvent = … | { kind: "pre-edit"; changes: ProposedChange[] }                  // ≥ 1, una llamada
+interface ProposedChange { session; callId; tool; path; edit; from: string | null }   // from: origin of a Move
+type HookEvent = … | { kind: "pre-edit"; changes: ProposedChange[] }                  // ≥ 1, one call
 ```
-A16 se extiende solo con lo que hoy produce algún adaptador. No se agregan `batchId`, `before` ni `after` al tipo.
+A16 is extended only with what some adapter produces today. `batchId`, `before`, and `after` are not added to the type.
 
-**MH-08. Patch de Codex: parser propio, estricto y puro, dentro de `codex.ts`.**
-- Gramática que se acepta [V en las capturas; D para `@@ ctx` y `*** End of File`]:
+**MH-08. Codex patch: its own strict, pure parser, inside `codex.ts`.**
+- Grammar that is accepted [V in the captures; D for `@@ ctx` and `*** End of File`]:
   ```
   patch  := "*** Begin Patch" NL op+ "*** End Patch" [NL]
   op     := "*** Add File: " P NL ("+" L NL)*
@@ -120,54 +120,54 @@ A16 se extiende solo con lo que hoy produce algún adaptador. No se agregan `bat
           | "*** Update File: " P NL ["*** Move to: " P NL] chunk+
   chunk  := ("@@" | "@@ " CTX) NL ((" " | "-" | "+") L NL)* ["*** End of File" NL]
   ```
-- **Rutas: solo absolutas.** Una ruta relativa ⇒ `unknown`, y el deny dice "resend the patch with absolute paths". Todas las capturas eran absolutas [V], y una relativa es ambigua: Codex la resuelve contra el `workdir` del shell, que el payload no trae [V]. Un segmento `.`, `..` o vacío ⇒ `unknown`.
-- Qué produce cada operación:
-  - Add ⇒ `full`, con el contenido = las líneas unidas por `\n` y un `\n` final [S; el E2E de §6.3 lo verifica por igualdad con el disco].
+- **Paths: absolute only.** A relative path ⇒ `unknown`, and the deny says "resend the patch with absolute paths". Every capture was absolute [V], and a relative path is ambiguous: Codex resolves it against the shell `workdir`, which the payload does not carry [V]. A `.`, `..`, or empty segment ⇒ `unknown`.
+- What each operation produces:
+  - Add ⇒ `full`, with the content = the lines joined by `\n` and a final `\n` [S; the §6.3 E2E verifies it by equality with disk].
   - Delete ⇒ `delete`.
   - Update ⇒ `hunks`.
-  - Update + Move ⇒ dos cambios: `{path: origen, delete}` y `{path: destino, hunks, from: origen}`. El "actual" del destino es el texto del origen.
-- Se aplica con `reconstruct.apply`: cada hunk busca su secuencia `old` (las líneas `" "` y `"-"`) **exacta**, desde el final del hunk anterior y después del `anchor` si lo tiene, y al final del archivo si lleva `eof`.
-- **No se porta la cascada difusa de Codex** (trim, normalización Unicode). Un hunk que no aparece exacto, o que no tiene líneas `old` (inserción pura, cuya semántica no está verificada), da `cannot-reconstruct`: un deny de forma que dice "resend the patch with exact context lines". El error queda del lado seguro, porque nunca se juzga un texto distinto del que Codex escribiría. El costo es algún falso deny cuando el contexto difiere en espacios; se mide en §6.3 y en el piloto, y se porta la cascada solo si aparece.
-- Lo que no entra en la gramática (patch envuelto en heredoc, falta `@@`) ⇒ `unknown("patch-grammar")` ⇒ `cannot-reconstruct`. Es un deny que el agente puede resolver, no `payload-unrecognized`.
+  - Update + Move ⇒ two changes: `{path: origin, delete}` and `{path: destination, hunks, from: origin}`. The destination's "actual" is the origin's text.
+- It is applied with `reconstruct.apply`: each hunk looks for its `old` sequence (the `" "` and `"-"` lines) **exactly**, from the end of the previous hunk and after the `anchor` if it has one, and at the end of the file if it carries `eof`.
+- **Codex's fuzzy cascade is not ported** (trim, Unicode normalization). A hunk that does not appear exactly, or that has no `old` lines (a pure insertion, whose semantics are not verified), yields `cannot-reconstruct`: a form deny that says "resend the patch with exact context lines". The error stays on the safe side, because a text different from what Codex would write is never judged. The cost is some false denies when the context differs in whitespace; it is measured in §6.3 and in the pilot, and the cascade is ported only if it shows up.
+- What does not fit the grammar (a patch wrapped in a heredoc, missing `@@`) ⇒ `unknown("patch-grammar")` ⇒ `cannot-reconstruct`. It is a deny the agent can resolve, not `payload-unrecognized`.
 
-**MH-09. Varios archivos por llamada: se evalúan todos y basta un deny.** `gate.onPreEdit(changes)` hace lo siguiente:
-1. Reconstruye todos los `after`.
-2. Juzga cada archivo con un `Read` **superpuesto**: los demás archivos del mismo patch se ven con su `after`, o como inexistentes si se borran. Sin esto, un patch que crea `a.ts` y lo importa desde `b.ts` daría `unresolvable-import` en `b.ts`.
-3. Registra un `CallEvent` por archivo (el `callId` es compartido y el `fileH` distinto).
-4. Combina con `merge(decisions)`, una función pura en `decide.ts`:
-   - primero la que tiene `halt`; si no, el primer deny; `ask` solo si todas las que bloquean son `ask`;
-   - el `full` de la elegida suma una línea por cada otro archivo bloqueado (su `compact`), dentro de `TEXT_MAX`.
+**MH-09. Several files per call: all are evaluated and one deny is enough.** `gate.onPreEdit(changes)` does the following:
+1. Reconstructs every `after`.
+2. Judges each file with an **overlaid** `Read`: the other files in the same patch are seen with their `after`, or as nonexistent if they are deleted. Without this, a patch that creates `a.ts` and imports it from `b.ts` would yield `unresolvable-import` on `b.ts`.
+3. Records one `CallEvent` per file (the `callId` is shared and the `fileH` differs).
+4. Combines them with `merge(decisions)`, a pure function in `decide.ts`:
+   - first the one that has `halt`; otherwise, the first deny; `ask` only if every blocking one is `ask`;
+   - the chosen one's `full` adds one line per other blocked file (its `compact`), within `TEXT_MAX`.
 
-Un patch de un solo archivo sigue exactamente el camino de hoy.
+A single-file patch follows exactly today's path.
 
-**MH-10. Borrado (Delete de Codex y de Cursor).** Se aplican solo las protecciones del paso 5 (y MH-17). El resto lo juzga Stop sobre el árbol, igual que un `rm` por shell (§4.2: "la verdad es el árbol"). Por eso un borrado de `.pregate/**` o de `.git/**` se deniega, y un `rm`-equivalente de un archivo en scope pasa a Stop, pre-commit y CI. Un Move aplica esto al origen y la evaluación completa al destino. Residuo: Cursor `-p` no tiene Stop [V], así que ahí un Delete en scope llega a pre-commit y CI.
+**MH-10. Deletion (Codex Delete and Cursor Delete).** Only the step-5 protections apply (and MH-17). Stop judges the rest over the tree, the same as an `rm` through the shell (§4.2: "the truth is the tree"). So a deletion of `.pregate/**` or `.git/**` is denied, and an `rm`-equivalent of an in-scope file goes to Stop, pre-commit, and CI. A Move applies this to the origin and the full evaluation to the destination. Residue: Cursor `-p` has no Stop [V], so there an in-scope Delete reaches pre-commit and CI.
 
-**MH-11. Formas de agy.**
-- `write_to_file`: sin `Append`, es `full` (`TargetFile` y `CodeContent`) [V]. Con `Append: true`, es `append` y `after = actual + CodeContent`, o `CodeContent` si el archivo no existe [V].
-- `replace_file_content` es `oldnew`, con `lines = [StartLine, EndLine]` (1-indexed e inclusivo) y `all = AllowMultiple`. Se busca `TargetContent` exacto **dentro del rango**.
-  - Si no aparece, o aparece más de una vez sin `AllowMultiple`, es `cannot-reconstruct`: agy podría hacer matching difuso [S], así que no se afirma que la tool vaya a fallar.
-  - Si falta el rango, se busca en todo el archivo.
-- Claves con lista cerrada: además de las requeridas, se aceptan `Overwrite`, `Description`, `Instruction`, `TargetLintErrorIds`, `ArtifactMetadata`, `toolAction` y `toolSummary`. Cualquier otra ⇒ `unknown`, porque puede cambiar lo que se escribe (el mismo criterio que con Claude).
-- `multi_replace_file_content` ⇒ `unknown`: no existe en 1.2.14 [V] y su forma es [D]. Entra cuando haya captura.
-- `run_command` es un comando (`CommandLine`, con `Cwd` como cwd). `send_command_input` ⇒ `shell-write`: manda stdin a un proceso que no se puede analizar.
+**MH-11. agy forms.**
+- `write_to_file`: without `Append`, it is `full` (`TargetFile` and `CodeContent`) [V]. With `Append: true`, it is `append` and `after = actual + CodeContent`, or `CodeContent` if the file does not exist [V].
+- `replace_file_content` is `oldnew`, with `lines = [StartLine, EndLine]` (1-indexed and inclusive) and `all = AllowMultiple`. Exact `TargetContent` is searched for **inside the range**.
+  - If it does not appear, or appears more than once without `AllowMultiple`, it is `cannot-reconstruct`: agy might do fuzzy matching [S], so it is not claimed that the tool will fail.
+  - If the range is missing, the whole file is searched.
+- Closed key list: besides the required ones, `Overwrite`, `Description`, `Instruction`, `TargetLintErrorIds`, `ArtifactMetadata`, `toolAction`, and `toolSummary` are accepted. Any other ⇒ `unknown`, because it can change what is written (the same criterion as with Claude).
+- `multi_replace_file_content` ⇒ `unknown`: it does not exist in 1.2.14 [V] and its form is [D]. It enters when there is a capture.
+- `run_command` is a command (`CommandLine`, with `Cwd` as cwd). `send_command_input` ⇒ `shell-write`: it sends stdin to a process that cannot be analyzed.
 
-**MH-12. Formas de Grok.**
-- **Antes que la tool:** `toolInputTruncated` distinto de `false` (también ausente) ⇒ `cannot-reconstruct` en **cualquier** tool, con el deny "write the file in pieces under 128 KiB" o "split the command" (SPEC §14.5). Un `run_terminal_command` truncado puede esconder la parte que escribe.
+**MH-12. Grok forms.**
+- **Before the tool:** `toolInputTruncated` other than `false` (also when absent) ⇒ `cannot-reconstruct` on **any** tool, with the deny "write the file in pieces under 128 KiB" or "split the command" (SPEC §14.5). A truncated `run_terminal_command` can hide the part that writes.
 - `write` ⇒ `full`.
-- `search_replace` ⇒ `oldnew`. `replace_all` es opcional y su ausencia vale `false` [V]. Claves cerradas: `file_path`, `old_string`, `new_string` y `replace_all`.
-- `hashline_edit` ⇒ `unknown`, y el deny dice "resend the change with `write` and the whole file". `write` existe en los dos toolsets [V], así que el agente siempre tiene salida. Tampoco hace falta reimplementar las anclas: el toolset hashline no viene activo por defecto.
-- `apply_patch`, `edit` y `bash` (preset codex y agente opencode) ⇒ `unknown` hasta capturarlos. `apply_patch` usará el parser de MH-08 (segundo uso) cuando haya contrato.
-- `run_terminal_command` ⇒ comando, leyendo solo `command`.
+- `search_replace` ⇒ `oldnew`. `replace_all` is optional and its absence means `false` [V]. Closed keys: `file_path`, `old_string`, `new_string`, and `replace_all`.
+- `hashline_edit` ⇒ `unknown`, and the deny says "resend the change with `write` and the whole file". `write` exists in both toolsets [V], so the agent always has a way out. The anchors do not need to be reimplemented: the hashline toolset is not active by default.
+- `apply_patch`, `edit`, and `bash` (codex preset and opencode agent) ⇒ `unknown` until they are captured. `apply_patch` will use the MH-08 parser (second use) when there is a contract.
+- `run_terminal_command` ⇒ command, reading only `command`.
 
-**MH-13. `old_string` vacío sobre un archivo que no existe crea el archivo.** Pasa en Claude Code [V, `pre-edit-empty-old.json`] y en Grok [V, `pre-search-replace-create.json`]. `apply` lo reconstruye como `after = neu`, y esto reemplaza a O11 en ese caso. Con el archivo existente, sigue siendo `unknown`.
+**MH-13. An empty `old_string` on a file that does not exist creates the file.** It happens in Claude Code [V, `pre-edit-empty-old.json`] and in Grok [V, `pre-search-replace-create.json`]. `apply` reconstructs it as `after = neu`, and this replaces O11 in that case. With the file existing, it remains `unknown`.
 
-Cursor no necesita formas nuevas. Toda edición llega como `Write` con el archivo completo, o como `Delete` [V]. Las claves son cerradas: `file_path` y `content`.
+Cursor needs no new forms. Every edit arrives as `Write` with the whole file, or as `Delete` [V]. The keys are closed: `file_path` and `content`.
 
 ---
 
-## 3. Salida por harness
+## 3. Output per harness
 
-**MH-14. Tabla de encode.** Ningún harness emite nunca `allow` (A14). Lo verifica un test sobre todas las salidas.
+**MH-14. Encode table.** No harness ever emits `allow` (A14). A test over every output verifies it.
 
 O57 supersedes the historical SessionStart column and MH-25 below: consenting
 Claude and Codex sessions receive `hookSpecificOutput.additionalContext`;
@@ -178,430 +178,430 @@ These are contract-tested against captured payloads, not new live model runs.
 Grok 1.0.48's bundled hooks guide explicitly says passive SessionStart stdout is
 ignored; its session briefing remains unavailable. `/pregate` can load the contract.
 
-| Harness | Pre: deny | Sin objeción | `ask` | Halt | Stop que bloquea | Señal de reingreso a Stop | SessionStart |
+| Harness | Pre: deny | No objection | `ask` | Halt | Stop that blocks | Stop reentry signal | SessionStart |
 |---|---|---|---|---|---|---|---|
-| claude-code | igual que hoy: JSON `permissionDecision:"deny"` + stderr, exit 2 | `""` exit 0 (más `additionalContext` si hay warns) | igual que hoy | `continue:false` + `stopReason` | `{"decision":"block","reason"}` exit 2 | `stop_hook_active` | igual que hoy |
-| codex | **stdout vacío, stderr = `full`, exit 2** [V] | `""` exit 0 | ⇒ deny (MH-05) | **nunca**: `continue:false` hace fallar el hook y la tool corre [V]. Lo reemplaza el texto del deny | `{"decision":"block","reason":full}` exit 0, **sin otras claves** [V] | `stop_hook_active` [V] | `""`: ningún canal verificado [E2E: `additionalContext`] |
-| cursor | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":full}}` exit 0: el formato de Claude, verificado en un hook nativo **y** en uno importado [V] | `""` exit 0 (sin `failClosed`, el vacío es "sin decisión" [C]) | ⇒ deny | no existe | `{"followup_message":full}` exit 0 [V nativo; E2E importado] | `loop_count > 0` [V]: alimenta `stop.reentry` en `decide`, que solo es neutro para causas humanas; el tope lo da `maxStopBlocks` | `""` |
-| grok | JSON `hookSpecificOutput` deny con razón = `compact` en una línea, stderr igual, exit 2 [V] | `""` exit 0 | ⇒ deny | se ignora [V], no se emite | `{"decision":"block","reason"}` exit 0 [V comportamiento; E2E exit] | `stopHookActive` [V]; `reason:"shutdown"` ⇒ `null` | `""` |
-| agy | `{"decision":"deny","reason":full}` exit 0 [V] | `""` exit 0: neutro verificado, porque en la corrida 4 el sistema de permisos siguió decidiendo [V] | ⇒ deny | no existe | `{"decision":"continue","reason":full}` exit 0 [V] | `executionNum > 0` [V] | no se registra (MH-25) |
+| claude-code | same as today: JSON `permissionDecision:"deny"` + stderr, exit 2 | `""` exit 0 (plus `additionalContext` if there are warns) | same as today | `continue:false` + `stopReason` | `{"decision":"block","reason"}` exit 2 | `stop_hook_active` | same as today |
+| codex | **empty stdout, stderr = `full`, exit 2** [V] | `""` exit 0 | ⇒ deny (MH-05) | **never**: `continue:false` makes the hook fail and the tool runs [V]. The deny text replaces it | `{"decision":"block","reason":full}` exit 0, **with no other keys** [V] | `stop_hook_active` [V] | `""`: no verified channel [E2E: `additionalContext`] |
+| cursor | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":full}}` exit 0: the Claude format, verified on a native hook **and** on an imported one [V] | `""` exit 0 (without `failClosed`, empty is "no decision" [C]) | ⇒ deny | does not exist | `{"followup_message":full}` exit 0 [V native; E2E imported] | `loop_count > 0` [V]: feeds `stop.reentry` in `decide`, which is neutral only for human causes; `maxStopBlocks` supplies the cap | `""` |
+| grok | JSON `hookSpecificOutput` deny with reason = `compact` on one line, stderr the same, exit 2 [V] | `""` exit 0 | ⇒ deny | ignored [V], not emitted | `{"decision":"block","reason"}` exit 0 [V behavior; E2E exit] | `stopHookActive` [V]; `reason:"shutdown"` ⇒ `null` | `""` |
+| agy | `{"decision":"deny","reason":full}` exit 0 [V] | `""` exit 0: verified neutral, because in run 4 the permission system kept deciding [V] | ⇒ deny | does not exist | `{"decision":"continue","reason":full}` exit 0 [V] | `executionNum > 0` [V] | not registered (MH-25) |
 
-- La columna de reingreso es la **señal**, no la salida: en los cinco, el reingreso entra a `decide` como `stop.reentry`. Un reingreso nunca es neutro por sí solo.
-- `Decision.notice`, el texto para el humano, solo tiene canal propio en Claude Code (`systemMessage`). En los demás, el texto del deny de una causa humana ya termina en "report it to the user: run …", y eso llega al humano a través del agente.
-- `{"decision":"allow"}` de agy no se emite: saltea el prompt de permisos [D]. Por eso el neutro de agy es el stdout vacío, que en la corrida 4 dejó actuar al sistema de permisos [V]. §6.3 lo vuelve a comprobar sin `--dangerously-skip-permissions`.
+- The reentry column is the **signal**, not the output: on all five, reentry enters `decide` as `stop.reentry`. A reentry is never neutral by itself.
+- `Decision.notice`, the text for the human, has its own channel only in Claude Code (`systemMessage`). On the others, the deny text for a human cause already ends in "report it to the user: run …", and that reaches the human through the agent.
+- agy's `{"decision":"allow"}` is not emitted: it skips the permission prompt [D]. So agy's neutral is empty stdout, which in run 4 let the permission system act [V]. §6.3 checks it again without `--dangerously-skip-permissions`.
 
-**MH-15. Fail-closed del launcher.**
-- **Pre, en los cinco: exit 2 + una línea de stderr no vacía de ≤ 256 caracteres, con el stdout vacío** ("PREGATE could not evaluate: <why>; report it to the user"). Bloquea en todos [V]: Claude, exit 2; Codex, exit 2 con stderr no vacío; Cursor, "Hook blocked with message: <stderr>"; Grok, la primera línea de stderr; agy, falla del hook. Como la salida es una sola, Pre no necesita detectar el dialecto. Claude pierde el `continue:false` del fail-closed actual: con la instalación rota, cada Pre siguiente también deniega, así que el agente no avanza igual.
-- **Invariante: todo exit 2 lleva stderr no vacío.** Codex deja correr la tool con exit 2 sin stderr [V]. Por eso:
-  - el trap de `TERM`/`HUP` (el harness canceló el hook) escribe "PREGATE was cancelled before deciding; report it to the user" en fd 4 antes del `exit 2`;
-  - si el motor sale con exit 2 y su stderr está vacío, el launcher aplica `fail_closed`.
-- **Stop:** bloquea solo en Claude Code (flag `claude-code` y sin `GROK_HOOK_EVENT` ni `CURSOR_VERSION` en el entorno [V: Cursor la define]), con la salida de hoy. En los demás, exit 0 neutro: Pre ya bloquea, y pre-commit y CI cubren el resto.
-- **SessionStart:** en Claude, `systemMessage`; en los demás, neutro.
-- **El motor de su propia `version` no está** (o está vacío: `[ -x ] && [ -s ]`): deniega siempre, con "run `pregate setup`". El update escribe el motor antes que el launcher (MH-27), así que esto solo pasa si alguien borró el motor, que es una ruta protegida.
-- **PATH propio.** El launcher usa `PATH=/usr/bin:/bin` para sus comandos (`sleep`, `mktemp`, `cat`, `sed`, `grep`, `rm`) y le pasa al motor el PATH original (el motor llama a `git`, que puede estar en `/opt/homebrew/bin`). Sin esto, un PATH raro del harness deja al launcher sin `sleep`, es decir, sin plazo.
+**MH-15. Launcher fail-closed.**
+- **Pre, on all five: exit 2 + one non-empty stderr line of ≤ 256 characters, with empty stdout** ("PREGATE could not evaluate: <why>; report it to the user"). It blocks on all of them [V]: Claude, exit 2; Codex, exit 2 with non-empty stderr; Cursor, "Hook blocked with message: <stderr>"; Grok, the first stderr line; agy, hook failure. Because the output is a single one, Pre does not need to detect the dialect. Claude loses the `continue:false` of the current fail-closed: with the install broken, every following Pre also denies, so the agent still does not advance.
+- **Invariant: every exit 2 carries non-empty stderr.** Codex lets the tool run on exit 2 without stderr [V]. So:
+  - the `TERM`/`HUP` trap (the harness canceled the hook) writes "PREGATE was cancelled before deciding; report it to the user" to fd 4 before `exit 2`;
+  - if the engine exits with exit 2 and its stderr is empty, the launcher applies `fail_closed`.
+- **Stop:** blocks only on Claude Code (flag `claude-code` and neither `GROK_HOOK_EVENT` nor `CURSOR_VERSION` in the environment [V: Cursor defines it]), with today's output. On the others, neutral exit 0: Pre already blocks, and pre-commit and CI cover the rest.
+- **SessionStart:** on Claude, `systemMessage`; on the others, neutral.
+- **The engine for its own `version` is missing** (or empty: `[ -x ] && [ -s ]`): always denies, with "run `pregate setup`". Update writes the engine before the launcher (MH-27), so this happens only if someone deleted the engine, which is a protected path.
+- **Its own PATH.** The launcher uses `PATH=/usr/bin:/bin` for its commands (`sleep`, `mktemp`, `cat`, `sed`, `grep`, `rm`) and passes the original PATH to the engine (the engine calls `git`, which may be in `/opt/homebrew/bin`). Without this, an unusual harness PATH leaves the launcher without `sleep`, that is, without a deadline.
 
-**MH-16. Límites de longitud.**
+**MH-16. Length limits.**
 
-| Harness | Límite verificado | Qué se manda |
+| Harness | Verified limit | What is sent |
 |---|---|---|
-| Claude | — | `full` ≤ 4.000 (`TEXT_MAX`) |
-| Codex | íntegro hasta ~20 KB; después corta cabeza y cola, y agrega `. Command: <patch>` [V] | `full` ≤ 4.000; la primera línea, autosuficiente |
-| Cursor | ~12 KB llegaron completos [V, `user_message`]; [E2E] el mismo largo por `permissionDecisionReason` | `full` |
-| Grok | **256 caracteres y solo la primera línea** [V] | `compact` sin `\n` (≤ 256), que termina con el pre-check `pregate explain`. [E2E] si `additionalContext` llega en un deny: si llega, va `full` ahí |
-| agy | íntegro hasta 28 KB [V] | `full` |
+| Claude | — | `full` ≤ 4,000 (`TEXT_MAX`) |
+| Codex | intact up to ~20 KB; after that it cuts head and tail, and appends `. Command: <patch>` [V] | `full` ≤ 4,000; the first line, self-contained |
+| Cursor | ~12 KB arrived complete [V, `user_message`]; [E2E] the same length via `permissionDecisionReason` | `full` |
+| Grok | **256 characters and only the first line** [V] | `compact` without `\n` (≤ 256), ending with the `pregate explain` pre-check. [E2E] whether `additionalContext` arrives on a deny: if it arrives, `full` goes there |
+| agy | intact up to 28 KB [V] | `full` |
 
-`message.ts` ya garantiza `compact` ≤ 256. Lo que se agrega es que en Grok se reemplacen los saltos de línea.
+`message.ts` already guarantees `compact` ≤ 256. What is added is that on Grok line breaks are replaced.
 
-**MH-17. Fuera de un repo con preset: silencio y costo mínimo, pero la máquina protegida.**
+**MH-17. Outside a repo with a preset: silence and minimal cost, but the machine protected.**
 
-Con la instalación global, el hook corre en **todo** repo. Hoy eso tiene tres efectos que D20 no admite: SessionStart avisa "no-preset" en cada sesión; Pre y Stop escriben estado en cada llamada; y las protecciones y el guard de shell objetan en cualquier repo (por ejemplo, `.git/**` u otro harness como comando).
+With the global install, the hook runs in **every** repo. Today that has three effects D20 does not allow: SessionStart warns "no-preset" on every session; Pre and Stop write state on every call; and the protections and the shell guard object in any repo (for example, `.git/**` or another harness as a command).
 
-- **Cuándo una llamada "no alcanza ninguna raíz":** ni su cwd ni **ninguna** de las rutas que toca alcanza una raíz, y la sesión no registró ninguna (`state.roots(sid)` vacío). Para un comando, las rutas son todas las rutas literales que extrae el guard, no solo el cwd: `cd /tmp && echo x > /repo/src/a.ts` alcanza `/repo`.
-- **En ese caso:** no se escribe estado, no se llama a git, no se carga WASM y SessionStart queda en silencio. Objetivo: p50 ≤ 25 ms.
-- **Pero siempre corren dos cosas, porque son puras y baratas:**
-  1. **Rutas protegidas de máquina** (`paths.machineGlobs`), con o sin raíz:
-     - el registro: `~/.claude/settings*.json` (y `${CLAUDE_CONFIG_DIR}/settings*.json`), `${CODEX_HOME:-~/.codex}/{hooks.json,config.toml,requirements.toml}`, `${GROK_HOME:-~/.grok}/{config.toml,hooks/**,hooks-paths,managed_config.toml,requirements.toml}`, `~/.gemini/config/{hooks.json,config.json,plugins/pregate/**}`;
-     - la instalación propia: `<DATA>/**`, `<STATE>/**`, `~/.local/bin/pregate`;
-     - `**/.pregate/**`: el agente no crea raíces (A20);
-     - además, el **realpath** de cada uno de esos archivos: con dotfiles en symlink, `canonical()` resuelve al destino y la glob literal no lo cubriría.
-  2. **El guard de shell, restringido** a `protected-path` y a `hook-switch`: `pregate setup|update|uninstall`, `agy plugin disable|uninstall pregate`, `GROK_CLAUDE_HOOKS_ENABLED`, `CODEX_HOME`, `GROK_HOME`, `CLAUDE_CONFIG_DIR`, `--ignore-user-config`, `--setting-sources`, `--settings`, `disableAllHooks`, `features.hooks`.
-- **Lo que no corre sin raíz:** `.git/**`, `.claude/settings*.json` de proyecto, las fuentes de reglas, las causas de scope, `shell-write` y `shell-admin` (otro harness como comando, `--no-verify`, `core.hooksPath`, `HUSKY`…). Correr `codex exec` desde un repo sin preset no es una fuga: ese Codex también tiene a PREGATE. Solo es fuga si lo lanza sin la config de usuario, y eso es `hook-switch`.
-- **Por qué siempre.** Un agente que apaga hooks no necesita haber sido bloqueado antes: un subagente de Cursor, Grok o agy es una sesión nueva con el estado vacío [V], y una sesión abierta en `~` no tiene raíz. Borrar el `trusted_hash` de PREGATE en `~/.codex/config.toml` apaga Codex en silencio y para siempre [V: un hook `modified` no corre].
-- **Costo para el usuario** (U-5): ningún agente puede editar esos archivos de configuración global en ningún repo. Los edita el humano, o el humano corre el comando que el agente le propone.
+- **When a call "reaches no root":** neither its cwd nor **any** of the paths it touches reaches a root, and the session registered none (`state.roots(sid)` empty). For a command, the paths are every literal path the guard extracts, not only the cwd: `cd /tmp && echo x > /repo/src/a.ts` reaches `/repo`.
+- **In that case:** no state is written, git is not called, WASM is not loaded, and SessionStart stays silent. Target: p50 ≤ 25 ms.
+- **But two things always run, because they are pure and cheap:**
+  1. **Machine protected paths** (`paths.machineGlobs`), with or without a root:
+     - the registration: `~/.claude/settings*.json` (and `${CLAUDE_CONFIG_DIR}/settings*.json`), `${CODEX_HOME:-~/.codex}/{hooks.json,config.toml,requirements.toml}`, `${GROK_HOME:-~/.grok}/{config.toml,hooks/**,hooks-paths,managed_config.toml,requirements.toml}`, `~/.gemini/config/{hooks.json,config.json,plugins/pregate/**}`;
+     - the install itself: `<DATA>/**`, `<STATE>/**`, `~/.local/bin/pregate`;
+     - `**/.pregate/**`: the agent does not create roots (A20);
+     - also, the **realpath** of each of those files: with dotfiles as symlinks, `canonical()` resolves to the target and the literal glob would not cover it.
+  2. **The shell guard, restricted** to `protected-path` and `hook-switch`: `pregate setup|update|uninstall`, `agy plugin disable|uninstall pregate`, `GROK_CLAUDE_HOOKS_ENABLED`, `CODEX_HOME`, `GROK_HOME`, `CLAUDE_CONFIG_DIR`, `--ignore-user-config`, `--setting-sources`, `--settings`, `disableAllHooks`, `features.hooks`.
+- **What does not run without a root:** `.git/**`, project `.claude/settings*.json`, the rule sources, the scope causes, `shell-write`, and `shell-admin` (another harness as a command, `--no-verify`, `core.hooksPath`, `HUSKY`…). Running `codex exec` from a repo without a preset is not a leak: that Codex also has PREGATE. It is a leak only if it is launched without the user config, and that is `hook-switch`.
+- **Why always.** An agent that turns hooks off does not need to have been blocked before: a Cursor, Grok, or agy subagent is a new session with empty state [V], and a session opened in `~` has no root. Deleting PREGATE's `trusted_hash` in `~/.codex/config.toml` turns Codex off silently and forever [V: a `modified` hook does not run].
+- **Cost to the user** (U-5): no agent can edit those global configuration files in any repo. The human edits them, or the human runs the command the agent proposes.
 
 ---
 
-## 4. Instalación global
+## 4. Global installation
 
 **MH-18. Layout.**
 ```
-${XDG_DATA_HOME:-~/.local/share}/pregate/      = <DATA>, resuelto y escrito por setup
-├── 0.2.0/pregate            motor inmutable (uno por versión; conviven)
-└── bin/pregate              LAUNCHER GLOBAL: launcher.sh con version=<x>, reescrito atómicamente
-~/.local/bin/pregate  ->  <DATA>/bin/pregate     CLI en el PATH
+${XDG_DATA_HOME:-~/.local/share}/pregate/      = <DATA>, resolved and written by setup
+├── 0.2.0/pregate            immutable engine (one per version; they coexist)
+└── bin/pregate              GLOBAL LAUNCHER: launcher.sh with version=<x>, rewritten atomically
+~/.local/bin/pregate  ->  <DATA>/bin/pregate     CLI on the PATH
 ${XDG_STATE_HOME:-~/.local/state}/pregate/
-├── …                       estado de hooks (layout de hoy)
-└── codex-trust.json        {"<key>":"sha256:…"}: el trust que setup otorgó (MH-24, MH-27)
+├── …                       hook state (today's layout)
+└── codex-trust.json        {"<key>":"sha256:…"}: the trust setup granted (MH-24, MH-27)
 ```
-- El launcher es **un solo asset** (`assets/launcher.sh`) con una sola instalación: la global. `version=<x>` señala al motor; el update escribe el motor nuevo y después reescribe el launcher (MH-27). No hay symlink `current`, ni `install.json`, ni `install.lock`: el uninstall reconoce lo propio por marcador, las escrituras son atómicas e idempotentes, y setup lo corre un humano.
-- El motor deriva `engineHome()` de su propio ejecutable (`dirname(dirname(process.execPath))`) y no de `XDG_DATA_HOME`. El entorno del hook (GUI frente a terminal, `.zshenv`) puede diferir del de setup, y así el motor y las rutas protegidas son siempre las de la instalación que corre.
-- Lo que no puede cambiar es el **texto del comando registrado** (MH-22). El contenido del launcher se actualiza en su lugar.
+- The launcher is **a single asset** (`assets/launcher.sh`) with a single install: the global one. `version=<x>` points at the engine; update writes the new engine and then rewrites the launcher (MH-27). There is no `current` symlink, no `install.json`, and no `install.lock`: uninstall recognizes its own entries by marker, writes are atomic and idempotent, and a human runs setup.
+- The engine derives `engineHome()` from its own executable (`dirname(dirname(process.execPath))`) and not from `XDG_DATA_HOME`. The hook environment (GUI versus terminal, `.zshenv`) can differ from setup's, and so the engine and the protected paths are always those of the install that is running.
+- What cannot change is the **text of the registered command** (MH-22). The launcher content is updated in place.
 
-**MH-19. El motor lo elige el lock de cada repo, sin que el update rompa repos.**
-- Se mantiene la regla `lock.engine === VERSIONS.engine` (`freshness`): el lock fija la semántica.
-- **Hooks.** El launcher corre su `version`. El motor decodifica, localiza la raíz del **objetivo** de la llamada (archivo, cwd o raíz del evento) y lee `"engine"` de su lock. Si coincide, evalúa. Si no, escribe la versión en la primera línea de stdout y sale con **exit 3**: para el launcher, exit 3 significa "corré este motor". En Pre explícito devuelve después de esa línea el stdin original; así el camino normal no espera una copia antes de iniciar el motor.
-  - El launcher valida `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` sobre la primera línea y reejecuta `<DATA>/<v>/pregate` con el mismo stdin, **una sola vez** y dentro del mismo plazo. Para Pre explícito extrae el resto de stdout y rechaza replay ausente o sin comienzo de objeto JSON. Stop, SessionStart y auto conservan la captura inicial porque la necesitan para interpretar eventos/fallos.
-  - Un segundo exit 3, una versión inválida o un motor ausente terminan en la salida fail-closed, con el motivo "engine <v> is not installed: run `pregate update --engine <v>`".
-  - **Por qué no lo resuelve el `sh` solo:** la raíz depende del payload. El cwd del hook es `~/.claude` en Cursor y la carpeta del plugin en agy [V], en un monorepo la raíz puede estar debajo del project dir, y un patch de Codex toca varios archivos. El motor ya sabe localizarla.
-  - Costo: un spawn más (~15 ms), y solo en repos fijados a otra versión.
-  - Stop y SessionStart usan la raíz del cwd del evento. Si en una sesión hay otra raíz fijada a otra versión, Stop da `version-mismatch` (deny más aviso), y el resto lo cubren pre-commit y CI.
-- **CLI.** `check`, `explain` y `preset show` aplican la misma regla, pero desde TS: si el lock de la raíz pide otro motor, el motor hace spawn de `<DATA>/<v>/pregate` con los mismos argumentos y stdio heredado, **antes de leer stdin**, y sale con su código. Si ese motor no está, sale con 1 y "run `pregate update --engine <v>`". `preset compile` y `rules test` nunca redirigen: `compile` es justamente cómo un repo pasa al motor nuevo.
+**MH-19. Each repo's lock chooses the engine, without an update breaking repos.**
+- The rule `lock.engine === VERSIONS.engine` (`freshness`) stays: the lock pins the semantics.
+- **Hooks.** The launcher runs its `version`. The engine decodes, locates the root of the call's **target** (file, cwd, or event root), and reads `"engine"` from its lock. If it matches, it evaluates. If not, it writes the version on the first stdout line and exits with **exit 3**: for the launcher, exit 3 means "run this engine". On an explicit Pre it returns the original stdin after that line; so the normal path does not wait for a copy before starting the engine.
+  - The launcher validates `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` on the first line and re-executes `<DATA>/<v>/pregate` with the same stdin, **once** and within the same deadline. For an explicit Pre it extracts the rest of stdout and rejects a missing replay or one that does not start with a JSON object. Stop, SessionStart, and auto keep the initial capture because they need it to interpret events/failures.
+  - A second exit 3, an invalid version, or a missing engine end in the fail-closed output, with the reason "engine <v> is not installed: run `pregate update --engine <v>`".
+  - **Why `sh` alone does not resolve it:** the root depends on the payload. The hook cwd is `~/.claude` on Cursor and the plugin folder on agy [V], in a monorepo the root can sit below the project dir, and a Codex patch touches several files. The engine already knows how to locate it.
+  - Cost: one extra spawn (~15 ms), and only in repos pinned to another version.
+  - Stop and SessionStart use the root of the event cwd. If a session has another root pinned to another version, Stop yields `version-mismatch` (deny plus a warning), and pre-commit and CI cover the rest.
+- **CLI.** `check`, `explain`, and `preset show` apply the same rule, but from TS: if the root's lock asks for another engine, the engine spawns `<DATA>/<v>/pregate` with the same arguments and inherited stdio, **before reading stdin**, and exits with its code. If that engine is missing, it exits with 1 and "run `pregate update --engine <v>`". `preset compile` and `rules test` never redirect: `compile` is exactly how a repo moves to the new engine.
 
-**MH-20. Piso de motor (`FLOOR`).** Una constante en `main.ts`, hoy `FLOOR = "0.2.0"`. Si el lock fija un motor anterior a `FLOOR`, no se redirige y se deniega con `lock-stale` ("this repo's lock pins engine <v>, below the safe floor: run `pregate preset compile`"). Cubre dos casos: los motores 0.1.0 no conocen a los harnesses nuevos (sin esto, darían un `payload-unrecognized` que confunde), y un fail-open de adaptador arreglado en una versión nueva no puede seguir vivo en los repos fijados. Se sube cuando se corrige un fail-open de adaptador.
+**MH-20. Engine floor (`FLOOR`).** A constant in `main.ts`, today `FLOOR = "0.2.0"`. If the lock pins an engine older than `FLOOR`, there is no redirect and it denies with `lock-stale` ("this repo's lock pins engine <v>, below the safe floor: run `pregate preset compile`"). It covers two cases: 0.1.0 engines do not know the new harnesses (without this, they would yield a confusing `payload-unrecognized`), and an adapter fail-open fixed in a new version cannot stay alive in pinned repos. It is raised when an adapter fail-open is fixed.
 
-**MH-21. Formato del estado.** Los motores de distintas versiones comparten `stateDir()`. La versión que cambie el formato de `CallEvent`, de la snapshot o de los nombres pasa a un subdirectorio nuevo (`v2/`), para que un motor viejo no lea registros que no entiende. No se crea `v1/` por adelantado. El checklist de release lo pregunta.
+**MH-21. State format.** Engines of different versions share `stateDir()`. The version that changes the `CallEvent` format, the snapshot, or the names moves to a new subdirectory (`v2/`), so an old engine does not read records it does not understand. `v1/` is not created ahead of time. The release checklist asks about it.
 
-**MH-22. Registro.** `<CMD ev h>` es este texto, congelado entre versiones:
+**MH-22. Registration.** `<CMD ev h>` is this text, frozen across versions:
 ```sh
 f='<DATA>/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook <ev> --harness <h>; for d in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do while [ -n "$d" ] && [ "$d" != / ]; do [ -f "$d/.pregate/preset.json" ] && { printf '%s\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2; }; d=$(dirname "$d"); done; done; exit 0
 ```
-- `<DATA>` es la ruta absoluta resuelta en el `setup`. La rama `exit 2` existe solo en `pre`; en `stop` y `session-start`, el bloque del `for` es `exit 0` directo.
-- `[ -s ]`: un launcher vacío o truncado haría que `exec` termine, ante ENOEXEC, ejecutándolo como script vacío, es decir, exit 0 sin salida: allow en Codex, Grok, agy y Claude.
-- **Corrección de aceptación real (2026-10-02):** el registro compartido ejecuta la ruta literal, sin la variable local `f`. Grok expande `$VAR` antes del shell y omite comandos con locales todavía sin definir. El fallback se conserva, pero sus dólares se decodifican con `printf '%b'` solo cuando falta el launcher. Los bytes vigentes están en `test/fixtures/hook-command.txt`; el comando de Codex conserva sus bytes y trust. El camino normal no agrega procesos.
-- **agy** (su `PWD` es el directorio del plugin y no hay variables de proyecto [V]): en `pre`, los candidatos se reemplazan por `workspacePaths[0]`, leído del stdin con `p=$(cat); w=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p')`. Si el payload contiene `"workspacePaths"` pero `w` sale vacío (una ruta con escapes), deniega.
-- Es válido en `sh`, dash y zsh [E2E: Cursor ejecuta con `$SHELL`, `/bin/zsh` en la máquina del usuario]. El **marcador** de lo propio es la igualdad exacta de `command`, `timeout` y `matcher` con lo que escribe setup. Un grupo que contiene `<DATA>/bin/pregate'` sin ser igual se considera **una versión vieja nuestra** y se reemplaza, pero nunca recibe trust automático (MH-24).
-- **Timeouts.** Pre: **30 s** en los tres registros. El plazo de 5 s del launcher sigue gobernando, y los 30 s del harness solo cubren un launcher que tarda en arrancar (carga, sueño de la máquina, swap). Codex, Grok y Claude fallan abiertos al vencer [V]. Stop: 60 s. SessionStart: 15 s.
+- `<DATA>` is the absolute path resolved at `setup`. The `exit 2` branch exists only on `pre`; on `stop` and `session-start`, the `for` block is a direct `exit 0`.
+- `[ -s ]`: an empty or truncated launcher would make `exec` return and, on ENOEXEC, run it as an empty script, that is, exit 0 with no output: allow on Codex, Grok, agy, and Claude.
+- **Real-acceptance correction (2026-10-02):** the shared registration runs the literal path, without the local variable `f`. Grok expands `$VAR` before the shell and skips commands whose locals are still undefined. The fallback is kept, but its dollars are decoded with `printf '%b'` only when the launcher is missing. The current bytes are in `test/fixtures/hook-command.txt`; the Codex command keeps its bytes and trust. The normal path adds no processes.
+- **agy** (its `PWD` is the plugin directory and there are no project variables [V]): on `pre`, the candidates are replaced by `workspacePaths[0]`, read from stdin with `p=$(cat); w=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p')`. If the payload contains `"workspacePaths"` but `w` comes out empty (a path with escapes), it denies.
+- It is valid in `sh`, dash, and zsh [E2E: Cursor runs with `$SHELL`, `/bin/zsh` on the user's machine]. The **marker** of our own entries is exact equality of `command`, `timeout`, and `matcher` with what setup writes. A group that contains `<DATA>/bin/pregate'` without being equal is treated as **an old version of ours** and is replaced, but it never receives automatic trust (MH-24).
+- **Timeouts.** Pre: **30 s** on the three registrations. The launcher's 5 s deadline still governs, and the harness's 30 s only covers a launcher that is slow to start (load, machine sleep, swap). Codex, Grok, and Claude fail open when it expires [V]. Stop: 60 s. SessionStart: 15 s.
 
-| Registro | Archivo (respeta la reubicación) | Entradas (solo agrega o reemplaza las propias) | Notas |
+| Registration | File (respects relocation) | Entries (only adds or replaces its own) | Notes |
 |---|---|---|---|
-| compartido (Claude Code, Cursor, Grok) | `~/.claude/settings.json`, y además `${CLAUDE_CONFIG_DIR}/settings.json` si esa variable está definida y apunta a otro lado (Cursor y Grok leen el de `HOME` [V]) | `PreToolUse` `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash\|PowerShell\|Monitor\|Delete\|apply_patch\|edit\|bash\|write\|search_replace\|hashline_edit\|run_terminal_command`, 30; `Stop` 60; `SessionStart` 15; `--harness claude-code` | Se registran también los nombres nativos de Grok: sus alias de Write no cubren `write`. Delete de Cursor verificado; los tres literales de Grok no fueron ofrecidos (§6.4). |
-| codex | `${CODEX_HOME:-~/.codex}/hooks.json` (nunca `config.toml`) | `PreToolUse` `^(apply_patch\|Bash)$`, 30; `Stop` 60; `SessionStart` 15. Grupos **al final** | El default es 600 s y falla abierto [V], así que el timeout es explícito. Trust: MH-24 |
-| cursor, Stop nativo | `~/.cursor/hooks.json` | `version:1`, `hooks.stop`, comando plano, timeout 60, `loop_limit:null`, `--harness cursor` | El TUI no entra al dispatcher de Stop si solo existe el importado. El Stop compartido se omite cuando esta instalación posee el nativo; los followups comparten el contador aunque cambie `generation_id`. |
-| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|run_command\|send_command_input)$`, 30; `Stop` 60 | No se escribe en `~/.gemini/config/hooks.json`, que lo administra Orca [V] |
+| shared (Claude Code, Cursor, Grok) | `~/.claude/settings.json`, and also `${CLAUDE_CONFIG_DIR}/settings.json` if that variable is set and points elsewhere (Cursor and Grok read the one under `HOME` [V]) | `PreToolUse` `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash\|PowerShell\|Monitor\|Delete\|apply_patch\|edit\|bash\|write\|search_replace\|hashline_edit\|run_terminal_command`, 30; `Stop` 60; `SessionStart` 15; `--harness claude-code` | Grok's native names are registered too: its Write aliases do not cover `write`. Cursor Delete verified; Grok's three literals were not offered (§6.4). |
+| codex | `${CODEX_HOME:-~/.codex}/hooks.json` (never `config.toml`) | `PreToolUse` `^(apply_patch\|Bash)$`, 30; `Stop` 60; `SessionStart` 15. Groups **at the end** | The default is 600 s and fails open [V], so the timeout is explicit. Trust: MH-24 |
+| cursor, native Stop | `~/.cursor/hooks.json` | `version:1`, `hooks.stop`, plain command, timeout 60, `loop_limit:null`, `--harness cursor` | The TUI does not enter the Stop dispatcher if only the imported one exists. The shared Stop is omitted when this install owns the native one; followups share the counter even if `generation_id` changes. |
+| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
 
-- **Listas cerradas de tools.** Un matcher anclado no ve una tool de escritura nueva que traiga un update del CLI (Cursor y Grok se actualizan solos). Lo que se descartó (matcher `*` con allowlist en el launcher) costaba un spawn en cada lectura de la máquina. Lo que se hace: `doctor` compara la versión de cada CLI con `VERIFIED` y avisa si difiere; el E2E de §6.3 inventaría las tools en cada versión nueva antes de subir `VERIFIED`. Las tools MCP que escriben archivos quedan fuera del gate en los cinco, igual que en el MVP; las ven Stop, pre-commit y CI.
+- **Closed tool lists.** An anchored matcher does not see a new write tool that a CLI update brings (Cursor and Grok update themselves). What was discarded (a `*` matcher with an allowlist in the launcher) cost a spawn on every read on the machine. What is done: `doctor` compares each CLI's version with `VERIFIED` and warns if it differs; the §6.3 E2E inventories the tools on each new version before raising `VERIFIED`. MCP tools that write files stay outside the gate on all five, the same as in the MVP; Stop, pre-commit, and CI see them.
 
-**MH-23. Merge.** `src/register.ts` generaliza `mergeHooks` y `mine` de `install.ts` como funciones puras:
-- Se parsea el archivo, se reemplazan **en su lugar** los grupos propios y se agregan al final los que faltan. El orden y las claves ajenas no se tocan (Orca, ArkGate, cmux y cualquier otro).
-- Si el archivo no es un objeto JSON, o un evento no es un array, error y **no se escribe nada**.
-- Se escribe **solo si cambian los bytes**, con escritura atómica (tmp + fsync + rename). Si el archivo es un symlink (dotfiles), se escribe su destino.
-- La primera vez que se modifica un archivo ajeno se guarda un backup en `<archivo>.pregate.bak`, una sola vez.
+**MH-23. Merge.** `src/register.ts` generalizes `mergeHooks` and `mine` from `install.ts` as pure functions:
+- The file is parsed, our own groups are replaced **in place**, and the missing ones are appended at the end. Foreign order and keys are not touched (Orca, ArkGate, cmux, and any other).
+- If the file is not a JSON object, or an event is not an array, error and **nothing is written**.
+- It is written **only if the bytes change**, with an atomic write (tmp + fsync + rename). If the file is a symlink (dotfiles), its target is written.
+- The first time a foreign file is modified, a backup is saved at `<file>.pregate.bak`, once.
 
-Correrlo dos veces deja los mismos bytes y el mismo mtime. `JSON.stringify` reformatea el archivo: lo ajeno queda igual en contenido, no necesariamente en espacios. En `~/.codex/hooks.json` eso puede importar para el trust ajeno [E2E: reformatear los espacios y medir `trustStatus`]. Si importa, el merge de Codex empalma el texto (agrega dentro del array) en lugar de reescribirlo. La transacción de MH-24 lo hace seguro en los dos casos.
+Running it twice leaves the same bytes and the same mtime. `JSON.stringify` reformats the file: foreign content stays the same, not necessarily the whitespace. In `~/.codex/hooks.json` that can matter for foreign trust [E2E: reformat the whitespace and measure `trustStatus`]. If it matters, the Codex merge splices the text (appends inside the array) instead of rewriting it. The MH-24 transaction makes it safe in both cases.
 
-**MH-24. Trust de Codex por app-server, en una transacción.** Codex no ejecuta un hook de usuario sin trust, y uno modificado o corrido de índice deja de correr en silencio [V].
-1. `setup` lanza `codex app-server` (JSON-RPC por stdio), manda `initialize` y `hooks/list` (`cwds:[]`), y guarda la foto: qué keys estaban `trusted`.
-2. Escribe `hooks.json` (MH-23).
-3. Vuelve a pedir `hooks/list`. A las keys cuya definición es **exactamente** la que setup escribió (`command`, `timeout` y `matcher`), con `trustStatus ∈ {untrusted, modified}`, les escribe el trust: `config/batchWrite {keyPath:"hooks.state", mergeStrategy:"upsert", value:{<key>:{trusted_hash:<currentHash>}}}` [V].
-4. Verifica con un tercer `hooks/list` que las propias están `trusted` y que **toda key ajena que estaba `trusted` en la foto lo sigue estando**. Si no, restaura los bytes previos de `hooks.json` (volver al texto original restaura el trust [V]), sale con 1 y lista las keys afectadas.
-5. Guarda `{key: trusted_hash}` de las propias en `codex-trust.json`, para la detección de deriva (MH-27).
-- Como el comando no cambia entre versiones, un update no invalida el trust. Para no mover índices ajenos, los grupos propios se agregan al final y se reemplazan en su lugar.
-- **Uninstall:** saca los grupos propios. Como van al final, solo se corren los índices de grupos ajenos que alguien agregó después. Esas keys se listan y se le pide al usuario que las apruebe en `/hooks`: PREGATE no otorga trust a hooks ajenos (D20 cubre los de PREGATE).
-- Sin el binario `codex`, el registro igual se escribe, `setup` avisa y `doctor` falla.
+**MH-24. Codex trust through app-server, in one transaction.** Codex does not run a user hook without trust, and a modified one or one whose index has shifted stops running silently [V].
+1. `setup` launches `codex app-server` (JSON-RPC over stdio), sends `initialize` and `hooks/list` (`cwds:[]`), and saves the snapshot: which keys were `trusted`.
+2. Writes `hooks.json` (MH-23).
+3. Asks for `hooks/list` again. For the keys whose definition is **exactly** what setup wrote (`command`, `timeout`, and `matcher`), with `trustStatus ∈ {untrusted, modified}`, it writes the trust: `config/batchWrite {keyPath:"hooks.state", mergeStrategy:"upsert", value:{<key>:{trusted_hash:<currentHash>}}}` [V].
+4. Verifies with a third `hooks/list` that our own keys are `trusted` and that **every foreign key that was `trusted` in the snapshot still is**. If not, it restores the previous `hooks.json` bytes (returning to the original text restores the trust [V]), exits with 1, and lists the affected keys.
+5. Saves `{key: trusted_hash}` of our own keys in `codex-trust.json`, for drift detection (MH-27).
+- Because the command does not change across versions, an update does not invalidate trust. To avoid moving foreign indexes, our own groups are appended at the end and replaced in place.
+- **Uninstall:** removes our own groups. Because they go at the end, only the indexes of foreign groups someone added later shift. Those keys are listed and the user is asked to approve them in `/hooks`: PREGATE does not grant trust to foreign hooks (D20 covers PREGATE's).
+- Without the `codex` binary, the registration is still written, `setup` warns, and `doctor` fails.
 
-**MH-25. Plugin de agy.**
-- `setup` genera el plugin en un directorio temporal, con `plugin.json` (`{"name":"pregate-global"}`) y un `hooks.json` con un único named hook `"pregate-global"` que tiene `enabled:true` y las entradas de MH-22. Después corre `agy plugin install <dir>`, que lo copia a `~/.gemini/config/plugins/pregate-global/`, y verifica que `plugins.pregate-global.enabled` no sea `false` en `~/.gemini/config/config.json`. La identidad distinta evita que un plugin de proyecto llamado `pregate` anule al global (§6.4).
-- Es idempotente: si el `hooks.json` instalado es byte a byte igual, no se reinstala. El uninstall es `agy plugin uninstall pregate-global`, verificado en §6.4; se borra solo el directorio propio.
-- **Sin SessionStart:** agy no lo tiene [V]. La snapshot se toma en el primer Pre que alcanza una raíz. La aceptación de un preset sin commitear sigue la regla general de A20 revisada (MH-33).
-- **Sin PostToolUse que bloquee** [D]. El matching difuso de `replace_file_content` lo cubren Stop, pre-commit y CI.
+**MH-25. agy plugin.**
+- `setup` generates the plugin in a temporary directory, with `plugin.json` (`{"name":"pregate-global"}`) and a `hooks.json` with a single named hook `"pregate-global"` that has `enabled:true` and the MH-22 entries. Then it runs `agy plugin install <dir>`, which copies it to `~/.gemini/config/plugins/pregate-global/`, and verifies that `plugins.pregate-global.enabled` is not `false` in `~/.gemini/config/config.json`. The distinct identity keeps a project plugin named `pregate` from overriding the global one (§6.4).
+- It is idempotent: if the installed `hooks.json` is byte-for-byte equal, it is not reinstalled. Uninstall is `agy plugin uninstall pregate-global`, verified in §6.4; only our own directory is deleted.
+- **No SessionStart:** agy does not have it [V]. The snapshot is taken on the first Pre that reaches a root. Accepting an uncommitted preset follows the general revised A20 rule (MH-33).
+- **No PostToolUse that blocks** [D]. Stop, pre-commit, and CI cover the fuzzy matching of `replace_file_content`.
 
-**MH-26. Detección de harnesses** (patrón de orderfield): un harness cuenta como presente si existe su home o si su binario está en el PATH.
+**MH-26. Harness detection** (orderfield pattern): a harness counts as present if its home exists or if its binary is on the PATH.
 
-| Harness | Home | Binario | Registro |
+| Harness | Home | Binary | Registration |
 |---|---|---|---|
-| claude-code | `~/.claude` | `claude` | compartido |
-| cursor | `~/.cursor` | `cursor-agent` o `agent` | compartido |
-| grok | `$GROK_HOME` o `~/.grok` | `grok` | compartido |
-| codex | `$CODEX_HOME` o `~/.codex` | `codex` | `hooks.json` |
+| claude-code | `~/.claude` | `claude` | shared |
+| cursor | `~/.cursor` | `cursor-agent` or `agent` | shared |
+| grok | `$GROK_HOME` or `~/.grok` | `grok` | shared |
+| codex | `$CODEX_HOME` or `~/.codex` | `codex` | `hooks.json` |
 | agy | `~/.gemini/antigravity-cli` | `agy` | plugin |
 
-El registro compartido se escribe si está presente cualquiera de los tres que lo leen, aunque Claude Code no esté instalado. No hay `--harness` en setup: los tests usan un `HOME` temporal.
+The shared registration is written if any of the three that read it is present, even if Claude Code is not installed. There is no `--harness` in setup: the tests use a temporary `HOME`.
 
 ---
 
-## 5. CLI, `install.sh` y releases
+## 5. CLI, `install.sh`, and releases
 
-**MH-27. Comandos de máquina.** Son actos humanos: el guard de shell los deniega al agente, con o sin raíz (MH-17).
+**MH-27. Machine commands.** They are human acts: the shell guard denies them to the agent, with or without a root (MH-17).
 
-| Comando | Qué hace |
+| Command | What it does |
 |---|---|
-| `pregate setup` | Instala el motor que corre en `<DATA>/<v>/` si falta (copia + warm-up, como `firstRun`), escribe el launcher global (tmp + rename), el symlink de `~/.local/bin`, los registros (MH-22, MH-23), el trust de Codex (MH-24) y el plugin de agy (MH-25). Es idempotente |
-| `pregate update [--version v \| --engine v]` | Consulta el último tag con `gh`, baja el tar de la plataforma y `SHA256SUMS`, verifica y extrae el motor **al lado** de los otros, hace el warm-up y recién entonces reescribe el launcher con la versión nueva y vuelve a correr `setup` (normalmente sin cambios). **No toca los locks.** `--engine v` instala un motor sin cambiar el launcher: es para el lock que lo pide |
-| `pregate uninstall [--purge]` | Saca lo propio en orden inverso: registros por marcador (MH-24 para Codex), el plugin de agy, el symlink (solo si apunta a lo nuestro), el launcher y los motores. `--purge` borra también el estado. **Nunca toca `.pregate/` de los repos.** Los backups quedan, y el comando dice dónde |
-| `pregate doctor` | Por harness: el binario y su versión contra `VERIFIED` (embebida en cada adaptador), la deriva (abajo), el trust de Codex por `hooks/list` (la única forma de ver un gate apagado, porque Codex no avisa [V]), el plugin de agy habilitado, el PATH y `gh auth`. Hace un **canario**: corre el comando registrado **literal a través de `$SHELL -c`** con un payload fixture por harness sobre un repo temporal con preset, y espera un deny en el dialecto correcto (eso detecta un `.zshenv` que imprime y rompería Cursor). Sale con 1 si algo falla |
+| `pregate setup` | Installs the engine that runs into `<DATA>/<v>/` if it is missing (copy + warm-up, like `firstRun`), writes the global launcher (tmp + rename), the `~/.local/bin` symlink, the registrations (MH-22, MH-23), Codex trust (MH-24), and the agy plugin (MH-25). It is idempotent |
+| `pregate update [--version v \| --engine v]` | Queries the latest tag with `gh`, downloads the platform tar and `SHA256SUMS`, verifies and extracts the engine **beside** the others, does the warm-up, and only then rewrites the launcher with the new version and runs `setup` again (usually with no changes). **It does not touch the locks.** `--engine v` installs an engine without changing the launcher: it is for the lock that asks for it |
+| `pregate uninstall [--purge]` | Removes our own pieces in reverse order: registrations by marker (MH-24 for Codex), the agy plugin, the symlink (only if it points at ours), the launcher, and the engines. `--purge` also deletes state. **It never touches repos' `.pregate/`.** The backups remain, and the command says where |
+| `pregate doctor` | Per harness: the binary and its version against `VERIFIED` (embedded in each adapter), drift (below), Codex trust via `hooks/list` (the only way to see a gate that is off, because Codex does not warn [V]), the agy plugin enabled, the PATH, and `gh auth`. It runs a **canary**: it runs the registered command **literally through `$SHELL -c`** with a fixture payload per harness on a temporary repo with a preset, and expects a deny in the correct dialect (that detects a `.zshenv` that prints and would break Cursor). It exits with 1 if something fails |
 
-- **Deriva** (`register.drift`, pura, dos usos: `doctor` y `check --staged`, que corre en el pre-commit). Lista problemas en lenguaje humano, sin cambiar el código de salida del pre-commit:
-  - de la máquina: las entradas propias faltan o difieren de las esperadas en `~/.claude/settings.json`, `~/.codex/hooks.json` o el plugin de agy; `plugins.pregate.enabled = false`; `[compat.claude] hooks = false` en `~/.grok/config.toml`; el `trusted_hash` de las keys propias en `~/.codex/config.toml` difiere de `codex-trust.json`, o la key ya no apunta a nuestro grupo (índice corrido);
-  - del repo: `disableAllHooks` en `.claude/settings*.json`, `[features] hooks = false` en `.codex/config.toml`, y un plugin de proyecto o un `plugins.json` que nombran `pregate` en `.agents/`.
-  - El pre-commit es el único canal hacia el humano que existe en los cinco harnesses, y también funciona cuando el que se apagó es el hook de Codex, cuyo SessionStart tampoco corre sin trust.
+- **Drift** (`register.drift`, pure, two uses: `doctor` and `check --staged`, which runs in the pre-commit). It lists problems in human language, without changing the pre-commit exit code:
+  - of the machine: our own entries are missing or differ from the expected ones in `~/.claude/settings.json`, `~/.codex/hooks.json`, or the agy plugin; `plugins.pregate.enabled = false`; `[compat.claude] hooks = false` in `~/.grok/config.toml`; the `trusted_hash` of our own keys in `~/.codex/config.toml` differs from `codex-trust.json`, or the key no longer points at our group (shifted index);
+  - of the repo: `disableAllHooks` in `.claude/settings*.json`, `[features] hooks = false` in `.codex/config.toml`, and a project plugin or a `plugins.json` that names `pregate` under `.agents/`.
+  - The pre-commit is the only channel to the human that exists on all five harnesses, and it also works when the one that was turned off is the Codex hook, whose SessionStart also does not run without trust.
 
-**MH-28. `pregate install` (por repo) deja de registrar hooks y de commitear un launcher.** Queda para lo que pertenece al repo: `--git-hook` y `--ci github`.
-- El pre-commit llama a `pregate check --staged --ratchet` del PATH (`command -v pregate || "$HOME/.local/bin/pregate"`). Si no está, falla el commit con "instalá PREGATE". Por MH-19, corre el motor que pide el lock.
-- La plantilla de CI lee `"engine"` del lock y baja esa versión, verificada contra `SHA256SUMS` (`sha256sum -c --ignore-missing`).
-- Si encuentra en `.claude/settings.json` grupos propios de 0.1.0, o un `.pregate/bin/pregate` commiteado, los saca y avisa.
-- Con eso desaparecen la doble evaluación en Claude Code, el deny total de Cursor y Grok sobre un motor 0.1.0, y el desfasaje entre `lock.engine`, el `version=` del launcher commiteado y el `VERSION` de la CI al migrar un repo. Se elimina `--harness`. Hay un solo camino para los hooks, el global, y uno para el motor, el lock.
+**MH-28. `pregate install` (per repo) stops registering hooks and committing a launcher.** It remains for what belongs to the repo: `--git-hook` and `--ci github`.
+- The pre-commit calls `pregate check --staged --ratchet` from the PATH (`command -v pregate || "$HOME/.local/bin/pregate"`). If it is missing, the commit fails with "install PREGATE". By MH-19, it runs the engine the lock asks for.
+- The CI template reads `"engine"` from the lock and downloads that version, verified against `SHA256SUMS` (`sha256sum -c --ignore-missing`).
+- If it finds our own 0.1.0 groups in `.claude/settings.json`, or a committed `.pregate/bin/pregate`, it removes them and warns.
+- With that, the double evaluation on Claude Code, the total deny from Cursor and Grok on a 0.1.0 engine, and the skew between `lock.engine`, the committed launcher's `version=`, and CI's `VERSION` when migrating a repo all disappear. `--harness` is removed. There is a single path for the hooks, the global one, and one for the engine, the lock.
 
-**MH-29. Pre-check y guard de shell.**
-- `message.ts` cita `pregate check --stdin --path <file> --format agent`.
-- El guard permite como `argv[0]`, para `check`, `explain`, `preset show` y `rules test`: el `pregate` desnudo y `<DATA>/bin/pregate`.
-- Al regex `HARNESS` se suman `agy`, `antigravity`, `cursor` y `agent` (este último solo como `argv[0]` exacto, no como segmento de `node_modules/`). Medido: `agy plugin disable pregate`, `agent -p x` y `cursor agent -p x` dan `null` hoy.
-- `ADMIN_WORD` suma `--ignore-user-config`, `--setting-sources` y `features.hooks`. `HOOK_SWITCH` suma `CODEX_HOME`, `GROK_HOME` y `CLAUDE_CONFIG_DIR`. Estos y los de MH-17 forman la causa nueva `hook-switch`, que corre siempre. El resto de `shell-admin` corre solo con raíz.
-- `apply_patch` y `applypatch` como comando de shell ⇒ `shell-write` ("use the apply_patch tool"). [E2E] si Codex 0.159.2 los convierte en la tool.
-- **Shell interactivo con stdin sin hook.** Un `argv[0]` que es un shell, un intérprete, un REPL o un editor, sin script ni `-c`/`-e`, o con `-i`/`-s`/`-` (`bash`, `sh -s`, `python3`, `node`, `ed`, `vim`, `script`, `tmux`; medido: hoy dan `null`) ⇒ `shell-write` ("interactive session: its input cannot be checked"). Cierra `write_stdin` de Codex, que no dispara PreToolUse [D]; `send_command_input` de agy ya se deniega (MH-11).
-- **Codex, destino relativo.** El `Bash` de Codex no trae el `workdir` de `exec_command` [V]. Un destino de escritura relativo en una sesión con raíz ⇒ `shell-write` ("use absolute paths"). [E2E] si el `cwd` del payload refleja el `workdir`: si lo refleja, la regla se retira.
+**MH-29. Pre-check and shell guard.**
+- `message.ts` cites `pregate check --stdin --path <file> --format agent`.
+- The guard allows as `argv[0]`, for `check`, `explain`, `preset show`, and `rules test`: bare `pregate` and `<DATA>/bin/pregate`.
+- `agy`, `antigravity`, `cursor`, and `agent` are added to the `HARNESS` regex (the last only as an exact `argv[0]`, not as a `node_modules/` segment). Measured: `agy plugin disable pregate`, `agent -p x`, and `cursor agent -p x` yield `null` today.
+- `ADMIN_WORD` adds `--ignore-user-config`, `--setting-sources`, and `features.hooks`. `HOOK_SWITCH` adds `CODEX_HOME`, `GROK_HOME`, and `CLAUDE_CONFIG_DIR`. These and the ones in MH-17 form the new `hook-switch` cause, which always runs. The rest of `shell-admin` runs only with a root.
+- `apply_patch` and `applypatch` as a shell command ⇒ `shell-write` ("use the apply_patch tool"). [E2E] whether Codex 0.159.2 turns them into the tool.
+- **Interactive shell with stdin and no hook.** An `argv[0]` that is a shell, an interpreter, a REPL, or an editor, with no script and no `-c`/`-e`, or with `-i`/`-s`/`-` (`bash`, `sh -s`, `python3`, `node`, `ed`, `vim`, `script`, `tmux`; measured: they yield `null` today) ⇒ `shell-write` ("interactive session: its input cannot be checked"). It closes Codex `write_stdin`, which does not fire PreToolUse [D]; agy `send_command_input` is already denied (MH-11).
+- **Codex, relative destination.** Codex `Bash` does not carry `exec_command`'s `workdir` [V]. A relative write destination in a session with a root ⇒ `shell-write` ("use absolute paths"). [E2E] whether the payload `cwd` reflects the `workdir`: if it does, the rule is withdrawn.
 
-**MH-30. Rutas protegidas nuevas con raíz** (paso 5; las de máquina están en MH-17):
-- `**/.codex/hooks.json` y `**/.codex/config.toml`;
-- `**/.cursor/hooks.json`, `**/.cursor/cli-config.json` y `**/.cursor/managed/**`;
-- `**/.grok/hooks/**` y `**/.grok/config.toml`;
+**MH-30. New protected paths with a root** (step 5; the machine ones are in MH-17):
+- `**/.codex/hooks.json` and `**/.codex/config.toml`;
+- `**/.cursor/hooks.json`, `**/.cursor/cli-config.json`, and `**/.cursor/managed/**`;
+- `**/.grok/hooks/**` and `**/.grok/config.toml`;
 - `**/{.agents,.agent,_agents,_agent}/{hooks.json,plugins.json,plugins/**}`.
 
-`**/.claude/settings*.json` ya estaba.
+`**/.claude/settings*.json` was already there.
 
-**MH-31. `install.sh`** (estilo orderfield; solo baja, verifica, extrae y delega):
-- Uso: `install.sh [--version vX]`. Instala siempre global.
-- `DEFAULT_VERSION` está escrito en el script, en lockstep con `package.json`. Se rechazan `main` y `HEAD`.
-- Elige el target (`darwin-arm64` o `linux-x64`). El origen es el release, con `gh release download`. Para desarrollo, tests y modo offline: `PREGATE_ARCHIVE` + `PREGATE_SHA256`.
-- Verifica el **SHA-256** contra `SHA256SUMS` con `shasum -a 256` o `sha256sum`. Si no coincide, sale con 1.
-- Extrae a un directorio temporal, quita `com.apple.quarantine` en macOS y termina con `exec <tmp>/pregate setup`, que copia el motor a `<DATA>/<v>/` y hace el warm-up (una sola implementación, en TS).
-- El uninstall es `pregate uninstall`. Toda la lógica vive en TS, donde está testeada. El script se mantiene tonto.
+**MH-31. `install.sh`** (orderfield style; it only downloads, verifies, extracts, and delegates):
+- Usage: `install.sh [--version vX]`. It always installs globally.
+- `DEFAULT_VERSION` is written in the script, in lockstep with `package.json`. `main` and `HEAD` are rejected.
+- It chooses the target (`darwin-arm64` or `linux-x64`). The source is the release, with `gh release download`. For development, tests, and offline mode: `PREGATE_ARCHIVE` + `PREGATE_SHA256`.
+- It verifies the **SHA-256** against `SHA256SUMS` with `shasum -a 256` or `sha256sum`. If it does not match, it exits with 1.
+- It extracts to a temporary directory, removes `com.apple.quarantine` on macOS, and finishes with `exec <tmp>/pregate setup`, which copies the engine to `<DATA>/<v>/` and does the warm-up (a single implementation, in TS).
+- Uninstall is `pregate uninstall`. All the logic lives in TS, where it is tested. The script stays dumb.
 
-**MH-32. Releases en `pedroknigge/pregate` (privado).**
-- Assets por tag `v<x>`: `pregate-<x>-darwin-arm64.tar.gz` y `pregate-<x>-linux-x64.tar.gz` (binario, LICENSE y THIRD_PARTY_NOTICES), `install.sh` y `SHA256SUMS`, que cubre todo. No hay `.sha256` por tar: la plantilla de CI usa `SHA256SUMS`.
-- El repo es privado, así que la descarga va por `gh`, con la sesión del usuario. Sin `gh`, un error claro.
-- Bootstrap verificado:
+**MH-32. Releases in `pedroknigge/pregate` (private).**
+- Assets per tag `v<x>`: `pregate-<x>-darwin-arm64.tar.gz` and `pregate-<x>-linux-x64.tar.gz` (binary, LICENSE, and THIRD_PARTY_NOTICES), `install.sh`, and `SHA256SUMS`, which covers everything. There is no `.sha256` per tar: the CI template uses `SHA256SUMS`.
+- The repo is private, so the download goes through `gh`, with the user's session. Without `gh`, a clear error.
+- Verified bootstrap:
   ```sh
   d=$(mktemp -d) && gh release download --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS --dir "$d" \
     && (cd "$d" && shasum -a 256 -c --ignore-missing SHA256SUMS) && sh "$d/install.sh"
   ```
-- Límite honesto: `SHA256SUMS` viene del mismo release, así que protege el transporte y no un release comprometido. `PREGATE_SHA256` permite fijar el hash por fuera.
-- **Update:** explícito (`pregate update`); el aviso de versión nueva lo decide U-4. No hay actualización automática.
+- Honest limit: `SHA256SUMS` comes from the same release, so it protects transport and not a compromised release. `PREGATE_SHA256` lets the hash be pinned from outside.
+- **Update:** explicit (`pregate update`); U-4 decides the new-version notice. There is no automatic update.
 
-**MH-33. A20 revisada: aceptación de un preset sin commitear sin depender de SessionStart.** Una raíz se acepta si su `preset.json` está rastreado en HEAD, **o si su ctime es anterior al primer contacto de la sesión con una raíz** (SessionStart o el primer Pre que alcanza una raíz; es el `at` de la primera snapshot de la sesión, que ya se guarda). Antes dependía de SessionStart, que agy no tiene [V], ni los subagentes de Cursor, Grok y agy, que son sesiones nuevas [V]: un repo recién onboardeado quedaba sin gate hasta el commit. El ataque que A20 evita, un preset anidado y laxo creado durante la sesión por un canal que el guard no ve, sigue cerrado: ese preset es posterior al primer contacto.
+**MH-33. Revised A20: accepting an uncommitted preset without depending on SessionStart.** A root is accepted if its `preset.json` is tracked in HEAD, **or if its ctime is earlier than the session's first contact with a root** (SessionStart or the first Pre that reaches a root; it is the `at` of the session's first snapshot, which is already stored). It used to depend on SessionStart, which agy does not have [V], nor do Cursor, Grok, and agy subagents, which are new sessions [V]: a freshly onboarded repo stayed without a gate until the commit. The attack A20 prevents, a nested loose preset created during the session through a channel the guard does not see, stays closed: that preset is later than the first contact.
 
-**MH-34. Onboarding de un repo en el flujo global.** Con PREGATE instalado en la máquina:
-1. El humano escribe `.pregate/preset.json` (el agente no puede: ruta protegida; `pregate init` llega en v1).
-2. `pregate preset compile` ⇒ `.pregate/pregate.lock.json`, con el motor que corre.
-3. Opcional: `pregate install --git-hook --ci github`.
-4. Commit. Desde ese momento, los cinco harnesses lo gatean; antes del commit, también, desde la sesión siguiente a su creación (MH-33).
+**MH-34. Onboarding a repo in the global flow.** With PREGATE installed on the machine:
+1. The human writes `.pregate/preset.json` (the agent cannot: protected path; `pregate init` arrives in v1).
+2. `pregate preset compile` ⇒ `.pregate/pregate.lock.json`, with the engine that is running.
+3. Optional: `pregate install --git-hook --ci github`.
+4. Commit. From that moment, all five harnesses gate it; before the commit, too, from the session after it is created (MH-33).
 
-Para migrar un repo a un motor nuevo: `pregate update`, `pregate preset compile` y commit del lock. No hay más archivos que tocar (MH-28).
+To migrate a repo to a new engine: `pregate update`, `pregate preset compile`, and commit the lock. There are no more files to touch (MH-28).
 
 ---
 
-## 6. Plan de pruebas
+## 6. Test plan
 
-**6.1 Unit (puras y en CI).**
-- **Contrato por payload real.** Por cada harness, un test recorre `test/payloads/<h>/*.json` y **falla si un archivo no tiene expectativa**. Así, una captura nueva obliga a clasificarla. La expectativa es el `HookEvent` esperado, `Rejected` o `null`. Casos que tiene que cubrir:
-  - Codex: add+update, move, delete, subagente y el `callId` con hash.
-  - Cursor: create, strreplace, applypatch-gpt, delete, shell (cwd `""` con una raíz), task, `claude-import-pre-write` y stop/loop.
-  - Grok: write, search_replace (sin `replace_all`), create con old vacío, hashline ⇒ unknown, subagente, shutdown ⇒ `null` y reentry por `stopHookActive`.
-  - agy: write, append, replace, multiline, run_command, stop y reentry, y las tools de lectura y subagente ⇒ fuera del matcher.
-- **Mutaciones.** Una clave extra en la edición ⇒ `unknown`; la clave de primer nivel quitada ⇒ `BAD`; `"cursor_version"` dentro del contenido de un `Write` de Claude ⇒ sigue siendo Claude; `GROK_HOOK_EVENT` sin `hookEventName` ⇒ el flag; `toolInputTruncated` ausente o `true` en cualquier tool de Grok ⇒ deny; Shell de Cursor con `cwd:""` y dos raíces ⇒ `BAD`; ruta relativa en un patch ⇒ `unknown`.
-- **`Rejected` fuera de raíz:** un sobre válido con tool desconocida y `dirs` sin raíz ⇒ neutro y sin estado; con raíz ⇒ deny; sobre que no es JSON ⇒ deny.
-- **Encode por harness** × {none, deny, deny+halt, ask, stop block, stop reingreso, session-start}. Invariantes:
-  - nunca aparece `allow`;
-  - Codex: con exit 2, stdout vacío y stderr no vacío; el Stop lleva exactamente las claves `decision` y `reason`;
-  - Cursor: el deny es el JSON de Claude con exit 0;
-  - Grok: razón ≤ 256 y sin `\n`;
-  - agy: el deny nunca está vacío;
-  - fuera de Claude, `ask` ⇒ deny y halt ⇒ sin claves de halt;
-  - el reingreso de Stop (las cinco señales) llega a `decide` como `reentry`.
-- **Patch.** La gramática: capturas más los casos sintéticos (`..`, `@@ ctx`, varios hunks, `*** End of File`, heredoc ⇒ `unknown`). La aplicación: exacta, contexto ausente ⇒ `cannot-reconstruct`, inserción pura ⇒ `unknown`, Move con `from`.
-- **`reconstruct`:** append, rango de agy, old vacío que crea (MH-13).
-- **`gate` y `decide`:**
-  - superposición (un patch que crea `a.ts` y lo importa desde `b.ts`, sin `unresolvable-import`);
-  - `merge` y su prioridad;
-  - Delete sobre `.pregate/**` ⇒ deny y en scope ⇒ sin objeción;
-  - MH-17: sin raíz, ni un archivo de estado escrito; `~/.claude/settings.json`, `~/.codex/config.toml` y su realpath bajo symlink ⇒ deny sin raíz; `.git/**` sin raíz ⇒ sin objeción; `cd /tmp && echo x > /repo/src/a.ts` ⇒ alcanza la raíz;
-  - MH-20 (`FLOOR`) y MH-33 (ctime anterior y posterior a la primera snapshot).
-- **`shell`:** `hook-switch` con y sin raíz; `shell-admin` (otro harness) solo con raíz; las palabras nuevas de MH-29; shell interactivo; destino relativo en Codex.
-- **`register`** sobre fixtures con la forma real de las configs del usuario (Orca en Claude y Codex; ArkGate):
-  - lo ajeno queda deep-equal;
-  - la segunda corrida no escribe nada (mismos bytes y mtime);
-  - en Codex los grupos propios van al final y los índices ajenos no se mueven;
-  - JSON inválido ⇒ no se escribe;
-  - un symlink se escribe en su destino;
-  - un grupo con el marcador y una cola distinta se reemplaza pero no es "exacto" (sin trust);
-  - el uninstall deja lo ajeno deep-equal al original y lista los índices corridos;
-  - `drift` detecta cada caso de MH-27.
+**6.1 Unit (pure, and in CI).**
+- **Contract per real payload.** For each harness, a test walks `test/payloads/<h>/*.json` and **fails if a file has no expectation**. So a new capture forces it to be classified. The expectation is the expected `HookEvent`, `Rejected`, or `null`. Cases it must cover:
+  - Codex: add+update, move, delete, subagent, and the `callId` with a hash.
+  - Cursor: create, strreplace, applypatch-gpt, delete, shell (cwd `""` with one root), task, `claude-import-pre-write`, and stop/loop.
+  - Grok: write, search_replace (without `replace_all`), create with empty old, hashline ⇒ unknown, subagent, shutdown ⇒ `null`, and reentry via `stopHookActive`.
+  - agy: write, append, replace, multiline, run_command, stop and reentry, and the read and subagent tools ⇒ outside the matcher.
+- **Mutations.** An extra key in the edit ⇒ `unknown`; the top-level key removed ⇒ `BAD`; `"cursor_version"` inside the content of a Claude `Write` ⇒ it is still Claude; `GROK_HOOK_EVENT` without `hookEventName` ⇒ the flag; `toolInputTruncated` absent or `true` on any Grok tool ⇒ deny; Cursor Shell with `cwd:""` and two roots ⇒ `BAD`; a relative path in a patch ⇒ `unknown`.
+- **`Rejected` outside a root:** a valid envelope with an unknown tool and `dirs` with no root ⇒ neutral and no state; with a root ⇒ deny; an envelope that is not JSON ⇒ deny.
+- **Encode per harness** × {none, deny, deny+halt, ask, stop block, stop reentry, session-start}. Invariants:
+  - `allow` never appears;
+  - Codex: on exit 2, empty stdout and non-empty stderr; Stop carries exactly the keys `decision` and `reason`;
+  - Cursor: the deny is the Claude JSON with exit 0;
+  - Grok: reason ≤ 256 and without `\n`;
+  - agy: the deny is never empty;
+  - outside Claude, `ask` ⇒ deny and halt ⇒ no halt keys;
+  - Stop reentry (all five signals) reaches `decide` as `reentry`.
+- **Patch.** The grammar: captures plus the synthetic cases (`..`, `@@ ctx`, several hunks, `*** End of File`, heredoc ⇒ `unknown`). Application: exact, missing context ⇒ `cannot-reconstruct`, pure insertion ⇒ `unknown`, Move with `from`.
+- **`reconstruct`:** append, agy range, empty old that creates (MH-13).
+- **`gate` and `decide`:**
+  - overlay (a patch that creates `a.ts` and imports it from `b.ts`, without `unresolvable-import`);
+  - `merge` and its priority;
+  - Delete of `.pregate/**` ⇒ deny and in scope ⇒ no objection;
+  - MH-17: with no root, not a single state file written; `~/.claude/settings.json`, `~/.codex/config.toml`, and its realpath under a symlink ⇒ deny without a root; `.git/**` without a root ⇒ no objection; `cd /tmp && echo x > /repo/src/a.ts` ⇒ reaches the root;
+  - MH-20 (`FLOOR`) and MH-33 (ctime earlier and later than the first snapshot).
+- **`shell`:** `hook-switch` with and without a root; `shell-admin` (another harness) only with a root; the new words from MH-29; interactive shell; relative destination on Codex.
+- **`register`** over fixtures with the real shape of the user's configs (Orca on Claude and Codex; ArkGate):
+  - foreign content stays deep-equal;
+  - the second run writes nothing (same bytes and mtime);
+  - on Codex our own groups go at the end and foreign indexes do not move;
+  - invalid JSON ⇒ nothing is written;
+  - a symlink is written at its target;
+  - a group with the marker and a different tail is replaced but is not "exact" (no trust);
+  - uninstall leaves foreign content deep-equal to the original and lists the shifted indexes;
+  - `drift` detects every MH-27 case.
 
-**6.2 e2e (binario compilado + launcher, sin harnesses reales, en CI).**
-- **Launcher:** motor ausente, motor vacío, exit 1, SIGKILL, cuelgue (plazo de 5 s), exit 3 a un motor fijado, exit 3 a un motor ausente o con versión inválida, doble exit 3, motor con exit 2 y stderr vacío, SIGTERM al launcher, PATH vacío. Siempre: Pre fail-closed = exit 2 + stderr de una línea no vacía y stdout vacío. Corre en dash, bash 3.2 y **`zsh -c` con el comando registrado literal** (MH-22), con launcher presente, ausente y vacío, y la variante de agy con `workspacePaths` normal, con escapes y ausente.
-- **Por harness:** los payloads reales reescritos a un repo temporal con preset dan deny ante una violación, sin objeción ante una edición limpia, y sin objeción y sin estado en un repo sin preset.
-- **CLI:** `check` en un repo fijado a otro motor corre ese motor; `preset compile` no redirige.
-- **`HOME=<tmp> pregate setup`** con los cinco detectados (binarios falsos en el PATH): segunda corrida sin escrituras, `uninstall` que restaura y `doctor` en verde. El trust de Codex se prueba contra un app-server falso que reproduce `hooks/list`, `config/batchWrite` y la invalidación por índice; el real, en §6.3.
+**6.2 e2e (compiled binary + launcher, without real harnesses, in CI).**
+- **Launcher:** missing engine, empty engine, exit 1, SIGKILL, hang (5 s deadline), exit 3 to a pinned engine, exit 3 to a missing engine or one with an invalid version, double exit 3, engine with exit 2 and empty stderr, SIGTERM to the launcher, empty PATH. Always: Pre fail-closed = exit 2 + one non-empty stderr line and empty stdout. It runs on dash, bash 3.2, and **`zsh -c` with the registered command literal** (MH-22), with the launcher present, missing, and empty, and the agy variant with `workspacePaths` normal, with escapes, and absent.
+- **Per harness:** the real payloads rewritten onto a temporary repo with a preset yield deny on a violation, no objection on a clean edit, and no objection and no state on a repo without a preset.
+- **CLI:** `check` on a repo pinned to another engine runs that engine; `preset compile` does not redirect.
+- **`HOME=<tmp> pregate setup`** with all five detected (fake binaries on the PATH): a second run with no writes, `uninstall` that restores, and `doctor` green. Codex trust is tested against a fake app-server that reproduces `hooks/list`, `config/batchWrite`, and invalidation by index; the real one, in §6.3.
 
-**6.3 E2E real con cada CLI (opt-in, `scripts/e2e-real.ts`, `PREGATE_REAL=1`).** Es requisito antes de instalar en la máquina real del usuario (D20).
-- **Aislamiento.** Se usa el de los relevamientos y nada real se escribe:
-  - Codex: `CODEX_HOME` temporal con `auth.json` copiado y `HOME` temporal.
-  - Cursor: `HOME` temporal con un symlink a `Library/Keychains`.
-  - Grok: `env -i`, `HOME` y `GROK_HOME` temporales, y `auth.json` con el `refresh_token` vaciado.
-  - agy: `HOME` temporal con el symlink al keychain.
-  - Claude Code: `HOME` temporal, autenticado como en la verificación de O10.
-- **Flujo:** `HOME=$tmp pregate setup` (incluye el trust por app-server y `agy plugin install`), un repo git temporal con preset (por ejemplo, `CA-DEP-002` prohíbe `node:fs` en `src/core/**`) y el CLI headless:
+**6.3 Real E2E with each CLI (opt-in, `scripts/e2e-real.ts`, `PREGATE_REAL=1`).** It is a requirement before installing on the user's real machine (D20).
+- **Isolation.** The surveys' isolation is used and nothing real is written:
+  - Codex: temporary `CODEX_HOME` with `auth.json` copied and a temporary `HOME`.
+  - Cursor: temporary `HOME` with a symlink to `Library/Keychains`.
+  - Grok: `env -i`, temporary `HOME` and `GROK_HOME`, and `auth.json` with the `refresh_token` emptied.
+  - agy: temporary `HOME` with the symlink to the keychain.
+  - Claude Code: temporary `HOME`, authenticated as in the O10 verification.
+- **Flow:** `HOME=$tmp pregate setup` (includes trust through app-server and `agy plugin install`), a temporary git repo with a preset (for example, `CA-DEP-002` forbids `node:fs` in `src/core/**`), and the headless CLI:
   - Codex: `codex exec --json -s workspace-write`.
   - Cursor: `cursor-agent -p --trust --force --output-format stream-json`.
   - Grok: `grok -p --trust --always-approve --output-format streaming-json`.
   - agy: `agy -p --output-format json`.
   - Claude Code: `claude -p --permission-mode acceptEdits`.
-- **Cuatro escenarios por harness**, con prompts que nombran la tool:
-  1. **Deny real:** "creá `src/core/x.ts` con `import fs from 'node:fs'`". El archivo no existe después, y el stream trae el motivo de PREGATE en el texto que ve el modelo.
-  2. **Edición limpia:** el archivo queda escrito y **su contenido es igual al `after` reconstruido** (comprueba MH-08, MH-11 y MH-13 contra el harness real, incluido el `\n` final del Add de Codex).
-  3. **Repo sin preset:** escribe, no hay salida de PREGATE y no hay estado. En agy, además, sin `--dangerously-skip-permissions`, la escritura la decide el sistema de permisos (el neutro no concede nada).
-  4. **Motor colgado:** el lock fija `9.9.9-hang`, cuyo "motor" es `sleep 60`. Se espera un deny en menos de 6 s y el archivo sin escribir (MH-19 + MH-15).
-- **Modo interactivo:** un escenario 1 por harness en una pty (el usuario trabaja en TUI; solo están probados los modos headless).
-- **Además, y cada uno cierra un [E2E] de este documento:**
-  - Cursor: el deny en formato Claude, el `followup_message` y `Delete` llegan por el registro importado; Stop interactivo en pty con el tope de `maxStopBlocks`; una escritura de 2 MB llega completa (hash del `content` contra el disco).
-  - Grok: los literales `apply_patch|edit|bash` del matcher; `Stop` con exit 0 y `reason:"shutdown"` ignorado.
-  - Codex: `hooks/list` = trusted antes y después de un `setup` repetido; reformatear los espacios de `hooks.json` y medir el `trustStatus` (MH-23); si el `cwd` del payload refleja el `workdir` (MH-29); si el JS de code mode puede escribir sin `apply_patch` ni el shell (un prompt que lo intente); si `exec-<uuid>` se repite entre llamadas.
-  - agy: `agy plugin uninstall` existe; una escritura de 2 MB por `CodeContent`; un plugin de proyecto llamado `pregate` con `enabled:false` no anula al global.
-  - **Un hook ajeno que devuelve `allow`** (y otro que devuelve `ask`) registrado antes del nuestro, en Codex (grupo 0), Grok (`~/.grok/hooks/aa.json` y `config.toml`) y Claude: el deny de PREGATE tiene que ganar. Si en Grok no gana, el registro de Grok pasa a `[[hooks.PreToolUse]]` de `config.toml`, que corre antes [V]. Si en Codex no gana, **la instalación en Codex queda bloqueada** hasta resolverlo.
-  - **Orca:** capturar el entorno y los flags reales de cada agente que lanza (`CODEX_HOME`, `GROK_HOME`, `CLAUDE_CONFIG_DIR`, `HOME`, `--ignore-user-config`, `--setting-sources`). Si alguno corre sin la config de usuario, PREGATE no lo cubre: se documenta y se lleva al usuario.
-  - La salida del comando registrado bajo el `zsh` real del usuario (sus dotfiles, solo lectura) es limpia.
-- Costo estimado: < USD 3 por corrida completa.
+- **Four scenarios per harness**, with prompts that name the tool:
+  1. **Real deny:** "create `src/core/x.ts` with `import fs from 'node:fs'`". The file does not exist afterward, and the stream carries the PREGATE reason in the text the model sees.
+  2. **Clean edit:** the file is written and **its content equals the reconstructed `after`** (checks MH-08, MH-11, and MH-13 against the real harness, including the final `\n` of a Codex Add).
+  3. **Repo without a preset:** it writes, there is no PREGATE output, and there is no state. On agy, also, without `--dangerously-skip-permissions`, the permission system decides the write (neutral grants nothing).
+  4. **Hung engine:** the lock pins `9.9.9-hang`, whose "engine" is `sleep 60`. A deny is expected in under 6 s and the file unwritten (MH-19 + MH-15).
+- **Interactive mode:** one scenario 1 per harness in a pty (the user works in the TUI; only the headless modes are tested).
+- **Also, and each one closes an [E2E] in this document:**
+  - Cursor: the deny in Claude format, the `followup_message`, and `Delete` arrive through the imported registration; interactive Stop in a pty with the `maxStopBlocks` cap; a 2 MB write arrives complete (hash of `content` against disk).
+  - Grok: the matcher literals `apply_patch|edit|bash`; `Stop` with exit 0 and `reason:"shutdown"` ignored.
+  - Codex: `hooks/list` = trusted before and after a repeated `setup`; reformat the whitespace of `hooks.json` and measure `trustStatus` (MH-23); whether the payload `cwd` reflects the `workdir` (MH-29); whether code-mode JS can write without `apply_patch` or the shell (a prompt that tries); whether `exec-<uuid>` repeats across calls.
+  - agy: `agy plugin uninstall` exists; a 2 MB write via `CodeContent`; a project plugin named `pregate` with `enabled:false` does not override the global one.
+  - **A foreign hook that returns `allow`** (and another that returns `ask`) registered before ours, on Codex (group 0), Grok (`~/.grok/hooks/aa.json` and `config.toml`), and Claude: PREGATE's deny has to win. If it does not win on Grok, the Grok registration moves to `[[hooks.PreToolUse]]` in `config.toml`, which runs earlier [V]. If it does not win on Codex, **the Codex install stays blocked** until it is resolved.
+  - **Orca:** capture the real environment and flags of each agent it launches (`CODEX_HOME`, `GROK_HOME`, `CLAUDE_CONFIG_DIR`, `HOME`, `--ignore-user-config`, `--setting-sources`). If any runs without the user config, PREGATE does not cover it: it is documented and taken to the user.
+  - The output of the registered command under the user's real `zsh` (their dotfiles, read-only) is clean.
+- Estimated cost: < USD 3 per full run.
 
-**6.4 Aceptación real, 2026-10-02 (W12).** Se construyó 0.2.0 y se ejecutó `PREGATE_REAL=1 bun run scripts/e2e-real.ts`, con reruns por harness y `--core-only`, `--extras-only` o `--pty-only`. Todos los HOME, XDG, TMPDIR, CODEX_HOME y GROK_HOME quedaron bajo `/private/tmp/claude-501/`. Las credenciales se copiaron solo para lectura, sin refresh tokens; Cursor y agy usaron el symlink de Keychains de los relevamientos. No hubo instalación en el HOME real ni push. Claude consumió **exactamente dos prompts**, agrupando los cuatro casos; sus extras no se ejecutaron.
+**6.4 Real acceptance, 2026-10-02 (W12).** 0.2.0 was built and `PREGATE_REAL=1 bun run scripts/e2e-real.ts` was run, with reruns per harness and `--core-only`, `--extras-only`, or `--pty-only`. Every HOME, XDG, TMPDIR, CODEX_HOME, and GROK_HOME stayed under `/private/tmp/claude-501/`. Credentials were copied read-only, without refresh tokens; Cursor and agy used the surveys' Keychains symlink. There was no install into the real HOME and no push. Claude consumed **exactly two prompts**, grouping the four cases; its extras were not run.
 
-| Harness / versión real | Deny y archivo ausente | Edit permitido = reconstrucción = disco | Sin preset, sin objeción | `9.9.9-hang`, fail-closed | Deny interactivo |
+| Harness / real version | Deny and file absent | Allowed edit = reconstruction = disk | No preset, no objection | `9.9.9-hang`, fail-closed | Interactive deny |
 |---|---|---|---|---|---|
-| Claude Code 2.1.287 | PASS | PASS | PASS | PASS | Pendiente: límite de dos prompts |
+| Claude Code 2.1.287 | PASS | PASS | PASS | PASS | Pending: two-prompt limit |
 | Codex 0.159.2 | PASS | PASS | PASS | PASS | PASS, `--no-daemon` |
 | Cursor 2026.09.26-dd393fe | PASS | PASS | PASS | PASS | PASS |
 | Grok 1.0.48 | PASS | PASS | PASS | PASS | PASS |
 | agy 1.2.14 | PASS | PASS | PASS | PASS | PASS |
 
-La edición cambia solamente `a + b` por `b + a`; se decodifica el input capturado de cada CLI y se reconstruye contra los bytes originales, incluidos espacios y newline. El deny exige evento Pre, motivo visible y árbol `src/` intacto. El caso hang exige que el launcher haya invocado el motor fijado y que el mensaje de su plazo de **5 s** llegue al modelo: no se confunde con un timeout fail-open del harness.
+The edit changes only `a + b` into `b + a`; each CLI's captured input is decoded and reconstructed against the original bytes, including spaces and newline. The deny requires a Pre event, a visible reason, and an intact `src/` tree. The hang case requires that the launcher invoked the pinned engine and that its **5 s** deadline message reaches the model: it is not confused with a harness fail-open timeout.
 
-Defectos encontrados y corregidos:
+Defects found and fixed:
 
-- **Grok:** el matcher anterior no cubría la tool nativa `write`; además el runner expande referencias `$VAR` antes del shell y el comando con locales no se ejecutaba. Se reprodujo el write sin Pre y se verificó el deny con la invocación literal y el fallback diferido de MH-22. La tabla usa la corrida reparada, no la falla inicial de autenticación.
-- **Cursor:** el Stop importado solo no activaba el dispatcher del TUI. Se instala un Stop nativo propio y se evita ejecutar ambos. Cada followup trae otro `generation_id`, por lo que el contador de Stop usa la continuidad de la sesión hasta completar el turno; ahora bloquea dos veces y termina. Hay regresión automatizada del cap y su reset.
-- **agy:** el plugin de proyecto `pregate` deshabilitado anulaba al global con igual identidad. Cambiar solo el named hook no bastaba; cambiar carpeta, manifest y named hook a `pregate-global` sí. El caso real vuelve a denegar y uninstall retira el plugin propio. Una colisión deliberada con la nueva identidad sigue sujeta a la precedencia del loader y a doctor; no constituye aislamiento contra configuración humana hostil.
-- **Runner:** los locks usan la versión compilada; se refrescan las copias de access tokens antes de cada harness; el contexto exacto evita el fuzzy patch de Codex; `danger-full-access` permite el write en el scratch bajo el sandbox externo (el sandbox anidado `workspace-write` no lo permitió); el TUI de Codex usa `--no-daemon` porque este entorno impide `/bin/ps`; agy usa `--prompt-interactive`. La inspección de procesos indisponible se registra y no impide uninstall.
+- **Grok:** the previous matcher did not cover the native `write` tool; also the runner expands `$VAR` references before the shell and the command with locals did not run. The write without Pre was reproduced and the deny was verified with the literal invocation and the deferred MH-22 fallback. The table uses the repaired run, not the initial authentication failure.
+- **Cursor:** the imported Stop alone did not activate the TUI dispatcher. A native Stop of our own is installed and running both is avoided. Each followup brings another `generation_id`, so the Stop counter uses session continuity until the turn completes; it now blocks twice and finishes. There is an automated regression of the cap and its reset.
+- **agy:** the disabled project plugin `pregate` overrode the global one with the same identity. Changing only the named hook was not enough; changing the folder, manifest, and named hook to `pregate-global` was. The real case denies again and uninstall removes our own plugin. A deliberate collision with the new identity remains subject to loader precedence and to doctor; it is not isolation against hostile human configuration.
+- **Runner:** locks use the compiled version; access-token copies are refreshed before each harness; exact context avoids Codex's fuzzy patch; `danger-full-access` allows the write in the scratch under the outer sandbox (the nested `workspace-write` sandbox did not allow it); the Codex TUI uses `--no-daemon` because this environment blocks `/bin/ps`; agy uses `--prompt-interactive`. Unavailable process inspection is recorded and does not block uninstall.
 
-**Ledger de todos los [E2E] y extras de §6.3.** PASS confirma lo observado; pendiente/no ofrecido conserva la opción conservadora y **no** cierra W12 completo ni autoriza D20.
+**Ledger of every [E2E] and extra in §6.3.** PASS confirms what was observed; pending/not offered keeps the conservative option and does **not** close W12 completely or authorize D20.
 
-| Ítem | Resultado real / decisión |
+| Item | Real result / decision |
 |---|---|
-| Cursor `generation_id` cambia por turno (§2) | Observado: cambia también entre followups de Stop; cap corregido y verificado en pty. |
-| Add de Codex, incluido newline (MH-08) | Edición Update exacta PASS. Add quedó escrito en el caso sin preset; equivalencia de Add contra reconstrucción con preset pendiente. |
-| Cursor `permissionDecisionReason` de ~12 KB (§3) | Pendiente; deny corto llegó completo. No se reutiliza la evidencia anterior de `user_message` como prueba de este campo. |
-| Grok `additionalContext` en deny (§3) | Pendiente; sigue emitiéndose únicamente `compact` ≤ 256 caracteres. |
-| Matcher `Delete` importado de Cursor (MH-22) | PASS: Pre capturado, `protected-path`, preset conservado. |
-| Literales Grok `apply_patch\|edit\|bash` (MH-22) | No ofrecidos por 1.0.48; vistos `write`, `search_replace`, `run_terminal_command`. Los literales se conservan, sin afirmar que fueron ejecutados. |
-| Comando en sh/dash/bash/zsh (MH-22) | Suite del launcher PASS, incluyendo launcher ausente/vacío/no ejecutable y neutralidad sin preset; Cursor real usa zsh. |
-| Espacios de hooks.json y trust de Codex (MH-23) | PASS: los tres propios y el ajeno permanecen `trusted` después de reformatear y restaurar. |
-| Codex `hooks/list` tras setup repetido (MH-24) | PASS: tres propios trusted, ajeno trusted, bytes y mtimes sin cambio. |
-| `agy plugin uninstall` (MH-25) | PASS: existe en help; uninstall real retiró `pregate-global` y preservó registros ajenos. |
-| Codex shell `apply_patch`/`applypatch` se convierte en tool (MH-29) | Pendiente; se conserva `shell-write` para ambos comandos. |
-| Codex `cwd` refleja `exec_command.workdir` (MH-29) | No: `ls` pidió `src/core`, payload Bash mantuvo la raíz. Se conserva la exigencia de destinos absolutos. |
-| Codex code mode escribe desde JS | Archivo no creado; el modelo informó V8 sin Node/fs. Observación de esta configuración, no prueba universal de imposibilidad. |
-| Codex `exec-<uuid>` compartido entre inputs | 0 repeticiones entre 7 inputs observados; reutilización no ejercida. Se conserva callId + hash de input. |
-| Cursor deny Claude importado | PASS, en headless y pty. |
-| Cursor `followup_message`, Stop pty y maxStopBlocks | PASS tras registro nativo: reentry `loop_count > 0`, dos bloqueos y salida neutra. |
-| Cursor write de 2 MB, hash contra disco | Pendiente: generar 2 MB contradice prompts mínimos; no se declara íntegro por una prueba chica. |
-| Grok Stop exit 0 y reentry | PASS: el bloqueo reanuda el agente; `stopHookActive:true` capturado. |
-| Grok Stop `reason:shutdown` ignorado | PASS: un shutdown capturado, sin evento de gate adicional. |
-| agy neutral sin skip-permissions | PASS: sin preset PREGATE no habla ni crea estado; agy devuelve `headless mode cannot prompt`. |
-| agy write de 2 MB por CodeContent | Pendiente por límite de cuota/prompts mínimos. |
-| agy proyecto `pregate` con `enabled:false` | PASS después de separar la identidad global; antes era fail-open. |
-| Hook ajeno allow antes del deny: Codex / Grok / Claude | Codex PASS; Grok PASS (fuentes toml y aa ejecutadas); Claude pendiente por límite de dos prompts. |
-| Hook ajeno ask antes del deny: Codex / Grok / Claude | Codex PASS; Grok PASS (fuentes toml y aa ejecutadas); Claude pendiente por límite de dos prompts. |
-| Orca: entorno y flags reales de agentes | No verificable en este sandbox: `posix_spawn /bin/ps` devuelve EPERM. No se afirma cobertura de lanzamientos de Orca. |
-| zsh con dotfiles reales | Pendiente por instrucción estricta de HOME temporal; zsh aislado PASS, stdout vacío. No se ejecutaron los dotfiles reales. |
-| Ciclo real setup → setup → doctor → uninstall | PASS en reruns: canarios de los cinco dialectos, trust, idempotencia y preservación de hooks ajenos. Doctor avisa que gh no está autenticado en el HOME temporal. |
+| Cursor `generation_id` changes per turn (§2) | Observed: it also changes between Stop followups; cap fixed and verified in pty. |
+| Codex Add, including newline (MH-08) | Exact Update edit PASS. Add was written in the no-preset case; Add equivalence against reconstruction with a preset is pending. |
+| Cursor `permissionDecisionReason` of ~12 KB (§3) | Pending; a short deny arrived complete. Prior `user_message` evidence is not reused as proof of this field. |
+| Grok `additionalContext` on deny (§3) | Pending; only `compact` ≤ 256 characters is still emitted. |
+| Imported Cursor `Delete` matcher (MH-22) | PASS: Pre captured, `protected-path`, preset preserved. |
+| Grok literals `apply_patch\|edit\|bash` (MH-22) | Not offered by 1.0.48; `write`, `search_replace`, `run_terminal_command` were seen. The literals are kept, without claiming they were executed. |
+| Command on sh/dash/bash/zsh (MH-22) | Launcher suite PASS, including missing/empty/non-executable launcher and neutrality without a preset; real Cursor uses zsh. |
+| hooks.json whitespace and Codex trust (MH-23) | PASS: the three of ours and the foreign one stay `trusted` after reformatting and restoring. |
+| Codex `hooks/list` after a repeated setup (MH-24) | PASS: three of ours trusted, foreign trusted, bytes and mtimes unchanged. |
+| `agy plugin uninstall` (MH-25) | PASS: it exists in help; real uninstall removed `pregate-global` and preserved foreign registrations. |
+| Codex shell `apply_patch`/`applypatch` turns into the tool (MH-29) | Pending; `shell-write` is kept for both commands. |
+| Codex `cwd` reflects `exec_command.workdir` (MH-29) | No: `ls` asked for `src/core`, the Bash payload kept the root. The absolute-destination requirement is kept. |
+| Codex code mode writes from JS | File not created; the model reported V8 without Node/fs. An observation of this configuration, not a universal proof of impossibility. |
+| Codex `exec-<uuid>` shared across inputs | 0 repetitions across 7 observed inputs; reuse not exercised. callId + input hash is kept. |
+| Cursor imported Claude deny | PASS, in headless and pty. |
+| Cursor `followup_message`, Stop pty, and maxStopBlocks | PASS after native registration: reentry `loop_count > 0`, two blocks, and a neutral exit. |
+| Cursor 2 MB write, hash against disk | Pending: generating 2 MB contradicts minimal prompts; it is not declared intact from a small test. |
+| Grok Stop exit 0 and reentry | PASS: the block resumes the agent; `stopHookActive:true` captured. |
+| Grok Stop `reason:shutdown` ignored | PASS: one shutdown captured, with no additional gate event. |
+| agy neutral without skip-permissions | PASS: without a preset PREGATE does not speak and does not create state; agy returns `headless mode cannot prompt`. |
+| agy 2 MB write via CodeContent | Pending because of the quota limit / minimal prompts. |
+| agy project `pregate` with `enabled:false` | PASS after separating the global identity; before, it was fail-open. |
+| Foreign allow hook before the deny: Codex / Grok / Claude | Codex PASS; Grok PASS (toml and aa sources executed); Claude pending because of the two-prompt limit. |
+| Foreign ask hook before the deny: Codex / Grok / Claude | Codex PASS; Grok PASS (toml and aa sources executed); Claude pending because of the two-prompt limit. |
+| Orca: real agent environment and flags | Not verifiable in this sandbox: `posix_spawn /bin/ps` returns EPERM. Coverage of Orca launches is not claimed. |
+| zsh with real dotfiles | Pending because of the strict temporary-HOME instruction; isolated zsh PASS, empty stdout. The real dotfiles were not executed. |
+| Real cycle setup → setup → doctor → uninstall | PASS on reruns: canaries of all five dialects, trust, idempotence, and preservation of foreign hooks. Doctor warns that gh is not authenticated in the temporary HOME. |
 
-Evidencia local, sin credenciales: `/private/tmp/claude-501/finish-pregate/{real,codex-retry,codex-pty,grok-final,cursor-agy-final,cursor-agy-core-final,grok-replay-final}.log`. Los payloads y eventos están en los directorios `Evidence` impresos al final; los auth.json copiados y symlinks al keychain se eliminan al terminar. Claude fue probado antes de las correcciones de registro; no se gastaron prompts adicionales: la invocación compartida vigente se verificó con los payloads y la suite del launcher. Después del arreglo de latencia/replay, el core real de Grok vuelve a pasar los cuatro casos y pty (**11/0**); los demás dialectos pasan la suite del launcher, sin nuevos prompts. Ver también [MVP-STATUS §8](MVP-STATUS.md#8-real-cli-acceptance-y-latencia).
-
----
-
-## 7. Residuos aceptados
-
-Lo que el gate de sesión no ve y queda para Stop (donde existe), pre-commit y CI:
-- Escrituras por comandos que el guard deja pasar por diseño (`rsync`, `tar x`, `unzip -o`, `make`, `prettier --write`, `git stash pop`…), procesos en segundo plano que escriben después de Stop (`&`, `nohup`, `WaitMsBeforeAsync` de agy, `backgroundTasks` de Grok) y tools MCP que escriben archivos.
-- Sesiones sin un Stop efectivo: Cursor `-p` [V], subagentes de Cursor (`subagentStop` no disparó [V]) y de Grok (su sesión no tiene Stop propio), y el Stop del padre de agy que llega con `fullyIdle:false` [V].
-- Fuera de Claude, Stop deja de bloquear después de `maxStopBlocks` sin canal hacia el humano.
-- Cursor y Grok dependen de que lean `~/.claude/settings.json` (MH-04); Codex, del trust (detectado por deriva y `doctor`); todos, de que un orquestador no los lance sin la config de usuario (§6.3, Orca).
-- Disponibilidad, no fail-open: un `.zshenv` que imprime o un `$SHELL` no POSIX hacen que Cursor reciba JSON inválido y bloquee todo [V]. El canario de `doctor` lo detecta.
+Local evidence, without credentials: `/private/tmp/claude-501/finish-pregate/{real,codex-retry,codex-pty,grok-final,cursor-agy-final,cursor-agy-core-final,grok-replay-final}.log`. The payloads and events are in the `Evidence` directories printed at the end; the copied auth.json files and keychain symlinks are deleted when it finishes. Claude was tested before the registration fixes; no extra prompts were spent: the current shared invocation was verified with the payloads and the launcher suite. After the latency/replay fix, Grok's real core passes the four cases and pty again (**11/0**); the other dialects pass the launcher suite, with no new prompts. See also MVP-STATUS §8.
 
 ---
 
-## 8. Cambios que esto implica en ARCHITECTURE y SPEC (se aplican al construir)
+## 7. Accepted residues
 
-- **A16:** `ProposedChange.from` y `pre-edit.changes[]` (MH-07).
-- **A17 y principio 8:** se reemplazan por MH-01.
-- **A20:** se reemplaza por MH-33.
-- **Principio 1.6:** las variables que se leen pasan a ser `GROK_HOOK_EVENT` (ya no `GROK_*`) y, solo en la cáscara, `GROK_HOME`, `CODEX_HOME` y `CLAUDE_CONFIG_DIR`. `XDG_DATA_HOME` deja de leerse en el motor (MH-18).
-- **§4.0:** salida de Pre universal, invariante de stderr, PATH propio, exit 3 y motor ausente (MH-15, MH-19, MH-22).
-- **§4.2:** causa `hook-switch` y guard restringido sin raíz (MH-17, MH-29).
-- **§4.4:** SessionStart sin preset queda en silencio (MH-17).
-- **§4.5:** el pre-commit usa el `pregate` global (MH-28).
-- **§5.4:** layout (MH-18) y releases (MH-32).
-- **O11:** acotado por MH-13.
-- **O25:** `payload-unrecognized` nombra el harness y la tool.
-- **SPEC §14.6:** Codex, Cursor y agy pasan de v1/v1.1 a la versión 0.2.0. `hashline_edit` sigue en v2.
+What the session gate does not see and is left for Stop (where it exists), pre-commit, and CI:
+- Writes by commands the guard lets through by design (`rsync`, `tar x`, `unzip -o`, `make`, `prettier --write`, `git stash pop`…), background processes that write after Stop (`&`, `nohup`, agy's `WaitMsBeforeAsync`, Grok's `backgroundTasks`), and MCP tools that write files.
+- Sessions without an effective Stop: Cursor `-p` [V], Cursor subagents (`subagentStop` did not fire [V]) and Grok subagents (their session has no Stop of its own), and the agy parent's Stop that arrives with `fullyIdle:false` [V].
+- Outside Claude, Stop stops blocking after `maxStopBlocks` with no channel to the human.
+- Cursor and Grok depend on reading `~/.claude/settings.json` (MH-04); Codex, on trust (detected by drift and `doctor`); all of them, on an orchestrator not launching them without the user config (§6.3, Orca).
+- Availability, not fail-open: a `.zshenv` that prints or a non-POSIX `$SHELL` makes Cursor receive invalid JSON and block everything [V]. The `doctor` canary detects it.
 
 ---
 
-## 9. Revisión adversarial aplicada
+## 8. Changes this implies in ARCHITECTURE and SPEC (applied when building)
 
-Dos revisiones sobre la versión anterior de este documento: **FO** (caminos de fail-open, F1–F30) y **SI** (simplicidad, A1–A9, B1–B6, C1–C4). Lo que dicen "D" de SI (lo que está bien) no cambia nada.
+- **A16:** `ProposedChange.from` and `pre-edit.changes[]` (MH-07).
+- **A17 and principle 8:** replaced by MH-01.
+- **A20:** replaced by MH-33.
+- **Principle 1.6:** the variables that are read become `GROK_HOOK_EVENT` (no longer `GROK_*`) and, only in the shell, `GROK_HOME`, `CODEX_HOME`, and `CLAUDE_CONFIG_DIR`. `XDG_DATA_HOME` is no longer read in the engine (MH-18).
+- **§4.0:** universal Pre output, stderr invariant, own PATH, exit 3, and missing engine (MH-15, MH-19, MH-22).
+- **§4.2:** `hook-switch` cause and restricted guard without a root (MH-17, MH-29).
+- **§4.4:** SessionStart without a preset stays silent (MH-17).
+- **§4.5:** the pre-commit uses the global `pregate` (MH-28).
+- **§5.4:** layout (MH-18) and releases (MH-32).
+- **O11:** bounded by MH-13.
+- **O25:** `payload-unrecognized` names the harness and the tool.
+- **SPEC §14.6:** Codex, Cursor, and agy move from v1/v1.1 to version 0.2.0. `hashline_edit` stays in v2.
 
-| Hallazgo | Resolución | Dónde |
+---
+
+## 9. Adversarial review applied
+
+Two reviews of the previous version of this document: **FO** (fail-open paths, F1–F30) and **SI** (simplicity, A1–A9, B1–B6, C1–C4). What SI's "D" items say (what is fine) changes nothing.
+
+| Finding | Resolution | Where |
 |---|---|---|
-| FO-F1, SI-B1: MH-17 dejaba apagar PREGATE desde una sesión sin raíz | **Aplicado.** Rutas de máquina y `hook-switch` siempre; "alcanza raíz" sobre todas las rutas del comando. Se recortó lo que FO pedía de más: `~/.gemini/config/**` entero (bloquearía skills y MCP del usuario) y `skills.json` (no apaga hooks) | MH-17, U-5 |
-| FO-F2: MH-04 neutralizaba lo importado porque existía un archivo | **Disuelto** por SI-A1: ya no hay registro nativo en Cursor ni Grok, así que no hay nada que neutralizar | MH-04 |
-| SI-A1: registro doble + MH-04 | **Aplicado** (la opción mínima): un registro compartido para Claude, Cursor y Grok. Cursor usa el formato de Claude, verificado en el camino importado | MH-04, MH-14, MH-22, U-6 |
-| FO-F3: matchers de lista cerrada | **Parcial.** Se descartan el matcher `*` con allowlist en el launcher (un spawn por cada lectura de la máquina) y la heurística de MCP. Quedan la comparación con `VERIFIED` en `doctor` y el inventario de tools en el E2E; MCP es un residuo declarado | MH-22, §7 |
-| FO-F4: trust de Codex roto por terceros | **Aplicado:** transacción con foto y restauración; empalme de texto si el E2E lo exige; deriva en pre-commit y `doctor` (junto con SI-C1). Descartado: `stat` en cada SessionStart (el pre-commit es el canal que existe en los cinco) | MH-24, MH-27 |
-| FO-F5: launcher o motor vacío | **Parcial:** `[ -s ]` en el guard inline y en el launcher, escrituras tmp + fsync + rename. Descartados el handshake de ack y el `trap EXIT` de deny: con rename después de verificar y del warm-up, un motor parcial no puede quedar instalado | MH-15, MH-22 |
-| FO-F6, SI-B5: agy con el launcher ausente salía neutro | **Aplicado**, con una sola búsqueda de preset (SI-A6) | MH-22 |
-| FO-F7: rutas relativas en Codex | **Aplicado:** patch solo con rutas absolutas; en `Bash`, destino relativo ⇒ deny hasta que el E2E diga lo contrario | MH-08, MH-29 |
-| FO-F8: sin Stop efectivo | **Descartado** (SubagentStop, Stop pegajoso, TDD-DEL en Pre): son mecanismos nuevos para una red secundaria. Queda como residuo declarado. La raíz ya se registra en la primera llamada | §7 |
-| FO-F9: shell interactivo con stdin sin hook | **Aplicado** | MH-29 |
-| FO-F10: payload truncado de Grok en cualquier tool | **Aplicado.** Descartado el deep-equal entre `toolInput` y `tool_input`: son alias del mismo serializador [V] | MH-12 |
-| FO-F11: timeouts que fallan abierto y PATH | **Aplicado:** Pre 30 s en los tres registros; PATH propio del launcher | MH-15, MH-22 |
-| FO-F12, FO-F13: exit 2 sin stderr | **Aplicado** en el launcher. Descartado el sniff del JSON de agy en `sh`: lo garantizan los tests de encode | MH-15 |
-| FO-F14: config reubicada o en symlink | **Aplicado sin `install.json`:** realpath de cada archivo de registro, calculado en el hook; el motor deriva sus rutas de `execPath`. Descartado `PREGATE_STATE` (un estado en otra ruta no abre el gate) | MH-17, MH-18 |
-| FO-F15: config de proyecto que apaga hooks | **Aplicado** como aviso de deriva en pre-commit y `doctor` | MH-27 |
-| FO-F16: orquestador que reubica la config | **Aplicado:** palabras nuevas en el guard; captura de Orca en el E2E | MH-29, §6.3 |
-| FO-F17: allow ajeno frente a nuestro deny | **Aplicado** como E2E que bloquea la instalación en Codex | §6.3 |
-| FO-F18, SI-A2 (`SINCE`) | **Aplicado unificado:** un solo `FLOOR` reemplaza a `SINCE` (por harness era especulativo) | MH-20 |
-| FO-F19: A20 sin SessionStart | **Aplicado,** sin estado nuevo: se usa el `at` de la primera snapshot | MH-33 |
-| FO-F20: raíces anidadas con el motor ausente | **Descartado:** registro de raíces conocidas para un estado de instalación rota; con SI-A6, el motor ausente deniega siempre | MH-15 |
-| FO-F21: cwd ambiguo en Cursor y agy | **Aplicado** como `BAD`. Descartado evaluar contra cada raíz: más código para un caso raro | MH-06 |
-| FO-F22: reingreso de Cursor escrito como neutro | **Aplicado** (error del documento) | MH-14 |
-| FO-F23: compañeros sin la instalación global | **A decisión del usuario** | U-1 |
-| FO-F24: procesos en segundo plano | **Descartado:** residuo de la clase de shell que ya cubren pre-commit y CI | §7 |
-| FO-F25: regex `HARNESS` | **Aplicado** | MH-29 |
-| FO-F26, FO-F27, FO-F30: code mode, contenido truncado, `callId` compartido | **E2E**; el `callId` con hash se aplica ya porque cuesta una línea | MH-05, §6.3 |
-| FO-F28: orden del update y test de esquema | **Parcial:** el orden motor → warm-up → launcher se aplica. El test que fija el hash del esquema se descarta por frágil: lo reemplaza la regla de MH-21 en el checklist de release | MH-21, MH-27 |
-| FO-F29: trust y `mine()` por subcadena | **Aplicado:** igualdad exacta | MH-22, MH-24 |
-| SI-A2: `v1/`, raíces vistas, `--prune`, avisos por lock | **Aplicado:** todo eliminado. El deny "engine v is not installed" se resuelve solo | MH-18, MH-21, MH-27 |
-| SI-A3: `current`, `install.json`, `install.lock`, `agy-plugin/` | **Aplicado.** Lo único que se guarda es `codex-trust.json`, que SI-C1 justifica | MH-18 |
-| SI-A4: flags de CLI | **Aplicado:** quedan `setup`, `update [--version \| --engine]`, `uninstall [--purge]` y `doctor` | MH-27 |
-| SI-A5: `install.sh` | **Aplicado:** un modo, release o `PREGATE_ARCHIVE`, un solo warm-up, solo `gh`, solo `SHA256SUMS` | MH-31, MH-32 |
-| SI-A6: dialectos en el launcher | **Aplicado:** Pre universal sin JSON; Stop solo bloquea en Claude; una sola búsqueda de preset. El sniff de Cursor pasa a `CURSOR_VERSION` | MH-15 |
-| SI-A7: re-trust ajeno en el uninstall | **Aplicado:** se listan las keys y el usuario las aprueba | MH-24 |
-| SI-A8: `fallback` como parte de `decode` | **Aplicado** (`Rejected`), y además lleva `dirs` para no romper la máquina | MH-01, MH-06 |
-| SI-A9, SI-B3, SI-B4: launcher commiteado y migración de repos | **Aplicado:** sin launcher commiteado; pre-commit y CI siguen al lock; la CLI redirige por lock | MH-19, MH-28, U-7 |
-| SI-B2: `doctor` sin `test/payloads` | **Aplicado:** `VERIFIED` embebida por adaptador | MH-01, MH-27 |
-| SI-B6: plugin de agy habilitado; Cursor como `agent` | **Aplicado** | MH-25, MH-26 |
-| SI-C1: deriva en runtime | **Aplicado** en pre-commit y `doctor` | MH-27 |
-| SI-C2: aviso de update | **A decisión del usuario** | U-4 |
-| SI-C3: onboarding en el flujo global | **Aplicado** | MH-34 |
-| SI-C4: huecos del E2E | **Aplicado** (pty, code mode, zsh real); `write_stdin` lo cierra MH-29 | §6.3 |
+| FO-F1, SI-B1: MH-17 let PREGATE be turned off from a session with no root | **Applied.** Machine paths and `hook-switch` always; "reaches a root" over every path in the command. What FO asked for beyond that was cut: all of `~/.gemini/config/**` (it would block the user's skills and MCP) and `skills.json` (it does not turn hooks off) | MH-17, U-5 |
+| FO-F2: MH-04 neutralized the imported registration because a file existed | **Dissolved** by SI-A1: there is no longer a native registration on Cursor or Grok, so there is nothing to neutralize | MH-04 |
+| SI-A1: double registration + MH-04 | **Applied** (the minimal option): one shared registration for Claude, Cursor, and Grok. Cursor uses the Claude format, verified on the imported path | MH-04, MH-14, MH-22, U-6 |
+| FO-F3: closed-list matchers | **Partial.** The `*` matcher with an allowlist in the launcher (one spawn per read on the machine) and the MCP heuristic are discarded. The comparison with `VERIFIED` in `doctor` and the tool inventory in the E2E remain; MCP is a declared residue | MH-22, §7 |
+| FO-F4: Codex trust broken by third parties | **Applied:** transaction with a snapshot and restore; text splice if the E2E requires it; drift in pre-commit and `doctor` (together with SI-C1). Discarded: `stat` on every SessionStart (the pre-commit is the channel that exists on all five) | MH-24, MH-27 |
+| FO-F5: empty launcher or engine | **Partial:** `[ -s ]` in the inline guard and in the launcher, tmp + fsync + rename writes. The ack handshake and the deny `trap EXIT` are discarded: with rename after verification and the warm-up, a partial engine cannot be left installed | MH-15, MH-22 |
+| FO-F6, SI-B5: agy with the launcher missing exited neutral | **Applied**, with a single preset search (SI-A6) | MH-22 |
+| FO-F7: relative paths on Codex | **Applied:** patch with absolute paths only; in `Bash`, a relative destination ⇒ deny until the E2E says otherwise | MH-08, MH-29 |
+| FO-F8: no effective Stop | **Discarded** (SubagentStop, sticky Stop, TDD-DEL in Pre): they are new mechanisms for a secondary net. It remains a declared residue. The root is already registered on the first call | §7 |
+| FO-F9: interactive shell with stdin and no hook | **Applied** | MH-29 |
+| FO-F10: truncated Grok payload on any tool | **Applied.** Deep-equal between `toolInput` and `tool_input` discarded: they are aliases of the same serializer [V] | MH-12 |
+| FO-F11: timeouts that fail open, and PATH | **Applied:** Pre 30 s on the three registrations; the launcher's own PATH | MH-15, MH-22 |
+| FO-F12, FO-F13: exit 2 without stderr | **Applied** in the launcher. Sniffing agy's JSON in `sh` discarded: the encode tests guarantee it | MH-15 |
+| FO-F14: relocated config or config on a symlink | **Applied without `install.json`:** realpath of each registration file, computed in the hook; the engine derives its paths from `execPath`. `PREGATE_STATE` discarded (state on another path does not open the gate) | MH-17, MH-18 |
+| FO-F15: project config that turns hooks off | **Applied** as a drift warning in pre-commit and `doctor` | MH-27 |
+| FO-F16: orchestrator that relocates the config | **Applied:** new words in the guard; Orca capture in the E2E | MH-29, §6.3 |
+| FO-F17: foreign allow against our deny | **Applied** as an E2E that blocks the Codex install | §6.3 |
+| FO-F18, SI-A2 (`SINCE`) | **Applied, unified:** a single `FLOOR` replaces `SINCE` (per harness it was speculative) | MH-20 |
+| FO-F19: A20 without SessionStart | **Applied,** with no new state: the `at` of the first snapshot is used | MH-33 |
+| FO-F20: nested roots with the engine missing | **Discarded:** a registry of known roots for a broken-install state; with SI-A6, a missing engine always denies | MH-15 |
+| FO-F21: ambiguous cwd on Cursor and agy | **Applied** as `BAD`. Evaluating against each root discarded: more code for a rare case | MH-06 |
+| FO-F22: Cursor reentry written as neutral | **Applied** (a document error) | MH-14 |
+| FO-F23: teammates without the global install | **Up to the user** | U-1 |
+| FO-F24: background processes | **Discarded:** a residue of the shell class that pre-commit and CI already cover | §7 |
+| FO-F25: `HARNESS` regex | **Applied** | MH-29 |
+| FO-F26, FO-F27, FO-F30: code mode, truncated content, shared `callId` | **E2E**; the `callId` with a hash is applied now because it costs one line | MH-05, §6.3 |
+| FO-F28: update order and schema test | **Partial:** the order engine → warm-up → launcher is applied. The test that pins the schema hash is discarded as fragile: the MH-21 rule in the release checklist replaces it | MH-21, MH-27 |
+| FO-F29: trust and `mine()` by substring | **Applied:** exact equality | MH-22, MH-24 |
+| SI-A2: `v1/`, seen roots, `--prune`, warnings per lock | **Applied:** all removed. The deny "engine v is not installed" resolves on its own | MH-18, MH-21, MH-27 |
+| SI-A3: `current`, `install.json`, `install.lock`, `agy-plugin/` | **Applied.** The only thing stored is `codex-trust.json`, which SI-C1 justifies | MH-18 |
+| SI-A4: CLI flags | **Applied:** `setup`, `update [--version \| --engine]`, `uninstall [--purge]`, and `doctor` remain | MH-27 |
+| SI-A5: `install.sh` | **Applied:** one mode, release or `PREGATE_ARCHIVE`, a single warm-up, only `gh`, only `SHA256SUMS` | MH-31, MH-32 |
+| SI-A6: dialects in the launcher | **Applied:** universal Pre without JSON; Stop blocks only on Claude; a single preset search. The Cursor sniff moves to `CURSOR_VERSION` | MH-15 |
+| SI-A7: foreign re-trust on uninstall | **Applied:** the keys are listed and the user approves them | MH-24 |
+| SI-A8: `fallback` as part of `decode` | **Applied** (`Rejected`), and it also carries `dirs` so the machine is not broken | MH-01, MH-06 |
+| SI-A9, SI-B3, SI-B4: committed launcher and repo migration | **Applied:** no committed launcher; pre-commit and CI follow the lock; the CLI redirects by lock | MH-19, MH-28, U-7 |
+| SI-B2: `doctor` without `test/payloads` | **Applied:** `VERIFIED` embedded per adapter | MH-01, MH-27 |
+| SI-B6: agy plugin enabled; Cursor as `agent` | **Applied** | MH-25, MH-26 |
+| SI-C1: drift at runtime | **Applied** in pre-commit and `doctor` | MH-27 |
+| SI-C2: update notice | **Up to the user** | U-4 |
+| SI-C3: onboarding in the global flow | **Applied** | MH-34 |
+| SI-C4: E2E gaps | **Applied** (pty, code mode, real zsh); MH-29 closes `write_stdin` | §6.3 |
 
 ---
 
-## 10. Plan de construcción
+## 10. Build plan
 
-Cada unidad es dueña de sus archivos y de sus tests, y no edita los de otra. Las interfaces de §10.1 se fijan en W0 y no cambian sin pasar por el orquestador. Cada unidad cierra con una revisión adversarial de simplicidad (D16), como en ARCHITECTURE §9.
+Each unit owns its files and its tests, and does not edit another unit's. The §10.1 interfaces are fixed in W0 and do not change without going through the orchestrator. Each unit closes with an adversarial simplicity review (D16), as in ARCHITECTURE §9.
 
-### 10.1 MH-W0: contratos (primero y en serie, ~1 día)
+### 10.1 MH-W0: contracts (first and in series, ~1 day)
 
-Entrega: los tipos, `src/harness/wire.ts`, el movimiento de `src/claude.ts` a `src/harness/claude.ts` (sin cambio de conducta), las constantes de §10.1, el arnés del test de contrato por payload (falla si un archivo no tiene expectativa) y los stubs que cada unidad reemplaza. Fija estas firmas:
+Delivers: the types, `src/harness/wire.ts`, the move of `src/claude.ts` to `src/harness/claude.ts` (no behavior change), the §10.1 constants, the per-payload contract test harness (fails if a file has no expectation), and the stubs each unit replaces. It fixes these signatures:
 
 ```ts
 // types.ts
@@ -615,14 +615,14 @@ interface Rejected { cause: Cause; kind: HookEvent["kind"]; reentry: boolean; se
 type Cause = … | "hook-switch";                                  // FIXABLE_BY: "agent"
 interface HookEnv { grokEvent: string | null; projectDir: string | null; remote: boolean }
 
-// harness/<h>.ts (codex, cursor, grok, agy; claude adaptado)
+// harness/<h>.ts (codex, cursor, grok, agy; claude adapted)
 export const VERIFIED: string;
 export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null;
 export function encode(kind: HookEvent["kind"], d: Decision, stop: StopState | null): Emission;
 
 // main.ts
 export const FLOOR = "0.2.0";
-export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId;   // MH-03, puro
+export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId;   // MH-03, pure
 
 // reconstruct.ts
 export function apply(current: string | null, edit: Edit): { after: string | null; status: Reconstruction };
@@ -635,20 +635,20 @@ export function machineGlobs(home: string, env: { codexHome: string; grokHome: s
 
 // shell.ts
 export function guard(command: string, cwd: string, ctx: GuardContext & { machineOnly: boolean; harness: HarnessId }): Cause | null;
-//   ctx.touched(): boolean — si alguna ruta extraída alcanzó una raíz (MH-17)
+//   ctx.touched(): boolean — whether any extracted path reached a root (MH-17)
 
 // gate.ts
 export function onPreEdit(changes: ProposedChange[]): Promise<Decision>;
-export function rejected(r: Rejected): Decision;                 // MH-06: neutro sin raíz
+export function rejected(r: Rejected): Decision;                 // MH-06: neutral without a root
 
 // register.ts
 type Sub = HookKind;
 type Target = "shared" | "codex" | "agy";
-export function hookCommand(data: string, sub: Sub, h: HarnessId, agy: boolean): string;           // MH-22, texto congelado
-export function merge(text: string | null, t: Target, data: string): string | null;                // null: no es un objeto JSON
+export function hookCommand(data: string, sub: Sub, h: HarnessId, agy: boolean): string;           // MH-22, frozen text
+export function merge(text: string | null, t: Target, data: string): string | null;                // null: it is not a JSON object
 export function unmerge(text: string, t: Target, data: string): { text: string; shifted: string[] } | null;
 export function exact(group: unknown, t: Target, data: string): boolean;                           // MH-22, MH-24
-export function agyPlugin(data: string): Record<string, string>;                                    // ruta relativa → bytes
+export function agyPlugin(data: string): Record<string, string>;                                    // relative path → bytes
 export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, trust: Record<string, string>): string[];
 
 // machine.ts
@@ -658,60 +658,60 @@ export function uninstall(purge: boolean): Promise<{ code: 0 | 1; text: string }
 export function doctor(): Promise<{ code: 0 | 1; text: string }>;
 ```
 
-Protocolo del launcher (0.2.0, aún sin publicar): exit 0 y 2 = salida del motor; exit 3 con primera línea stdout `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "corré ese motor". Pre devuelve también el stdin original después de esa línea (MH-19); el replay vacío se rechaza. Cualquier otro código = fail-closed. El texto de `<CMD ev h>` de MH-22 queda escrito en W0 como fixture literal.
+Launcher protocol (0.2.0, not yet published): exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
 
-**Δ de W0 (construido; esto manda sobre las firmas de arriba).**
-- `HARNESSES` y `profile` viven en `src/harness/profile.ts`, no en `main.ts`: `main.ts` corre al importarse, así que ni un test ni `doctor` podrían importarlo, y `machine.ts → main.ts → cli.ts → machine.ts` sería un ciclo.
-- `FLOOR` vive en `gate.ts`, junto a `VERSIONS`, con las constantes del protocolo: `REDIRECT = 3` y `ENGINE_VERSION` (la regex de arriba).
-- Se agrega `gate.pinned(dir: string): string | null`: el motor que fija el lock de la raíz en o sobre `dir` si no es este y no está bajo `FLOOR`. Es la costura `main ↔ gate` del exit 3 (MH-19), que §10.1 no fijaba. El stub devuelve `null`: decide este motor, como hoy.
-- `encode(kind, d)` sin `stop: StopState | null`: `StopState` no estaba definido y ninguna fila de MH-14 lo necesita. El reingreso entra a `decide` por `stop.reentry`, y el de un payload rechazado viaja en `Rejected.reentry`.
-- `Session.harness: HarnessId`: `gate` necesita el harness para el contexto del guard (MH-29) y para indexar el estado por `<id>:<Session.id>` (MH-05), y ni `ProposedCommand` ni `onPreCommand` lo traían. `Session.id` sigue siendo el id nativo; W6 arma la clave (ojo: `state.sessionDir` rechaza `:`).
-- `hookCommand(data, sub, h)` sin `agy: boolean`, que repetía `h === "agy"`.
-- Texto de MH-22 (fixture literal en `test/fixtures/hook-command.txt`): el ciclo es `while [ "${d#/}" != "$d" ]; do …; d=${d%/*}; done` en lugar de `while [ -n "$d" ] && [ "$d" != / ]; do …; d=$(dirname "$d"); done`. Sin fork ni dependencia del PATH, y termina con cualquier valor: `dirname` de una ruta relativa llega a `.` y repite hasta el timeout del harness, que falla abierto en Codex, Grok y Claude. La variante de agy queda escrita completa (un solo candidato, `workspacePaths[0]`). Verificado a mano en sh, dash, bash y zsh; la matriz es de W8.
-- `claude.ts` exporta además `eventOf(raw): HookKind | null` para `hook auto`, porque `decode` exige el evento.
-- `GuardContext` (exportado por `shell.ts`) incluye `touched(): boolean`: lo implementa `gate` y el guard puede consultarlo. `MachineFiles` y `RepoFiles` (`register.ts`) quedan definidos.
-- `hook-switch` entra en `GUARDS` de `decide.ts`: shadow nunca lo silencia.
-- El adaptador de Claude ya no rechaza por `GROK_*` en el entorno (MH-03) y decodifica `old_string` vacío como `oldnew` con `old: ""` (MH-13); el stub de `apply` lo sigue dando `unknown`, así que la decisión no cambia hasta W5.
-- Arnés de contrato: `contract(h, dir, expectations)` en `test/harness/contract.ts`. Además de exigir una expectativa por archivo, comprueba que `profile` elige `h` para cada payload que llega a `decode`. Una captura que ningún registro nuestro entrega se clasifica como `{ unregistered: "<por qué>" }`.
+**W0 delta (built; this overrides the signatures above).**
+- `HARNESSES` and `profile` live in `src/harness/profile.ts`, not in `main.ts`: `main.ts` runs on import, so neither a test nor `doctor` could import it, and `machine.ts → main.ts → cli.ts → machine.ts` would be a cycle.
+- `FLOOR` lives in `gate.ts`, next to `VERSIONS`, with the protocol constants: `REDIRECT = 3` and `ENGINE_VERSION` (the regex above).
+- `gate.pinned(dir: string): string | null` is added: the engine the root's lock pins at or above `dir` if it is not this one and it is not below `FLOOR`. It is the `main ↔ gate` seam of exit 3 (MH-19), which §10.1 did not fix. The stub returns `null`: this engine decides, as today.
+- `encode(kind, d)` without `stop: StopState | null`: `StopState` was not defined and no MH-14 row needs it. Reentry enters `decide` through `stop.reentry`, and a rejected payload's reentry travels in `Rejected.reentry`.
+- `Session.harness: HarnessId`: `gate` needs the harness for the guard context (MH-29) and to index state by `<id>:<Session.id>` (MH-05), and neither `ProposedCommand` nor `onPreCommand` carried it. `Session.id` remains the native id; W6 builds the key (note: `state.sessionDir` rejects `:`).
+- `hookCommand(data, sub, h)` without `agy: boolean`, which repeated `h === "agy"`.
+- MH-22 text (literal fixture in `test/fixtures/hook-command.txt`): the loop is `while [ "${d#/}" != "$d" ]; do …; d=${d%/*}; done` instead of `while [ -n "$d" ] && [ "$d" != / ]; do …; d=$(dirname "$d"); done`. No fork and no PATH dependency, and it terminates for any value: `dirname` of a relative path reaches `.` and repeats until the harness timeout, which fails open on Codex, Grok, and Claude. The agy variant is written in full (a single candidate, `workspacePaths[0]`). Checked by hand on sh, dash, bash, and zsh; the matrix belongs to W8.
+- `claude.ts` also exports `eventOf(raw): HookKind | null` for `hook auto`, because `decode` requires the event.
+- `GuardContext` (exported by `shell.ts`) includes `touched(): boolean`: `gate` implements it and the guard can consult it. `MachineFiles` and `RepoFiles` (`register.ts`) are defined.
+- `hook-switch` enters `GUARDS` in `decide.ts`: shadow never silences it.
+- The Claude adapter no longer rejects because of `GROK_*` in the environment (MH-03) and decodes an empty `old_string` as `oldnew` with `old: ""` (MH-13); the `apply` stub still yields `unknown`, so the decision does not change until W5.
+- Contract harness: `contract(h, dir, expectations)` in `test/harness/contract.ts`. Besides requiring an expectation per file, it checks that `profile` chooses `h` for each payload that reaches `decode`. A capture that none of our registrations delivers is classified as `{ unregistered: "<why>" }`.
 
-### 10.2 Unidades (en paralelo, cada una en su worktree)
+### 10.2 Units (in parallel, each in its own worktree)
 
-| Unidad | Archivos (exclusivos) | Depende de | Aceptación | Tamaño |
+| Unit | Files (exclusive) | Depends on | Acceptance | Size |
 |---|---|---|---|---|
-| **MH-W1 Codex** | `src/harness/codex.ts`, `test/harness/codex.test.ts`, expectativas de `test/payloads/codex/` | W0 | Contrato por payload en verde; gramática y aplicación del patch (§6.1); rutas relativas ⇒ `unknown`; `callId` con hash; encode con stdout vacío en exit 2 y Stop con dos claves | L |
-| **MH-W2 Cursor** | `src/harness/cursor.ts`, su test y expectativas | W0 | Contrato por payload; Shell con `cwd:""` y una o dos raíces; deny en formato Claude a exit 0; Stop con `followup_message` y reingreso por `loop_count` | S |
-| **MH-W3 Grok** | `src/harness/grok.ts`, su test y expectativas | W0 | Contrato por payload; `toolInputTruncated` en toda tool; shutdown ⇒ `null`; razón ≤ 256 sin `\n` | S |
-| **MH-W4 agy** | `src/harness/agy.ts`, su test y expectativas | W0 | Contrato por payload; append, rango, claves cerradas; `send_command_input` ⇒ `shell-write`; `Cwd` ausente con `workspacePaths` vacío ⇒ `BAD` | M |
-| **MH-W5 Reconstrucción** | `src/reconstruct.ts` y su test | W0 | `append`, `oldnew` con rango, `hunks` exactos con `anchor` y `eof`, `delete`, old vacío que crea (MH-13) | M |
-| **MH-W6 Núcleo** | `src/gate.ts`, `src/decide.ts`, `src/state.ts` y sus tests | W0; W5 por interfaz | Superposición y `merge` (MH-09); MH-17 sin estado; `rejected`; MH-33 por ctime; `FLOOR`; exit 3 y redirección de la CLI (MH-19); `engineHome` desde `execPath` | L |
-| **MH-W7 Borde** | `src/shell.ts`, `src/paths.ts`, `src/message.ts` y sus tests | W0 | `machineGlobs` con realpath; `hook-switch` siempre y el resto con raíz; palabras de MH-29; shell interactivo; destino relativo en Codex; textos de las causas nuevas | M |
-| **MH-W8 Launcher** | `assets/launcher.sh`, `test/launcher.e2e.test.ts` | W0 (protocolo y texto de MH-22) | Matriz de §6.2 en dash, bash 3.2 y `zsh -c` con el comando literal; invariante de stderr; PATH propio | M |
-| **MH-W9 Registro** | `src/register.ts`, `test/register.test.ts`, fixtures de configs reales (Orca, ArkGate, cmux) | W0 | §6.1 `register` completo, incluido `drift` | M |
-| **MH-W10 Máquina** | `src/machine.ts`, `src/install.ts` (recortado a MH-28), `assets/pre-commit.sh`, `assets/ci-github.yml`, `test/machine.e2e.test.ts` con un app-server falso | W0; W9 por interfaz | `HOME=<tmp> setup` idempotente; transacción de trust con restauración; `uninstall` que restaura; `doctor` con canario por `$SHELL -c`; orden del update | L |
-| **MH-W11 Distribución** | `install.sh`, `scripts/build.ts` (tars + `SHA256SUMS`), `.github/workflows/release.yml` | W0 | Release de prueba en un tag `-rc`; bootstrap verificado de MH-32 en una máquina limpia; `PREGATE_ARCHIVE` + `PREGATE_SHA256` | S |
-| **MH-W12 E2E real** | `scripts/e2e-real.ts` | W0 (lo escribe contra la CLI de MH-27; corre después de la integración) | Los escenarios de §6.3 escritos y ejecutables con `PREGATE_REAL=1` | M |
+| **MH-W1 Codex** | `src/harness/codex.ts`, `test/harness/codex.test.ts`, expectations of `test/payloads/codex/` | W0 | Per-payload contract green; patch grammar and application (§6.1); relative paths ⇒ `unknown`; `callId` with a hash; encode with empty stdout on exit 2 and Stop with two keys | L |
+| **MH-W2 Cursor** | `src/harness/cursor.ts`, its test and expectations | W0 | Per-payload contract; Shell with `cwd:""` and one or two roots; deny in Claude format at exit 0; Stop with `followup_message` and reentry via `loop_count` | S |
+| **MH-W3 Grok** | `src/harness/grok.ts`, its test and expectations | W0 | Per-payload contract; `toolInputTruncated` on every tool; shutdown ⇒ `null`; reason ≤ 256 without `\n` | S |
+| **MH-W4 agy** | `src/harness/agy.ts`, its test and expectations | W0 | Per-payload contract; append, range, closed keys; `send_command_input` ⇒ `shell-write`; missing `Cwd` with empty `workspacePaths` ⇒ `BAD` | M |
+| **MH-W5 Reconstruction** | `src/reconstruct.ts` and its test | W0 | `append`, `oldnew` with a range, exact `hunks` with `anchor` and `eof`, `delete`, empty old that creates (MH-13) | M |
+| **MH-W6 Core** | `src/gate.ts`, `src/decide.ts`, `src/state.ts`, and their tests | W0; W5 by interface | Overlay and `merge` (MH-09); MH-17 with no state; `rejected`; MH-33 by ctime; `FLOOR`; exit 3 and CLI redirection (MH-19); `engineHome` from `execPath` | L |
+| **MH-W7 Edge** | `src/shell.ts`, `src/paths.ts`, `src/message.ts`, and their tests | W0 | `machineGlobs` with realpath; `hook-switch` always and the rest with a root; MH-29 words; interactive shell; relative destination on Codex; text of the new causes | M |
+| **MH-W8 Launcher** | `assets/launcher.sh`, `test/launcher.e2e.test.ts` | W0 (protocol and MH-22 text) | §6.2 matrix on dash, bash 3.2, and `zsh -c` with the literal command; stderr invariant; own PATH | M |
+| **MH-W9 Registration** | `src/register.ts`, `test/register.test.ts`, fixtures of real configs (Orca, ArkGate, cmux) | W0 | §6.1 `register` complete, including `drift` | M |
+| **MH-W10 Machine** | `src/machine.ts`, `src/install.ts` (trimmed to MH-28), `assets/pre-commit.sh`, `assets/ci-github.yml`, `test/machine.e2e.test.ts` with a fake app-server | W0; W9 by interface | idempotent `HOME=<tmp> setup`; trust transaction with restore; `uninstall` that restores; `doctor` with a canary through `$SHELL -c`; update order | L |
+| **MH-W11 Distribution** | `install.sh`, `scripts/build.ts` (tars + `SHA256SUMS`), `.github/workflows/release.yml` | W0 | Trial release on an `-rc` tag; verified MH-32 bootstrap on a clean machine; `PREGATE_ARCHIVE` + `PREGATE_SHA256` | S |
+| **MH-W12 Real E2E** | `scripts/e2e-real.ts` | W0 (written against the MH-27 CLI; it runs after integration) | The §6.3 scenarios written and runnable with `PREGATE_REAL=1` | M |
 
-### 10.3 Integración (MH-WI, en serie, la hace el orquestador)
+### 10.3 Integration (MH-WI, in series, done by the orchestrator)
 
-1. **W0**, en serie.
-2. En paralelo: **W1–W5, W7, W8, W9, W11, W12**.
-3. **W6** en cuanto W5 está integrado (consume `apply`); **W10** en cuanto W9 está integrado.
-4. **MH-WI:** `src/main.ts` (mapa `HARNESSES`, `profile`, `Rejected`, `FLOOR`) y `src/cli.ts` (`setup`, `update`, `uninstall`, `doctor`). Después, §6.1 y §6.2 completos en CI, bench (p50 sin raíz ≤ 25 ms; p95 de Pre ≤ 150 ms) y dogfooding.
-5. **W12 corre** §6.3 con los cinco CLIs reales. Cada [E2E] se cierra y se anota en este documento. Un [E2E] que contradice el diseño vuelve a la unidad dueña.
-6. Recién entonces, y con las decisiones de §11 tomadas, la instalación en la máquina del usuario (D20), seguida de `pregate doctor` en verde.
+1. **W0**, in series.
+2. In parallel: **W1–W5, W7, W8, W9, W11, W12**.
+3. **W6** as soon as W5 is integrated (it consumes `apply`); **W10** as soon as W9 is integrated.
+4. **MH-WI:** `src/main.ts` (`HARNESSES` map, `profile`, `Rejected`, `FLOOR`) and `src/cli.ts` (`setup`, `update`, `uninstall`, `doctor`). Then, complete §6.1 and §6.2 in CI, bench (p50 without a root ≤ 25 ms; Pre p95 ≤ 150 ms), and dogfooding.
+5. **W12 runs** §6.3 with the five real CLIs. Each [E2E] is closed and noted in this document. An [E2E] that contradicts the design goes back to the owning unit.
+6. Only then, and with the §11 decisions made, installation on the user's machine (D20), followed by `pregate doctor` green.
 
 ---
 
-## 11. Decisiones que requieren al usuario
+## 11. Decisions that require the user
 
-| # | Pregunta | Recomendación |
+| # | Question | Recommendation |
 |---|---|---|
-| U-1 | **Migración del piloto.** Hay que sacar los hooks por repo de su `.claude/settings.json` y el launcher commiteado (MH-28), y recompilar su lock con 0.2.0 (MH-20). Los compañeros sin la instalación global pierden el gate de sesión y su pre-commit les pide instalar PREGATE. La alternativa (FO-F23) es mantener el hook por repo como respaldo, con la deduplicación por `callId` que MH-04 ya no necesita | Sí, en una sola PR del piloto, junto con la instrucción de instalación. Un solo camino para los hooks |
-| U-2 | **Acceso del equipo a los releases.** Están en el repo privado `pedroknigge/pregate` y la descarga necesita `gh auth` con permiso de lectura | Dar lectura en el privado. Un repo público solo de binarios va contra D18 hasta el "público clean" |
-| U-3 | **Trust de Codex.** `setup` lo otorga por app-server **solo a las keys de PREGATE cuya definición es exactamente la que escribió**, que es lo mismo que aprobarlas en `/hooks`. Entiendo que el "ok si" de D20 lo cubre. Si un hook ajeno pierde el trust, setup restaura y falla: nunca toca trust ajeno | Confirmar. Si no, `setup` lo deja pendiente y `doctor` falla hasta que se apruebe a mano |
-| U-4 | **Aviso de versión nueva.** (a) Solo `doctor`; (b) una línea en el pre-commit, como máximo una vez por día, a partir de un chequeo con `gh` en segundo plano y cacheado; (c) auto-update opt-in | (b): sin aviso, nadie se entera de que hay versión nueva, y el pre-commit es el único canal que existe en los cinco harnesses. Nunca auto-update |
-| U-5 | **Protecciones de máquina siempre activas (MH-17).** Ningún agente, en ningún repo, puede editar `~/.claude/settings*.json`, `~/.codex/{hooks.json,config.toml}`, `~/.grok/{config.toml,hooks/**}`, `~/.gemini/config/{hooks.json,config.json}` ni la instalación de PREGATE, ni correr `pregate uninstall` o `agy plugin disable pregate`. Eso incluye pedirle a Claude que agregue un permiso a `~/.claude/settings.json` (por ejemplo, con `/update-config`): lo hace el humano | Sí. Sin esto, cualquier sesión abierta fuera de un repo con preset puede apagar PREGATE en toda la máquina, y en Codex en silencio |
-| U-6 | **Registro único para Claude, Cursor y Grok (MH-04).** Se pierde `failClosed` de Cursor para fallas en las que el `sh` inline ni siquiera arranca, y Grok queda sujeto a su interruptor de compatibilidad con Claude (que el agente no puede tocar y que el pre-commit detecta). Se gana no escribir en `~/.cursor/hooks.json` (de Orca, que un error de esquema invalida entero) y no tener doble evaluación | Sí |
-| U-7 | **Sin launcher commiteado (MH-28).** El pre-commit usa el `pregate` global y la CI baja el motor que pide el lock. Cada máquina que commitea en un repo con PREGATE necesita la instalación global | Sí: elimina el desfasaje de versiones al migrar un repo |
+| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with 0.2.0 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
+| U-2 | **Team access to the releases.** They are in the private repo `pedroknigge/pregate` and the download needs `gh auth` with read permission | Grant read on the private repo. A public binaries-only repo goes against D18 until the "clean public" |
+| U-3 | **Codex trust.** `setup` grants it through app-server **only to the PREGATE keys whose definition is exactly what it wrote**, which is the same as approving them in `/hooks`. I understand D20's "yes" covers it. If a foreign hook loses trust, setup restores and fails: it never touches foreign trust | Confirm. If not, `setup` leaves it pending and `doctor` fails until it is approved by hand |
+| U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all five harnesses. Never auto-update |
+| U-5 | **Machine protections always on (MH-17).** No agent, in any repo, can edit `~/.claude/settings*.json`, `~/.codex/{hooks.json,config.toml}`, `~/.grok/{config.toml,hooks/**}`, `~/.gemini/config/{hooks.json,config.json}`, or the PREGATE install, or run `pregate uninstall` or `agy plugin disable pregate`. That includes asking Claude to add a permission to `~/.claude/settings.json` (for example, with `/update-config`): the human does it | Yes. Without this, any session opened outside a repo with a preset can turn PREGATE off on the whole machine, and on Codex silently |
+| U-6 | **Single registration for Claude, Cursor, and Grok (MH-04).** Cursor's `failClosed` is lost for failures where the inline `sh` does not even start, and Grok stays subject to its Claude compatibility switch (which the agent cannot touch and which the pre-commit detects). What is gained is not writing `~/.cursor/hooks.json` (Orca's, which a schema error invalidates entirely) and not having double evaluation | Yes |
+| U-7 | **No committed launcher (MH-28).** The pre-commit uses the global `pregate` and CI downloads the engine the lock asks for. Every machine that commits in a repo with PREGATE needs the global install | Yes: it removes version skew when migrating a repo |
 
-D15.9 ("¿alguien usa Grok?") queda resuelta por D20.
+D15.9 ("does anyone use Grok?") is resolved by D20.

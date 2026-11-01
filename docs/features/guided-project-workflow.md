@@ -1,6 +1,6 @@
 # Guided project workflow
 
-Introduced in **0.2.9**, expanded in published **0.2.11**; check [delivery status](../STATUS.md) for verification.
+Introduced in **0.2.9**, expanded in published **0.2.11**; check [v0.0.1 release notes](../releases/0.0.1.md) for verification.
 Check `pregate --help` for `guide`. Version 0.2.8 retains the
 [explicit update workflow](project-update.md).
 

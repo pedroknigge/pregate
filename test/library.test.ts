@@ -49,7 +49,7 @@ const compiled = (p: Preset): Lock => {
   return result.lock;
 };
 const findings = (lock: Lock): Violation[] => {
-  const result = analyze(lock, "pre", "src/order.ts", "export const state: any = null;\nexport const value = state!;\n", { read: () => null, now: clock });
+  const result = analyze(lock, "pre", "src/order.ts", "export default function fail(): void { throw new Error(\"no\"); }\n", { read: () => null, now: clock });
   if ("cause" in result) throw new Error(result.cause);
   return result.violations;
 };
@@ -216,11 +216,11 @@ test("Solana's bounded syntax warnings preserve literal import denials", () => {
 test.each(["enforce", "shadow"] as const)("per-rule overrides reverse the %s default across gate and check phases", (mode) => {
   const p = preset();
   p.enforcement = mode;
-  p.overrides = { "typescript/TS-ANY-001": { enforcement: mode === "enforce" ? "shadow" : "enforce" } };
+  p.overrides = { "typescript/TS-THROW-001": { enforcement: mode === "enforce" ? "shadow" : "enforce" } };
   const lock = compiled(p);
   const vs = findings(lock);
-  expect(vs.map((v) => v.rule).sort()).toEqual(["typescript/TS-ANY-001", "typescript/TS-BANG-001"]);
-  const enforced = mode === "enforce" ? "typescript/TS-BANG-001" : "typescript/TS-ANY-001";
+  expect(vs.map((v) => v.rule).sort()).toEqual(["typescript/TS-DEFAULT-001", "typescript/TS-THROW-001"]);
+  const enforced = mode === "enforce" ? "typescript/TS-DEFAULT-001" : "typescript/TS-THROW-001";
   expect(blocking(lock, vs, null).violations.map((v) => v.rule)).toEqual([enforced]);
   for (const event of ["pre-edit", "stop"] as const) {
     const d = decide({ lock, lockHash: "hash", launcher: "/repo/pregate", session: {
@@ -232,8 +232,8 @@ test.each(["enforce", "shadow"] as const)("per-rule overrides reverse the %s def
     expect(d.shadowed).toBe(true);
   }
   const card = onboardingCard(detectStack({}), lock, {}, clock);
-  expect(card).toContain(`typescript/TS-ANY-001 (deny, ${mode === "enforce" ? "shadow" : "enforce"})`);
-  expect(contract(lock, "/repo/pregate")).toContain(`typescript/TS-BANG-001 (deny, ${mode})`);
+  expect(card).toContain(`typescript/TS-THROW-001 (deny, ${mode === "enforce" ? "shadow" : "enforce"})`);
+  expect(contract(lock, "/repo/pregate")).toContain(`typescript/TS-DEFAULT-001 (deny, ${mode})`);
 });
 
 test("integrity cannot be shadowed via alias or check overrides", () => {
@@ -248,12 +248,12 @@ test("integrity cannot be shadowed via alias or check overrides", () => {
 test("warn and off remain independent of enforcement; shadow weakens an approval card", () => {
   const p = preset(); p.enforcement = "enforce";
   const before = compiled(p);
-  p.overrides = { "typescript/TS-ANY-001": { enforcement: "shadow" }, "typescript/TS-BANG-001": "off" };
+  p.overrides = { "typescript/TS-THROW-001": { enforcement: "shadow" }, "typescript/TS-DEFAULT-001": "off" };
   const after = compiled(p);
   expect(blocking(after, findings(after), null).violations).toEqual([]);
-  expect(after.rules.some((r) => r.id === "typescript/TS-BANG-001")).toBe(false);
+  expect(after.rules.some((r) => r.id === "typescript/TS-DEFAULT-001")).toBe(false);
   expect(contractDiff(before, after).warning).toBe(true);
-  p.overrides["typescript/TS-ANY-001"] = "warn";
+  p.overrides["typescript/TS-THROW-001"] = "warn";
   const warned = compiled(p);
   expect(findings(warned).map((v) => v.severity)).toEqual(["warn"]);
   expect(blocking(warned, findings(warned), null).violations).toEqual([]);
@@ -263,13 +263,13 @@ test("a shadow finding on a denied call never consumes that rule's later denial 
   const p = preset(); p.enforcement = "enforce";
   const lock = compiled(p);
   const vs = findings(lock);
-  const any = vs.find((v) => v.rule === "typescript/TS-ANY-001")!;
+  const hit = vs.find((v) => v.rule === "typescript/TS-THROW-001")!;
   const d = decide({ lock: { ...lock, loop: { ...LOOP_DEFAULTS, maxDenialsPerFileRule: 2 } }, lockHash: "hash", launcher: "/repo/pregate",
     session: { id: "s", harness: "claude-code", agentId: null, turnId: "t", interactive: true }, event: "pre-edit",
-    path: any.path, introduced: [any], form: null, protectedPath: false, turnDenials: 0, astHash: "new", stop: null,
-    history: [{ at: 1, callId: "old", turn: "t", agentId: null, kind: "pre-edit", path: any.path,
+    path: hit.path, introduced: [hit], form: null, protectedPath: false, turnDenials: 0, astHash: "new", stop: null,
+    history: [{ at: 1, callId: "old", turn: "t", agentId: null, kind: "pre-edit", path: hit.path,
       verdict: "deny", halted: false, form: null, shadowed: true, violations: vs,
-      enforcement: { "typescript/TS-ANY-001": "shadow", "typescript/TS-BANG-001": "enforce" }, afterSha: null, astHash: "old" }] });
+      enforcement: { "typescript/TS-THROW-001": "shadow", "typescript/TS-DEFAULT-001": "enforce" }, afterSha: null, astHash: "old" }] });
   expect(d.attempt).toBe(1);
   expect(d.halt).toBe(false);
 });

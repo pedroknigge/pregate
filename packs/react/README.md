@@ -53,7 +53,7 @@ it does not scan nested callback bodies for the word async. Repo recommendations
 are scoped to package manifests that declare React, with nested unrelated owners
 excluded. Reviewed user paths and exclusions remain authoritative. Cross-file
 Hook aliases, callback return flow and lifecycle correctness need stronger project
-evidence. The [reported-case controls](../../docs/research/issue-19-rule-cases-0210.md)
+evidence. The reported-case controls
 record the distinction.
 
 <!-- BEGIN generated reference -->

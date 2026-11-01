@@ -45,7 +45,7 @@ associations. 119 contracts have no syntax association. This is an inventory of 
 public declarations; exhaustive behavioral conditions, consumer evidence and
 enforcement remain separate work. Graph queries, complete logging/exception behavior,
 complete queue recovery/persistence, service replacements and lifecycle are among
-the visible gaps. [Reproduction and verification](../../docs/research/dcouplr-api-inventory.md).
+the visible gaps. Reproduction and verification.
 The new [delivery conditions](DELIVERY-CONTRACT.json) associate seventeen API
 contracts with project evidence requirements. Source canaries verify their
 upstream contrasts and a compiled example enforces one caller's completion
@@ -97,9 +97,9 @@ recovery and bounded lifecycle work still require application assertions.
   generator/type-asserted/indirect creators, nested direct calls, escaped values
   and returned-constructor value wrappers remain unresolved. Full lexical write
   resolution and exclusive root ownership for declared/exported creators still
-  need evidence. See the [declared-creator contrast](../../docs/research/dcouplr-declared-factory-ownership.md),
-  [named-creator contrast](../../docs/research/dcouplr-named-factory-ownership.md) and
-  [ownership contrast](../../docs/research/dcouplr-factory-ownership.md).
+  need evidence. See the declared-creator contrast,
+  named-creator contrast and
+  ownership contrast.
 - Validate the actual admission chain, mandatory input shape, factory callback,
   explicit validation/verification policy and registration/singleton semantics.
   Required creators, known noncallable policies and direct fluent singleton input
@@ -116,8 +116,8 @@ recovery and bounded lifecycle work still require application assertions.
   initialization, including exported and hoisted source definitions. Multiple
   or destructured aliases, imported/cross-scope or mutable policies, indirect asynchronous effects,
   dynamic returns, complete control flow and domain validity remain gaps. See the
-  [named-policy contrast](../../docs/research/dcouplr-named-policy-contract.md) and
-  [alias-policy contrast](../../docs/research/dcouplr-aliased-policy-contract.md).
+  named-policy contrast and
+  alias-policy contrast.
   Direct adjacent stage order now covers all 225 transitions among 15
   admission/terminal/metadata methods, checked against actual stage capabilities;
   aliases, unknown receivers and whole-program setup order remain unresolved.
@@ -194,20 +194,20 @@ recovery and bounded lifecycle work still require application assertions.
 Some requirements need a project graph, configuration or runtime fitness tests.
 Syntax matching alone must not claim proof of those properties.
 
-A first [private consumer diagnostic](../../docs/research/dcouplr-consumer-calibration.md)
+A first private consumer diagnostic
 now scans 7,940 JS/TS files with 23 checks and all 48 core fitness requirements
 explicitly unverified. It exposes managed-path gaps, required DSL/value construction,
 adapter ownership, helper bypasses and intentional dual-container persistence.
 It repairs a directory-index audit defect but does not supply independently labeled
 precision, project admission, complete graph coverage or behavioral repair evidence.
 
-The later [raw-NUL parser correction](../../docs/research/typescript-nul-parser.md)
+The later raw-NUL parser correction
 removes all three private consumer syntax gaps. Repeating current 1.13.0 diagnostics
 evaluates 25 of 26 checks and preserves identical seven/167 default/proposed-scope
 finding arrays. The unadmitted graph and all 48 unverified fitness requirements
 remain explicit; restoring parser coverage does not complete consumer calibration.
 
-The [1.26.0 snapshot review](../../docs/research/dcouplr-consumer-review-026.md)
+The 1.26.0 snapshot review
 again evaluates 25 of 26 syntax checks on 7,940 files without errors, preserving
 seven default-scope and 167 proposed-scope matches. It distinguishes construction,
 ambient, adapter and test forms without inferring independent labels. The 64 core
@@ -215,7 +215,7 @@ and 56 optional pack fitness obligations all remain unverified. The authoritativ
 graph, approved ownership adaptation and behavioral consumer tests remain open;
 the preserved snapshot is not the consumer's current live branch.
 
-The [later domain-direction proposal](../../docs/research/dcouplr-consumer-direction-026.md)
+The later domain-direction proposal
 retains the authoritative domain/shared globs and graph source exclusions. Its
 exact native Mac audit evaluates all 26 syntax checks with zero errors, including
 400 graph-covered files; new-file and shared-barrel canaries enforce that bounded
@@ -223,10 +223,10 @@ direction. The other external graph policies are not translated, the consumer
 contract remains unadmitted and all 120 fitness obligations remain missing.
 
 Both effect checks now admit erased TypeScript type queries while keeping executable
-references beside annotations. The [type/runtime contrast](../../docs/research/dcouplr-type-query-effects.md)
+references beside annotations. The type/runtime contrast
 repairs a confirmed consumer false positive; other ownership labels remain pending.
 
-The [configured bus and registry observations](../../docs/research/dcouplr-system-bus-completion.md)
+The configured bus and registry observations
 associate the four public interfaces with the existing output-contract
 requirement. Source canaries contrast premature completion and verify copied
 registry records, semantic aggregation and removal. The compiled caller example

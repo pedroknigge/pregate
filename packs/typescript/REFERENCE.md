@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## typescript/anti-evasion
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **complete**.
 
 ### typescript/EVA-DYN-001
 
@@ -44,13 +44,13 @@ Source metadata:
 
 ### typescript/EVA-CAST-001
 
-Check: [`typescript/integrity/double-type-assertion@1.0.0`](checks/integrity/double-type-assertion/check.json). Default severity: **deny**.
+Check: [`typescript/integrity/double-type-assertion@1.1.0`](checks/integrity/double-type-assertion/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
-Languages: `typescript`. Cardinality: `singleton`. Dimension: `integrity.type-erasure`. Minimum severity: `deny`.
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `integrity.type-erasure`. Minimum severity: `none`.
 
-A double assertion silences the compiler exactly where the types disagree.
+A double assertion silences the compiler where the types disagree. `as unknown as T` is also the documented way to cross a boundary the checker cannot see, so the default contract advises.
 
 Default parameters: `{}`.
 
@@ -76,13 +76,13 @@ Source metadata:
 
 ### typescript/TS-IGNORE-001
 
-Check: [`typescript/integrity/no-ts-ignore@1.0.0`](checks/integrity/no-ts-ignore/check.json). Default severity: **deny**.
+Check: [`typescript/integrity/no-ts-ignore@1.0.0`](checks/integrity/no-ts-ignore/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.ts-ignore`. Minimum severity: `none`.
 
-A @ts-ignore comment suppresses all type errors on the following line without checking whether an error is actually present, leaving stale suppressions that hide future regressions.
+A @ts-ignore comment suppresses the next line without requiring an error to be present. Prefer @ts-expect-error, but an existing @ts-ignore is not itself a defect, so the default contract advises. New suppressions are still denied by core/EVA-SUP-001.
 
 Default parameters: `{}`.
 
@@ -534,17 +534,17 @@ Source metadata:
 
 ## typescript/strict-types
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **complete**.
 
 ### typescript/TS-ANY-001
 
-Check: [`typescript/types/no-explicit-any@1.0.0`](checks/types/no-explicit-any/check.json). Default severity: **deny**.
+Check: [`typescript/types/no-explicit-any@1.0.0`](checks/types/no-explicit-any/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.explicit-any`. Minimum severity: `none`.
 
-any turns off checking for every value that flows through it, so a wrong field access compiles.
+any turns off checking for every value that flows through it. Banning it is a project type policy, and strict libraries still use it at boundaries, so the default contract leaves this check off. Opt in with an override severity of warn or deny.
 
 Default parameters: `{}`.
 
@@ -570,13 +570,13 @@ Source metadata:
 
 ### typescript/TS-SWITCH-001
 
-Check: [`typescript/types/exhaustive-switch@1.0.0`](checks/types/exhaustive-switch/check.json). Default severity: **deny**.
+Check: [`typescript/types/exhaustive-switch@1.0.0`](checks/types/exhaustive-switch/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.exhaustive-switch`. Minimum severity: `none`.
 
-A union that gains a member stays compilable when the switch has no exhaustiveness check, and the new member falls through.
+A union that gains a member stays compilable when the switch has no exhaustiveness check. Requiring a throw, return, or never in default is a prescribed shape, so the default contract advises.
 
 Default parameters: `{}`.
 
@@ -602,13 +602,13 @@ Source metadata:
 
 ### typescript/TS-BANG-001
 
-Check: [`typescript/types/no-non-null-assertion@1.0.0`](checks/types/no-non-null-assertion/check.json). Default severity: **deny**.
+Check: [`typescript/types/no-non-null-assertion@1.0.0`](checks/types/no-non-null-assertion/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.non-null`. Minimum severity: `none`.
 
-The assertion silences null and undefined. When the value is absent, the failure moves to a property access far from the check that should have handled it.
+A non-null assertion is a local claim that a value is present, not proof that it is absent. Strict code uses it after a check the syntax rule cannot see, so the default contract leaves this check off. Opt in with an override severity of warn.
 
 Default parameters: `{}`.
 
@@ -634,13 +634,13 @@ Source metadata:
 
 ### typescript/TS-ENUM-001
 
-Check: [`typescript/types/no-enum@1.0.0`](checks/types/no-enum/check.json). Default severity: **deny**.
+Check: [`typescript/types/no-enum@1.0.0`](checks/types/no-enum/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.enum`. Minimum severity: `none`.
 
-A numeric enum invents a reverse map and a value that is not the name callers use. A string union is the set of values and needs no emit.
+A numeric enum invents a reverse map. A string enum is still valid TypeScript, so banning every enum is a style choice and the default contract leaves this check off. Opt in with an override severity of warn.
 
 Default parameters: `{}`.
 
@@ -666,13 +666,13 @@ Source metadata:
 
 ### typescript/TS-BOOL-001
 
-Check: [`typescript/types/strict-boolean-condition@1.0.0`](checks/types/strict-boolean-condition/check.json). Default severity: **deny**.
+Check: [`typescript/types/strict-boolean-condition@1.0.0`](checks/types/strict-boolean-condition/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.strict-boolean`. Minimum severity: `none`.
 
-A length or a literal used as a condition hides the comparison. 0 and "" are easy to misread as a boolean the domain named.
+A length or a literal used as a condition hides the comparison. Using length as a condition is idiomatic JavaScript, so the default contract advises.
 
 Default parameters: `{}`.
 
@@ -698,13 +698,13 @@ Source metadata:
 
 ### typescript/TS-EXPORT-ANY-001
 
-Check: [`typescript/types/export-parameter-typed@1.0.2`](checks/types/export-parameter-typed/check.json). Default severity: **deny**.
+Check: [`typescript/types/export-parameter-typed@1.0.2`](checks/types/export-parameter-typed/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.export-param`. Minimum severity: `none`.
 
-This optional public-boundary policy requires explicit parameter annotations on directly exported TypeScript functions, including defaulted parameters. TypeScript correctly infers limit = 25 or now = new Date(); an annotation fixes the reviewed boundary instead of letting an implementation default change it. A finding does not prove implicit any or a type-checker defect.
+This optional public-boundary policy requires explicit parameter annotations on directly exported TypeScript functions, including defaulted parameters. TypeScript correctly infers limit = 25 or now = new Date(). The default contract leaves the check off. Opt in with an override severity of warn. A finding does not prove implicit any or a type-checker defect.
 
 Default parameters: `{}`.
 
@@ -730,19 +730,19 @@ Source metadata:
 
 ### typescript/TS-READONLY-001
 
-Check: [`typescript/types/readonly-exported-property@1.0.1`](checks/types/readonly-exported-property/check.json). Default severity: **deny**.
+Check: [`typescript/types/readonly-exported-property@1.1.0`](checks/types/readonly-exported-property/check.json). Default severity: **off**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.readonly-export`. Minimum severity: `none`.
 
-A mutable field on an exported type lets any caller reassign data the owner thought it controlled.
+A mutable field on an exported type lets any caller reassign data the owner thought it controlled. Requiring readonly on every public property changes library APIs, so the default contract leaves this check off. Opt in with an override severity of warn. Options, config, and input bags stay exempt either way, because marking them readonly would reject legal construction of the public API.
 
 Default parameters: `{}`.
 
-**Repair:** Review the public contract and add readonly to its properties when caller mutation is forbidden. Return a new value from the operation that changes it. Keep implementation-local types and deliberate mutation fixtures unchanged; propose a scoped policy change if the public API intentionally permits mutation.
+**Repair:** When the project opts in, add readonly to properties of exported data the caller must not mutate. Leave options, config, and input types mutable.
 
-**Scope and limits:** The syntax check covers properties in directly exported interfaces, type aliases and explicit function/method signature annotations, including nested public types. Executable bodies, runtime assertions and runtime call type arguments are implementation context. Marking one public field readonly does not cover the next. Class field declarations and a non-exported type followed by export { Type } require additional compiler evidence.
+**Scope and limits:** The syntax check covers properties in directly exported interfaces, type aliases and explicit function/method signature annotations, including nested public types. It skips a directly exported interface or type alias whose name starts or ends with Options, Config, Configuration, or Input, including OptionsInit and RetryOptions, and nested properties of that type. Executable bodies, runtime assertions and runtime call type arguments are implementation context. Marking one public field readonly does not cover the next. Class field declarations and a non-exported type followed by export { Type } require additional compiler evidence.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -762,13 +762,13 @@ Source metadata:
 
 ### typescript/TS-NS-001
 
-Check: [`typescript/types/no-namespace@1.0.0`](checks/types/no-namespace/check.json). Default severity: **deny**.
+Check: [`typescript/types/no-namespace@1.0.0`](checks/types/no-namespace/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `types.namespace`. Minimum severity: `none`.
 
-A namespace merges values and types in a way modules already express, and it encourages a second module system inside the file.
+A namespace merges values and types in a way modules already express. Namespaces remain valid TypeScript, including for declaration merging, so the default contract advises.
 
 Default parameters: `{}`.
 

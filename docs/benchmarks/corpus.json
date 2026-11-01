@@ -1,0 +1,60 @@
+{
+  "entries": [
+    {
+      "id": "classnames",
+      "kind": "git",
+      "url": "https://github.com/JedWatson/classnames.git",
+      "commit": "abd6314010de053a09df5acc53e474ff65cea470",
+      "sha256": "8d54dd17818c5dd273ae657de6980e1ba411b1a228be771667335bc43212a029"
+    },
+    {
+      "id": "errors",
+      "kind": "git",
+      "url": "https://github.com/pkg/errors.git",
+      "commit": "87f8819acf6dc28bf5d3c14b334268236d686f48",
+      "sha256": "7d4db480f1a57a282e6a4bc3d61087fcccf7c7fbe759910084811b65f414af30"
+    },
+    {
+      "id": "express",
+      "kind": "git",
+      "url": "https://github.com/expressjs/express.git",
+      "commit": "1c6f1b0fe4000977b9a7b4f34097e4d527dd9824",
+      "sha256": "b6a5d80e5fd5bfaa06111b889b34fe1f1717b94be83096f564ee2a98a568a0e3"
+    },
+    {
+      "id": "markupsafe",
+      "kind": "git",
+      "url": "https://github.com/pallets/markupsafe.git",
+      "commit": "4e111271b1494995708a9e878a10829b5e10c7ba",
+      "sha256": "8e6f1f308abce08e450d3355468c0a444984970861c7bf80165819efcc9c70a8"
+    },
+    {
+      "id": "ms",
+      "kind": "git",
+      "url": "https://github.com/vercel/ms.git",
+      "commit": "4ff48cec099f0514c3e9bbca18706c9c21122bfb",
+      "sha256": "34988a5a925b620fae71bcdcad2de35ae9a6f4eae285ce71c8aa51a7a56d8877"
+    },
+    {
+      "id": "react-markdown",
+      "kind": "git",
+      "url": "https://github.com/remarkjs/react-markdown.git",
+      "commit": "f9ca66ec73d218127bff56b41a583bba1fb96125",
+      "sha256": "8868bb5ff3a25201fad128947af8b66c941b27bd8b6962d99743971b7b079d33"
+    },
+    {
+      "id": "toml",
+      "kind": "git",
+      "url": "https://github.com/BurntSushi/toml.git",
+      "commit": "d733fc535e4a9f3c454e421a87b90ade5d49bf31",
+      "sha256": "bd886f8b9122157f25ca32e4cc4b45e6ac2af9c39cbcfb253ab1fe24035680e3"
+    },
+    {
+      "id": "tslib",
+      "kind": "git",
+      "url": "https://github.com/microsoft/tslib.git",
+      "commit": "1fd51ada1a20ce315805cdf63d0555a8b5fb33bb",
+      "sha256": "94497775adc114b1f226893f2ecbcfd4ad8d7ab4607d218be865bb9a331fdc69"
+    }
+  ]
+}

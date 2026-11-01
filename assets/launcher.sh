@@ -191,17 +191,17 @@ progress_output() {
     function rule(id) { return length(id) <= 256 && id ~ /^[a-z][a-z0-9-]*\/[A-Za-z][A-Za-z0-9-]*(\/[a-z][a-z0-9-]*)?$/ }
     function consume(line, id, value) {
       if (line ~ /^PREGATE-CHECKPOINT (input|admission|parse|rules|dependency-review|stop-inventory)$/) {
-        stage = substr(line, 19); depth = 0; return 1
+        stage = substr(line, 20); depth = 0; return 1
       }
       if (line ~ /^PREGATE-IMPORT-REVIEW rules=((none|[a-z][a-z0-9-]*\/[A-Za-z][A-Za-z0-9-]*(\/[a-z][a-z0-9-]*)?(,[a-z][a-z0-9-]*\/[A-Za-z][A-Za-z0-9-]*(\/[a-z][a-z0-9-]*)?)*)(,more=[1-9][0-9]*)?)$/) {
-        rules = substr(line, 28); duration = ""; return 1
+        rules = substr(line, 29); duration = ""; return 1
       }
-      if (line ~ /^PREGATE-IMPORT-REVIEW completed=[0-9]+\.[0-9]ms$/) { duration = substr(line, 32, length(line)-33); return 1 }
-      if (line ~ /^PREGATE-RULE started=/ && rule(id = substr(line, 21))) {
+      if (line ~ /^PREGATE-IMPORT-REVIEW completed=[0-9]+\.[0-9]ms$/) { duration = substr(line, 33, length(line)-34); return 1 }
+      if (line ~ /^PREGATE-RULE started=/ && rule(id = substr(line, 22))) {
         kinds[++depth] = "rule"; ids[depth] = id; return 1
       }
       if (line ~ /^PREGATE-RULE completed=/) {
-        value = substr(line, 23); id = value; sub(/ .*/, "", id)
+        value = substr(line, 24); id = value; sub(/ .*/, "", id)
         if (rule(id) && substr(value, length(id)+1) ~ /^ [0-9]+\.[0-9]ms$/) {
           if (depth && kinds[depth] == "rule" && ids[depth] == id) depth--; return 1
         }

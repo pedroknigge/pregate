@@ -5,7 +5,7 @@ import type { Node, Parser, Tree, TreeCursor } from "web-tree-sitter";
 import type { CodeImport, Grammar, ScopeKind } from "./types.ts";
 import { commentKinds, grammarOf } from "./languages.ts";
 import { RUST_FUNCTIONS, rustFunctions, rustImports, rustNestings, rustSymbol } from "./rust-facts.ts";
-import { languageClasses, languageFunctions, languageImports, languageNestings, languageSymbol, OTHER_CLASSES, OTHER_FUNCTIONS } from "./language-facts.ts";
+import { isGuardClause, languageClasses, languageFunctions, languageImports, languageNestings, languageSymbol, OTHER_CLASSES, OTHER_FUNCTIONS } from "./language-facts.ts";
 export { grammarOf } from "./languages.ts";
 
 export type { Node };
@@ -105,18 +105,20 @@ const FUNCTION_KINDS = [
 const CONTROL_KINDS = ["if_statement", "for_statement", "for_in_statement", "while_statement", "do_statement", "switch_statement", "try_statement"];
 
 // Blocks do not add depth; else-if stays at its branch's depth. A nested function starts anew.
+// A guard clause (if with no else whose body is only return, continue, break, or throw) is not a level.
 export function nestings(p: Parsed): { symbol: string; line: number; measured: number; own: null }[] {
   if (grammarOf(p.rel) === "rust") return rustNestings(p);
   if (["python", "go"].includes(grammarOf(p.rel)!)) return languageNestings(p);
-  return descendants(p.root, CONTROL_KINDS).map((node) => {
+  return descendants(p.root, CONTROL_KINDS).flatMap((node) => {
+    if (isGuardClause(node)) return [];
     let depth = 1;
     let child = node;
     for (let parent = node.parent; parent !== null && !FUNCTION_KINDS.includes(parent.type); parent = parent.parent) {
       const chain = child.type === "if_statement" || (child.type === "else_clause" && child.namedChildren.some((n) => n.type === "if_statement"));
-      if (CONTROL_KINDS.includes(parent.type) && !(chain && parent.type === "if_statement" && parent.childForFieldName("alternative")?.id === child.id)) depth++;
+      if (CONTROL_KINDS.includes(parent.type) && !(chain && parent.type === "if_statement" && parent.childForFieldName("alternative")?.id === child.id) && !isGuardClause(parent)) depth++;
       child = parent;
     }
-    return { symbol: symbolOf(node), line: lineOf(node), measured: depth, own: null };
+    return [{ symbol: symbolOf(node), line: lineOf(node), measured: depth, own: null }];
   });
 }
 // The "statement" supertype of the grammar, without blocks and empty statements.
@@ -234,15 +236,42 @@ export function classes(p: Parsed): { symbol: string; line: number; publicMethod
 
 type Import = CodeImport;
 
-// Declaration names are outside the body: a rename or layout change cannot renew metric debt.
-export function metricBodies(p: Parsed, targets: Set<string>): Record<string, string> {
+// One hash per symbol the node itself declares. The name and parameters sit outside the body, so a
+// rename does not change it. An anonymous callback inherits its parent's symbol and is not a second body.
+export function symbolBodies(p: Parsed): Record<string, string> {
+  // Hash a copy. Walking cursors on the live tree drops nodes a later query still holds.
+  const tree = p.root.tree.copy();
+  try {
+    return bodiesOf({ ...p, root: tree.rootNode });
+  } finally {
+    tree.delete();
+  }
+}
+
+function bodiesOf(p: Parsed): Record<string, string> {
   const kinds = grammarOf(p.rel) === "rust" ? RUST_FUNCTIONS : ["python", "go"].includes(grammarOf(p.rel)!) ? [...OTHER_FUNCTIONS, ...OTHER_CLASSES] : [...FUNCTION_KINDS, ...CLASS_KINDS];
-  const lines = new Set([...targets].map(target => Number(target.slice(target.lastIndexOf("\0") + 1))));
-  return Object.fromEntries(descendants(p.root, kinds)
-    .filter((n) => lines.has(lineOf(n)) && targets.has(`${symbolOf(n)}\0${lineOf(n)}`)).map((n) => {
-    const body = n.childForFieldName("body") ?? n;
-    return [`${symbolOf(n)}\0${lineOf(n)}`, astHash({ ...p, root: body })];
-  }));
+  const found = new Map<string, string>();
+  for (const n of descendants(p.root, kinds)) {
+    if (!declaresSymbol(n)) continue;
+    const symbol = symbolOf(n);
+    const hash = astHash({ ...p, root: n.childForFieldName("body") ?? n });
+    const prev = found.get(symbol);
+    if (prev === undefined) found.set(symbol, hash);
+    else if (prev !== hash) found.set(symbol, "");
+  }
+  const out: Record<string, string> = {};
+  for (const [symbol, hash] of found) if (hash !== "") out[symbol] = hash;
+  return out;
+}
+
+function declaresSymbol(n: Node): boolean {
+  const own = scopeName(n);
+  const tail = symbolOf(n).split(".").pop();
+  if (own !== null) return own === tail;
+  const parent = n.parent;
+  if (parent === null) return false;
+  const binding = parent.type === "variable_declarator" || parent.type === "pair" || parent.type === "public_field_definition";
+  return binding && scopeName(parent) === tail && parent.childForFieldName("value")?.id === n.id;
 }
 
 export function imports(p: Parsed): Import[] {

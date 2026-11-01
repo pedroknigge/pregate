@@ -1,6 +1,6 @@
 # Harness channels, shell inspection and incomplete Stop
 
-These are the current adapter and engine contracts; [delivery status](../STATUS.md)
+These are the current adapter and engine contracts; [v0.0.1 release notes](../releases/0.0.1.md)
 identifies the published candidate and historical verification.
 Captured payloads and automated tests establish protocol behavior;
 they do not certify interaction in every installed harness UI. The machine-readable
@@ -32,7 +32,7 @@ even with exit 0. Human notices use `systemMessage`, and warning/shadow findings
 stay recorded for `report`. Pre warning context remains available; real denials
 and bounded incomplete-stop behavior retain their existing policy. Published
 0.2.10 still has the advisory continuation defect. See
-[issue 22 verification](../research/issue-22-stop-advisory.md).
+issue 22 verification.
 
 Grok's reason is a compact first line, at most 256 characters. The other adapters
 can carry the engine's longer reason. A dropped warning or completion notice
@@ -42,7 +42,7 @@ Stop outcomes are retained in local events when recording succeeds. Review
 requirements; a native permission packet is not proof of a successful UI prompt.
 Current controlled `!` approval observations pass in Claude Code, Codex, Grok
 and agy. Cursor's Shell Mode reaches the same gated Pre as agent tools and does
-not establish a trusted approval route. See [the native observations and limits](../research/other-harness-human-shell-026.md).
+not establish a trusted approval route. See the native observations and limits.
 
 Hook inputs must be valid UTF-8, at most 16 MiB and reach EOF within five seconds
 after the engine starts reading. Rejected input cannot redirect to another engine
@@ -53,7 +53,7 @@ oversized payload needs a project known through cwd/environment. Buffering in
 a wrapper before the engine runs is outside this deadline. These assertions use
 compiled entry points and captured dialects. Windows transport verification
 passes in the terminal `187c0a0f` hosted run; actual harness UI observations
-remain separate. See [the transport evidence](../research/stdin-boundary-verification.md).
+remain separate. See the transport evidence.
 
 ## Shell inspection has a bounded guarantee
 
@@ -87,7 +87,7 @@ registration; it retains root acceptance, snapshots and events. Local pack
 folders stay protected from the preset even with an invalid lock. A scope query
 compares the complete current compiler output, without trusting cached metadata.
 Inspection events that do not query scope have no compiled enforcement metadata.
-See [the source verification and performance limits](../research/shell-contract-loading-026.md).
+See the source verification and performance limits.
 
 Unknown syntax is not automatically denied. Encoded paths, arbitrary interpreter
 programs, package scripts, already-running processes and writes performed at
@@ -117,7 +117,7 @@ fail admission. There is no folder-wide exemption: code added under `.pregate/`
 still has placement checks. Use `pregate preset show` to inspect policy. Literal
 reads/diffs of this root's preset/lock and inventory listing are supported recovery
 exceptions; arbitrary state reads remain protected. See the
-[issue #8 regression](../research/contract-metadata-stop-026.md).
+issue #8 regression.
 
 ## Review a turn that finished with unresolved work
 
@@ -194,7 +194,7 @@ behavior, then submit the request for human review inside the harness. Do not
 suggest switching protection off just to unblock the task. Explicit human disable
 remains available. Grok's compact denial retains a short `pregate explain <rule>`
 command when the global launcher's path is too long. The
-[recovery evidence](../research/blocked-rule-recovery.md) verifies emitted feedback
+recovery evidence verifies emitted feedback
 and retained protection in captured protocols; live model behavior is not proven.
 
 Incomplete completions remain historical after a later repair; their presence

@@ -1,0 +1,28 @@
+{
+  "id": "sample/safety/no-eval-call",
+  "version": "1.0.0",
+  "area": "safety",
+  "cardinality": "singleton",
+  "dimension": "sample.eval-call",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "eval-call",
+          "rule": {
+            "any": [
+              { "kind": "call_expression", "has": { "field": "function", "regex": "^eval$" } },
+              { "kind": "call_expression", "has": { "field": "function", "regex": "\\.eval$" } },
+              { "kind": "new_expression", "has": { "field": "constructor", "regex": "^Function$" } }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": { "message": "{symbol} evaluates a string as code." }
+}

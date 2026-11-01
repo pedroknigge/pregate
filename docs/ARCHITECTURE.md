@@ -1,8 +1,8 @@
-# PREGATE: arquitectura del MVP
+# PREGATE: MVP architecture
 
 > *A gate for explicit, executable code and architecture constraints.*
 
-**Current source: published engine 0.2.12, core 0.3.1:** 68 default rules (64 project fitness requirements and four
+**Current source: published engine 0.0.1, core 0.0.1:** 68 default rules (64 project fitness requirements and four
 general change guards); language/practice/pattern policies are optional packs.
 Human-reviewed off overrides are supported. The pure evidence gate is
 [fitness.ts](../src/fitness.ts); execution and file fingerprints live in
@@ -10,228 +10,201 @@ Human-reviewed off overrides are supported. The pure evidence gate is
 defines its approval, staleness, scope and semantic limits. Earlier core names,
 non-disableable integrity claims and default rule counts below are historical.
 
-**Current status (2026-10-07):** 0.2.12 is published to the private macOS pilot
-and globally installed. It adds
+**Current status:** 0.0.1 is the public release. macOS ARM64 is stable. Linux and
+Windows builds are experimental. It adds
 Python/Go/Rust demos, bounded Rust source analysis and public-ready HTTPS downloads
 with private fallback. Core is unchanged. See
-[alcance pre-public](releases/pre-public-readiness.md) y
-[límites del análisis de lenguajes](features/language-analysis.md).
-[PRODUCT-WORK.md](PRODUCT-WORK.md) registra requisitos pendientes y evidencia;
-[ROADMAP.md](ROADMAP.md) reemplaza las fases históricas de SPEC §18.
-[MULTI-HARNESS.md](MULTI-HARNESS.md) describe los cinco adaptadores. Las entradas
-O1–O73 y las mediciones originales de este documento son un registro histórico;
-no demuestran por sí solas garantías, rendimiento o compatibilidad actuales.
-La [referencia de comandos](CLI.md), el [inventario de packs](packs.md) y las
-[guías de funciones](README.md) describen el contrato del código actual.
+the pre-public scope and
+[language-analysis limits](features/language-analysis.md).
+[roadmap](ROADMAP.md) records pending requirements and evidence;
+[ROADMAP.md](ROADMAP.md) replaces the historical phases of SPEC §18.
+[MULTI-HARNESS.md](MULTI-HARNESS.md) describes the five adapters. Entries
+O1–O73 and the original measurements in this document are a historical record;
+they do not by themselves demonstrate current guarantees, performance, or compatibility.
+The [command reference](CLI.md), the [pack inventory](packs.md), and the
+[feature guides](README.md) describe the current code contract.
 
-**Límites actuales:** la evaluación previa depende de reconstruir una escritura
-de un tool soportado. El guard de shell es heurístico; escrituras dinámicas pueden
-llegar al chequeo Stop, y algunos harnesses no muestran todas sus advertencias.
-La auditoría enumera deuda estática y cobertura pendiente; no certifica calidad
-total ni comportamiento runtime. Los catálogos de invariantes en prosa no son
-checks ejecutables. La validación automatizada de protocolos no sustituye pruebas
-de interacción humana en cada harness o ejecución nativa de cada plataforma.
+**Current limits:** prior evaluation depends on reconstructing a write from a supported tool. The shell guard is heuristic; dynamic writes can reach the Stop check, and some harnesses do not show all of their warnings. The audit lists static debt and pending coverage; it does not certify total quality or runtime behavior. Prose invariant catalogs are not executable checks. Automated protocol validation does not replace human interaction tests on each harness or native execution on each platform.
 
-El audit incremental es opt-in: `audit-command.ts` conserva la validación completa
-del contrato, cobertura y fitness; `audit-cache.ts` guarda resultados estáticos
-por archivo y checkpoints atómicos. El fingerprint del evaluador se fija al
-compilar, con fuentes, schemas, parsers ejecutables y versión de Bun. Para
-reutilizar se verifican contenido e inputs de dependencias/configuración, incluso
-archivos ausentes. Hooks y `check` no leen esa caché. Ver
-[presupuestos, invalidación y recuperación](features/whole-project-audit.md#incremental-audits-and-checkpoint-resume).
+The incremental audit is opt-in: `audit-command.ts` keeps full validation of the contract, coverage, and fitness; `audit-cache.ts` stores static results per file and atomic checkpoints. The evaluator fingerprint is fixed at compile time, with sources, schemas, executable parsers, and the Bun version. Reuse checks content and dependency/configuration inputs, including absent files. Hooks and `check` do not read that cache. See
+[budgets, invalidation, and recovery](features/whole-project-audit.md#incremental-audits-and-checkpoint-resume).
 
-Al alcanzar el límite de Stop o reingresar con una causa que requiere reparación
-humana, el turno puede terminar sin aprobar el cumplimiento. El evento conserva
-`stopIncomplete`, causa, aviso y findings de la raíz seleccionada. `pregate report`
-destaca esas terminaciones; su JSON conserva todas las ubicaciones registradas
-aunque el harness descarte el aviso. Son observaciones históricas: después de
-reparar, ejecutar `pregate check --all` y consultar la cobertura de `audit`. Ver la
-[matriz de canales y límites de shell](features/harness-and-shell-guarantees.md).
+On reaching the Stop limit or reentering with a cause that requires human repair, the turn can end without approving compliance. The event keeps `stopIncomplete`, the cause, the notice, and findings for the selected root. `pregate report` highlights those terminations; its JSON keeps every recorded location even if the harness discards the notice. They are historical observations: after repairing, run `pregate check --all` and consult `audit` coverage. See the
+[channel matrix and shell limits](features/harness-and-shell-guarantees.md).
 
-El feedback humano local etiqueta observaciones individuales y requiere revisión
-con digest. El reporte distingue casos juzgados, inciertos y sin etiqueta; su
-precisión revisada describe sólo esa muestra seleccionada, no calidad general,
-recall ni reparaciones ejecutadas. Ver [human feedback](features/human-feedback.md).
+Local human feedback labels individual observations and requires review with a digest. The report distinguishes judged, uncertain, and unlabeled cases; its reviewed precision describes only that selected sample, not general quality, recall, or executed repairs. See [human feedback](features/human-feedback.md).
 
-La [retención local](features/local-storage.md) permite inspeccionar sesiones y
-preparar una limpieza de copias antiguas con revisión por digest. Conserva todos
-los snapshots, eventos y contadores, y las referencias de código compartidas o
-más recientes. Leases de escritores y marcadores exclusivos coordinan la
-publicación de blobs y la limpieza. La recuperación por digest retira sólo
-marcadores con dueño único registrados en esta máquina cuyo PID el sistema
-confirma ausente; conserva casos vivos, ambiguos, inaccesibles o sin un host
-coincidente y no toca snapshots ni contadores. El almacenamiento compartido entre
-máquinas no está certificado. No hay
-expiración automática de sesiones.
+[Local retention](features/local-storage.md) lets you inspect sessions and prepare a cleanup of old copies with digest review. It keeps every snapshot, event, and counter, and the shared or more recent code references. Writer leases and exclusive markers coordinate blob publication and cleanup. Digest recovery removes only single-owner markers recorded on this machine whose PID the system confirms absent; it keeps live, ambiguous, inaccessible, or non-matching-host cases and does not touch snapshots or counters. Shared storage across machines is not certified. There is no
+automatic session expiration.
 
-**Fuentes de verdad.** `docs/SPEC.md` v2.1 (§4, 5, 6, 8, 9, 10, 11, 13, 14, 18, Apéndice B) y `docs/inputs/decisiones-usuario.md` (D1–D17). Si este documento contradice la SPEC, lo marca con **[Δ]** y lo lista en §7.2 para tu OK.
+**Sources of truth.** `docs/SPEC.md` v2.1 (§4, 5, 6, 8, 9, 10, 11, 13, 14, 18, Appendix B) and `docs/inputs/decisiones-usuario.md` (D1–D17). If this document contradicts the SPEC, it marks that with **[Δ]** and lists it in §7.2 for your OK.
 
-**Mediciones.**
-- Las cifras del parser, del arranque y de git vienen de las propuestas: macOS arm64, Bun 1.3.14, Node 26.8, p50 de 25 arranques en frío de `bun build --compile --minify --bytecode`.
-- El prototipo del launcher con watchdog (captura con `$(...)` y `wait`) se midió en bash 3.2 (`/bin/sh` de macOS) y dash, 60 corridas, con payload de 20 KB.
-  - Agrega entre +0,8 y +1,3 ms de p50 respecto de un `exec` directo.
-  - Un motor colgado se corta a los 2,03 s.
-  - SIGKILL y exit 1 se convierten en deny con exit 2.
-  - W0 le aplica los cambios de §4.0 (plazo con `trap … USR1`, stdout a archivo, `$# = 0`); e2e vuelve a medirlo.
-- Un error no atrapado en un binario Bun sale con código 1 (comprobado con `throw`, promesa rechazada y error async). El launcher lo convierte en deny (A6).
+**Measurements.**
+- Parser, startup, and git figures come from the proposals: macOS arm64, Bun 1.3.14, Node 26.8, p50 of 25 cold starts of `bun build --compile --minify --bytecode`.
+- The launcher prototype with a watchdog (capture with `$(...)` and `wait`) was measured on bash 3.2 (macOS `/bin/sh`) and dash, 60 runs, with a 20 KB payload.
+  - It adds between +0.8 and +1.3 ms of p50 relative to a direct `exec`.
+  - A hung engine is cut off at 2.03 s.
+  - SIGKILL and exit 1 become deny with exit 2.
+  - W0 applies the §4.0 changes (deadline with `trap … USR1`, stdout to a file, `$# = 0`); e2e measures it again.
+- An uncaught error in a Bun binary exits with code 1 (checked with `throw`, a rejected promise, and an async error). The launcher turns it into a deny (A6).
 
 ---
 
-## Decisiones de arquitectura
+## Architecture decisions
 
-| # | Decisión | Alternativa descartada | Por qué |
+| # | Decision | Discarded alternative | Why |
 |---|---|---|---|
 | A1 | **One `bun build --compile --bytecode` binary per platform, plus a global POSIX launcher** (MH-18/28) | Node + bundle; Rust | Zero runtime dependencies (D17); Rust remains conditional on latency (D15.7, §13.3) |
-| A2 | **Parser: web-tree-sitter (WASM) + gramáticas TS/TSX vendorizadas** (3,2 MB embebidos; la gramática lleva el parche de O18, registrado en ORIGIN y limitado a lo que el piloto necesitó) | API de TypeScript 6.0.3 (+32 MB, congelada); Babel; escáner propio; `.node` nativos | Es la única opción que cumple a la vez U6/§13.3 (tree-sitter), D17 (cero dependencias, sin nativos) y el formato de reglas del pack piloto. Su modo de falla conocido es un falso **deny**, la dirección segura (§5.3) |
-| A3 | **Motor de patrones propio** (subconjunto de reglas de ast-grep sobre nodos tree-sitter) con **oráculo diferencial** contra `@ast-grep/napi`, solo en dev | `@ast-grep/napi` en runtime | Un `.node` embebido cuesta 295 ms por llamada; puesto al lado del binario rompe "binario único". El oráculo vigila la deriva semántica, que es el riesgo principal |
-| A4 | **Reglas en el dialecto ast-grep sobre los *kinds* de tree-sitter** | Dialecto sobre `ts.SyntaxKind`; sin patrones | El pack `amarilla/` corre como datos sin portarlo, las reglas sobreviven a la migración a `ast-grep-core` (§13.3) y §18.1 exige patrones en las fuentes `path` |
-| A5 | **Watchdog duro en el launcher** (proceso padre: al vencer, `kill -9` al motor y la salida fail-closed del evento, aunque el motor no haya muerto) | Worker con `terminate()`; watchdog cooperativo (`expired()`, `progressCallback`); fuel por regla | Lo cooperativo no corta un regex catastrófico ni un bucle síncrono, y Claude Code falla abierto al llegar a su timeout. El padre responde ante cualquier cosa (CPU, syscall bloqueada, fs colgado en estado D), cuesta ~1 ms (medido) y elimina `expired()` y el fuel de todas las firmas del núcleo. El Worker requería un segundo entrypoint y reinicializar el WASM |
-| A6 | **El launcher supervisa sin `exec`**: si el motor falta o termina con un `rc ∉ {0,2}`, el launcher emite la salida fail-closed del evento. Es la **única** implementación del fail-closed ante fallas no previstas: el motor no atrapa excepciones, sale con 1 | `exec` del motor; además `uncaughtException` → `failClosed` en TS | Cierra el riesgo residual de §13.6 (abort, OOM, SIGKILL, crash), que con `exec` terminaba en fail-open. Un segundo texto fail-closed en TS sería un contrato duplicado que puede divergir |
+| A2 | **Parser: web-tree-sitter (WASM) + vendored TS/TSX grammars** (3.2 MB embedded; the grammar carries the O18 patch, recorded in ORIGIN and limited to what the pilot needed) | TypeScript 6.0.3 API (+32 MB, frozen); Babel; a custom scanner; native `.node` | It is the only option that meets U6/§13.3 (tree-sitter), D17 (zero dependencies, no natives), and the pilot pack's rule format at the same time. Its known failure mode is a false **deny**, the safe direction (§5.3) |
+| A3 | **In-house pattern engine** (a subset of ast-grep rules over tree-sitter nodes) with a **differential oracle** against `@ast-grep/napi`, dev only | `@ast-grep/napi` at runtime | An embedded `.node` costs 295 ms per call; placing it beside the binary breaks "single binary". The oracle watches semantic drift, which is the main risk |
+| A4 | **Rules in the ast-grep dialect over tree-sitter *kinds*** | A dialect over `ts.SyntaxKind`; no patterns | The `amarilla/` pack runs as data without porting it, the rules survive the migration to `ast-grep-core` (§13.3), and §18.1 requires patterns in `path` sources |
+| A5 | **Hard watchdog in the launcher** (parent process: when the deadline expires, `kill -9` the engine and emit the event's fail-closed output, even if the engine has not died) | A worker with `terminate()`; a cooperative watchdog (`expired()`, `progressCallback`); fuel per rule | Cooperative checks do not cut off a catastrophic regex or a synchronous loop, and Claude Code fails open when its timeout is reached. The parent responds to anything (CPU, a blocked syscall, a filesystem hung in state D), costs ~1 ms (measured), and removes `expired()` and fuel from every core signature. The Worker required a second entrypoint and reinitializing the WASM |
+| A6 | **The launcher supervises without `exec`**: if the engine is missing or exits with an `rc ∉ {0,2}`, the launcher emits the event's fail-closed output. It is the **only** implementation of fail-closed for unforeseen failures: the engine does not catch exceptions and exits with 1 | `exec` of the engine; also `uncaughtException` → `failClosed` in TS | It closes the residual risk in §13.6 (abort, OOM, SIGKILL, crash), which with `exec` ended in fail-open. A second fail-closed text in TS would be a duplicated contract that can diverge |
 | A9 | **A stale or altered hook lock denies and halts. Admission recompiles policy in memory and compares the complete lock bytes after CRLF normalization.** | Trusting only the lock's metadata hashes; silently replacing the disk lock | `gate.lockOf` uses the same compiler as CLI/commit/CI, without running fixtures or writing a replacement. Hashes alone do not bind effective rules, scope, enforcement or failure policies. Explicit contract activation still requires human approval. This supersedes the earlier hash-only hot-path design; its compilation cost is part of the hook latency budget. |
-| A10 | **Pre-commit y CI recompilan desde cero y comparan el lock byte a byte** | Confiar en los hashes del lock | Detecta un lock editado a mano o corrupto, no solo uno viejo |
-| A11 | **Estado append-only: un archivo inmutable por llamada, con las claves de filtrado en el nombre** | Archivo de contadores (read-modify-write); leer todos los eventos | Los PreToolUse corren en paralelo (§11.3). El tope por turno sale de un `readdir`, sin leer contenidos, y solo se leen los eventos del mismo (agente, archivo) |
-| A12 | **El análisis del "antes" se recalcula en cada llamada; solo su texto se guarda** (una vez por sesión y archivo, con `link`) | Caché del análisis por `sha(rel, sha(texto), lockHash)` | `analyze` lee otros archivos (barrels, tsconfig) que no entran en esa clave: un barrel que cambia deja el "antes" viejo y el conteo puede compensar una violación nueva (falso allow, y veredicto dependiente del orden). Recalcular cuesta ~4 ms en 300 líneas y ~25 ms en 2.000, dentro del p95. Lo caro es el spawn de git (~20 ms), y eso sí se evita guardando el texto. Se reevalúa solo si `bench.ts` mide un p95 > 150 ms en la máquina de referencia (O31) |
-| A13 | **JSON Schema (6 archivos) como fuente de la validación + intérprete del subconjunto (~90 líneas)** | ajv; combinadores que infieren tipos y emiten schemas | Los schemas son datos del producto que el editor consume con `$schema` (§6.1). El intérprete es más chico que un generador. `schema.test.ts` falla ante una keyword no soportada |
-| A14 | **`Decision.verdict: "none" \| "deny" \| "ask"` y `Emission.exit: 0 \| 2`** | `verdict: "allow"`; exit libre | "allow" y exit 1 son irrepresentables. `claude.test.ts` verifica que la cadena `"allow"` nunca sale |
-| A15 | **`Cause` cerrada + `FIXABLE_BY: Record<Cause, "agent" \| "human">`** | Causa como string libre | Decide de forma total si un deny es de forma (no consume el contador de (archivo, regla), pero cuenta para el tope por turno, §4.1 paso 14) o necesita al humano (deny + halt) |
+| A10 | **Pre-commit and CI recompile from scratch and compare the lock byte for byte** | Trusting the lock's hashes | Detects a lock edited by hand or corrupted, not only an old one |
+| A11 | **Append-only state: one immutable file per call, with the filter keys in the name** | A counters file (read-modify-write); reading every event | PreToolUse calls run in parallel (§11.3). The per-turn cap comes from a `readdir`, without reading contents, and only events for the same (agent, file) are read |
+| A12 | **The "before" analysis is recomputed on every call; only its text is stored** (once per session and file, with `link`) | An analysis cache keyed by `sha(rel, sha(text), lockHash)` | `analyze` reads other files (barrels, tsconfig) that are not part of that key: a barrel that changes leaves the "before" stale and the count can offset a new violation (false allow, and an order-dependent verdict). Recomputing costs ~4 ms at 300 lines and ~25 ms at 2,000, inside the p95. The expensive part is the git spawn (~20 ms), and storing the text avoids that. It is reevaluated only if `bench.ts` measures a p95 > 150 ms on the reference machine (O31) |
+| A13 | **JSON Schema (6 files) as the validation source + an interpreter for the subset (~90 lines)** | ajv; combinators that infer types and emit schemas | The schemas are product data that the editor consumes with `$schema` (§6.1). The interpreter is smaller than a generator. `schema.test.ts` fails on an unsupported keyword |
+| A14 | **`Decision.verdict: "none" \| "deny" \| "ask"` and `Emission.exit: 0 \| 2`** | `verdict: "allow"`; a free exit | "allow" and exit 1 are unrepresentable. `claude.test.ts` verifies that the string `"allow"` never appears |
+| A15 | **Closed `Cause` + `FIXABLE_BY: Record<Cause, "agent" \| "human">`** | Cause as a free string | Totally decides whether a deny is a form deny (it does not consume the (file, rule) counter, but it counts toward the per-turn cap, §4.1 step 14) or needs a human (deny + halt) |
 | A16 | **`pre-edit.changes[]`**, each `{session, callId, tool, path, edit, from}`; `gate.onPreEdit(changes)` evaluates the whole call | Speculative batch metadata or before/after on the wire | MH-07–13: full, append, ranged old/new, exact Codex hunks, delete and move. Other files in the call overlay `Read`; one deny blocks the call |
 | A17 | **Pure adapters in `src/harness/`**, constants per module; `HARNESSES` and `profile` in `harness/profile.ts` | `profile.json` + interpreter | MH-01/03: Grok needs `GROK_HOOK_EVENT` plus top-level `hookEventName`; Cursor needs top-level `cursor_version`; otherwise use the registration flag. `main` and `doctor` share the map |
 | A18 | **D23: English first** for all product text, code and catalog metadata | Optional future localization | Humans and agents receive English with standard technical terms. Historical inputs and long design docs are translated separately before publication. |
-| A19 | **Ventana de error contra el "antes" de cada cara** y nodos ERROR que *intersecan* la ventana ⇒ deny de forma | Denegar cualquier error de sintaxis del archivo | La SPEC pide "en el rango cambiado" (§4.4). Lo que queda fuera de la ventana es byte a byte igual a un estado ya evaluado o a la base, así que no puede esconder nada introducido (§4.1, nota) |
+| A19 | **Error window against the "before" of each face** and ERROR nodes that *intersect* the window ⇒ form deny | Denying any syntax error in the file | The SPEC asks for "in the changed range" (§4.4). What lies outside the window is byte for byte equal to a state already evaluated or to the base, so it cannot hide anything introduced (§4.1, note) |
 | A20 | **Accept a root tracked in HEAD, registered by SessionStart, or whose preset ctime predates the session's first snapshot** | Requiring SessionStart for every uncommitted preset | MH-33: agy and new subagent sessions have no SessionStart. A nested preset created after first contact stays unaccepted |
-| A21 | **Macro `@layers[:kind]` en `params.paths`** **[Δ, agregado al formato]**. `@layers` sin capas declaradas ⇒ `[]` (la regla no aplica a nada); `@layers:<kind>` sin capas de ese tipo ⇒ error de compilación | Duplicar globs de capas en cada preset | EVA-DYN-001 ("en una capa") es de integridad y siempre está activa. Sin el macro, sus `paths` por defecto quedarían vacíos y habría un agujero de integridad. Si `@layers` vacío fuera error, ningún preset sin capas (`legacy-safe`) compilaría |
-| A22 | **Sin `enforcement: "advise"` ni `loop.escalate: "ask"`** | Implementarlos | §18.1 pide `shadow` explícito y escalamiento `stop` (D15.5). `ask` existe solo como severidad (TDD-DEL-001) |
-| A23 | **`Bun.Transpiler.scanImports` no se usa** | Usarlo para imports | Omite en silencio `import(m)`, `require(m)` no literal e `import type` (verificado), lo que sería un falso allow. Además serían dos parsers que pueden discrepar |
-| A24 | **Un solo `git cat-file --batch`** para todos los blobs en pre-commit, Stop y CI | Un `git show` por archivo | Un spawn de 17–24 ms por archivo no escala |
-| A25 | **vendor/ = artefactos tomados sin modificar (salvo `grammar.patch`, O18), con LICENSE, ORIGIN (paquete@versión, URL, sha256) y THIRD_PARTY_NOTICES**; `vendor.test.ts` verifica todo | Dependencia npm en `dependencies` | D17: no se acopla al paquete y se conserva la atribución. Es lo más parecido a un cherry-pick que admite un runtime WASM |
-| A26 | **Comparación de rutas sin distinguir mayúsculas en todas partes**: protegidas, scope, capas y `paths`/`exclude` de reglas, en hook, pre-commit y CI, con una sola función (`paths.matches`) | Case-fold solo para protegidas y solo en volúmenes que no distinguen (sondeo del volumen) | Es un superconjunto de "donde corresponde" (SPEC §6.7), elimina el sondeo y el parámetro `caseFold`, y da el mismo veredicto en macOS y en CI Linux. `Bun.Glob` distingue mayúsculas (verificado), así que se pasan glob y ruta a minúsculas |
-| A27 | **Git es requisito**: sin repo git, deny + halt `git-failed` "PREGATE requires git" **[Δ §9]** | "Primer contacto" sin git, con aviso | Pre-commit y CI exigen git igual; un segundo camino sin git sería código para un caso que la garantía (U10) no cubre |
+| A21 | **Macro `@layers[:kind]` in `params.paths`** **[Δ, added to the format]**. `@layers` with no declared layers ⇒ `[]` (the rule applies to nothing); `@layers:<kind>` with no layers of that kind ⇒ compilation error | Duplicating layer globs in every preset | EVA-DYN-001 ("in a layer") is an integrity rule and is always active. Without the macro, its default `paths` would be empty and there would be an integrity hole. If an empty `@layers` were an error, no preset without layers (`legacy-safe`) would compile |
+| A22 | **No `enforcement: "advise"` and no `loop.escalate: "ask"`** | Implementing them | §18.1 requires explicit `shadow` and `stop` escalation (D15.5). `ask` exists only as a severity (TDD-DEL-001) |
+| A23 | **`Bun.Transpiler.scanImports` is not used** | Using it for imports | It silently omits `import(m)`, non-literal `require(m)`, and `import type` (verified), which would be a false allow. It would also be two parsers that can disagree |
+| A24 | **A single `git cat-file --batch`** for every blob in pre-commit, Stop, and CI | One `git show` per file | A spawn of 17–24 ms per file does not scale |
+| A25 | **vendor/ = artifacts taken unmodified (except `grammar.patch`, O18), with LICENSE, ORIGIN (package@version, URL, sha256), and THIRD_PARTY_NOTICES**; `vendor.test.ts` verifies all of it | An npm dependency in `dependencies` | D17: it does not couple to the package and attribution is preserved. It is the closest thing to a cherry-pick that a WASM runtime allows |
+| A26 | **Case-insensitive path comparison everywhere**: protected paths, scope, layers, and rule `paths`/`exclude`, in the hook, pre-commit, and CI, with a single function (`paths.matches`) | Case-fold only for protected paths and only on volumes that do not distinguish case (volume probe) | It is a superset of "where it applies" (SPEC §6.7), removes the probe and the `caseFold` parameter, and gives the same verdict on macOS and on Linux CI. `Bun.Glob` is case-sensitive (verified), so the glob and the path are passed in lowercase |
+| A27 | **Git is required**: without a git repo, deny + halt `git-failed` "PREGATE requires git" **[Δ §9]** | "First contact" without git, with a notice | Pre-commit and CI require git anyway; a second path without git would be code for a case the guarantee (U10) does not cover |
 
-A7 (fuel por regla) y A8 (un proceso hijo por check en `rules test`) se eliminaron: repetían lo que ya hace el watchdog (A5), agregaban falsos deny y su "determinismo" no existía (el plazo del hook igual depende de la máquina). Los números no se reutilizan.
+A7 (fuel per rule) and A8 (one child process per check in `rules test`) were removed: they repeated what the watchdog already does (A5), added false denies, and their "determinism" did not exist (the hook deadline still depends on the machine). The numbers are not reused.
 
 ---
 
-## 1. Principios
+## 1. Principles
 
-1. **El veredicto es una función pura:** `(lock, antes, después) → violaciones introducidas`. Hook, pre-check, pre-commit, CI y `rules test` llaman a la misma `analyze` + `introduced`. Solo cambia de dónde sale el "antes": la snapshot de sesión, HEAD o la base.
-2. **Lo que no se puede establecer se deniega, y la garantía vive fuera del código que puede fallar.**
-   - Dentro del motor, toda causa conocida es una `Cause` que pasa por `decide → encode`. No hay `try/catch` de último recurso: lo imprevisto sale con exit 1.
-   - Fuera del motor, el launcher padre convierte cualquier muerte, cuelgue o exit ∉ {0,2} en el deny del evento (A6).
-3. **El lock es el único contrato al evaluar.** El hook no compila. Verifica hashes y versiones, y evalúa. Compilar y probar fuentes es un acto humano por CLI (U4, U10).
-4. **Las reglas son datos sobre un vocabulario cerrado:** cinco primitivas y un lenguaje de patrones (el subconjunto de ast-grep sobre los *kinds* de tree-sitter). Una clave, un `kind`, un `field` o un regex desconocido es error de compilación, nunca "no matchea".
-5. **Un parser, un árbol.** tree-sitter sirve para el archivo, los patrones, los imports y la detección de errores. No hay un segundo oráculo que pueda discrepar en runtime.
-6. **Núcleo funcional, cáscara imperativa.**
-   - Los módulos puros no importan `fs` ni procesos, y no leen reloj ni entorno. Reciben `Read` o `Files`.
+1. **The verdict is a pure function:** `(lock, before, after) → introduced violations`. Hook, pre-check, pre-commit, CI, and `rules test` call the same `analyze` + `introduced`. Only the source of the "before" changes: the session snapshot, HEAD, or the base.
+2. **What cannot be established is denied, and the guarantee lives outside the code that can fail.**
+   - Inside the engine, every known cause is a `Cause` that goes through `decide → encode`. There is no last-resort `try/catch`: the unforeseen exits with exit 1.
+   - Outside the engine, the parent launcher turns any death, hang, or exit ∉ {0,2} into the event deny (A6).
+3. **The lock is the only contract at evaluation time.** The hook does not compile. It verifies hashes and versions, and evaluates. Compiling and testing sources is a human act through the CLI (U4, U10).
+4. **Rules are data over a closed vocabulary:** five primitives and a pattern language (the ast-grep subset over tree-sitter *kinds*). An unknown key, `kind`, `field`, or regex is a compilation error, never "does not match".
+5. **One parser, one tree.** tree-sitter serves the file, the patterns, the imports, and error detection. There is no second oracle that can disagree at runtime.
+6. **Functional core, imperative shell.**
+   - Pure modules do not import `fs` or processes, and do not read the clock or the environment. They receive `Read` or `Files`.
    - Harness signals: `CLAUDE_CODE_REMOTE` controls Claude interactivity; only `GROK_HOOK_EVENT` plus the payload selects Grok. The shell reads `HOME`, `XDG_STATE_HOME`, `CODEX_HOME`, `GROK_HOME`, `CLAUDE_CONFIG_DIR` and project-directory hints for state and machine protection. `XDG_DATA_HOME` is used by machine setup, never to locate a running engine: `<DATA>` comes from `process.execPath` (MH-18).
-   - El pack opcional Functional Core comprueba `FCIS-DEP-001` (dirección declarada), `FCIS-IO-001` (imports de I/O) y `FCIS-IO-002` (reloj/entorno/azar). La verificación del propio repositorio está en [repository-dependency-verification](research/repository-dependency-verification.md). El preset actual no activa `CA-DEP-001`. Shell obtiene la versión desde `package.json` en `versions.ts`; core no depende del archivo de build.
-   - `assets.setUpGrammars` carga e inicializa el runtime vendorizado en shell. `ts.setGrammars` recibe solo `Parser`, `Language` y el loader de bytes; la caché de cada gramática se construye al primer uso y se invalida al reemplazar el colaborador. El loader suministrado por shell es una dependencia explícita, no una garantía de pureza de cualquier callback.
-7. **Cero dependencias de runtime, y se paga solo por lo que la llamada necesita.**
-   - El WASM se inicializa solo si hay que parsear, y solo con la gramática del archivo.
-   - El texto del "antes" se pide a git una sola vez por sesión y archivo (A12).
-   - Fuera de scope y shell no cargan el parser.
-8. **Una abstracción existe solo si tiene dos usos reales en el MVP** (D16). Por eso existe `Files` (disco y fixtures en memoria) y no existen `LanguagePack` ni `profile.json`. El mapa `HARNESSES` de `src/harness/profile.ts` existe porque tiene dos usos: `main` (qué adaptador decodifica) y `doctor` (cada `VERIFIED`).
+   - The optional Functional Core pack checks `FCIS-DEP-001` (declared direction), `FCIS-IO-001` (I/O imports), and `FCIS-IO-002` (clock/environment/randomness). Repository self-verification is in repository-dependency-verification. The current preset does not activate `CA-DEP-001`. Shell obtains the version from `package.json` in `versions.ts`; core does not depend on the build file.
+   - `assets.setUpGrammars` loads and initializes the vendored runtime in the shell. `ts.setGrammars` receives only `Parser`, `Language`, and the byte loader; each grammar's cache is built on first use and invalidated when the collaborator is replaced. The loader supplied by the shell is an explicit dependency, not a purity guarantee for any callback.
+7. **Zero runtime dependencies, and a call pays only for what it needs.**
+   - WASM is initialized only if something must be parsed, and only with the file's grammar.
+   - The "before" text is requested from git once per session and file (A12).
+   - Out of scope and shell do not load the parser.
+8. **An abstraction exists only if it has two real uses in the MVP** (D16). That is why `Files` exists (disk and in-memory fixtures) and why `LanguagePack` and `profile.json` do not. The `HARNESSES` map in `src/harness/profile.ts` exists because it has two uses: `main` (which adapter decodes) and `doctor` (each `VERIFIED`).
 
 ---
 
-## 2. Árbol de archivos completo del MVP
+## 2. Complete MVP file tree
 
 ```
 pregate/
-├─ package.json                 versión (= ENGINE); scripts build/test/typecheck/bench; "dependencies": {} ;
-│                               devDependencies exactas: typescript (typecheck), @types/bun, @ast-grep/napi (oráculo)
-├─ bun.lock                     integridad de las devDependencies
+├─ package.json                 version (= ENGINE); build/test/typecheck/bench scripts; "dependencies": {} ;
+│                               exact devDependencies: typescript (typecheck), @types/bun, @ast-grep/napi (oracle)
+├─ bun.lock                     devDependency integrity
 ├─ .bun-version                 1.3.14
 ├─ tsconfig.json                strict, noUncheckedIndexedAccess, noEmit
-├─ bunfig.toml                  [test] root = "test": `bun test` no entra en las fixtures `*.test.ts` del piloto
-├─ LICENSE                    **[Δ ola 3] pendiente (decisión del usuario, SPEC P19)**: sin él `build.ts` avisa y el tar sale sin él (O28)
-├─ THIRD_PARTY_NOTICES          web-tree-sitter, tree-sitter-typescript, runtime de Bun (MIT) + nota LGPL de
-│                               JavaScriptCore (a verificar antes del primer release); va en cada tar de release
-├─ README.md                    instalación, contrato y límites honestos (hook + pre-commit + CI)
+├─ bunfig.toml                  [test] root = "test": `bun test` does not enter the pilot's `*.test.ts` fixtures
+├─ LICENSE                    **[Δ wave 3] pending (user decision, SPEC P19)**: without it `build.ts` warns and the tar is emitted without it (O28)
+├─ THIRD_PARTY_NOTICES          web-tree-sitter, tree-sitter-typescript, Bun runtime (MIT) + LGPL note for
+│                               JavaScriptCore (pending owner review; see THIRD_PARTY_NOTICES); included in each release tar
+├─ README.md                    installation, contract, and honest limits (hook + pre-commit + CI)
 ├─ .github/workflows/ci.yml     typecheck · bun test · build 2 targets · e2e · dogfooding;
-│                               job aparte: bench (no rompe la suite por ruido)
-├─ .gitignore                   node_modules · dist · `*.bun-build` (bun 1.3.14 deja una copia de ~63 MB por `--compile`)
-├─ .claude/settings.json        dogfooding: hooks escritos por `pregate install` **[Δ ola 3] pendiente (requiere el visto del usuario)**
-├─ .pregate/                     dogfooding: preset.json (fijado en W0), pregate.lock.json (ola 3); bin/pregate y git-hooks/pre-commit pendientes
+│                               separate job: bench (does not break the suite on noise)
+├─ .gitignore                   node_modules · dist · `*.bun-build` (bun 1.3.14 leaves a ~63 MB copy per `--compile`)
+├─ .claude/settings.json        dogfooding: hooks written by `pregate install` **[Δ wave 3] pending (requires the user's sign-off)**
+├─ .pregate/                     dogfooding: preset.json (pinned in W0), pregate.lock.json (wave 3); bin/pregate and git-hooks/pre-commit pending
 ├─ vendor/
 │  ├─ web-tree-sitter/          web-tree-sitter.js, web-tree-sitter.wasm, LICENSE, ORIGIN
-│  └─ tree-sitter-typescript/   tree-sitter-typescript.wasm, tree-sitter-tsx.wasm (parcheadas, O18), grammar.patch,
-│                               LICENSE, ORIGIN (base, cada cambio con su fuente, toolchain, sha256 reproducible)
+│  └─ tree-sitter-typescript/   tree-sitter-typescript.wasm, tree-sitter-tsx.wasm (patched, O18), grammar.patch,
+│                               LICENSE, ORIGIN (base, each change with its source, toolchain, reproducible sha256)
 ├─ schema/                      preset.v1 · check.v1 · methodology.v1 · fixture.v1 · source.v1 · request.v1 (.json)
-├─ catalog/                     fuente `core`, embebida por macro (las fixtures no van al binario)
+├─ catalog/                     `core` source, embedded by macro (fixtures do not go into the binary)
 │  ├─ source.json
-│  ├─ checks/<área>/<check>/check.json + fixtures/{pass,fail,trap}/<caso>/{fixture.json, files/, before/}  (17)
+│  ├─ checks/<area>/<check>/check.json + fixtures/{pass,fail,trap}/<case>/{fixture.json, files/, before/}  (17)
 │  ├─ methodologies/            clean-code · clean-architecture · ddd-tactical · functional-core-imperative-shell
 │  │                            · tdd · pregate-integrity (.json)
 │  └─ presets/                  backend-clean-ddd · functional-ts · legacy-safe (.json)
-├─ assets/                      embebidos; `install` los escribe en el repo
-│  ├─ launcher.sh               supervisa el motor: plazo duro, exit 3 ⇒ motor fijado, rc ∉ {0,2} ⇒ salida fail-closed del evento
+├─ assets/                      embedded; `install` writes them into the repo
+│  ├─ launcher.sh               supervises the engine: hard deadline, exit 3 ⇒ pinned engine, rc ∉ {0,2} ⇒ event fail-closed output
 │  ├─ pre-commit.sh             global pregate check --staged --ratchet
-│  └─ ci-github.yml             timeout-minutes; descarga el motor fijado (verifica sha256);
-│                               pregate rules test (fuentes path) + pregate check --ratchet --base <sha>
+│  └─ ci-github.yml             timeout-minutes; downloads the pinned engine (verifies sha256);
+│                               pregate rules test (path sources) + pregate check --ratchet --base <sha>
 ├─ src/
-│  ├─ main.ts        cáscara · argv → hook <evento> | hook auto | CLI (sin try/catch de último recurso: A6)
-│  ├─ types.ts       puro    · vocabulario compartido (datos planos) + FIXABLE_BY
-│  ├─ harness/       puro    · [MH-W0] un adaptador por harness (claude, codex, cursor, grok, agy): payload → HookEvent | Rejected; Decision → Emission
-│  │                         · wire.ts (parse, claves cerradas, rutas absolutas) y profile.ts (HARNESSES, profile: MH-03)
-│  ├─ gate.ts        cáscara · orquesta session-start / pre-edit / pre-command / stop y `check`
-│  ├─ reconstruct.ts puro    · Write/Edit + disco → after + reconstruction; BOM/CRLF; ventana cambiada
-│  ├─ paths.ts       puro    · protecciones fijas + fuentes path, scope, capa, lenguaje; una comparación sin mayúsculas (A26)
-│  ├─ ts.ts          puro    · tree-sitter: parse, errorIn(ventana), hechos (funciones, clases, imports), símbolo, astHash
-│  ├─ match.ts       puro    · motor de patrones (subconjunto ast-grep)
-│  ├─ resolve.ts     puro    · imports: relativos, tsconfig paths/baseUrl/extends, re-exports ≤ 3 saltos (más ⇒ "too-deep")
-│  ├─ evaluate.ts    puro    · analyze(): reglas del lock sobre un estado de archivo; placement() sin parsear
-│  ├─ ratchet.ts     puro    · introduced(): no-new (símbolos nuevos + conteo) y diff
-│  ├─ decide.ts      puro    · severidad × enforcement × contadores × sin-progreso × ask → Decision; blocking() para check
-│  ├─ message.ts     puro    · línea ≤ 256, detalle ≤ 4.000, sanitización, textos al humano (es); único que renderiza
-│  ├─ shell.ts       puro    · guard de shell: lexer permisivo POSIX/PowerShell + reglas de §10.2.3
-│  ├─ schema.ts      puro    · intérprete del subconjunto de JSON Schema
-│  ├─ compile.ts     puro    · preset + fuentes → Lock; frescura (versiones, preset, catálogo builtin); sourcesHash; fixtureLock; JSON-patch de solicitudes
-│  ├─ fixtures.ts    puro    · rules test de un check: pass/fail/trap, determinismo, mínimos, IDs
-│  ├─ assets.ts      cáscara · bytes embebidos: catalog/ (BUILTIN) y assets/* (ASSETS) por macro (vía embedded.ts), WASM (with {type:"file"})
-│  ├─ embedded.ts    cáscara · catálogo, assets, demo y huella del evaluador por macro; como library-assets.ts, se carga con `require` porque Bun 1.4 omite la macro si un grafo estático alcanza el módulo dos veces
-│  ├─ wasm.d.ts      tipos de los imports `.wasm` (O13; evita una supresión)
-│  ├─ disk.ts        cáscara · canonical (lstat + realpath del ancestro), raíz, readTree, escritura atómica (tmp+rename, link)
-│  ├─ state.ts       cáscara · directorio de datos: snapshot, texto del "antes", eventos, blobs, raíces de la sesión
-│  ├─ git.ts         cáscara · spawn de git: HEAD, status -z, cat-file --batch, diff --name-only, ls-files, índice
-│  ├─ cli.ts         cáscara · check · explain · preset show|compile|apply · rules test · install
-│  └─ install.ts     cáscara · motor versionado, launcher, fusión idempotente de .claude/settings.json, pre-commit, CI
+│  ├─ main.ts        shell · argv → hook <event> | hook auto | CLI (no last-resort try/catch: A6)
+│  ├─ types.ts       pure    · shared vocabulary (plain data) + FIXABLE_BY
+│  ├─ harness/       pure    · [MH-W0] one adapter per harness (claude, codex, cursor, grok, agy): payload → HookEvent | Rejected; Decision → Emission
+│  │                         · wire.ts (parse, closed keys, absolute paths) and profile.ts (HARNESSES, profile: MH-03)
+│  ├─ gate.ts        shell · orchestrates session-start / pre-edit / pre-command / stop and `check`
+│  ├─ reconstruct.ts pure    · Write/Edit + disk → after + reconstruction; BOM/CRLF; changed window
+│  ├─ paths.ts       pure    · fixed protections + path sources, scope, layer, language; one case-insensitive comparison (A26)
+│  ├─ ts.ts          pure    · tree-sitter: parse, errorIn(window), facts (functions, classes, imports), symbol, astHash
+│  ├─ match.ts       pure    · pattern engine (ast-grep subset)
+│  ├─ resolve.ts     pure    · imports: relative, tsconfig paths/baseUrl/extends, re-exports ≤ 3 hops (more ⇒ "too-deep")
+│  ├─ evaluate.ts    pure    · analyze(): lock rules over a file state; placement() without parsing
+│  ├─ ratchet.ts     pure    · introduced(): no-new (new symbols + count) and diff
+│  ├─ decide.ts      pure    · severity × enforcement × counters × no-progress × ask → Decision; blocking() for check
+│  ├─ message.ts     pure    · line ≤ 256, detail ≤ 4,000, sanitization, human-facing text (es); the only one that renders
+│  ├─ shell.ts       pure    · shell guard: permissive POSIX/PowerShell lexer + §10.2.3 rules
+│  ├─ schema.ts      pure    · JSON Schema subset interpreter
+│  ├─ compile.ts     pure    · preset + sources → Lock; freshness (versions, preset, builtin catalog); sourcesHash; fixtureLock; JSON-patch of requests
+│  ├─ fixtures.ts    pure    · rules test of a check: pass/fail/trap, determinism, minimums, IDs
+│  ├─ assets.ts      shell · embedded bytes: catalog/ (BUILTIN) and assets/* (ASSETS) by macro (via embedded.ts), WASM (with {type:"file"})
+│  ├─ embedded.ts    shell · catalog, assets, demo, and evaluator fingerprint by macro; like library-assets.ts, loaded with `require` because Bun 1.4 omits the macro if a static graph reaches the module twice
+│  ├─ wasm.d.ts      types for `.wasm` imports (O13; avoids a suppression)
+│  ├─ disk.ts        shell · canonical (lstat + ancestor realpath), root, readTree, atomic write (tmp+rename, link)
+│  ├─ state.ts       shell · data directory: snapshot, "before" text, events, blobs, session roots
+│  ├─ git.ts         shell · git spawn: HEAD, status -z, cat-file --batch, diff --name-only, ls-files, index
+│  ├─ cli.ts         shell · check · explain · preset show|compile|apply · rules test · install
+│  └─ install.ts     shell · versioned engine, launcher, idempotent merge of .claude/settings.json, pre-commit, CI
 ├─ scripts/
-│  ├─ build.ts       rules test catalog (aborta si falla) → bun build --compile por target → tar + sha256
-│  ├─ bench.ts       p50/p95 por ruta sobre test/demo-repo con el binario de release (compileBinary de build.ts)
-│  └─ demo.sh        UC1/UC2 de punta a punta: dos presets, mismos Write, veredictos opuestos (POSIX; sh y dash)
-├─ eval/                        evaluación del MVP (W10, fuera del binario): tareas, brazos A/B/D/E, métricas desde state/
+│  ├─ build.ts       rules test catalog (aborts on failure) → bun build --compile per target → tar + sha256
+│  ├─ bench.ts       p50/p95 per path over test/demo-repo with the release binary (compileBinary from build.ts)
+│  └─ demo.sh        UC1/UC2 end to end: two presets, the same Writes, opposite verdicts (POSIX; sh and dash)
+├─ eval/                        MVP evaluation (W10, outside the binary): tasks, arms A/B/D/E, metrics from state/
 └─ test/
    ├─ reconstruct · paths · shell · resolve · match · decide · message · schema · compile · state · ts · ratchet (.test.ts)
    ├─ catalog.test.ts   claude.test.ts   e2e.test.ts   vendor.test.ts
-   ├─ payloads/         payloads reales de Claude Code + salida esperada (contrato; cierra cada "a verificar")
-   ├─ presets/          presets inválidos con su error exacto
-   └─ demo-repo/        repo fixture: src/{domain,application,infra}, presets backend-clean-ddd y functional-ts
+   ├─ payloads/         real Claude Code payloads + expected output (contract; closes each "to verify")
+   ├─ presets/          invalid presets with their exact error
+   └─ demo-repo/        fixture repo: src/{domain,application,infra}, presets backend-clean-ddd and functional-ts
 ```
 
-Son **23 módulos** en `src` (más `wasm.d.ts`). Estimado: ~3.000 líneas. **Medido tras la ola 3: 4.718**; los más largos son `shell.ts` (603), `gate.ts` (546), `match.ts` (494, paridad con ast-grep) y `compile.ts` (465).
+There are **23 modules** in `src` (plus `wasm.d.ts`). Estimate: ~3,000 lines. **Measured after wave 3: 4,718**; the longest are `shell.ts` (603), `gate.ts` (546), `match.ts` (494, parity with ast-grep), and `compile.ts` (465).
 
-**Dogfooding.** Puros (capa `core`): `types`, `claude`, `reconstruct`, `paths`, `ts`, `match`, `resolve`, `evaluate`, `ratchet`, `decide`, `message`, `shell`, `schema`, `compile` y `fixtures`. Cáscara: `main`, `gate`, `assets`, `disk`, `state`, `git`, `cli` e `install`. La cáscara importa al núcleo y nunca al revés.
+**Dogfooding.** Pure (`core` layer): `types`, `claude`, `reconstruct`, `paths`, `ts`, `match`, `resolve`, `evaluate`, `ratchet`, `decide`, `message`, `shell`, `schema`, `compile`, and `fixtures`. Imperative shell: `main`, `gate`, `assets`, `disk`, `state`, `git`, `cli`, and `install`. The shell imports the core and never the reverse.
 
 ---
 
-## 3. Tipos centrales (`src/types.ts`)
+## 3. Central types (`src/types.ts`)
 
 ```ts
 export type Severity = "deny" | "ask" | "warn";
 export type Phase = "pre" | "stop" | "commit" | "ci";
 export type Grammar = "typescript" | "tsx";       // .ts .mts .cts → typescript; .tsx .js .mjs .cjs .jsx → tsx [Δ]
-export type Read = (rel: string) => string | null;              // relativa a la raíz; null = no existe
-export type Files = Record<string, string>;                     // fuentes y fixtures en memoria
+export type Read = (rel: string) => string | null;              // relative to the root; null = does not exist
+export type Files = Record<string, string>;                     // in-memory sources and fixtures
 export type Reconstruction = "exact" | "tool-will-fail" | "unknown";
-export type Clock = () => number;                               // ms monotónicos; lo inyecta la cáscara (O27)
-export interface Host { read: Read; now: Clock }                // lo que analyze consulta además del archivo que juzga (O29)
+export type Clock = () => number;                               // monotonic ms; injected by the shell (O27)
+export interface Host { read: Read; now: Clock }                // what analyze consults besides the file it judges (O29)
 
-// ── Causas de un deny que no es por violación de regla (lista cerrada) ─────────
+// ── Causes of a deny that is not a rule violation (closed list) ─────────
 export type Cause =
-  // el agente puede corregirlo ⇒ deny de forma: no consume el contador de (archivo, regla)
+  // the agent can fix it ⇒ form deny: does not consume the (file, rule) counter
   | "protected-path" | "request-invalid" | "tool-will-fail" | "cannot-reconstruct"
   | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch"   // hook-switch: MH-17
-  // solo el humano puede corregirlo ⇒ deny + halt + notice
+  // only a human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
   | "snapshot-missing" | "state-io" | "git-failed" | "regex-limit";
 export const FIXABLE_BY = {
@@ -241,75 +214,75 @@ export const FIXABLE_BY = {
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-failed": "human", "regex-limit": "human",
 } as const satisfies Record<Cause, "agent" | "human">;
-// "lock-stale" cubre lock ausente, inválido o viejo, fuentes que no verifican y preset desaparecido: mismo remedio.
-// "regex-limit": el regex de una regla pudo abandonar sobre este archivo; su "no coincide" no es respuesta (O27).
-// "timeout" y "engine-crash" no son Cause: los emite el launcher (texto literal en launcher.sh, A6).
+// "lock-stale" covers a missing, invalid, or old lock, sources that do not verify, and a disappeared preset: same remedy.
+// "regex-limit": a rule's regex may have given up on this file; its "does not match" is not an answer (O27).
+// "timeout" and "engine-crash" are not Cause: the launcher emits them (literal text in launcher.sh, A6).
 
-// ── Entrada normalizada (agnóstica de harness) ─────────────────────────────────
-// [MULTI-HARNESS MH-W0] A16 extendido por MH-07: varios cambios por llamada, Move, formas de agy y Codex.
+// ── Normalized input (harness-agnostic) ─────────────────────────────────
+// [MULTI-HARNESS MH-W0] A16 extended by MH-07: several changes per call, Move, agy and Codex forms.
 export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy";
-export type HookKind = "pre" | "stop" | "session-start";       // lo que nombra un registro: hook <kind> --harness <id>
+export type HookKind = "pre" | "stop" | "session-start";       // what a registration names: hook <kind> --harness <id>
 export interface HookEnv { grokEvent: string | null; projectDir: string | null; remote: boolean }
 export interface Session {
-  id: string;                      // el id propio del harness; el estado lo indexa junto con `harness` (MH-05)
+  id: string;                      // the harness's own id; state indexes it together with `harness` (MH-05)
   harness: HarnessId;
   agentId: string | null;
-  turnId: string | null;           // si falta, el turno se deriva del último Stop registrado
-  interactive: boolean;            // solo Claude Code: modo ∈ {default, acceptEdits, auto, plan}
-}                                  //   ∧ sin agentId ∧ CLAUDE_CODE_REMOTE ≠ "true"; si no se sabe ⇒ false
-export interface ProposedChange {  // lo produce un adaptador y lo consume gate.onPreEdit (A16, MH-07)
+  turnId: string | null;           // if missing, the turn is derived from the last recorded Stop
+  interactive: boolean;            // Claude Code only: mode ∈ {default, acceptEdits, auto, plan}
+}                                  //   ∧ no agentId ∧ CLAUDE_CODE_REMOTE ≠ "true"; if unknown ⇒ false
+export interface ProposedChange {  // produced by an adapter and consumed by gate.onPreEdit (A16, MH-07)
   session: Session; callId: string; tool: string;
-  path: string;                    // absoluto, sin segmentos . .. ni // (si no, el adaptador rechaza la llamada)
+  path: string;                    // absolute, with no . .. segments or // (otherwise the adapter rejects the call)
   edit: Edit;
-  from: string | null;             // origen de un Move, que lleva su propio cambio { form: "delete" }
+  from: string | null;             // origin of a Move, which carries its own change { form: "delete" }
 }
 export interface ProposedCommand { session: Session; callId: string; tool: string; command: string; cwd: string }
 export type HookEvent =
   | { kind: "session-start"; session: Session; cwd: string }
-  | { kind: "pre-edit"; changes: ProposedChange[] }           // ≥ 1, de una sola llamada
+  | { kind: "pre-edit"; changes: ProposedChange[] }           // ≥ 1, from a single call
   | { kind: "pre-command"; command: ProposedCommand }
   | { kind: "stop"; session: Session; cwd: string; reentry: boolean };
 export interface Rejected { cause: Cause; kind: HookEvent["kind"]; reentry: boolean; session: Session | null; dirs: string[] }   // MH-06
 export type Edit =
   | { form: "full"; content: string }
   | { form: "append"; text: string }
-  | { form: "oldnew"; old: string; neu: string; all: boolean; lines: [number, number] | null }   // lines: 1-based, inclusivo
+  | { form: "oldnew"; old: string; neu: string; all: boolean; lines: [number, number] | null }   // lines: 1-based, inclusive
   | { form: "hunks"; hunks: Hunk[] }
   | { form: "delete" }
   | { form: "unknown"; cause: string };
 export interface Hunk { anchor: string | null; old: string[]; neu: string[]; eof: boolean }
 
-// ── Salida ───────────────────────────────────────────────────────────────────────
-export interface Violation {       // solo datos: el texto lo arma message.ts desde lock.rules[].text
-  rule: string;                    // FQN del alias ganador, p. ej. "core/CC-FN-001"
-  path: string; line: number;      // relativa a la raíz; 1-based
-  symbol: string;                  // "Invoice.calculateTotals" | "<module>" (sin sanitizar; lo sanitiza message.ts)
+// ── Output ───────────────────────────────────────────────────────────────────────
+export interface Violation {       // data only: message.ts builds the text from lock.rules[].text
+  rule: string;                    // FQN of the winning alias, e.g. "core/CC-FN-001"
+  path: string; line: number;      // relative to the root; 1-based
+  symbol: string;                  // "Invoice.calculateTotals" | "<module>" (not sanitized; message.ts sanitizes it)
   measured: number | null; limit: number | null; atSessionStart: number | null;
   severity: Severity;
 }
 export interface Decision {
-  verdict: "none" | "deny" | "ask"; // "none" = sin objeción; no existe "allow"
+  verdict: "none" | "deny" | "ask"; // "none" = no objection; "allow" does not exist
   halt: boolean;
-  cause: Cause | null;             // null ⇔ el deny/ask es por violaciones
-  violations: Violation[];         // introducidas y que causan el veredicto
-  warnings: Violation[];           // warn introducidos → additionalContext
-  attempt: number;                 // intento n sobre (agente, archivo, regla)
-  compact: string; full: string;   // ≤ 256 / ≤ 4.000
-  notice: string | null;           // al humano: systemMessage / stopReason
+  cause: Cause | null;             // null ⇔ the deny/ask is due to violations
+  violations: Violation[];         // introduced and causing the verdict
+  warnings: Violation[];           // introduced warns → additionalContext
+  attempt: number;                 // attempt n on (agent, file, rule)
+  compact: string; full: string;   // ≤ 256 / ≤ 4,000
+  notice: string | null;           // to the human: systemMessage / stopReason
   lockHash: string | null;
 }
-export interface Emission { stdout: string; stderr: string; exit: 0 | 2 }   // exit 1 irrepresentable
+export interface Emission { stdout: string; stderr: string; exit: 0 | 2 }   // exit 1 unrepresentable
 export interface DecideInput {
-  lock: Lock | null;               // null solo con una causa human
+  lock: Lock | null;               // null only with a human cause
   session: Session; event: HookEvent["kind"]; path: string | null;
   introduced: Violation[]; form: Form | null; protectedPath: boolean;
-  history: CallEvent[];            // del mismo (agente, archivo), ordenado por `at`
-  turnDenials: number;             // del mismo agente en el turno, incluidos los deny de forma
+  history: CallEvent[];            // for the same (agent, file), ordered by `at`
+  turnDenials: number;             // for the same agent in the turn, including form denies
   astHash: string | null;
-  stop: { blocks: number; reentry: boolean; approved: Violation[] } | null;   // approved: ask ya aprobados (§4.3)
+  stop: { blocks: number; reentry: boolean; approved: Violation[] } | null;   // approved: asks already approved (§4.3)
 }
 
-// ── Lenguaje de patrones: subconjunto cerrado de reglas de ast-grep ─────────────────
+// ── Pattern language: closed subset of ast-grep rules ─────────────────
 export interface MatchRule {
   pattern?: string; kind?: string; regex?: string; matches?: string;
   nthChild?: number | { position: number; reverse?: boolean; ofRule?: MatchRule };
@@ -317,10 +290,10 @@ export interface MatchRule {
   all?: MatchRule[]; any?: MatchRule[]; not?: MatchRule;
 }
 export interface Relation extends MatchRule { field?: string; stopBy?: "neighbor" | "end" | MatchRule }
-export interface PatternConfig {   // claves "x-*" se ignoran (notas); cualquier otra desconocida ⇒ error
+export interface PatternConfig {   // "x-*" keys are ignored (notes); any other unknown key ⇒ error
   id: string; rule: MatchRule;
   constraints?: Record<string, MatchRule>; utils?: Record<string, MatchRule>;
-  files?: string[]; ignores?: string[];  // aceptados en el formato; compile los vuelca a params.paths/exclude
+  files?: string[]; ignores?: string[];  // accepted in the format; compile copies them into params.paths/exclude
 }
 
 export type Placement = "new-in-exclude" | "edit-generated-or-excluded" | "no-language-pack-in-layer";
@@ -330,16 +303,16 @@ export type Impl =
   | { kind: "primitive"; primitive: "banned-import" }                       // params.packages
   | { kind: "primitive"; primitive: "layer-edge" }                          // lock.layers
   | { kind: "primitive"; primitive: "diff"; op: "no-decrease" | "no-increase";
-      count: "markers" | { pattern: PatternConfig } }                       // params.markers por substring, o conteo AST
+      count: "markers" | { pattern: PatternConfig } }                       // params.markers by substring, or AST count
   | { kind: "primitive"; primitive: "placement"; cases: Placement[] };
 
-// ── Formatos de disco (los valida schema/*.json; el motor lee estos campos) ─────────
+// ── On-disk formats (validated by schema/*.json; the engine reads these fields) ─────────
 export interface Check {
   id: string; version: string; area: string;
   cardinality: "singleton" | "multi"; dimension: string; minSeverity: Severity | null;
-  params: Record<string, unknown>;             // JSON Schema de parámetros
+  params: Record<string, unknown>;             // parameter JSON Schema
   impl: Impl; phase: Phase[]; feedback: { message: string };
-}                                               // claves v1 (ir, measures, fingerprint…) aceptadas e ignoradas
+}                                               // v1 keys (ir, measures, fingerprint…) accepted and ignored
 export interface Alias {
   id: string; check: string; defaults: Record<string, unknown>; severity: Severity | "off";
   source: { work: string; locator: string; paraphrase: string };
@@ -354,12 +327,12 @@ export interface Fixture {
   language: "typescript"; params: Record<string, unknown>;
   context?: { layers?: Record<string, Layer>; scope?: { include?: string[]; exclude?: string[] };
               generatedMarkers?: string[] };
-  target: string; before: string | null;       // "before/" para diff y ratchet
+  target: string; before: string | null;       // "before/" for diff and ratchet
   expect: { verdict: "pass" | "fail"; violations?: { line: number; measured?: number }[] };
   trap?: { family: string; origin: "real" | "corpus" | "forge"; discovered: string; note: string };
 }
 
-// ── Preset (subconjunto MVP de §8.3) y lock ────────────────────────────────────────
+// ── Preset (MVP subset of §8.3) and lock ────────────────────────────────────────
 export interface Layer { paths: string[]; mayImport: string[]; kind: "core" | "port" | "adapter" | "main" }
 export interface Loop {
   maxDenialsPerFileRule: number; maxDenialsPerTurn: number; noProgressLimit: number;
@@ -375,437 +348,449 @@ export interface Preset {
   resolve?: Record<string, { use: string; params?: Record<string, unknown>; severity?: Severity; note?: string }>;
   overrides?: Record<string, Severity | "off" | { severity?: Severity | "off"; params?: Record<string, unknown>; note?: string }>;
   ratchet?: { mode: "strict" | "no-new" };
-  loop?: Partial<Loop> & { escalate?: "stop" };   // D15.5: solo stop
-  failMode?: "closed";                            // D15.6: solo closed (aceptado por compatibilidad)
+  loop?: Partial<Loop> & { escalate?: "stop" };   // D15.5: stop only
+  failMode?: "closed";                            // D15.6: closed only (accepted for compatibility)
   coexist?: { arkgate?: { ownedByArkgate: string[]; config?: string; note?: string } };
 }
 export interface LockRule {
-  id: string;                      // FQN del alias ganador
-  aliases: string[];               // todos los aliases que comparten la regla efectiva
+  id: string;                      // FQN of the winning alias
+  aliases: string[];               // every alias that shares the effective rule
   check: string;                   // "core/complexity/fn-max-lines@1.0.0"
   impl: Impl;
-  params: Record<string, unknown>; // resueltos; `paths`/`exclude` con @layers expandido y files/ignores volcados
+  params: Record<string, unknown>; // resolved; `paths`/`exclude` with @layers expanded and files/ignores copied in
   severity: Severity; phases: Phase[];
-  integrity: boolean;              // inmune a shadow; no admite off
+  integrity: boolean;              // immune to shadow; does not admit off
   origin: Record<string, string>;  // "params.max" → "resolve.fn.size" | "overrides.CC-FN-001" | "alias"
   text: { message: string; why: string; fix: string; avoid: string | null; source: string };
 }
-export interface Lock {            // lockHash = sha256 de los bytes del archivo (el texto ya es JSON canónico)
+export interface Lock {            // lockHash = sha256 of the file bytes (the text is already canonical JSON)
   lockVersion: 1; engine: string; core: string;
-  coreHash: string;                // Δ O41: sourcesHash del catálogo builtin con el que se compiló
+  coreHash: string;                // Δ O41: sourcesHash of the builtin catalog it was compiled with
   presetHash: string; sourcesHash: string;
   preset: { name: string; version: string; methodologies: string[] };
   enforcement: "enforce" | "shadow";
   scope: { include: string[]; exclude: string[] }; generatedMarkers: string[];
   layers: Record<string, Layer>;
-  sourceDirs: string[];            // carpetas de fuentes path (se protegen además de las fijas, §4.1 paso 5)
+  sourceDirs: string[];            // path-source folders (protected in addition to the fixed ones, §4.1 step 5)
   ratchet: "strict" | "no-new"; loop: Loop;
-  ownedByArkgate: string[];        // listadas, nunca evaluadas
-  rules: LockRule[];               // orden canónico por id
+  ownedByArkgate: string[];        // listed, never evaluated
+  rules: LockRule[];               // canonical order by id
 }
 
-// ── Análisis y estado ───────────────────────────────────────────────────────────
-export interface Analysis {        // un archivo en un estado
+// ── Analysis and state ───────────────────────────────────────────────────────────
+export interface Analysis {        // one file in one state
   symbols: string[]; violations: Violation[];
-  counts: Record<string, number>;  // reglas diff: regla → conteo
-  astHash: string | null;          // árbol normalizado sin comentarios ni trivia (sin progreso)
+  counts: Record<string, number>;  // diff rules: rule → count
+  astHash: string | null;          // normalized tree without comments or trivia (no progress)
 }
-export type Form = { cause: Cause; line: number | null };   // análisis imposible ⇒ deny
+export type Form = { cause: Cause; line: number | null };   // analysis impossible ⇒ deny
 export interface Snapshot {        // sessions/<sid>/<rootHash>/snapshot.json
-  root: string;                    // ruta absoluta de la raíz (Stop la necesita)
-  head: string | null;             // null = repo sin commits ⇒ todo archivo es nuevo
-  start: boolean;                  // la creó SessionStart (acepta la raíz, A20)
-  dirty: Record<string, string | null>;      // solo si start: rel → sha256 del blob | null (no existía);
-}                                            //   si !start, {} ⇒ todo "antes" = HEAD (nunca blanquea)
-export interface CallEvent {       // contenido del archivo de evento (para decide y para el etiquetado manual)
-  at: number;                      // ms, lo pone la cáscara; history() ordena por at
+  root: string;                    // absolute root path (Stop needs it)
+  head: string | null;             // null = repo with no commits ⇒ every file is new
+  start: boolean;                  // created by SessionStart (accepts the root, A20)
+  dirty: Record<string, string | null>;      // only if start: rel → blob sha256 | null (did not exist);
+}                                            //   if !start, {} ⇒ every "before" = HEAD (never blanks it)
+export interface CallEvent {       // contents of the event file (for decide and for manual labeling)
+  at: number;                      // ms, set by the shell; history() sorts by at
   callId: string; turn: string; agentId: string | null; kind: HookEvent["kind"]; path: string | null;
   verdict: Decision["verdict"]; halted: boolean; form: Cause | null; shadowed: boolean;
-  violations: Violation[];         // deny/ask introducidas (contadores, precisión, corrección en un intento)
-  afterSha: string | null;         // con deny, ask o shadowed, `after` se copia a blobs/<afterSha>
+  violations: Violation[];         // introduced deny/ask (counters, precision, correction in one attempt)
+  afterSha: string | null;         // on deny, ask, or shadowed, `after` is copied to blobs/<afterSha>
   astHash: string | null;
 }
-// Nombre: <turnH>~<agentH>~<fileH>~<verdict>~<form:0|1>~<callIdH>.json   (H = sha256[:12]; agentH "-" = principal;
-//         en Stop fileH = "stop" y callIdH = H(sid + at))
-//   · tope por turno: readdir y conteo de <turnH>~<agentH>~*~deny~* (incluye los deny de forma)
-//   · contadores, sin progreso y forma seguida: se leen solo los *~<agentH>~<fileH>~*
-//   · bloqueos de Stop del turno: <turnH>~-~stop~deny~*
+// Name: <turnH>~<agentH>~<fileH>~<verdict>~<form:0|1>~<callIdH>.json   (H = sha256[:12]; agentH "-" = principal;
+//         on Stop fileH = "stop" and callIdH = H(sid + at))
+//   · per-turn cap: readdir and count of <turnH>~<agentH>~*~deny~* (includes form denies)
+//   · counters, no progress, and consecutive form: only *~<agentH>~<fileH>~* are read
+//   · Stop blocks for the turn: <turnH>~-~stop~deny~*
 ```
 
-**Recortes respecto de §13.2:** sin `batchId`, `fromPath`, `change.kind: delete|move`, `tool.form` ni `before`/`after`/`reconstruction` en el tipo (A16), y sin `Violation.why/fix/text` (viven en el lock y los renderiza `message.ts`).
+**Cuts relative to §13.2:** no `batchId`, `fromPath`, `change.kind: delete|move`, `tool.form`, or `before`/`after`/`reconstruction` on the type (A16), and no `Violation.why/fix/text` (they live in the lock and `message.ts` renders them).
 
-**Directorio de datos** (`${XDG_STATE_HOME:-$HOME/.local/state}/pregate/`, protegido):
+**Data directory** (`${XDG_STATE_HOME:-$HOME/.local/state}/pregate/`, protected):
 
 ```
 sessions/<harness>:<sid>/
   events/<turnH>~<agentH>~<fileH>~<verdict>~<form>~<callIdH>.json    CallEvent (tmp + rename)
-  blobs/<sha256>                    contenido: archivos sucios al iniciar y `after` de deny/ask/shadowed
-  <rootHash>/snapshot.json          Snapshot. El directorio <rootHash>/ se crea completo en uno temporal y se
-                                    mueve con rename (falla si ya existe): nunca hay <rootHash>/ sin snapshot
-  <rootHash>/head/<H(rel)>.json     {text | null} de rel en snapshot.head; se escribe una vez con link (A12)
-  <rootHash>/sources.json           {lockHash, ok}: verificación del sourcesHash (§4.1 paso 6)
+  blobs/<sha256>                    content: dirty files at start and `after` of deny/ask/shadowed
+  <rootHash>/snapshot.json          Snapshot. The <rootHash>/ directory is created complete in a temporary
+                                    directory and moved with rename (fails if it already exists): there is never
+                                    a <rootHash>/ without a snapshot
+  <rootHash>/head/<H(rel)>.json     {text | null} of rel at snapshot.head; written once with link (A12)
+  <rootHash>/sources.json           {lockHash, ok}: sourcesHash verification (§4.1 step 6)
 ```
 
 Installation: `<DATA> = ${XDG_DATA_HOME:-$HOME/.local/share}/pregate` at setup. Engines: `<DATA>/<version>/pregate`; launcher: `<DATA>/bin/pregate`; CLI symlink: `~/.local/bin/pregate`. State: `<STATE> = ${XDG_STATE_HOME:-$HOME/.local/state}/pregate`, including `codex-trust.json`. Runtime derives `<DATA>` from its executable (MH-18).
 
 ---
 
-## 4. Camino del hook paso a paso
+## 4. Hook path, step by step
 
-### 4.0 El launcher (proceso padre)
+### 4.0 The launcher (parent process)
 
-`pregate setup` lo escribe desde `assets/launcher.sh` como `<DATA>/bin/pregate`, con la versión de su motor, y cada registro global hace `exec` de él a través del comando congelado de MULTI-HARNESS MH-22 (un guard inline que, con el launcher ausente o vacío, deniega Pre solo si hay un preset).
+`pregate setup` writes it from `assets/launcher.sh` as `<DATA>/bin/pregate`, with its engine's version, and every global registration `exec`s it through the frozen MULTI-HARNESS MH-22 command (an inline guard that, when the launcher is missing or empty, denies Pre only if there is a preset).
 
-1. Resuelve el motor al lado de sí mismo: `<DATA>/<versión>/pregate`, con `<DATA>` = dos niveles arriba de `$0` (por el symlink `~/.local/bin/pregate`, uno de `readlink`). Nunca desde el entorno del momento (MH-18). Sus propios comandos corren con `PATH=/usr/bin:/bin`; el motor recibe el PATH original (MH-15).
-2. Si hay argumentos y el primero no es `hook` (`check`, `explain`, `setup`, …), hace `exec` del motor, sin supervisión: `check` puede durar más de 5 s en pre-commit y su exit 1 es legítimo. Un motor ausente o vacío sale con 1 (vacío, correría como script vacío: exit 0).
-3. Si es `hook <evento>`, o si no hay argumentos (`$# = 0` ⇒ `hook auto`, §13.7), supervisa:
-   - Pre explícito lee stdin directamente. Solo si el motor devuelve exit 3 se extrae el replay que viene después de la línea de versión. Stop, SessionStart y auto conservan la copia inicial: Stop lee `stop_hook_active` y auto, `hook_event_name`. stdout y stderr siempre van a archivos (no a `$(...)`).
-   - Plazo duro sin depender de `wait`: `trap … USR1`, y un temporizador en segundo plano hace `kill -USR1 $$` al vencer; el trap mata al motor con `kill -9` y emite la salida fail-closed. La señal atrapada interrumpe el `wait` del padre, así que la salida llega aunque el motor no muera (fs colgado en estado D). Plazos: Pre 5 s (O30), Stop 45 s, SessionStart 10 s. `TERM`/`HUP` (el harness canceló) también deniegan.
-4. Protocolo (MULTI-HARNESS §10.1): `rc ∈ {0,2}` reenvía stdout y stderr y sale con `rc`, salvo un exit 2 con stderr en blanco, que Codex dejaría pasar. Exit 3 con primera línea `ENGINE_VERSION` en stdout corre `<DATA>/<v>/pregate` **una vez**, con el mismo stdin y dentro del mismo plazo (MH-19). Pre devuelve su stdin original después de esa línea; un replay ausente o sin comienzo de objeto JSON se rechaza. Una versión inválida, un motor ausente o un segundo exit 3 son fail-closed. Cualquier otra cosa (motor propio ausente o vacío, crash, SIGKILL/OOM, plazo vencido, exit 1) emite la **salida fail-closed del evento**, texto literal en el script:
-   - **Pre**, igual en los cinco harnesses: exit 2, stdout vacío y una línea de stderr de ≤ 256 caracteres, "PREGATE could not evaluate: …; report it to the user" (MH-15).
-   - **Stop**, solo en Claude Code (`--harness claude-code` sin `GROK_HOOK_EVENT` ni `CURSOR_VERSION`): `decision:"block"` + stderr, exit 2, si `stop_hook_active` no es `true`; si lo es, `systemMessage` y exit 0. En los demás, neutro.
-   - **SessionStart**, solo en Claude Code: `systemMessage`, exit 0. En los demás, neutro.
+1. It resolves the engine beside itself: `<DATA>/<version>/pregate`, with `<DATA>` = two levels above `$0` (because of the `~/.local/bin/pregate` symlink, one `readlink`). Never from the environment of the moment (MH-18). Its own commands run with `PATH=/usr/bin:/bin`; the engine receives the original PATH (MH-15).
+2. If there are arguments and the first is not `hook` (`check`, `explain`, `setup`, …), it `exec`s the engine, without supervision: `check` can last more than 5 s in pre-commit and its exit 1 is legitimate. A missing or empty engine exits with 1 (empty, it would run as an empty script: exit 0).
+3. If it is `hook <event>`, or if there are no arguments (`$# = 0` ⇒ `hook auto`, §13.7), it supervises:
+   - Explicit Pre reads stdin directly. Only if the engine returns exit 3 is the replay that comes after the version line extracted. Stop, SessionStart, and auto keep the initial copy: Stop reads `stop_hook_active` and auto reads `hook_event_name`. stdout and stderr always go to files (not to `$(...)`).
+   - Hard deadline without depending on `wait`: `trap … USR1`, and a background timer does `kill -USR1 $$` when it expires; the trap kills the engine with `kill -9` and emits the fail-closed output. The trapped signal interrupts the parent's `wait`, so the output arrives even if the engine does not die (filesystem hung in state D). Deadlines: Pre 5 s (O30), Stop 45 s, SessionStart 10 s. `TERM`/`HUP` (the harness cancelled) also deny.
+4. Protocol (MULTI-HARNESS §10.1): `rc ∈ {0,2}` forwards stdout and stderr and exits with `rc`, except an exit 2 with blank stderr, which Codex would let through. Exit 3 with first line `ENGINE_VERSION` on stdout runs `<DATA>/<v>/pregate` **once**, with the same stdin and within the same deadline (MH-19). Pre returns its original stdin after that line; a missing replay or one that does not start with a JSON object is rejected. An invalid version, a missing engine, or a second exit 3 are fail-closed. Anything else (own engine missing or empty, crash, SIGKILL/OOM, deadline expired, exit 1) emits the **event's fail-closed output**, literal text in the script:
+   - **Pre**, the same on all five harnesses: exit 2, empty stdout, and a stderr line of ≤ 256 characters, "PREGATE could not evaluate: …; report it to the user" (MH-15).
+   - **Stop**, only on Claude Code (`--harness claude-code` without `GROK_HOOK_EVENT` or `CURSOR_VERSION`): `decision:"block"` + stderr, exit 2, if `stop_hook_active` is not `true`; if it is, `systemMessage` and exit 0. On the others, neutral.
+   - **SessionStart**, only on Claude Code: `systemMessage`, exit 0. On the others, neutral.
 
-**Verificado en esta síntesis** con el prototipo (bash 3.2 y dash): stdin de 400 KB pasa intacto, exit 0 y 2 se reenvían, SIGKILL y exit 1 dan deny con exit 2, y un bucle infinito se corta a los 2,03 s. Agrega entre 0,8 y 1,3 ms. El `trap … USR1` y el stdout a archivo se verifican el día 1 (§9.3 f).
+**Verified in this synthesis** with the prototype (bash 3.2 and dash): a 400 KB stdin passes intact, exits 0 and 2 are forwarded, SIGKILL and exit 1 give deny with exit 2, and an infinite loop is cut off at 2.03 s. It adds between 0.8 and 1.3 ms. The `trap … USR1` and stdout-to-file are verified on day 1 (§9.3 f).
 
-**Riesgo residual que queda.** Que muera el propio `sh`, o que la máquina no tenga `/bin/sh`. Lo cubren Stop, pre-commit y CI (U10).
+**Residual risk that remains.** That `sh` itself dies, or that the machine has no `/bin/sh`. Stop, pre-commit, and CI cover it (U10).
 
 ### 4.1 PreToolUse `Write | Edit`
 
-Toda causa conocida pasa por `decide → encode`. Lo imprevisto sale con exit 1 y responde el launcher (A6).
+Every known cause goes through `decide → encode`. The unforeseen exits with exit 1 and the launcher answers (A6).
 
-| # | Paso | Presupuesto | Si falla |
+| # | Step | Budget | If it fails |
 |---|---|---|---|
-| 0 | Launcher (§4.0) | ~1 ms (medido) | Salida fail-closed del evento |
-| 1 | Arranque del motor (Bun + bytecode, sin WASM) | 14–16 ms (medido) | Crash ⇒ paso 0 |
+| 0 | Launcher (§4.0) | ~1 ms (measured) | Event fail-closed output |
+| 1 | Engine startup (Bun + bytecode, no WASM) | 14–16 ms (measured) | Crash ⇒ step 0 |
 | 2 | `profile(flag, raw, env)` → adapter `decode` → `HookEvent`, `Rejected` or `null`; edit keys are closed per adapter | < 1 ms | `Rejected` with no directories denies; otherwise neutral only when no directory or recorded session root reaches a preset (MH-06). `null` ignores Grok shutdown. Unknown reconstruction denies inside scope |
 | 3 | Adapter tool dispatch constructs all `ProposedChange`s; unsupported edits become `unknown`. Empty old text creates a missing file (MH-13) | 0 | — |
 | 4 | Canonicalize paths and locate the first accepted preset (A20/MH-33), including a move's origin | < 1 ms (+ git on first contact) | No root: machine protections only, no git, WASM or state. A recorded root whose preset disappeared gives `lock-stale`; an unaccepted nested root is skipped |
-| 5 | `paths.protects`: machine configs, installation/state and `**/.pregate/**` always; `.git/**`, project harness configs and `path` rule sources inside a rooted session. Realpaths and case-insensitive matching (A26/MH-17/30). Valid `.pregate/requests/*.json` is the only rooted exception | < 0,5 ms | `protected-path` / `request-invalid` |
+| 5 | `paths.protects`: machine configs, installation/state and `**/.pregate/**` always; `.git/**`, project harness configs and `path` rule sources inside a rooted session. Realpaths and case-insensitive matching (A26/MH-17/30). Valid `.pregate/requests/*.json` is the only rooted exception | < 0.5 ms | `protected-path` / `request-invalid` |
 | 6 | Parse lock and check engine/core. Recompile the current preset with current builtin/path/library/cached Git sources and compare the complete compiler output with normalized disk lock bytes. No fixture execution or replacement write. Within a Pre edit call, each root's admitted lock is reused for its overlay and dependency reviews; the next hook admits it again. `state.sourcesOk` additionally checks source identity per lock/session. | Compilation and source reads are measured as part of the total hook budget; the earlier 1–2 ms hash-only estimate does not describe this implementation. | `lock-stale` or `version-mismatch` ⇒ deny + halt and request explicit `pregate preset compile` (A9). |
-| 7 | `evaluate.placement(lock, phase, …)` sin parsear (solo reglas con esa fase): EVA-SCOPE-001 (archivo nuevo en `exclude`; lenguaje sin pack dentro de una capa) y EVA-GEN-002 (editar un archivo existente con marcador por substring o en `exclude`). Fuera de scope y sin placement ⇒ `none` | < 0,5 ms | Violación ⇒ deny por regla |
-| 8 | `reconstruct.apply(current, edit)` | < 1 ms | `tool-will-fail` (deny de forma "re-read and resend"); `unknown` ⇒ `cannot-reconstruct` |
-| 9 | Snapshot (sesión, raíz): existente, o creada en el primer contacto (`start: false`, `dirty: {}` ⇒ todo "antes" = HEAD). `before_sesión` = blob de `dirty`, o `head/<H(rel)>.json` (la primera vez, `git cat-file` de `snapshot.head`, guardado con `link`), o `null` si el archivo es nuevo en la sesión | 0 después del primer toque; ~20 ms en el primero | `<rootHash>/` sin `snapshot.json` ⇒ `snapshot-missing` (deny + halt). Git falla ⇒ `git-failed` |
-| 10 | Init perezoso de WASM (solo la gramática del archivo) + `ts.parse(after)` + `ts.errorIn(parsed, ventana)`. **[Δ ola 3]** Ese `Parsed` es el que recibe `analyze(after)`: un solo parse del "después". La ventana se calcula por prefijo y sufijo comunes con `current`. Un nodo ERROR o MISSING que **interseca** la ventana ⇒ error | 7 ms + ~11 µs/línea | `syntax` con su línea (deny de forma) |
-| 11 | `analyze(after)`: reglas con `phase ∋ pre`, filtradas por `paths`/`exclude`/lenguaje y sin `ownedByArkgate`. Patrones, métricas, imports + re-exports (≤ 3 saltos, ≤ 32 archivos leídos) | 1–10 ms | En una capa con `mayImport ≠ ["*"]`: import `unresolved`, re-exports `too-deep` o tsconfig `invalid` ⇒ `unresolvable-import` (deny de forma) **[Δ §4.4]** |
-| 12 | `analyze(before_sesión)`, recalculado (A12), **[Δ ola 3]** bajo `comparedLock(lock, after)`: reglas diff, las que el "después" viola y las de imports; el resto no puede cambiar `introduced()` (`ratchet.test.ts` lo prueba sobre las fixtures del catálogo) | ~4 ms (300 líneas) / ~25 ms (2.000); menos con `comparedLock` | **[Δ ola 2]** Una forma en el "antes" cuenta como `before` ausente: todo `after` es nuevo (strict), que el agente puede corregir; un deny sobre texto que no puede cambiar no |
+| 7 | `evaluate.placement(lock, phase, …)` without parsing (only rules with that phase): EVA-SCOPE-001 (new file in `exclude`; language without a pack inside a layer) and EVA-GEN-002 (editing an existing file with a substring marker or in `exclude`). Out of scope and with no placement ⇒ `none` | < 0.5 ms | Violation ⇒ deny by rule |
+| 8 | `reconstruct.apply(current, edit)` | < 1 ms | `tool-will-fail` (form deny "re-read and resend"); `unknown` ⇒ `cannot-reconstruct` |
+| 9 | Snapshot (session, root): existing, or created on first contact (`start: false`, `dirty: {}` ⇒ every "before" = HEAD). `before_session` = blob from `dirty`, or `head/<H(rel)>.json` (the first time, `git cat-file` of `snapshot.head`, stored with `link`), or `null` if the file is new in the session | 0 after the first touch; ~20 ms on the first | `<rootHash>/` without `snapshot.json` ⇒ `snapshot-missing` (deny + halt). Git fails ⇒ `git-failed` |
+| 10 | Lazy WASM init (only the file's grammar) + `ts.parse(after)` + `ts.errorIn(parsed, window)`. **[Δ wave 3]** That `Parsed` is what `analyze(after)` receives: a single parse of the "after". The window is computed from the common prefix and suffix with `current`. An ERROR or MISSING node that **intersects** the window ⇒ error | 7 ms + ~11 µs/line | `syntax` with its line (form deny) |
+| 11 | `analyze(after)`: rules with `phase ∋ pre`, filtered by `paths`/`exclude`/language and without `ownedByArkgate`. Patterns, metrics, imports + re-exports (≤ 3 hops, ≤ 32 files read) | 1–10 ms | In a layer with `mayImport ≠ ["*"]`: `unresolved` import, `too-deep` re-exports, or invalid tsconfig ⇒ `unresolvable-import` (form deny) **[Δ §4.4]** |
+| 12 | `analyze(before_session)`, recomputed (A12), **[Δ wave 3]** under `comparedLock(lock, after)`: diff rules, those the "after" violates, and import rules; the rest cannot change `introduced()` (`ratchet.test.ts` proves it on the catalog fixtures) | ~4 ms (300 lines) / ~25 ms (2,000); less with `comparedLock` | **[Δ wave 2]** A form cause in the "before" counts as an absent `before`: all of `after` is new (strict), which the agent can correct; a deny on text that cannot change does not |
 | 13 | `ratchet.introduced(lock, rel, before, after)` | < 1 ms | — |
-| 14 | `decide()`: `readdir` de `events/` (tope por turno del agente, incluidos los deny de forma), lectura de los eventos del mismo (agente, archivo) ordenados por `at` para contadores, sin progreso (`astHash` repetido o conteo que no baja) y **3 deny de forma seguidos sobre el archivo ⇒ halt** **[Δ]**. `ask` solo si `session.interactive ∧ loop.allowAsk ∧ ruta no protegida`. En `shadow` se marca `shadowed` (`blocking`, §7.2 #3) | 1–3 ms | — |
-| 15 | Escribir el `CallEvent` (tmp + rename; nombre con claves) y, con deny, ask o `shadowed`, `after` en `blobs/<afterSha>` | < 1 ms | `state-io` (deny + halt): sin estado no hay contadores |
+| 14 | `decide()`: `readdir` of `events/` (the agent's per-turn cap, including form denies), read of events for the same (agent, file) ordered by `at` for counters, no progress (repeated `astHash` or a count that does not fall), and **3 form denies in a row on the file ⇒ halt** **[Δ]**. `ask` only if `session.interactive ∧ loop.allowAsk ∧ path not protected`. In `shadow`, `shadowed` is set (`blocking`, §7.2 #3) | 1–3 ms | — |
+| 15 | Write the `CallEvent` (tmp + rename; name with keys) and, on deny, ask, or `shadowed`, `after` in `blobs/<afterSha>` | < 1 ms | `state-io` (deny + halt): without state there are no counters |
 | 16 | Selected adapter `encode`, one `writeSync` per channel. Five dialects: MULTI-HARNESS MH-14; no adapter emits `allow` | < 1 ms | — |
 
-**Por qué un ERROR fuera de la ventana no puede esconder nada nuevo (A19).** Lo que está fuera de la ventana es byte a byte igual a `current`. `current` es, o bien el estado que dejó una llamada ya evaluada en esta sesión, o bien la base (snapshot o HEAD), o bien el resultado de un escape por shell, que Stop evalúa con la ventana contra `before_sesión`. Ese texto no aporta violaciones introducidas, y el ratchet lo descuenta. Si el texto nuevo queda dentro de un nodo ERROR que empieza afuera, ese nodo interseca la ventana y deniega.
+**Why an ERROR outside the window cannot hide anything new (A19).** What is outside the window is byte for byte equal to `current`. `current` is either the state left by a call already evaluated in this session, or the base (snapshot or HEAD), or the result of a shell escape, which Stop evaluates with the window against `before_session`. That text contributes no introduced violations, and the ratchet discounts it. If the new text falls inside an ERROR node that starts outside, that node intersects the window and denies.
 
-**Totales medidos [Δ ola 3]** con `bun run bench` (30 corridas por ruta, binario de release detrás del launcher vía `sh -c`, sesión nueva por muestra; macOS arm64, carga ~2,2). Presupuestos: p95 ≤ 150 ms en toda ruta, p50 ≤ 25 ms en shell (§7.2 #5):
+**Measured totals [Δ wave 3]** with `bun run bench` (30 runs per path, release binary behind the launcher via `sh -c`, new session per sample; macOS arm64, load ~2.2). Budgets: p95 ≤ 150 ms on every path, p50 ≤ 25 ms on shell (§7.2 #5):
 
-| Ruta | p50 | p95 |
+| Path | p50 | p95 |
 |---|---|---|
-| Fuera de scope | 22,2 ms | 23,7 ms |
-| Shell | 22,3 ms | 24,0 ms |
-| 300 líneas, primer toque | 60,5 ms | 63,9 ms |
-| 300 líneas, segundo toque | 51,5 ms | 53,7 ms |
-| 2.000 líneas, primer toque | 103,3 ms | 106,7 ms |
-| 2.000 líneas, segundo toque | 93,9 ms | 96,0 ms |
-| 2.000 líneas con deuda commiteada, primer toque | 117,8 ms | 123,9 ms |
+| Out of scope | 22.2 ms | 23.7 ms |
+| Shell | 22.3 ms | 24.0 ms |
+| 300 lines, first touch | 60.5 ms | 63.9 ms |
+| 300 lines, second touch | 51.5 ms | 53.7 ms |
+| 2,000 lines, first touch | 103.3 ms | 106.7 ms |
+| 2,000 lines, second touch | 93.9 ms | 96.0 ms |
+| 2,000 lines with committed debt, first touch | 117.8 ms | 123.9 ms |
 
-El primer toque cuesta ~10 ms más que el segundo: el `git cat-file` de A12. Lo más caro que queda es `match.ts` (~24 ms en frío a 2.000 líneas: un recorrido del árbol por patrón).
+The first touch costs ~10 ms more than the second: the A12 `git cat-file`. The most expensive part that remains is `match.ts` (~24 ms cold at 2,000 lines: one tree walk per pattern).
 
-**El presupuesto es de la máquina de referencia (O31).** Estos números y el p95 ≤ 150 ms son de la máquina de desarrollo de referencia (macOS arm64, M5 Pro, 18 núcleos). Una llamada usa unas 3,5 veces su tiempo real en CPU (la compilación JIT de JavaScriptCore corre en otros hilos y se repite en cada proceso), así que en una máquina con 2 núcleos el mismo binario tarda varias veces más: en `ubuntu-latest` (2 vCPU x64), 2.000 líneas con deuda da p95 469–844 ms según el runner. En CI el bench informa (§8).
+**The budget belongs to the reference machine (O31).** These numbers and the p95 ≤ 150 ms are from the reference development machine (macOS arm64, M5 Pro, 18 cores). One call uses about 3.5 times its wall-clock time in CPU (JavaScriptCore's JIT compilation runs on other threads and repeats in every process), so on a 2-core machine the same binary takes several times longer: on `ubuntu-latest` (2 vCPU x64), 2,000 lines with debt gives p95 469–844 ms depending on the runner. In CI the bench reports (§8). That 2 vCPU figure predates the compiled-lock cache and was not measured again on a 2-core runner.
 
-**Salida en Claude Code:**
+**Compiled-lock cache.** Step 6 recompiles only when no valid entry exists. The key is the hash of the normalized lock, of the preset, of every pack the compiler reads (builtin, library, `path` and pinned git) and of this build (`engine`, `core` and the compiler fingerprint). The file lives in the state directory, `locks/<sha256(root)>.json`. If it is missing, truncated, or its digest does not match, the hook recompiles. The `before_session` analysis is still recomputed on every call (A12).
 
-| Veredicto | stdout / stderr / exit |
+Measured with the real `hook pre` binary on a `backend-clean-ddd` fixture plus one `path` rule, a new session per sample, an allowed edit of `src/domain/values/money.ts` (linux-x64, 4 vCPU, Bun 1.4.2). Before the cache, n=15: p50 72.6 ms, p95 100.9 ms. With the cache, `bun test test/lock-cache.e2e.test.ts`, n=25:
+
+| Pass | p50 | p95 |
+|---|---|---|
+| Cold (the cache is deleted; recompiles) | 60.6 ms | 64.4 ms |
+| Warm (reuses the compiled lock) | 41.1 ms | 43.5 ms |
+
+The cold and the warm decision are identical. Changing the lock or that rule invalidates the entry and denies `lock-stale`; a corrupt entry is recompiled and leaves the same decision.
+
+**Output in Claude Code:**
+
+| Verdict | stdout / stderr / exit |
 |---|---|
-| `none` | vacío / — / 0 |
-| `none` con `warnings` | `hookSpecificOutput.additionalContext` ("informational; no action required for this task") / — / 0 |
-| `deny` | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":full}}` **[Δ ola 2: `full` entero; su primera línea es el compacto ≤ 256]**, más `"continue":false,"stopReason":notice` si hay `halt` / `full` / **2** |
-| `ask` | `permissionDecision:"ask"`, `permissionDecisionReason` = notice (al humano), `additionalContext` = `full` / — / 0 |
+| `none` | empty / — / 0 |
+| `none` with `warnings` | `hookSpecificOutput.additionalContext` ("informational; no action required for this task") / — / 0 |
+| `deny` | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":full}}` **[Δ wave 2: the whole `full`; its first line is the compact ≤ 256]**, plus `"continue":false,"stopReason":notice` if there is `halt` / `full` / **2** |
+| `ask` | `permissionDecision:"ask"`, `permissionDecisionReason` = notice (to the human), `additionalContext` = `full` / — / 0 |
 
-`encode()` no tiene una rama "allow".
+`encode()` has no "allow" branch.
 
 ### 4.2 PreToolUse `Bash | PowerShell | Monitor`
 
-Pasos 0–2 (en `tool_input` solo se lee `command`; las demás claves se ignoran, porque no cambian qué se ejecuta), la raíz desde `cwd` (4) y `state.ensureSnapshot(sid, raíz)`, para que Stop vea las raíces a las que se llega por `cd`. Las protecciones del paso 5 se aplican siempre; las carpetas de fuentes salen del lock o de `preset.json`, y sin lock válido todo lo que está bajo la raíz cuenta como en scope. Después corre `shell.guard(command, cwd, ctx)`. No carga el WASM.
+Steps 0–2 (in `tool_input` only `command` is read; the other keys are ignored, because they do not change what runs), the root from `cwd` (4), and `state.ensureSnapshot(sid, root)`, so that Stop sees the roots reached by `cd`. The step 5 protections always apply; source folders come from the lock or from `preset.json`, and without a valid lock everything under the root counts as in scope. Then `shell.guard(command, cwd, ctx)` runs. It does not load the WASM.
 
-**Lexer permisivo.** Lo que no reconoce (`$(…)`, `<(…)`, `[[ ]]`, bloques `{}` de PowerShell) queda como palabra opaca, y esa palabra igual se revisa contra rutas protegidas y patrones de escritura. Comillas sin cerrar no se deniegan: el shell falla y no escribe. `sh|bash -c '<literal>'` y `eval '<literal>'` se analizan de nuevo sobre el string interno; con un argumento no literal ⇒ `shell-write`. **[Δ olas 1–2] Pipe a intérprete:** un script que llega por pipe a un shell o intérprete (`… | bash`, `curl … | sh`, `cat s.py | python3`, `… | bash -s foo`) es texto desconocido ⇒ `shell-write`; un heredoc o here-string literal se re-analiza como un `-c` y uno no literal ⇒ `shell-write`; un script desde archivo (`bash f.sh`, `bash < f`) no se analiza (lo ve Stop). También cuentan como código inline `fish --command`, `npx -c`/`--call` y `pnpm -c`. Un solo parser de opciones GNU (`getopt`) sirve a todos los comandos (O21).
+**Permissive lexer.** What it does not recognize (`$(…)`, `<(…)`, `[[ ]]`, PowerShell `{}` blocks) remains an opaque word, and that word is still checked against protected paths and write patterns. Unclosed quotes are not denied: the shell fails and does not write. `sh|bash -c '<literal>'` and `eval '<literal>'` are analyzed again on the inner string; a non-literal argument ⇒ `shell-write`. **[Δ waves 1–2] Pipe to an interpreter:** a script that arrives by pipe to a shell or interpreter (`… | bash`, `curl … | sh`, `cat s.py | python3`, `… | bash -s foo`) is unknown text ⇒ `shell-write`; a literal heredoc or here-string is re-analyzed as a `-c` and a non-literal one ⇒ `shell-write`; a script from a file (`bash f.sh`, `bash < f`) is not analyzed (Stop sees it). Also counted as inline code: `fish --command`, `npx -c`/`--call`, and `pnpm -c`. A single GNU option parser (`getopt`) serves every command (O21).
 
 Outside every preset, only machine protections run: `hook-switch` blocks disabling PREGATE, editing global harness configs/installation/state, and setup/update/uninstall; no git, WASM or state writes. Other harness administration is restricted only inside a root. Codex relative shell write destinations and interactive shells are refused (MH-17/29).
 
-**Deniega:**
-- escritura a rutas en scope: redirecciones de salida (`>`, `>>`, `>|`, `&>`), `tee`, `sed -i`, `perl -pi`, el destino de `cp`/`mv`/`ln`/`install`, `dd of=`, `truncate`, `git apply|checkout --|restore`, `patch`, `curl -o`, `wget -O`, y `python|node|bun|perl -e/-c` que mencionen una ruta en scope;
-- una escritura cuyo destino no es literal (`$VAR`, `$(…)`, comilla invertida, glob): no se puede establecer si está en scope ⇒ `shell-write`;
+**Denies:**
+- writes to in-scope paths: output redirections (`>`, `>>`, `>|`, `&>`), `tee`, `sed -i`, `perl -pi`, the destination of `cp`/`mv`/`ln`/`install`, `dd of=`, `truncate`, `git apply|checkout --|restore`, `patch`, `curl -o`, `wget -O`, and `python|node|bun|perl -e/-c` that mention an in-scope path;
+- a write whose destination is not literal (`$VAR`, `$(…)`, backtick, glob): it cannot be established whether it is in scope ⇒ `shell-write`;
 - cmdlets `Set-Content|Out-File|Add-Content|New-Item -Value|Copy-Item|Move-Item`;
-- cualquier mención de una ruta protegida, salvo el pre-check permitido;
-- subcomandos de `pregate` distintos de `check|explain|preset show|rules test`, por cualquier ruta;
-- `--no-verify`, `core.hooksPath`, `disableAllHooks`, `claude plugin disable|uninstall` y `--settings`;
-- binarios de otros harnesses;
-- asignaciones de entorno inline (`VAR=… cmd`) que apagan hooks.
+- any mention of a protected path, except the allowed pre-check;
+- `pregate` subcommands other than `check|explain|preset show|rules test`, by any path;
+- `--no-verify`, `core.hooksPath`, `disableAllHooks`, `claude plugin disable|uninstall`, and `--settings`;
+- other harnesses' binaries;
+- inline environment assignments (`VAR=… cmd`) that turn hooks off.
 
-**Permite** reads and pre-check: `pregate` on PATH or `<DATA>/bin/pregate`, with `check --stdin`, `explain`, `preset show` or `rules test`. Input redirection and literal heredocs to these commands remain read-only (MH-29).
+**Allows** reads and pre-check: `pregate` on PATH or `<DATA>/bin/pregate`, with `check --stdin`, `explain`, `preset show` or `rules test`. Input redirection and literal heredocs to these commands remain read-only (MH-29).
 
-Los borrados (`rm`, `git reset --hard`, `git clean`, …) no se deniegan: la verdad es el árbol (SPEC §10.2.4) y los ve Stop. Un borrado de `.pregate/` lo atrapan el paso 4 (`lock-stale`) y pre-commit; uno de `sessions/<sid>/` hace que la snapshot nueva tome HEAD como base (paso 9).
+Deletions (`rm`, `git reset --hard`, `git clean`, …) are not denied: the truth is the tree (SPEC §10.2.4) and Stop sees them. A deletion of `.pregate/` is caught by step 4 (`lock-stale`) and pre-commit; a deletion of `sessions/<sid>/` makes the new snapshot take HEAD as the base (step 9).
 
-**Costo:** ~20 ms de p50, contra el objetivo de ≤ 15 ms de §13.6 **[Δ: presupuesto de 25 ms]**. El piso de proceso de Bun medido es de 13,7 a 16 ms; si 15 ms es duro, es argumento para Rust en v1, no para un daemon.
+**Cost:** ~20 ms p50, against the §13.6 target of ≤ 15 ms **[Δ: 25 ms budget]**. Bun's measured process floor is 13.7 to 16 ms; if 15 ms is hard, that is an argument for Rust in v1, not for a daemon.
 
 ### 4.3 Stop
 
-El watchdog del launcher es de 45 s y el `timeout` del hook, de 60 s.
+The launcher watchdog is 45 s and the hook `timeout` is 60 s.
 
-1. Por cada raíz de la sesión (`state.roots(sid)`: `snapshot.root` de cada `<rootHash>/`), los candidatos son `git diff --name-only <snapshot.head>`, más los no rastreados, más `snapshot.dirty`. Las raíces se juzgan de a una: primero las que tocaron eventos de este turno, después la del `cwd`, después el resto. La primera que bloquea decide y corta. Con un presupuesto de 30 s (`STOP_BUDGET_MS`, debajo del watchdog), las raíces no juzgadas se nombran en un Stop incompleto (`stopIncomplete.reason = "budget"`, `stopSkipped`); pre-commit y CI las siguen juzgando, y el próximo Stop las juzga antes que al resto, así ninguna raíz queda sin juzgar para siempre. El `stopFingerprint` tampoco pasa del presupuesto: si se agota, ese Stop sigue la regla por turno. Cada raíz emite `PREGATE-STOP-ROOT i/n <root>`, así un timeout nombra la raíz en curso.
-2. Los "antes" se leen con **un solo** `git cat-file --batch` (o los blobs de la snapshot). Después corren `analyze` (fase `stop`) e `introduced`, con la ventana de error contra `before_sesión`.
-3. **`ask` ya aprobado.** Si el sha del archivo en disco es igual al `afterSha` de un `CallEvent` con veredicto `ask`, esas violaciones `ask` pasan a `stop.approved`: se informan al humano por `systemMessage` y no bloquean. Si no, Stop empujaría al agente a revertir lo que el humano aceptó.
-4. Si quedan deny o ask introducidos y `state.stopBlocks(sid, turnH)` es menor que `maxStopBlocks`: exit 2 + `{"decision":"block","reason":…}`. El reason incluye "Do not remove functionality or tests to comply; if the fix exceeds the task, stop and report it to the user".
-5. Si se llegó al tope, o si `reentry` y algo falla: `systemMessage` al humano con lo pendiente y las solicitudes abiertas en `.pregate/requests/`.
-6. Los warn salen por `additionalContext`.
-7. Cada Stop registra su `CallEvent` con `fileH = "stop"`.
+1. For each session root (`state.roots(sid)`: `snapshot.root` of each `<rootHash>/`), the candidates are `git diff --name-only <snapshot.head>`, plus the untracked, plus `snapshot.dirty`. Roots are judged one at a time: first those touched by this turn's events, then the `cwd`'s, then the rest. The first one that blocks decides and stops. With a 30 s budget (`STOP_BUDGET_MS`, under the watchdog), unjudged roots are named in an incomplete Stop (`stopIncomplete.reason = "budget"`, `stopSkipped`); pre-commit and CI keep judging them, and the next Stop judges them before the rest, so no root goes unjudged forever. `stopFingerprint` also stays within the budget: if it runs out, that Stop follows the per-turn rule. Each root emits `PREGATE-STOP-ROOT i/n <root>`, so a timeout names the root in progress.
+2. The "befores" are read with **a single** `git cat-file --batch` (or the snapshot blobs). Then `analyze` (phase `stop`) and `introduced` run, with the error window against `before_session`.
+3. **`ask` already approved.** If the on-disk file sha equals the `afterSha` of a `CallEvent` with verdict `ask`, those `ask` violations move to `stop.approved`: they are reported to the human via `systemMessage` and do not block. Otherwise Stop would push the agent to revert what the human accepted.
+4. If introduced denies or asks remain and `state.stopBlocks(sid, turnH)` is less than `maxStopBlocks`: exit 2 + `{"decision":"block","reason":…}`. The reason includes "Do not remove functionality or tests to comply; if the fix exceeds the task, stop and report it to the user".
+5. If the cap was reached, or if `reentry` and something fails: `systemMessage` to the human with what is pending and the open requests in `.pregate/requests/`.
+6. Warns go out through `additionalContext`.
+7. Each Stop records its `CallEvent` with `fileH = "stop"`.
 
 ### 4.4 SessionStart
 
-- **Fuera de git:** notice "PREGATE requires git"; los Pre aplicarán `git-failed` (A27).
-- **Sin preset:** silent, with no session state (MH-17).
-- **Lock inválido, viejo o de otra versión:** notice; los Pre aplicarán el paso 6.
-- **Verificaciones y snapshot:** se verifica el `sourcesHash` completo (hash de los JSON evaluables de las fuentes `path`) y se escribe `<rootHash>/sources.json`. La snapshot (`start: true`) se arma con `git rev-parse HEAD` + `git status -z --untracked-files=all`, copia los archivos sucios en scope a `blobs/` y se crea con rename del directorio temporal.
-- **Contexto para el agente:** Claude `additionalContext` includes the lock summary and `<DATA>/bin/pregate check --stdin --path <file> --format agent`. Other adapters have no verified SessionStart channel; agy registers none.
+- **Outside git:** notice "PREGATE requires git"; Pre calls will apply `git-failed` (A27).
+- **No preset:** silent, with no session state (MH-17).
+- **Invalid, old, or other-version lock:** notice; Pre calls will apply step 6.
+- **Checks and snapshot:** the complete `sourcesHash` is verified (hash of the evaluable JSON of the `path` sources) and `<rootHash>/sources.json` is written. The snapshot (`start: true`) is built with `git rev-parse HEAD` + `git status -z --untracked-files=all`, copies dirty in-scope files to `blobs/`, and is created by renaming the temporary directory.
+- **Context for the agent:** Claude `additionalContext` includes the lock summary and `<DATA>/bin/pregate check --stdin --path <file> --format agent`. Other adapters have no verified SessionStart channel; agy registers none.
 - **Without SessionStart:** first Pre snapshots HEAD; root acceptance also permits an uncommitted preset that predates first contact (MH-33).
 
-### 4.5 `pregate check` (pre-check, pre-commit y CI)
+### 4.5 `pregate check` (pre-check, pre-commit, and CI)
 
-| Modo | "Antes" | "Después" | Preset, fuentes y lock |
+| Mode | "Before" | "After" | Preset, sources, and lock |
 |---|---|---|---|
-| `--stdin --path P --format agent` | HEAD **[Δ]** | stdin | Lock en disco. Solo lectura, sin estado |
-| `--staged --ratchet` | HEAD | Índice | **Del índice** (`cat-file --batch`, un solo spawn para todo). Se recompila sin correr fixtures y se compara byte a byte con el lock del índice (A10) **[Δ §6.5]** |
-| `--ratchet --base <sha>` (CI) | `merge-base` | Árbol | Del árbol. La plantilla de CI corre antes `pregate rules test` sobre cada fuente `path` (U2), después recompila y compara |
+| `--stdin --path P --format agent` | HEAD **[Δ]** | stdin | Lock on disk. Read only, no state |
+| `--staged --ratchet` | HEAD | Index | **From the index** (`cat-file --batch`, a single spawn for everything). Recompiled without running fixtures and compared byte for byte with the index's lock (A10) **[Δ §6.5]** |
+| `--ratchet --base <sha>` (CI) | `merge-base` | Tree | From the tree. The CI template first runs `pregate rules test` on every `path` source (U2), then recompiles and compares |
 
 - **Enforcement:** `check` and `decide` share `blocking(lock, violations, cause)`. The preset selects a default; an active alias/check override can select `enforce` or `shadow` independently (O53). Integrity always enforces. Form causes still use the preset default, with human causes and protected-path guards always blocking.
-- **Salida:** exit 1 si queda algo bloqueante (`deny` o `ask`), el lock no coincide o la versión es distinta. `warn` ⇒ exit 0 con el texto. En pre-commit y CI no hay estado ni contadores: cada violación introducida bloqueante falla.
+- **Output:** exit 1 if anything blocking remains (`deny` or `ask`), the lock does not match, or the version differs. `warn` ⇒ exit 0 with the text. In pre-commit and CI there is no state and no counters: every introduced blocking violation fails.
 - MH-19/20/28: pre-commit invokes global `pregate` on PATH. `check`, `explain` and `preset show` delegate to the lock's engine; `preset compile` uses the current engine. Pins below `FLOOR = "0.2.0"` deny as `lock-stale`; missing pinned engines request `pregate update --engine <v>`. `check --staged` reports registration/trust drift without changing its verdict.
 
 ---
 
-## 5. Dependencias (lista cerrada)
+## 5. Dependencies (closed list)
 
-### 5.1 Lo que viaja en el binario
+### 5.1 What ships in the binary
 
-| Ítem | Forma | Por qué es imprescindible | Licencia y atribución |
+| Item | Form | Why it is indispensable | License and attribution |
 |---|---|---|---|
-| `web-tree-sitter` 0.27.0: `web-tree-sitter.js` (156 KB) + `.wasm` (210 KB) | `vendor/`, sin modificar, embebido. **No figura en `package.json`** | Es el runtime del parser. No se puede extraer por funciones: el glue de emscripten y la API son una unidad | MIT. LICENSE + ORIGIN (paquete@versión, URL, sha256) en la carpeta y en THIRD_PARTY_NOTICES |
-| `tree-sitter-typescript` 0.23.2: `tree-sitter-typescript.wasm` (1,42 MB) + `tree-sitter-tsx.wasm` (1,45 MB) | `vendor/`, embebido, **con `grammar.patch`** (O18) | Gramáticas TS y TSX/JS. Comparten *kinds* y *fields* con ast-grep, así que las reglas de patrón del pack piloto (~650 `kind`, 698 `has`, 422 `field`) corren como datos. Hacen falta las dos gramáticas: `<T>x` no es válido en TSX | MIT. Igual |
-| Runtime de Bun | Lo embebe `--compile` | — | MIT. Bun enlaza JavaScriptCore (LGPL-2.x): las obligaciones de distribución se verifican antes del primer release |
+| `web-tree-sitter` 0.27.0: `web-tree-sitter.js` (156 KB) + `.wasm` (210 KB) | `vendor/`, unmodified, embedded. **It does not appear in `package.json`** | It is the parser runtime. It cannot be extracted by function: the emscripten glue and the API are one unit | MIT. LICENSE + ORIGIN (package@version, URL, sha256) in the folder and in THIRD_PARTY_NOTICES |
+| `tree-sitter-typescript` 0.23.2: `tree-sitter-typescript.wasm` (1.42 MB) + `tree-sitter-tsx.wasm` (1.45 MB) | `vendor/`, embedded, **with `grammar.patch`** (O18) | TS and TSX/JS grammars. They share *kinds* and *fields* with ast-grep, so the pilot pack's pattern rules (~650 `kind`, 698 `has`, 422 `field`) run as data. Both grammars are required: `<T>x` is not valid in TSX | MIT. Same |
+| Bun runtime | Embedded by `--compile` | — | MIT. Bun links JavaScriptCore (LGPL-2.x). The LGPL note is pending owner review (see THIRD_PARTY_NOTICES) |
 
-**Dependencias de runtime para quien instala: cero.** Las herramientas del sistema son `git` (requisito, A27) y `/bin/sh` (el launcher).
+**Runtime dependencies for whoever installs: zero.** The system tools are `git` (required, A27) and `/bin/sh` (the launcher).
 
-### 5.2 Desarrollo y build (nunca se distribuyen)
+### 5.2 Development and build (never distributed)
 
-| Ítem | Para qué |
+| Item | What for |
 |---|---|
-| Bun 1.3.14 | Compilar a binario único, `bun test`, macros para embeber `catalog/` y los `.wasm` (verificado) |
+| Bun 1.3.14 | Compile to a single binary, `bun test`, macros to embed `catalog/` and the `.wasm` (verified) |
 | `typescript` + `@types/bun` | `tsc --noEmit` |
-| `@ast-grep/napi` 0.45.3 | Oráculo diferencial de `match.ts` |
-| `tree-sitter` CLI 0.24.4 + emsdk 3.1.64 (Docker) | Regenerar la gramática con `grammar.patch` (O18). Sin el parche reproduce el WASM publicado byte a byte; la receta está en ORIGIN |
+| `@ast-grep/napi` 0.45.3 | Differential oracle for `match.ts` |
+| `tree-sitter` CLI 0.24.4 + emsdk 3.1.64 (Docker) | Regenerate the grammar with `grammar.patch` (O18). Without the patch it reproduces the published WASM byte for byte; the recipe is in ORIGIN |
 
-**APIs nativas en uso:** `Bun.Glob` (verificado con rutas que empiezan con punto; distingue mayúsculas, por eso A26 pasa glob y ruta a minúsculas), `Bun.JSONC` (tsconfig), `Bun.spawnSync`, `Bun.file`/`Bun.write`, macros y `with {type:"file"}`, `node:fs` (realpath, rename, link, readdir), `node:crypto` (sha256) y `bun:test`.
+**Native APIs in use:** `Bun.Glob` (verified with paths that start with a dot; it is case-sensitive, which is why A26 passes the glob and the path in lowercase), `Bun.JSONC` (tsconfig), `Bun.spawnSync`, `Bun.file`/`Bun.write`, macros and `with {type:"file"}`, `node:fs` (realpath, rename, link, readdir), `node:crypto` (sha256), and `bun:test`.
 
-**Escrito desde primeros principios** (más corto que importarlo):
-- lexer permisivo de shell + reglas (estimado ~70 líneas; **medido 603** tras O21: no baja sin perder vectores probados);
-- JSON-patch con `add`/`remove`/`replace`/`test` (~40);
-- intérprete del subconjunto de JSON Schema: `type`, `properties`, `required`, `enum`, `const`, `items`, `pattern`, `additionalProperties`, `oneOf`, `minimum` (~90);
-- JSON canónico (~15);
-- comparación de versiones por igualdad exacta (el preset prohíbe rangos).
+**Written from first principles** (shorter than importing it):
+- permissive shell lexer + rules (estimated ~70 lines; **measured 603** after O21: it does not shrink without losing proven vectors);
+- JSON-patch with `add`/`remove`/`replace`/`test` (~40);
+- JSON Schema subset interpreter: `type`, `properties`, `required`, `enum`, `const`, `items`, `pattern`, `additionalProperties`, `oneOf`, `minimum` (~90);
+- canonical JSON (~15);
+- version comparison by exact equality (the preset forbids ranges).
 
-### 5.3 Parser de TS/JS: evaluación para un gate fail-closed
+### 5.3 TS/JS parser: evaluation for a fail-closed gate
 
-Arranque en frío del binario compilado más el parse de 2.000 líneas:
+Cold start of the compiled binary plus a parse of 2,000 lines:
 
-| Opción | Artefacto en runtime | Tiempo | Riesgo de falso deny | Riesgo de falso allow | Formato de reglas | Veredicto |
+| Option | Runtime artifact | Time | False-deny risk | False-allow risk | Rule format | Verdict |
 |---|---|---|---|---|---|---|
-| **(a)** Escáner o parser propio del subconjunto | ninguno | ~16–20 ms | Medio: genéricos en parámetros, `<T,>` en tsx | **Alto.** Texto JSX, regex contra división y templates anidados desincronizan el tokenizer y ocultan código en silencio. No detecta errores de sintaxis, así que U10 ("parser falla ⇒ deny") es imposible | propio | Descartada: terminaría siendo un parser de TS peor |
-| **(b)** Cherry-pick por funciones | — | — | — | — | — | No aplica. TS, Babel y acorn son máquinas de estado monolíticas: `scanner.ts` + `parser.ts` arrastran factory, utilities y diagnostics (30–40 mil líneas de fork) |
-| **(c)** API de TypeScript 6.0.3 embebida | ninguno (+32 MB; binario de 96 MB) | 45–46 ms | ~0 hoy. Crece, porque la API JS está congelada (TS 7 es Go) | ~0 | `ts.SyntaxKind`: hay que portar el pack y se pierde §13.3 | Descartada: D17 admite una dependencia completa solo si su ausencia rompe el fail-closed, y no la rompe |
-| (d1) `@babel/parser` 7.29.9 vendorizado (513 KB) | ninguno | 37 ms | Bajo, pero mezcla errores de scope con los de sintaxis (21 `VarRedeclaration` donde tsc da 0) | ~0 | AST de Babel | Descartada: AST incompatible con el dialecto de reglas (A4). Habría que reescribir `match.ts`, los 7 patrones del catálogo y el pack piloto entero |
-| (d2) `oxc-parser` / (d3) `@ast-grep/napi` / (d4) tree-sitter nativo | `.node` por plataforma | Embebido: 290–520 ms. Al lado del binario: 16–22 ms | Bajo / como tree-sitter | ~0 / como tree-sitter | ESTree / **nativo del pack** | Descartadas: embebidos rompen el presupuesto y al lado rompen "binario único". (d3) queda como oráculo en los tests |
-| `Bun.Transpiler.scanImports` | nativo | 17–19 ms | — | **Alto**: omite `import(m)`, `require(m)` no literal e `import type` (verificado) | — | Descartada (A23) |
-| **(d5) web-tree-sitter WASM + gramáticas vendorizadas** | **ninguno** (+3,2 MB) | **43 ms** (21 ms en un archivo chico) | **Conocido y acotado.** `export type *` y la varianza `in/out` producen ERROR (`accessor` parsea en 0.23.2) ⇒ deny de forma (dirección segura), con un mensaje que nombra la línea | Bajo. La recuperación de errores marca ERROR/MISSING y cualquier ERROR que interseca la ventana deniega. Residual: un árbol mal interpretado sin ERROR (ambigüedad de genéricos en TSX) | **kinds y fields de ast-grep** | **Elegida** |
+| **(a)** Custom scanner or parser of the subset | none | ~16–20 ms | Medium: generics in parameters, `<T,>` in tsx | **High.** JSX text, regex versus division, and nested templates desynchronize the tokenizer and hide code silently. It does not detect syntax errors, so U10 ("parser fails ⇒ deny") is impossible | custom | Discarded: it would end up a worse TS parser |
+| **(b)** Cherry-pick by function | — | — | — | — | — | Does not apply. TS, Babel, and acorn are monolithic state machines: `scanner.ts` + `parser.ts` drag in factory, utilities, and diagnostics (30–40 thousand lines of fork) |
+| **(c)** Embedded TypeScript 6.0.3 API | none (+32 MB; 96 MB binary) | 45–46 ms | ~0 today. It grows, because the JS API is frozen (TS 7 is Go) | ~0 | `ts.SyntaxKind`: the pack has to be ported and §13.3 is lost | Discarded: D17 allows a complete dependency only if its absence breaks fail-closed, and it does not break it |
+| (d1) vendored `@babel/parser` 7.29.9 (513 KB) | none | 37 ms | Low, but it mixes scope errors with syntax errors (21 `VarRedeclaration` where tsc gives 0) | ~0 | Babel AST | Discarded: AST incompatible with the rule dialect (A4). `match.ts`, the catalog's 7 patterns, and the entire pilot pack would have to be rewritten |
+| (d2) `oxc-parser` / (d3) `@ast-grep/napi` / (d4) native tree-sitter | `.node` per platform | Embedded: 290–520 ms. Beside the binary: 16–22 ms | Low / like tree-sitter | ~0 / like tree-sitter | ESTree / **native to the pack** | Discarded: embedded, they break the budget, and beside the binary they break "single binary". (d3) remains an oracle in the tests |
+| `Bun.Transpiler.scanImports` | native | 17–19 ms | — | **High**: omits `import(m)`, non-literal `require(m)`, and `import type` (verified) | — | Discarded (A23) |
+| **(d5) web-tree-sitter WASM + vendored grammars** | **none** (+3.2 MB) | **43 ms** (21 ms on a small file) | **Known and bounded.** `export type *` and `in/out` variance produce ERROR (`accessor` parses in 0.23.2) ⇒ form deny (the safe direction), with a message that names the line | Low. Error recovery marks ERROR/MISSING and any ERROR that intersects the window denies. Residual: a misinterpreted tree with no ERROR (generic ambiguity in TSX) | **ast-grep kinds and fields** | **Chosen** |
 
-**Mitigaciones de (d5):**
-1. **Día 1.** Un script descartable (no se commitea) parsea todos los `.ts/.tsx` del HEAD del piloto y cuenta los archivos con ERROR; la tasa se registra en este documento. Si hay archivos válidos que fallan, se parchea la gramática (que es dato) y el cambio se registra en ORIGIN y NOTICES. No hay plan B de parser. **Hecho (O18):** 8.621 archivos; **antes del parche 596 con ERROR (6,91 %), después 4 (0,05 %)**, los 4 con un NUL literal dentro de un string o comentario (el lexer de tree-sitter-cli 0.24.4 lo lee como fin de entrada; siguen dando deny de `syntax`). Ningún kind ni field cambió (fields 40/43, ABI 14); 102 árboles del piloto que ya parseaban cambiaron, todos correcciones (templates etiquetados genéricos que se leían como `<`/`>`). Residual sin ERROR: `await f<T>(x)` y `` await sql<T>`…` `` se arman como llamada de `await f`.
-2. **En `rules test`** (que `preset compile` corre sobre cada fuente `path` y `build.ts` sobre `catalog/`), `kind`, `field` y regex se validan contra las dos gramáticas (`idForNodeType`, `fieldIdForName`). Un typo nunca "no matchea en silencio". **[Δ ola 2]** `compile` no llama a `compilePattern`.
-3. **Cobertura semántica.** El oráculo diferencial compara contra ast-grep (gramática nativa sin parche): en las construcciones parcheadas los dos difieren, así que su corpus no las incluye.
+**Mitigations for (d5):**
+1. **Day 1.** A disposable script (not committed) parses every `.ts/.tsx` in the pilot's HEAD and counts the files with ERROR; the rate is recorded in this document. If valid files fail, the grammar (which is data) is patched and the change is recorded in ORIGIN and NOTICES. There is no parser plan B. **Done (O18):** 8,621 files; **before the patch 596 with ERROR (6.91%), after 4 (0.05%)**, the 4 with a literal NUL inside a string or comment (the tree-sitter-cli 0.24.4 lexer reads it as end of input; they still deny as `syntax`). No kind or field changed (fields 40/43, ABI 14); 102 trees in the pilot that already parsed changed, all corrections (generic tagged templates that were read as `<`/`>`). Residual with no ERROR: `await f<T>(x)` and `` await sql<T>`…` `` are built as a call of `await f`.
+2. **In `rules test`** (which `preset compile` runs on every `path` source and `build.ts` runs on `catalog/`), `kind`, `field`, and regex are validated against both grammars (`idForNodeType`, `fieldIdForName`). A typo never "fails to match silently". **[Δ wave 2]** `compile` does not call `compilePattern`.
+3. **Semantic coverage.** The differential oracle compares against ast-grep (unpatched native grammar): on the patched constructions the two differ, so its corpus does not include them.
 
-### 5.4 Distribución
+### 5.4 Distribution
 
-- `bun build --compile --minify --bytecode` para `darwin-arm64` y `linux-x64` ("macOS y Linux", §18.1; otro target se agrega cuando alguien lo pida): unos 66 MB cada uno. Sin top-level await, porque `--bytecode` lo exige; `main` es async por `Parser.init()`.
+- `bun build --compile --minify --bytecode` for `darwin-arm64` and `linux-x64` ("macOS and Linux", §18.1; another target is added when someone asks for it): about 66 MB each. No top-level await, because `--bytecode` requires it; `main` is async because of `Parser.init()`.
 - Release assets: platform tar (binary, LICENSE, THIRD_PARTY_NOTICES), `install.sh`, and one `SHA256SUMS` covering all assets (MH-32); private downloads use `gh`.
-- Con `--no-compile-autoload-bunfig --no-compile-autoload-dotenv` (O32): el binario no lee `bunfig.toml` ni `.env` del directorio en que corre, que es el repo que juzga.
+- With `--no-compile-autoload-bunfig --no-compile-autoload-dotenv` (O32): the binary does not read `bunfig.toml` or `.env` from the directory it runs in, which is the repo it judges.
 - `setup` installs and warms the engine, then writes global launcher/registrations: Claude/Cursor/Grok share `~/.claude/settings.json`, Cursor additionally uses its native Stop dispatcher in `~/.cursor/hooks.json`, Codex uses trusted `~/.codex/hooks.json`, and agy uses the `pregate-global` plugin. Shared commands defer shell-local expansion for Grok; Cursor Stop followups share the cap across generation IDs (MULTI-HARNESS §6.4). `install` only manages repo pre-commit/CI and removes legacy 0.1.0 registrations/launcher. `update` retains pinned engines; `uninstall` removes owned entries and restores unchanged foreign configs' original bytes (MH-22–28).
-- La plantilla de CI descarga la versión fijada, verifica el sha256 y fija `timeout-minutes` (un regex catastrófico en una fuente `path` termina ahí, §6.1).
+- The CI template downloads the pinned version, verifies the sha256, and sets `timeout-minutes` (a catastrophic regex in a `path` source ends there, §6.1).
 
 ---
 
-## 6. Las 18 reglas: representación, ejecución y `rules test`
+## 6. The 18 rules: representation, execution, and `rules test`
 
-### 6.1 Vocabulario
+### 6.1 Vocabulary
 
-| Tipo | Qué cubre | Dónde |
+| Type | What it covers | Where |
 |---|---|---|
-| `pattern` | Reglas de ast-grep:<br>· `pattern` con `$X`, `$$$X`, `$_`;<br>· `kind`;<br>· `regex`: un `(?i)`/`(?s)` inicial pasa a bandera y `.` excluye solo `\n`, como en Rust; lookaround, backreferences, `{` que no es repetición contada, clases anidadas y escapes con otro sentido en JS son error, por paridad con el regex lineal de Rust (residuo: `\w\d\s\b` son ASCII en JS);<br>· `has`/`inside`/`follows`/`precedes` con `field` y `stopBy`;<br>· `all`/`any`/`not`, `nthChild`, `matches` + `utils`, `constraints`; `files`/`ignores` los vuelca `compile` a `params.paths`/`exclude`.<br>Las metavariables se comparten a lo largo de `all`, en orden. Los comentarios son nodos `comment` | `match.ts` |
-| `metric` | `fn.lines` = max(líneas sin blancos ni comentarios, sentencias), que cierra la trampa de comprimir líneas.<br>`fn.params` cuenta los miembros de un tipo objeto inline o desestructurado, que cierra `opts: {a;b;c;d}`.<br>`class.publicMethods` | `ts.ts` (hechos) + `evaluate.ts` |
-| `banned-import` | `params.packages`, con `fs` ≡ `node:fs`, subrutas `pkg/x`, `import type`, `import()` y `require` literales y `export … from` (siguiendo re-exports); compara el nombre del paquete aunque un alias lo resuelva a un archivo local | `evaluate.ts` + `resolve.ts` |
-| `layer-edge` | La capa del archivo (glob más específico; empate según el orden de declaración) contra la capa del destino resuelto **por ruta**, aunque el archivo no exista. Sigue re-exports hasta 3 saltos y 32 archivos; más allá, `too-deep`. `external` es solo un builtin de node o un nombre npm válido; `#x`, `~/x` o `@/x` sin alias que resuelva son `unresolved`, igual que **[Δ ola 2]** un especificador con `?`, `\`, o `#` fuera del primer carácter, un segmento `.`/`..` en un especificador bare (también tras expandir un alias) y un paquete que se importa a sí mismo por nombre; un barrel con error de parse cuenta como `too-deep`. Un archivo de una capa restringida que importa un módulo con error de sintaxis recibe entonces `unresolvable-import`. En una capa con `mayImport ≠ ["*"]`, `unresolved`, `too-deep` o un tsconfig `invalid` ⇒ `unresolvable-import` | Igual |
-| `diff` | `no-decrease` / `no-increase` sobre un conteo: `count: "markers"` (substrings de `params.markers` en el texto) o `count: {pattern}` | `evaluate.ts` (conteo) + `ratchet.ts` |
-| `placement` | Tipo de cambio, `scope`, marcadores de generado, capas y lenguajes con pack, sin parsear | `evaluate.placement` |
+| `pattern` | ast-grep rules:<br>· `pattern` with `$X`, `$$$X`, `$_`;<br>· `kind`;<br>· `regex`: a leading `(?i)`/`(?s)` becomes a flag and `.` excludes only `\n`, as in Rust; lookaround, backreferences, `{` that is not a counted repetition, nested classes, and escapes with another meaning in JS are errors, for parity with Rust's linear regex (residue: `\w\d\s\b` are ASCII in JS);<br>· `has`/`inside`/`follows`/`precedes` with `field` and `stopBy`;<br>· `all`/`any`/`not`, `nthChild`, `matches` + `utils`, `constraints`; `compile` copies `files`/`ignores` into `params.paths`/`exclude`.<br>Metavariables are shared throughout `all`, in order. Comments are `comment` nodes | `match.ts` |
+| `metric` | `fn.lines` = max(lines without blanks or comments, statements), which closes the line-compression trap.<br>`fn.params` counts the members of an inline or destructured object type, which closes `opts: {a;b;c;d}`.<br>`class.publicMethods` | `ts.ts` (facts) + `evaluate.ts` |
+| `banned-import` | `params.packages`, with `fs` ≡ `node:fs`, subpaths `pkg/x`, `import type`, literal `import()` and `require`, and `export … from` (following re-exports); it compares the package name even if an alias resolves it to a local file | `evaluate.ts` + `resolve.ts` |
+| `layer-edge` | The file's layer (most specific glob; a tie follows declaration order) against the resolved destination's layer **by path**, even if the file does not exist. It follows re-exports up to 3 hops and 32 files; beyond that, `too-deep`. `external` is only a node builtin or a valid npm name; `#x`, `~/x`, or `@/x` without a resolving alias are `unresolved`, as is **[Δ wave 2]** a specifier with `?`, `\`, or `#` outside the first character, a `.`/`..` segment in a bare specifier (also after expanding an alias), and a package that imports itself by name; a barrel with a parse error counts as `too-deep`. A file in a restricted layer that imports a module with a syntax error then receives `unresolvable-import`. In a layer with `mayImport ≠ ["*"]`, `unresolved`, `too-deep`, or an invalid tsconfig ⇒ `unresolvable-import` | Same |
+| `diff` | `no-decrease` / `no-increase` over a count: `count: "markers"` (substrings of `params.markers` in the text) or `count: {pattern}` | `evaluate.ts` (count) + `ratchet.ts` |
+| `placement` | Change type, `scope`, generated markers, layers, and languages with a pack, without parsing | `evaluate.placement` |
 
-**Macro `@generatedMarkers`** en `params.markers` **[Δ O14]**: `compile` lo reemplaza por `preset.generatedMarkers` y `fixtureLock` por `context.generatedMarkers`; `evaluate` nunca lo ve.
+**Macro `@generatedMarkers`** in `params.markers` **[Δ O14]**: `compile` replaces it with `preset.generatedMarkers` and `fixtureLock` with `context.generatedMarkers`; `evaluate` never sees it.
 
-**Macro `@layers` y `@layers:<kind>`** en `params.paths` **[Δ A21]**. `compile` lo expande a los globs de las capas del preset. `@layers` sin capas ⇒ `[]` (la regla no aplica a ningún archivo; `[]` nunca significa "todo"). `@layers:<kind>` sin capas de ese tipo es error de compilación.
+**Macro `@layers` and `@layers:<kind>`** in `params.paths` **[Δ A21]**. `compile` expands it to the preset's layer globs. `@layers` with no layers ⇒ `[]` (the rule applies to no file; `[]` never means "everything"). `@layers:<kind>` with no layers of that kind is a compilation error.
 
-**Regex catastrófico (O27).** El regex de JS hace backtracking y `(a+)+` pasa la compilación. No se rechaza por forma: el pack piloto usa cuantificadores anidados legítimos (`^((\w+|getKernel\(\))\.)*(emit|…)$`). JavaScriptCore no se cuelga con un **grupo repetido**: abandona y responde "no coincide", sin lanzar. `match.ts` no toma ese "no coincide" de un regex con grupo repetido si tardó más de 50 ms (reloj inyectado) o si el texto pasa de 64 KB: la búsqueda termina en `regex-limit` (deny + halt + aviso al humano, también en `shadow`). Un regex con grupo repetido y más de 16 grupos no compila: su memoria se agotaría antes de 64 KB. Un regex sin grupo repetido nunca abandona ni lee el reloj; si se cuelga, las tres caras bloquean igual: el hook deniega por watchdog, el pre-commit no termina y CI lo corta con `timeout-minutes`.
+**Catastrophic regex (O27).** JS regex backtracks and `(a+)+` passes compilation. It is not rejected by form: the pilot pack uses legitimate nested quantifiers (`^((\w+|getKernel\(\))\.)*(emit|…)$`). JavaScriptCore does not hang on a **repeated group**: it gives up and answers "does not match", without throwing. `match.ts` does not take that "does not match" from a regex with a repeated group if it took more than 50 ms (injected clock) or if the text exceeds 64 KB: the search ends in `regex-limit` (deny + halt + notice to the human, also in `shadow`). A regex with a repeated group and more than 16 groups does not compile: its memory would be exhausted before 64 KB. A regex without a repeated group never gives up and never reads the clock; if it hangs, the three faces block the same way: the hook denies by watchdog, pre-commit does not finish, and CI cuts it off with `timeout-minutes`.
 
-### 6.2 Mapa de las 18 invariantes
+### 6.2 Map of the 18 invariants
 
-Son 17 checks, porque `banned-imports` es `multi`. La columna de trampas es la semilla de las fixtures `trap/`.
+There are 17 checks, because `banned-imports` is `multi`. The traps column is the seed of the `trap/` fixtures.
 
-| Alias | Check `core/…` | impl | Parámetros | Trampas mínimas |
+| Alias | Check `core/…` | impl | Parameters | Minimum traps |
 |---|---|---|---|---|
-| CC-FN-001 | complexity/fn-max-lines | metric `fn.lines` | `max`, `paths` | Sentencias comprimidas en una línea; arrow anidada |
-| CC-FN-002 | complexity/fn-max-params | metric `fn.params` | `max`, `countInlineObjectMembers`, `exempt` | `opts: {a;b;c;d}`; desestructurado sin tipo; rest con tupla |
-| CC-ER-002 | errors/no-empty-catch | pattern: `catch_clause` cuyo cuerpo solo tiene comentarios, `console.$M(...)`, `$L.(log\|warn\|error\|info\|debug)(...)` o `void $X`; también `.catch(() => {})` | `loggers` | `catch (e) { void e }`, `catch {}`, solo-log |
-| CA-DEP-001 | dependencies/layer-direction | layer-edge | (`lock.layers`) | Barrel que re-exporta infra, `import type`, `require('../infra')`, alias `@/infra`, `export * from` |
-| CA-DEP-002 | dependencies/banned-imports | banned-import | `paths: ["@layers:core"]`, `packages` (ORM, frameworks) | `require`, `import()` literal, barrel, subruta `@prisma/client/runtime` |
-| CA-UC-001 | api-surface/single-public-method | metric `class.publicMethods` | `paths`, `max: 1` | Propiedad arrow pública; método `static` |
-| DDD-VO-001 | immutability/readonly-fields | pattern: campo sin `readonly`; `this.$F =`/`+=`/`++` o `Object.assign(this, …)` fuera del constructor | `paths` | Campo `private` mutable con getter |
-| DDD-ENT-001 | immutability/no-public-setters | pattern: accessor `set` público; método público que asigna `this.$F` desde un parámetro (estructural, no por nombre) | `paths` | `set x()`, nombre computado |
-| FCIS-IO-001 | dependencies/banned-imports (instancia 2) | banned-import | `paths: ["@layers:core"]`, `packages` (fs, child_process, net, http…) | `fs` contra `node:fs`, `fs/promises`, barrel |
-| FCIS-IO-002 | effects/no-clock-random-env | pattern: toda referencia en **posición de valor** a `Date`, `process`, `performance`, `Math.random`, `crypto.randomUUID/getRandomValues`, o la misma propiedad sobre `globalThis`/`window`/`global`; un nombre que el archivo liga (parámetro, variable, import relativo) no es el global | `paths`, `allow` (nombres calificados puros, p. ej. `Bun.Glob`) | `const D = Date`, `Date['now']()`, `const {now} = Date`, `globalThis.Date.now`, `globalThis.window.x`, `new Date()`, un `window` ligado en otra función, `declare`/`import type`/namespace/`const enum` con el nombre del global |
-| TDD-FOCUS-001 | testing/no-focused-tests | pattern: `(describe\|it\|test\|context\|suite)` seguido de `.only`/`.skip` o `["only"]`/`["skip"]` como referencia (no solo como llamada), en cualquier punto de la cadena; además toda referencia a `fit`, `fdescribe`, `xit`, `xdescribe`, `xtest`, salvo **[Δ O40]** donde el archivo liga ese nombre (el recorrido de ámbitos de FCIS-IO-002, pero un import nunca liga) y la lectura de esos nombres de `globalThis`/`window`/`global`/`self` o de `require()`/`import()` de un paquete | `paths` (globs de tests) | `it["only"]`, `const o = it.only`, `it.concurrent.only`, un `fit` global al lado de un `const fit` en otro test, `const fit = globalThis.fit` |
-| TDD-DEL-001 | testing/assertions-no-decrease | diff `no-decrease` del patrón `expect(...)` / `assert*(...)` | severidad `ask` | Borrar el test por shell (lo ve Stop). Sin interactividad ⇒ deny + halt |
-| EVA-GEN-001 | integrity/new-generated-marker | diff `no-increase` de `markers` (substring) | `markers` = `lock.generatedMarkers` | Marcador en un comentario, un string o texto JSX |
-| EVA-GEN-002 | integrity/edit-generated-or-excluded | placement `edit-generated-or-excluded` | — | Archivo existente con marcador o en `exclude` |
-| EVA-SUP-001 | integrity/new-inline-suppression | diff `no-increase` de `markers` | `pregate-disable`, `eslint-disable`, `@ts-ignore`, `@ts-nocheck`, `@ts-expect-error`, `biome-ignore` | Bloque `/* eslint-disable */` |
-| EVA-DYN-001 | integrity/no-dynamic-import-in-layer | pattern: `import($X)` / `require($X)` con argumento no literal; `createRequire`, `eval`, `new Function`. **[Δ O35]** `require` y `eval` como propiedad solo cuentan sobre `module`/`globalThis`/`global`/`window`/`self` (por miembro, corchete o desestructuración, también con cast o encadenado); un método de otro objeto llamado `require` o una clave `eval:` no son cargadores | `paths: ["@layers"]` | `require(name)` después de un deny; `module.require(x)` y `globalThis.eval(x)` al lado de `x.require()` |
-| EVA-CAST-001 | integrity/double-type-assertion | pattern: `$X as unknown as $T`, `$X as any as $T`, `<$T><unknown>$X`, con o sin paréntesis | — | `(x as unknown) as T` |
-| EVA-SCOPE-001 | integrity/out-of-scope-file | placement `new-in-exclude` + `no-language-pack-in-layer`, este solo para código **[Δ O34]** | `extensions`: lenguajes de programación sin pack, en minúsculas y comparadas sin mayúsculas; `""` es el archivo sin extensión. CSS, Markdown, JSON, SVG, HTML e imágenes no se deniegan | `.py`/`.sql` dentro de una capa; `.PY`; archivo sin extensión; archivo nuevo en `exclude` |
+| CC-FN-001 | complexity/fn-max-lines | metric `fn.lines` | `max`, `paths` | Statements compressed onto one line; nested arrow |
+| CC-FN-002 | complexity/fn-max-params | metric `fn.params` | `max`, `countInlineObjectMembers`, `exempt` | `opts: {a;b;c;d}`; destructured without a type; rest with a tuple |
+| CC-ER-002 | errors/no-empty-catch | pattern: `catch_clause` whose body has only comments, `console.$M(...)`, `$L.(log\|warn\|error\|info\|debug)(...)`, or `void $X`; also `.catch(() => {})` | `loggers` | `catch (e) { void e }`, `catch {}`, log-only |
+| CA-DEP-001 | dependencies/layer-direction | layer-edge | (`lock.layers`) | Barrel that re-exports infra, `import type`, `require('../infra')`, alias `@/infra`, `export * from` |
+| CA-DEP-002 | dependencies/banned-imports | banned-import | `paths: ["@layers:core"]`, `packages` (ORM, frameworks) | `require`, literal `import()`, barrel, subpath `@prisma/client/runtime` |
+| CA-UC-001 | api-surface/single-public-method | metric `class.publicMethods` | `paths`, `max: 1` | Public arrow property; `static` method |
+| DDD-VO-001 | immutability/readonly-fields | pattern: field without `readonly`; `this.$F =`/`+=`/`++` or `Object.assign(this, …)` outside the constructor | `paths` | Mutable `private` field with a getter |
+| DDD-ENT-001 | immutability/no-public-setters | pattern: public `set` accessor; public method that assigns `this.$F` from a parameter (structural, not by name) | `paths` | `set x()`, computed name |
+| FCIS-IO-001 | dependencies/banned-imports (instance 2) | banned-import | `paths: ["@layers:core"]`, `packages` (fs, child_process, net, http…) | `fs` versus `node:fs`, `fs/promises`, barrel |
+| FCIS-IO-002 | effects/no-clock-random-env | pattern: every reference in **value position** to `Date`, `process`, `performance`, `Math.random`, `crypto.randomUUID/getRandomValues`, or the same property on `globalThis`/`window`/`global`; a name the file binds (parameter, variable, relative import) is not the global | `paths`, `allow` (pure qualified names, e.g. `Bun.Glob`) | `const D = Date`, `Date['now']()`, `const {now} = Date`, `globalThis.Date.now`, `globalThis.window.x`, `new Date()`, a `window` bound in another function, `declare`/`import type`/namespace/`const enum` with the global's name |
+| TDD-FOCUS-001 | testing/no-focused-tests | pattern: `(describe\|it\|test\|context\|suite)` followed by `.only`/`.skip` or `["only"]`/`["skip"]` as a reference (not only as a call), anywhere in the chain; also every reference to `fit`, `fdescribe`, `xit`, `xdescribe`, `xtest`, except **[Δ O40]** where the file binds that name (the FCIS-IO-002 scope walk, but an import never binds) and reads of those names from `globalThis`/`window`/`global`/`self` or from `require()`/`import()` of a package | `paths` (test globs) | `it["only"]`, `const o = it.only`, `it.concurrent.only`, a global `fit` beside a `const fit` in another test, `const fit = globalThis.fit` |
+| TDD-DEL-001 | testing/assertions-no-decrease | diff `no-decrease` of the pattern `expect(...)` / `assert*(...)` | severity `ask` | Deleting the test through the shell (Stop sees it). Without interactivity ⇒ deny + halt |
+| EVA-GEN-001 | integrity/new-generated-marker | diff `no-increase` of `markers` (substring) | `markers` = `lock.generatedMarkers` | Marker in a comment, a string, or JSX text |
+| EVA-GEN-002 | integrity/edit-generated-or-excluded | placement `edit-generated-or-excluded` | — | Existing file with a marker or in `exclude` |
+| EVA-SUP-001 | integrity/new-inline-suppression | diff `no-increase` of `markers` | `pregate-disable`, `eslint-disable`, `@ts-ignore`, `@ts-nocheck`, `@ts-expect-error`, `biome-ignore` | `/* eslint-disable */` block |
+| EVA-DYN-001 | integrity/no-dynamic-import-in-layer | pattern: `import($X)` / `require($X)` with a non-literal argument; `createRequire`, `eval`, `new Function`. **[Δ O35]** `require` and `eval` as a property count only on `module`/`globalThis`/`global`/`window`/`self` (by member, bracket, or destructuring, also with a cast or chaining); a method of another object named `require` or an `eval:` key are not loaders | `paths: ["@layers"]` | `require(name)` after a deny; `module.require(x)` and `globalThis.eval(x)` beside `x.require()` |
+| EVA-CAST-001 | integrity/double-type-assertion | pattern: `$X as unknown as $T`, `$X as any as $T`, `<$T><unknown>$X`, with or without parentheses | — | `(x as unknown) as T` |
+| EVA-SCOPE-001 | integrity/out-of-scope-file | placement `new-in-exclude` + `no-language-pack-in-layer`, the latter only for code **[Δ O34]** | `extensions`: programming languages without a pack, in lowercase and compared case-insensitively; `""` is the file with no extension. CSS, Markdown, JSON, SVG, HTML, and images are not denied | `.py`/`.sql` inside a layer; `.PY`; file with no extension; new file in `exclude` |
 
-**Distribución:** 7 patrones, 3 métricas, 3 de imports, 3 diff y 2 placement. Todas son `deny` por defecto salvo TDD-DEL-001 (`ask`).
+**Distribution:** 7 patterns, 3 metrics, 3 import rules, 3 diff, and 2 placement. All are `deny` by default except TDD-DEL-001 (`ask`).
 
-**Ampliaciones de la ola 1 (revisión de W7, cada una con su fixture; 112 fixtures en total, 117 tras la ola 4a, 122 tras O34/O35, 123 tras la revisión de O35 (1.1.1), 125 tras O40 y 126 tras su revisión (1.1.1)):** EVA-DYN-001 suma `require` con alias, `require.call`, `module.require` y `eval`/`Function` leídos de `globalThis` por miembro, corchete o desestructuración; DDD-VO-001, escrituras a través de casts sobre `this` y `Object`/`Reflect`; EVA-CAST-001, `never` y arrays de `unknown`/`any`/`never` como paso intermedio; DDD-ENT-001 liga el parámetro por asignación; CC-ER-002, bloques vacíos anidados y handlers `() => undefined`; TDD-FOCUS-001, `only`/`skip` desestructurados; FCIS-IO-002, `Temporal`, `random*` de `node:crypto`, `Bun`, `Deno`, `import.meta.env` y `fetch`; FCIS-IO-001, drivers de base de datos, clientes de red, `vm` y `bun:ffi`; EVA-SUP-001, `oxlint-disable` y `deno-lint-ignore`. EVA-GEN-001 usa `@generatedMarkers` (O14).
+**Wave 1 extensions (W7 review, each with its fixture; 112 fixtures in total, 117 after wave 4a, 122 after O34/O35, 123 after the O35 review (1.1.1), 125 after O40, and 126 after its review (1.1.1)):** EVA-DYN-001 adds aliased `require`, `require.call`, `module.require`, and `eval`/`Function` read from `globalThis` by member, bracket, or destructuring; DDD-VO-001, writes through casts on `this` and `Object`/`Reflect`; EVA-CAST-001, `never` and arrays of `unknown`/`any`/`never` as an intermediate step; DDD-ENT-001 binds the parameter by assignment; CC-ER-002, nested empty blocks and `() => undefined` handlers; TDD-FOCUS-001, destructured `only`/`skip`; FCIS-IO-002, `Temporal`, `random*` from `node:crypto`, `Bun`, `Deno`, `import.meta.env`, and `fetch`; FCIS-IO-001, database drivers, network clients, `vm`, and `bun:ffi`; EVA-SUP-001, `oxlint-disable` and `deno-lint-ignore`. EVA-GEN-001 uses `@generatedMarkers` (O14).
 
-**Marcadores por substring (EVA-GEN-001/002 y EVA-SUP-001).** Es conservador a propósito: un marcador dentro de un string cuenta, y la falla va hacia el deny, de modo coherente entre las tres reglas. Si molesta en un repo de linters, ese falso deny se mide en el piloto.
+**Substring markers (EVA-GEN-001/002 and EVA-SUP-001).** It is conservative on purpose: a marker inside a string counts, and failure goes toward deny, consistently across the three rules. If it gets in the way in a linter repo, that false deny is measured in the pilot.
 
-### 6.3 Ejecución
+### 6.3 Execution
 
-`analyze(lock, phase, rel, text, host)` parsea una vez y recorre las reglas de `lock.rules` aplicables a la fase.
-- `line` es la fila + 1.
-- `symbol` es la cadena de declaraciones con nombre que contiene a la coincidencia (`Clase.método`, `fn`, `<module>`). Los callbacks anónimos se atribuyen al símbolo con nombre que los contiene.
+`analyze(lock, phase, rel, text, host)` parses once and walks the `lock.rules` applicable to the phase.
+- `line` is the row + 1.
+- `symbol` is the chain of named declarations that contains the match (`Class.method`, `fn`, `<module>`). Anonymous callbacks are attributed to the named symbol that contains them.
 
-`introduced(lock, rel, before, after)` (modo = `lock.ratchet`; `rel` porque `Analysis` no lleva ruta):
-- **`strict`, o `before` nulo:** todo lo que hay en `after`.
+`introduced(lock, rel, before, after)` (mode = `lock.ratchet`; `rel` because `Analysis` does not carry a path):
+- **`strict`, or null `before`:** everything in `after`.
 - **`no-new`:**
-  1. una violación sobre un símbolo que no está en `before.symbols` es nueva, sin compensación;
-  2. entre los preexistentes, si el conteo por (regla, archivo) sube, se reportan los símbolos cuyo conteo creció.
-- **`diff`:** el conteo de `after` comparado con el de `before`, según `op`. `measured` = después, `limit` = antes (0 si no hay), en la línea 1 con símbolo `<module>`.
+  1. a violation on a symbol that is not in `before.symbols` is new, unless its body (without the declared name) is that of an earlier symbol whose body is gone, and only for the violations that symbol no longer has, each one once: a rename, a move or an extraction in the same file does not renew that debt. A copy next to an original that still carries it, with the same body or another, is new. `symbolBodies` is computed only when the analysis has at least one violation;
+  2. among the preexisting ones, if the count per (rule, file) rises, the symbols whose count grew are reported.
+- **`diff`:** the `after` count compared with the `before` count, according to `op`. `measured` = after, `limit` = before (0 if there is none), on line 1 with symbol `<module>`.
 
-Cada coincidencia cuenta (dos en la misma línea suben el conteo); la salida tiene una violación por (regla, línea, símbolo). Límites del MVP: en `no-new` una función con violación preexistente puede crecer ("no puede crecer" es v1), y las violaciones de imports se atribuyen a `<module>`.
+Each match counts (two on the same line raise the count); the output has one violation per (rule, line, symbol). MVP limits: in `no-new` a function with a preexisting violation can grow ("cannot grow" is v1), and import violations are attributed to `<module>`.
 
 ### 6.4 `pregate rules test <dir>`
 
-1. **Estructura.** `disk.readTree(dir, true)` carga `Files` (el binario no lleva fixtures; el catálogo se prueba desde el repo, en `catalog.test.ts` y en `build.ts`). Se validan:
-   - schemas e IDs; namespace igual al de `source.json`; versiones; que el check exista;
-   - `kind`, `field` y regex de los patrones contra la gramática;
-   - `why`/`fixHint`/`avoid`/ejemplos para todo alias que pueda ser `deny`.
+1. **Structure.** `disk.readTree(dir, true)` loads `Files` (the binary does not carry fixtures; the catalog is tested from the repo, in `catalog.test.ts` and in `build.ts`). Validated:
+   - schemas and IDs; namespace equal to that of `source.json`; versions; that the check exists;
+   - `kind`, `field`, and regex of the patterns against the grammar;
+   - `why`/`fixHint`/`avoid`/examples for every alias that can be `deny`.
 
-   Un `impl` desconocido es error de compilación, nunca se saltea en silencio. Por ejemplo `sql-normalized@1`, `principal-path` o `numericCheck` del pack piloto.
-2. **Fixtures, en el mismo proceso.** Por cada fixture (`pass`, `fail`, `trap`; **[Δ ola 2]** las carpetas de alias no existen: un alias se prueba con las fixtures del check que nombran sus `examples`):
-   1. arma el proyecto en memoria con `files/` (sin el sufijo `.fixture`) y `before/`;
-   2. construye el lock con `compile.fixtureLock(check, fixture.params, fixture.context)` (`ratchet: "no-new"`; sin `before` equivale a `strict`);
-   3. corre `placement` + `analyze` + `introduced`;
-   4. exige: `pass` ⇒ 0 violaciones; `fail`/`trap` ⇒ exactamente las líneas declaradas (y `measured`, si se declara).
-3. **Determinismo.** Una segunda corrida tiene que dar el mismo resultado: detecta estado que se filtra entre corridas. **[Δ ola 2]** El orden invertido y otra raíz virtual no pueden cambiar nada por construcción (`Read` es relativo y el núcleo nunca lista archivos), así que no se corren. Los patrones se compilan en las dos gramáticas.
-4. **Mínimos.** Por check: 2 `pass`, 2 `fail` y 1 `trap`. Por alias: 1 `pass` y 1 `fail` con sus defaults (§5.4.1).
+   An unknown `impl` is a compilation error, never skipped silently. For example `sql-normalized@1`, `principal-path`, or `numericCheck` from the pilot pack.
+2. **Fixtures, in the same process.** For each fixture (`pass`, `fail`, `trap`; **[Δ wave 2]** alias folders do not exist: an alias is tested with the fixtures of the check that name its `examples`):
+   1. builds the project in memory with `files/` (without the `.fixture` suffix) and `before/`;
+   2. builds the lock with `compile.fixtureLock(check, fixture.params, fixture.context)` (`ratchet: "no-new"`; without `before` it is equivalent to `strict`);
+   3. runs `placement` + `analyze` + `introduced`;
+   4. requires: `pass` ⇒ 0 violations; `fail`/`trap` ⇒ exactly the declared lines (and `measured`, if declared).
+3. **Determinism.** A second run must give the same result: it detects state that leaks between runs. **[Δ wave 2]** Reversed order and another virtual root cannot change anything by construction (`Read` is relative and the core never lists files), so they are not run. Patterns are compiled on both grammars.
+4. **Minimums.** Per check: 2 `pass`, 2 `fail`, and 1 `trap`. Per alias: 1 `pass` and 1 `fail` with its defaults (§5.4.1).
 
-La salida es una línea por fixture (`ok   <check> <kind>/<caso> -> fail [línea(medido)]` o `FAIL … ` con lo esperado), con exit 1 ante cualquier falla. `rules test catalog` da hoy 126/126. `preset compile` corre `rules test` sobre cada fuente `path` (U2, DD-69), igual que la plantilla de CI; pre-commit recompila sin fixtures (§4.5). `scripts/build.ts` lo corre sobre `catalog/` y aborta si falla.
+The output is one line per fixture (`ok   <check> <kind>/<case> -> fail [line(measured)]` or `FAIL … ` with what was expected), with exit 1 on any failure. `rules test catalog` gives 126/126 today. `preset compile` runs `rules test` on every `path` source (U2, DD-69), as does the CI template; pre-commit recompiles without fixtures (§4.5). `scripts/build.ts` runs it on `catalog/` and aborts if it fails.
 
-**El pack `amarilla/` (27 reglas) no compila tal cual contra el `Impl` cerrado.** 17 son reglas de patrón TS y corren como datos. Las otras 10 no:
-- 7 primitivas con parámetros que el MVP no tiene: `banned-import` ×3 (`specifiers` como regex, `appliesWhen.directive: "use client"`, `follow: "values"`, `ignoreTypeOnly`, `clauses`), `placement` ×1 (`on`/`deny`), `diff` ×2 (`clauses` `unchanged-if-exists-at-ref`/`monotonic-name`, `identityKeys`/`numeric`) y `principal-path` ×1;
-- 3 reglas solo SQL (`sql-normalized@1`); `events-append-only` pierde su patrón SQL y conserva el TS.
+**The `amarilla/` pack (27 rules) does not compile as-is against the closed `Impl`.** 17 are TS pattern rules and run as data. The other 10 do not:
+- 7 primitives with parameters the MVP does not have: `banned-import` ×3 (`specifiers` as regex, `appliesWhen.directive: "use client"`, `follow: "values"`, `ignoreTypeOnly`, `clauses`), `placement` ×1 (`on`/`deny`), `diff` ×2 (`clauses` `unchanged-if-exists-at-ref`/`monotonic-name`, `identityKeys`/`numeric`), and `principal-path` ×1;
+- 3 SQL-only rules (`sql-normalized@1`); `events-append-only` loses its SQL pattern and keeps the TS one.
 
-**Decisión propuesta [Δ, necesita tu OK]: (b)** esas 10 reglas quedan fuera del piloto de PREGATE y siguen en ArkGate (`coexist.arkgate.ownedByArkgate`), coherente con D15.1; el motor no crece. El piloto evalúa 17 reglas de patrón + las metodologías de core (D15.3). La alternativa **(a)** es extender `banned-import` (`specifiers` regex, `appliesWhen.directive`, `ignoreTypeOnly`, `follow: "values"` con profundidad 3), `placement` (`deny` globs + `on: create`) y `diff` (`unchanged-if-exists-at-ref`): ~150 líneas más en `evaluate.ts`/`resolve.ts` y schemas, sin requisito de §18.1 que las pida.
+**Proposed decision [Δ, needs your OK]: (b)** those 10 rules stay out of the PREGATE pilot and remain in ArkGate (`coexist.arkgate.ownedByArkgate`), consistent with D15.1; the engine does not grow. The pilot evaluates 17 pattern rules + the core methodologies (D15.3). Alternative **(a)** is to extend `banned-import` (`specifiers` regex, `appliesWhen.directive`, `ignoreTypeOnly`, `follow: "values"` with depth 3), `placement` (`deny` globs + `on: create`), and `diff` (`unchanged-if-exists-at-ref`): ~150 more lines in `evaluate.ts`/`resolve.ts` and schemas, with no §18.1 requirement that asks for them.
 
-Trabajo de datos en los dos casos: renombrar `rule.json` a `check.json` y `pack.json` a `source.json`, quitar los patrones SQL, y completar los mínimos de fixtures.
+Data work in both cases: rename `rule.json` to `check.json` and `pack.json` to `source.json`, remove the SQL patterns, and complete the fixture minimums.
 
 ---
 
-## 7. Qué NO se construye en el MVP
+## 7. What is NOT built in the MVP
 
-### 7.1 Fuera por SPEC §18.1
+### 7.1 Out by SPEC §18.1
 
-Ver SPEC §18.1, "Fuera del MVP". Además: SQL (pack `amarilla/`, §6.4), NotebookEdit (da `unknown`) y SessionEnd. El perfil de Grok queda pendiente de la pregunta 9 (D15.9): hasta entonces, un payload ajeno ⇒ `payload-unrecognized`.
+See SPEC §18.1, "Outside the MVP". In addition: SQL (`amarilla/` pack, §6.4), NotebookEdit (yields `unknown`), and SessionEnd. Grok's profile remains pending question 9 (D15.9): until then, a foreign payload ⇒ `payload-unrecognized`.
 
-### 7.2 Desvíos de la SPEC y recortes que no tienen fila A#
+### 7.2 SPEC deviations and cuts that have no A# row
 
-Los marcados **[Δ]** contradicen la SPEC y **necesitan tu OK**.
+Those marked **[Δ]** contradict the SPEC and **need your OK**.
 
-| # | Decisión | Por qué | SPEC |
+| # | Decision | Why | SPEC |
 |---|---|---|---|
-| 1 | **[Δ]** Motor de patrones propio sobre web-tree-sitter en lugar de `@ast-grep/napi` + tree-sitter nativo | A3. El nativo embebido cuesta 295 ms por llamada. El formato de reglas no cambia | §13.3 |
+| 1 | **[Δ]** In-house pattern engine on web-tree-sitter instead of `@ast-grep/napi` + native tree-sitter | A3. The embedded native costs 295 ms per call. The rule format does not change | §13.3 |
 | 2 | **[Δ]** A stale hook lock denies and halts. In-memory recompilation validates complete bytes; it does not repair or replace the lock. | A9; supersedes the earlier metadata-only admission | §4.2, §4.5 |
-| 3 | **[Δ]** En `shadow`, todo veredicto pasa a `none` salvo rutas protegidas, reglas de integridad y causas `human`; lo demás se registra como `shadowed`. `check` aplica la misma función (`blocking`), así que el pre-commit del piloto no bloquea reglas sin calibrar | Sirve para calibrar en el piloto: un deny de forma por un hueco de la gramática no debe frenar al equipo. Lo que no se pudo evaluar sigue denegando | §4.5, §8.5.7 |
-| 4 | **[Δ]** Macro `@layers[:kind]`; `@layers` sin capas ⇒ `[]` | A21 | (agregado) |
-| 5 | **[Δ]** Presupuesto del guard de shell: p50 ≤ 25 ms | Es el piso de proceso de Bun | §13.6 |
-| 6 | **[Δ]** El pre-check `check --stdin` usa HEAD como "antes" | No conoce la sesión. Solo difiere si el archivo ya estaba sucio al empezar | §11.6 |
-| 7 | **[Δ]** Plazo del launcher de 5 s para todo Pre (incluido shell) | El launcher no lee stdin en Pre. El plazo es tiempo real, y las llamadas en paralelo se reparten los núcleos: con 2 s, tres ediciones de 2.000 líneas a la vez en un runner de 2 vCPU ya se cortaban (O30). 5 s deja la mitad del timeout de 10 s | §13.6 (2 s edición, 1 s shell) |
-| 8 | **[Δ]** Directorio de estado con la sesión primero: `…/pregate/sessions/<sid>/` (eventos por sesión; snapshot por raíz) | Stop enumera las raíces con un `readdir`; el tope por turno cruza raíces | §11.3 |
-| 9 | **[Δ]** Git es requisito | A27 | §9 |
-| 10 | **[Δ]** `**/.git/**` protegido desde el MVP | `.git/config` editable con Edit apaga el pre-commit (`hooksPath`) | §10.2.6 (v1: `.git/hooks/**`) |
-| 11 | **[Δ]** Extensiones `.mts`, `.cts`, `.cjs`, `.jsx` en el pack TS/JS | Sin ellas, cambiar la extensión esquiva toda regla fuera de una capa. Es una línea en `grammarOf` | §18.1 (`.ts .tsx .js .mjs`) |
-| 12 | **[Δ]** `unresolvable-import` en toda capa con `mayImport ≠ ["*"]` y en toda fase; `too-deep` y tsconfig inválido cuentan como no resueltos | Cortar en silencio al pasar el tope era un falso allow. La razón de la excepción (lotes paralelos) no aplica: las capas se resuelven por ruta, no por existencia | §4.4 (solo `core`/`port` en Pre) |
-| 13 | **[Δ]** Rutas sin distinguir mayúsculas en todas partes | A26 | §6.7 ("donde corresponde") |
-| 14 | **[Δ]** Los deny de forma cuentan para el tope por turno, y 3 seguidos sobre el mismo archivo ⇒ halt | Un hueco de la gramática o un CRLF mal reconstruido producía un lazo sin fin (go/no-go: lazos < 5 %) | §4.4, §11.3 |
-| 15 | **[Δ]** Pre-commit recompila sin correr fixtures; CI sí corre `rules test` | El lock no depende de las fixtures; correrlas en cada commit cuesta segundos con el pack piloto | §6.5 ("rules test obligatorio al compilar") |
-| 16 | **[Δ]** Pack `amarilla/`: 10 reglas fuera del piloto (§6.4, opción b) | El `Impl` cerrado no las expresa; extenderlo no lo pide §18.1 | §18.1 (evaluación) |
-| 17 | **[Δ]** D17: "anónimo" = sin acoplarse al paquete, **con** atribución (LICENSE, ORIGIN, THIRD_PARTY_NOTICES) | MIT exige conservar el aviso; D17 lo dejó "(A confirmar)" | D17 |
-| 18 | `install` no edita los excludes de tsconfig, ESLint ni del test runner (D15.4) | El sufijo `.fixture` ya vuelve inertes las fixtures (DD-72) | §6.2 |
-| 19 | `install` fusiona `.claude/settings.json` y no toca `core.hooksPath` si el repo ya tiene un gestor de hooks (`core.hooksPath`, `.husky`, `.githooks`, lefthook): imprime la línea a agregar | Pisar el hook de ArkGate (D15.1) o los `.githooks` del piloto rompería el piloto | §13.7, §10.2.9 |
-| 20 | `bench` es `scripts/bench.ts` (latencia), no un subcomando. El resumen para CLAUDE.md del brazo D es la salida de `pregate preset show` | Es interno y no va en el binario | §13.8, §16.2 |
-| 21 | Stop no mantiene una cola de re-evaluación de `background_tasks` | Lo que escriban después lo ven el próximo Stop, pre-commit y CI | §4.2 |
-| 22 | TDD-DEL-001 sin exención por haber borrado también el símbolo de producción | Exige un mapeo test → producción. Sin él, la regla es conservadora (ask o detención) | §11.3 |
-| 23 | Rutas `file_path` con `.`, `..` o `//` ⇒ `payload-unrecognized` | Claude Code manda rutas absolutas normalizadas; un `..` en la parte inexistente podía cambiar de capa o salir de la raíz | §4.3 |
+| 3 | **[Δ]** In `shadow`, every verdict becomes `none` except protected paths, integrity rules, and `human` causes; the rest is recorded as `shadowed`. `check` applies the same function (`blocking`), so the pilot's pre-commit does not block uncalibrated rules | It serves to calibrate in the pilot: a form deny from a grammar gap must not stop the team. What could not be evaluated still denies | §4.5, §8.5.7 |
+| 4 | **[Δ]** Macro `@layers[:kind]`; `@layers` with no layers ⇒ `[]` | A21 | (added) |
+| 5 | **[Δ]** Shell-guard budget: p50 ≤ 25 ms | It is Bun's process floor | §13.6 |
+| 6 | **[Δ]** The `check --stdin` pre-check uses HEAD as the "before" | It does not know the session. It differs only if the file was already dirty at the start | §11.6 |
+| 7 | **[Δ]** Launcher deadline of 5 s for every Pre (including shell) | The launcher does not read stdin on Pre. The deadline is wall-clock time, and parallel calls share the cores: with 2 s, three 2,000-line edits at once on a 2 vCPU runner were already cut off (O30). 5 s leaves half of the 10 s timeout | §13.6 (2 s edit, 1 s shell) |
+| 8 | **[Δ]** State directory with the session first: `…/pregate/sessions/<sid>/` (events per session; snapshot per root) | Stop lists the roots with a `readdir`; the per-turn cap crosses roots | §11.3 |
+| 9 | **[Δ]** Git is required | A27 | §9 |
+| 10 | **[Δ]** `**/.git/**` protected from the MVP | An editable `.git/config` via Edit turns off pre-commit (`hooksPath`) | §10.2.6 (v1: `.git/hooks/**`) |
+| 11 | **[Δ]** Extensions `.mts`, `.cts`, `.cjs`, `.jsx` in the TS/JS pack | Without them, changing the extension dodges every rule outside a layer. It is one line in `grammarOf` | §18.1 (`.ts .tsx .js .mjs`) |
+| 12 | **[Δ]** `unresolvable-import` in every layer with `mayImport ≠ ["*"]` and in every phase; `too-deep` and an invalid tsconfig count as unresolved | Cutting off silently past the cap was a false allow. The reason for the exception (parallel batches) does not apply: layers are resolved by path, not by existence | §4.4 (only `core`/`port` in Pre) |
+| 13 | **[Δ]** Case-insensitive paths everywhere | A26 | §6.7 ("where it applies") |
+| 14 | **[Δ]** Form denies count toward the per-turn cap, and 3 in a row on the same file ⇒ halt | A grammar gap or a badly reconstructed CRLF produced an endless loop (go/no-go: loops < 5%) | §4.4, §11.3 |
+| 15 | **[Δ]** Pre-commit recompiles without running fixtures; CI does run `rules test` | The lock does not depend on the fixtures; running them on every commit costs seconds with the pilot pack | §6.5 ("rules test required when compiling") |
+| 16 | **[Δ]** `amarilla/` pack: 10 rules outside the pilot (§6.4, option b) | The closed `Impl` does not express them; extending it is not required by §18.1 | §18.1 (evaluation) |
+| 17 | **[Δ]** D17: "anonymous" = without coupling to the package, **with** attribution (LICENSE, ORIGIN, THIRD_PARTY_NOTICES) | MIT requires keeping the notice; D17 left it "(To be confirmed)" | D17 |
+| 18 | `install` does not edit the excludes of tsconfig, ESLint, or the test runner (D15.4) | The `.fixture` suffix already makes the fixtures inert (DD-72) | §6.2 |
+| 19 | `install` merges `.claude/settings.json` and does not touch `core.hooksPath` if the repo already has a hook manager (`core.hooksPath`, `.husky`, `.githooks`, lefthook): it prints the line to add | Overwriting ArkGate's hook (D15.1) or the pilot's `.githooks` would break the pilot | §13.7, §10.2.9 |
+| 20 | `bench` is `scripts/bench.ts` (latency), not a subcommand. The summary for arm D's CLAUDE.md is the output of `pregate preset show` | It is internal and does not go in the binary | §13.8, §16.2 |
+| 21 | Stop does not keep a re-evaluation queue of `background_tasks` | What they write later is seen by the next Stop, pre-commit, and CI | §4.2 |
+| 22 | TDD-DEL-001 with no exemption for also having deleted the production symbol | It requires a test → production mapping. Without it, the rule is conservative (ask or halt) | §11.3 |
+| 23 | `file_path` paths with `.`, `..`, or `//` ⇒ `payload-unrecognized` | Claude Code sends normalized absolute paths; a `..` in the nonexistent part could change layer or leave the root | §4.3 |
 
 ---
 
-## 8. Estrategia de tests
+## 8. Test strategy
 
-Regla: se prueba con datos reales del dominio (fixtures, payloads, comandos de evasión), sin mocks ni flags de fault-injection. El núcleo recibe `Read`/`Files`, así que los tests usan mapas en memoria.
+Rule: test with real domain data (fixtures, payloads, evasion commands), with no mocks and no fault-injection flags. The core receives `Read`/`Files`, so the tests use in-memory maps.
 
-| Archivo | Qué prueba | Cómo |
+| File | What it tests | How |
 |---|---|---|
-| `catalog.test.ts` | Las 18 invariantes: pass/fail/trap, determinismo (segunda corrida), mínimos, casos de ratchet con `before/` y O14 | Salida golden de `rules test catalog` (126 fixtures) |
-| `match.test.ts` | Semántica del motor de patrones | Una tabla por operador, más el **diferencial contra `@ast-grep/napi`**: todo patrón del catálogo y del pack piloto contra todo archivo de fixtures, en las dos gramáticas (~18.000 comparaciones, 0 diferencias), con el mismo nodo, las mismas metavariables y dónde se liga cada una |
-| `reconstruct.test.ts` | Edit exacto, no encontrado o no único, `replace_all`, `old` vacío, BOM/CRLF, cálculo de la ventana | Tabla |
-| `paths.test.ts` | Protegidas a cualquier profundidad y sin lock; `**/.git/**`; mayúsculas en protegidas, scope, capas y `paths` (A26); raíz anidada y raíz registrada solo por SessionStart; realpath de rutas inexistentes; symlink (también colgante) a una ruta protegida; extensiones de `grammarOf` | Repos temporales |
-| `shell.test.ts` | Cada vector de §10.1; destino de escritura no literal; `sh -c`/`eval` con string literal y no literal; protecciones sin lock; lo permitido (`<raíz>/.pregate/bin/pregate check --stdin <<EOF`, lecturas); sintaxis desconocida y comillas sin cerrar **sin** deny | Tabla de ~400 comandos POSIX y PowerShell |
-| `resolve.test.ts` | Relativos, `.js`→`.ts`, `index`, tsconfig `paths`/`baseUrl`/`extends`, re-exports de 3 saltos, `too-deep` al pasar 3 saltos o 32 archivos, tsconfig `invalid` (ilegible o `extends` ausente), `external` solo para builtins y nombres npm (`#x`, `~/x`, `@/x` ⇒ `unresolved`) | Árbol en memoria |
-| `decide.test.ts` | Tabla de §11.3 (intentos, sin progreso, tope por turno del agente con los deny de forma, subagente con presupuesto propio, 3 forma seguidos ⇒ halt, `ask` según interactividad, shadow sin tocar integridad, `blocking` para `check`, Stop con `blocks`/`reentry`/`approved`) | Tabla de historiales |
-| `message.test.ts` | Primera línea ≤ 256, total ≤ 4.000, sanitización (`[A-Za-z0-9@/._$-]`, ≤ 80), nunca strings ni comentarios del código, orden, "+N more", pre-check literal con la ruta del launcher | Propiedades |
-| `schema.test.ts` | Los schemas usan solo keywords soportadas; todo JSON del catálogo, los presets y las fixtures valida | Recorrido |
-| `compile.test.ts` | Los 3 presets compilan con lock estable byte a byte; `test/presets/*` fallan con el error exacto (conflicto sin resolver vía manifiesto local, override sobre inactivo, integridad `off`, ns distinto, engine distinto, fuente `path` con fixture roja, `@layers:<kind>` sin capas de ese tipo); `@layers` sin capas ⇒ `[]`; `files`/`ignores` volcados a `params` | Golden |
-| `claude.test.ts` | Contrato: `test/payloads/*.json` (Write, Edit, MultiEdit, Bash, PowerShell, Monitor, Stop, SessionStart, payload estilo Grok) → stdout, stderr y exit exactos. **Cada "(a verificar)" se cierra con un caso:** `old_string: ""`, `continue:false` con exit 2, `additionalContext` junto a `ask`, Stop con exit 2, CRLF en Edit. Además, una tabla: cada campo requerido × {falta, tipo incorrecto} ⇒ exit 2 + `payload-unrecognized`; clave extra en Write/Edit ⇒ halt; clave extra en Bash (`dangerouslyDisableSandbox`) ignorada; `file_path` con `..` ⇒ `payload-unrecognized`; la cadena `"allow"` nunca sale | Golden |
-| `e2e.test.ts` | Binario compilado + launcher sobre una copia git de `test/demo-repo`: SessionStart → deny → corrección → `none` → Stop (UC1, UC2: los dos presets deniegan cosas distintas y cada deny se corrige en un intento). Además:<br>· pre-commit con violación staged ⇒ exit 1; en `shadow`, solo integridad ⇒ exit 1;<br>· lock commiteado desactualizado ⇒ exit 1;<br>· motor ausente ⇒ exit 2 + deny; launcher ausente ⇒ el guard inline de `settings.json` deniega;<br>· `hook auto` sin argumentos ⇒ supervisado;<br>· motor que lanza ⇒ exit 1 ⇒ deny del launcher; SIGKILL al motor ⇒ deny;<br>· fuente `path` con un regex que abandona (`(a+)+b`) ⇒ `regex-limit` (deny + halt) antes de 2 s; con un regex polinomial sin grupos ⇒ watchdog a los 5 s ⇒ deny (O30);<br>· `snapshot.json` borrado ⇒ deny + halt; `sessions/<sid>/` borrado ⇒ el "antes" pasa a HEAD;<br>· `.pregate/` borrado a mitad de sesión ⇒ `lock-stale`; preset sin commitear + SessionStart ⇒ gate activo;<br>· `install` sobre un `settings.json` con otro hook y un repo con `.githooks` ⇒ ambos intactos;<br>· 20 Pre en paralelo sobre (archivo, regla) ⇒ contador = 20. Van por la ruta de placement (archivo nuevo en `exclude`, sin parsear): lo que se prueba es el contador, no la latencia (O30);<br>· `bunfig.toml` con `preload` y `.env` en el repo ⇒ el motor los ignora (O32).<br>**[Δ ola 3]** 34 tests: el binario se compila con `compileBinary` de `build.ts`; launcher y watchdog bajo sh, bash y dash; además raíz hermana y anidada, destinos de shell absolutos, Stop sin `prompt_id`, guard inline por stderr, pre-commit con imports de tsconfig desde el índice, ask aprobado | Procesos reales |
-| `ratchet.test.ts` **[Δ ola 3]** | `comparedLock` y un `Parsed` entregado no cambian ningún resultado: cada archivo de código de las fixtures como "después" de sí mismo y de otro, bajo los 3 presets y `strict` (> 100 con violaciones); por el gate, deuda commiteada deja pasar una edición inocua y deniega una violación nueva | Fixtures reales y repo git temporal |
-| `vendor.test.ts` | sha256 de `vendor/**` igual a ORIGIN; NOTICES lista cada componente, incluida la nota LGPL | Hash |
+| `catalog.test.ts` | The 18 invariants: pass/fail/trap, determinism (second run), minimums, ratchet cases with `before/` and O14 | Golden output of `rules test catalog` (126 fixtures) |
+| `match.test.ts` | Pattern-engine semantics | One table per operator, plus the **differential against `@ast-grep/napi`**: every pattern in the catalog and the pilot pack against every fixture file, on both grammars (~18,000 comparisons, 0 differences), with the same node, the same metavariables, and where each one binds |
+| `reconstruct.test.ts` | Exact edit, not found or not unique, `replace_all`, empty `old`, BOM/CRLF, window calculation | Table |
+| `paths.test.ts` | Protected at any depth and without a lock; `**/.git/**`; case in protected paths, scope, layers, and `paths` (A26); nested root and root registered only by SessionStart; realpath of nonexistent paths; symlink (including a dangling one) to a protected path; `grammarOf` extensions | Temporary repos |
+| `shell.test.ts` | Every vector in §10.1; non-literal write destination; `sh -c`/`eval` with a literal and a non-literal string; protections without a lock; what is allowed (`<root>/.pregate/bin/pregate check --stdin <<EOF`, reads); unknown syntax and unclosed quotes **without** a deny | Table of ~400 POSIX and PowerShell commands |
+| `resolve.test.ts` | Relatives, `.js`→`.ts`, `index`, tsconfig `paths`/`baseUrl`/`extends`, re-exports of 3 hops, `too-deep` past 3 hops or 32 files, invalid tsconfig (unreadable or missing `extends`), `external` only for builtins and npm names (`#x`, `~/x`, `@/x` ⇒ `unresolved`) | In-memory tree |
+| `decide.test.ts` | §11.3 table (attempts, no progress, the agent's per-turn cap including form denies, subagent with its own budget, 3 form denies in a row ⇒ halt, `ask` according to interactivity, shadow without touching integrity, `blocking` for `check`, Stop with `blocks`/`reentry`/`approved`) | History table |
+| `message.test.ts` | First line ≤ 256, total ≤ 4,000, sanitization (`[A-Za-z0-9@/._$-]`, ≤ 80), never strings or comments from the code, order, "+N more", literal pre-check with the launcher path | Properties |
+| `schema.test.ts` | The schemas use only supported keywords; every JSON in the catalog, the presets, and the fixtures validates | Walk |
+| `compile.test.ts` | The 3 presets compile with a byte-stable lock; `test/presets/*` fail with the exact error (unresolved conflict via a local manifest, override on an inactive one, integrity `off`, different ns, different engine, `path` source with a red fixture, `@layers:<kind>` with no layers of that kind); `@layers` with no layers ⇒ `[]`; `files`/`ignores` copied into `params` | Golden |
+| `claude.test.ts` | Contract: `test/payloads/*.json` (Write, Edit, MultiEdit, Bash, PowerShell, Monitor, Stop, SessionStart, Grok-style payload) → exact stdout, stderr, and exit. **Each "(to verify)" is closed with a case:** `old_string: ""`, `continue:false` with exit 2, `additionalContext` next to `ask`, Stop with exit 2, CRLF in Edit. Also, a table: each required field × {missing, wrong type} ⇒ exit 2 + `payload-unrecognized`; extra key in Write/Edit ⇒ halt; extra key in Bash (`dangerouslyDisableSandbox`) ignored; `file_path` with `..` ⇒ `payload-unrecognized`; the string `"allow"` never appears | Golden |
+| `e2e.test.ts` | Compiled binary + launcher over a git copy of `test/demo-repo`: SessionStart → deny → correction → `none` → Stop (UC1, UC2: the two presets deny different things and each deny is corrected in one attempt). Also:<br>· pre-commit with a staged violation ⇒ exit 1; in `shadow`, only integrity ⇒ exit 1;<br>· committed lock out of date ⇒ exit 1;<br>· missing engine ⇒ exit 2 + deny; missing launcher ⇒ the inline guard in `settings.json` denies;<br>· `hook auto` with no arguments ⇒ supervised;<br>· engine that throws ⇒ exit 1 ⇒ launcher deny; SIGKILL to the engine ⇒ deny;<br>· `path` source with a regex that gives up (`(a+)+b`) ⇒ `regex-limit` (deny + halt) before 2 s; with a polynomial regex without groups ⇒ watchdog at 5 s ⇒ deny (O30);<br>· deleted `snapshot.json` ⇒ deny + halt; deleted `sessions/<sid>/` ⇒ the "before" becomes HEAD;<br>· `.pregate/` deleted mid-session ⇒ `lock-stale`; uncommitted preset + SessionStart ⇒ gate active;<br>· `install` over a `settings.json` with another hook and a repo with `.githooks` ⇒ both intact;<br>· 20 parallel Pre calls on (file, rule) ⇒ counter = 20. They go through the placement path (new file in `exclude`, no parse): what is tested is the counter, not the latency (O30);<br>· `bunfig.toml` with `preload` and `.env` in the repo ⇒ the engine ignores them (O32).<br>**[Δ wave 3]** 34 tests: the binary is compiled with `compileBinary` from `build.ts`; launcher and watchdog under sh, bash, and dash; also a sibling and nested root, absolute shell destinations, Stop without `prompt_id`, inline guard via stderr, pre-commit with tsconfig imports from the index, approved ask | Real processes |
+| `ratchet.test.ts` **[Δ wave 3]** | `comparedLock` and a supplied `Parsed` do not change any result: each fixture code file as the "after" of itself and of another, under the 3 presets and `strict` (> 100 with violations); through the gate, committed debt lets an innocuous edit through and denies a new violation | Real fixtures and a temporary git repo |
+| `vendor.test.ts` | sha256 of `vendor/**` matches ORIGIN; NOTICES lists every component, including the LGPL note | Hash |
 
-**Fuera de `bun test`:**
-- `scripts/bench.ts` mide p50/p95 por ruta (§4.1) y sale con 1 si una ruta pasa p95 150 ms o shell pasa p50 25 ms. Ese presupuesto es de la máquina de desarrollo de referencia (O31). En CI corre en un job aparte (`continue-on-error`) con `--inform`: la tabla va al resumen del job, con la máquina en que corrió, y una ruta fuera de presupuesto es un warning; el paso solo falla si un hook objeta. Primero informa; en la evaluación, p95 > 150 ms en la máquina de referencia bloquea.
-- `scripts/build.ts`: `rules test catalog` y luego darwin-arm64 y linux-x64 en `dist/` (tar con `pregate`, `THIRD_PARTY_NOTICES`, `LICENSE` si existe (O28), y `.sha256`). CI: typecheck → unit → e2e → build → dogfooding.
-- **Dogfooding:** el `.pregate/` del repo tiene capas `core`/`shell` (§2) y las metodologías FCIS + clean-code + tdd + integrity, fijadas en W0 antes de escribir código. Con CC-FN-002 por defecto (max 3, contando miembros de objetos inline), firmas como `analyze` (5) o `placement` (4) son archivos nuevos en `strict` y el gate denegaría su propio código. Propuesta: override `CC-FN-002.params.max: 5` con nota ("núcleo puro con dependencias explícitas"); lo que necesita más entradas recibe un tipo con nombre de `types.ts` (`DecideInput`). Pre-commit y CI corren `pregate check --ratchet` sobre el propio código. **[Δ ola 3]** Lock commiteado; `check --ratchet --base 843d370` pasa. Contra el árbol entero el preset marcaba 75 violaciones preexistentes (67 CC-FN-001, 5 FCIS-IO-002, 2 CC-FN-002, 1 CC-ER-002). **[Δ O29]** Hoy da 0: `check --ratchet --base <primer commit>` pasa, con el umbral de CC-FN-001 fijado de forma explícita en el preset.
-
----
-
-## 9. Plan de construcción y mapa spec→código
-
-El plan de construcción inicial en unidades independientes (`W0`–`W10`), el orden de integración y el mapa completo requisito→archivo del MVP (`SPEC §18.1` y decisiones `D12`–`D17`) se conservan en [ARCHITECTURE-HISTORY.md](ARCHITECTURE-HISTORY.md).
+**Outside `bun test`:**
+- `scripts/bench.ts` measures p50/p95 per path (§4.1) and exits 1 if a path exceeds p95 150 ms or shell exceeds p50 25 ms. That budget belongs to the reference development machine (O31). In CI it runs in a separate job (`continue-on-error`) with `--inform`: the table goes to the job summary, with the machine it ran on, and a path outside the budget is a warning; the step fails only if a hook objects. It reports first; in the evaluation, p95 > 150 ms on the reference machine blocks.
+- `scripts/build.ts`: `rules test catalog` and then darwin-arm64 and linux-x64 in `dist/` (tar with `pregate`, `THIRD_PARTY_NOTICES`, `LICENSE` if it exists (O28), and `.sha256`). CI: typecheck → unit → e2e → build → dogfooding.
+- **Dogfooding:** the repo's `.pregate/` has `core`/`shell` layers (§2) and the FCIS + clean-code + tdd + integrity methodologies, pinned in W0 before writing code. With CC-FN-002 by default (max 3, counting inline object members), signatures such as `analyze` (5) or `placement` (4) are new files in `strict` and the gate would deny its own code. Proposal: override `CC-FN-002.params.max: 5` with a note ("pure core with explicit dependencies"); what needs more parameters receives a named type from `types.ts` (`DecideInput`). Pre-commit and CI run `pregate check --ratchet` on the code itself. **[Δ wave 3]** Lock committed; `check --ratchet --base 843d370` passes. Against the whole tree the preset marked 75 preexisting violations (67 CC-FN-001, 5 FCIS-IO-002, 2 CC-FN-002, 1 CC-ER-002). **[Δ O29]** Today it gives 0: `check --ratchet --base <first commit>` passes, with the CC-FN-001 threshold set explicitly in the preset.
 
 ---
 
-## 10. Decisiones del orquestador durante la construcción
+## 9. Build plan and spec→code map
 
-La bitácora histórica de decisiones tomadas durante la construcción y evolución del motor (`O1`–`O83`, incluyendo el parche de gramática `O18`, el límite de backtracking regex `O27`, los presupuestos del watchdog `O30` y de la máquina de referencia `O31`, la protección contra `bunfig.toml`/`.env` `O32`, y las entregas posteriores) se mantiene en [ARCHITECTURE-HISTORY.md](ARCHITECTURE-HISTORY.md).
+The initial build plan in independent units (`W0`–`W10`), the integration order, and the complete MVP requirement→file map (`SPEC §18.1` and decisions `D12`–`D17`) are kept in ARCHITECTURE-HISTORY.md.
+
+---
+
+## 10. Orchestrator decisions during construction
+
+The historical log of decisions made during construction and evolution of the engine (`O1`–`O83`, including the grammar patch `O18`, the regex backtracking limit `O27`, the watchdog budget `O30` and the reference-machine budget `O31`, the protection against `bunfig.toml`/`.env` `O32`, and later deliveries) is kept in ARCHITECTURE-HISTORY.md.

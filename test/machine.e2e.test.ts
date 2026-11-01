@@ -548,7 +548,7 @@ describe("update", () => {
     put(lock, JSON.stringify({ ...json(lock), engine: "0.0.2" }));
     put(join(m.root, "bin/gh"), ghOf(release(m)), 0o755);
     const out = ok(run([m.link, "update"], m), "update");
-    expect(out.stdout).toContain(`Removed 1 older engines (0.0.0); kept 0.0.2, ${[pkg.version, NEXT].sort().join(", ")}.`);
+    expect(out.stdout).toContain(`Removed 1 older engines (0.0.0); kept ${["0.0.2", pkg.version, NEXT].sort().join(", ")}.`);
     expect(existsSync(join(m.data, "0.0.0"))).toBe(false);
     for (const v of ["0.0.2", pkg.version, NEXT]) expect(existsSync(join(m.data, v, "pregate"))).toBe(true);
   });

@@ -1,0 +1,16 @@
+export interface RetryOptions {
+  limit: number;
+  retry: { delay: number };
+}
+
+export type RequestConfig = {
+  timeout: number;
+};
+
+export type PayloadInput = {
+  body: string;
+};
+
+export type OptionsInit = {
+  headers: { accept: string };
+};

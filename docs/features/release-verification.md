@@ -20,8 +20,8 @@ verified integrated source; it does not rebuild them or use GitHub Actions.
 Its current source suite, packaged Mac checks and complete 230-sample budget
 capture pass. The release tag points to `b2cec675c4abc2fb7b5ed11230c39d113d9fa743`.
 Publication/download hashes and installed version/doctor are separate evidence.
-See [0.2.13 release notes](../releases/0.2.13.md) and
-[current delivery status](../STATUS.md).
+See 0.2.13 release notes and
+[v0.0.1 release notes](../releases/0.0.1.md).
 
 Linux/Windows archives remain experimental. The current native Windows/manual
 report, complete Linux admission and private #10 event evidence remain pending.
@@ -30,7 +30,7 @@ to grant this manual pilot scope. Cross-compilation does not supply native proof
 
 The first current published Linux ARM64 archive passes its confined native
 Docker VM smoke after publication, with unchanged inputs and verified cleanup.
-The [dated observation](../releases/0.2.13.md#post-publication-linux-arm64-observation)
+The dated observation
 records its exact archive, coverage and remaining platform/UI limits.
 
 ## 0.2.5 through 0.2.12 macOS pilot scope
@@ -129,7 +129,7 @@ are absent. Platform smoke success does not approve these assertions or admit th
 release. Linux's fixture
 copy failure is a disappearing Git maintenance lock, addressed by disabling
 automatic maintenance/GC only in temporary fixture repositories. See the
-[current evidence ledger](../STATUS.md) for candidate links and exact boundaries.
+[v0.0.1 release notes](../releases/0.0.1.md) for candidate links and exact boundaries.
 
 CI records whether the tested Linux job successfully uploaded the candidate.
 Native bootstrap/smoke can then run even if the subsequent repository self-gate
@@ -150,7 +150,7 @@ Docker container using the actual ARM64 image and packaged Linux binary. The sam
 candidate set passes Mac verification and all six archive/installer checksums.
 A single-target build replaces the manifest with only its selected archive and
 the installers; rebuild all targets before checking another leftover archive.
-See the [native observations](../research/candidate-native-and-codex-shell.md).
+See the native observations.
 
 The first hosted matrix for commit `f3f9fed` passed packaged Mac, Linux x64 and
 Linux ARM64; its Windows candidate failed during offline bootstrap because

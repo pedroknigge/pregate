@@ -1,14 +1,16 @@
 # The release (MULTI-HARNESS MH-32): a tag v<x>, where x is package.json's version, publishes all
-# archives and installers only after the same packaged candidates pass native bootstrap and
-# product smoke on every target. Post-publication checks also verify the GitHub download path.
+# archives and installers only after `test` passes and the same packaged candidates pass native
+# bootstrap and product smoke on every target. `publish` needs `test`, then signs each archive and
+# SHA256SUMS with keyless cosign (GitHub OIDC) and records a build-provenance attestation.
+# Post-publication checks also verify the GitHub download path, including those bundles.
 name: Release
 on:
   push:
     tags: ["v*"]
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -28,11 +30,38 @@ jobs:
             mkdir -p "$path"
             echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
           done
+      - name: Git identity for fixture commits
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - name: The tag is package.json's version
         run: test "$GITHUB_REF_NAME" = "v$(bun -p 'require("./package.json").version')"
       - run: bun run typecheck
       - run: bun test
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Isolate runtime homes
+        run: |
+          root=/private/tmp/claude-501/pregate-release
+          sudo mkdir -p "$root"
+          sudo chown "$(id -u):$(id -g)" "$root"
+          for entry in HOME:home XDG_DATA_HOME:data XDG_STATE_HOME:state XDG_CONFIG_HOME:config TMPDIR:tmp CODEX_HOME:codex GROK_HOME:grok; do
+            path="$root/${entry#*:}"
+            mkdir -p "$path"
+            echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
+          done
+      - run: bun install --frozen-lockfile
       # rules test catalog, every target, install.sh and SHA256SUMS; it refuses an install.sh whose
       # DEFAULT_VERSION is not package.json's.
       - run: bun run build
@@ -55,16 +84,35 @@ jobs:
     permissions:
       contents: read
   publish:
-    needs: [build, native]
+    needs: [test, build, native]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: release-candidate
           path: dist
+      - uses: sigstore/cosign-installer@v4.1.1
+      - name: Sign archives and SHA256SUMS
+        run: |
+          set -euo pipefail
+          files=(dist/pregate-*.tar.gz dist/pregate-*.zip dist/SHA256SUMS)
+          for f in "${files[@]}"; do
+            [ -f "$f" ] || { echo "missing release file: $f" >&2; exit 1; }
+            # Keyless: GitHub OIDC, Fulcio certificate, Rekor entry, written as a Sigstore bundle.
+            cosign sign-blob --yes --bundle "${f}.bundle" "$f"
+          done
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/pregate-*.tar.gz
+            dist/pregate-*.zip
+            dist/SHA256SUMS
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,9 +126,11 @@ jobs:
 
           Install on Windows PowerShell:
 
-              irm https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/install.ps1 | iex"
+              irm https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/install.ps1 | iex
+
+          Each archive and SHA256SUMS has a Sigstore bundle (.bundle) from cosign sign-blob (GitHub OIDC) and a GitHub artifact attestation. Verification steps are in docs/guides/installation.md."
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag $pre --title "$GITHUB_REF_NAME" \
-            --notes "$notes" dist/pregate-*.tar.gz dist/pregate-*.zip dist/install.sh dist/install.ps1 dist/SHA256SUMS dist/pregate.rb dist/pregate.json
+            --notes "$notes" dist/pregate-*.tar.gz dist/pregate-*.zip dist/install.sh dist/install.ps1 dist/SHA256SUMS dist/pregate.rb dist/pregate.json dist/*.bundle
   bootstrap:
     needs: publish
     strategy:
@@ -92,10 +142,13 @@ jobs:
       contents: read
     steps:
       # The literal bootstrap of MH-32 in an empty HOME, except that gh names the tag: without one it
-      # takes the latest release, which a pre-release is not.
+      # takes the latest release, which a pre-release is not. cosign is installed so install.sh
+      # verifies the keyless bundles this workflow just published.
+      - uses: sigstore/cosign-installer@v4.1.1
       - name: Bootstrap on a clean machine
         env:
           GH_TOKEN: ${{ github.token }}
+          PREGATE_REQUIRE_SIGNATURE: "1"
         run: |
           set -eu
           root=/private/tmp/claude-501/pregate-bootstrap
@@ -119,10 +172,12 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: sigstore/cosign-installer@v4.1.1
       - name: Bootstrap and update on native Windows
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          PREGATE_REQUIRE_SIGNATURE: "1"
         run: |
           $root = 'C:/private/tmp/claude-501/pregate-bootstrap'
           $paths = @{ HOME='home'; USERPROFILE='home'; LOCALAPPDATA='data'; APPDATA='config'; XDG_DATA_HOME='data'; XDG_STATE_HOME='state'; XDG_CONFIG_HOME='config'; TMPDIR='tmp'; TEMP='tmp'; TMP='tmp'; CODEX_HOME='codex'; GROK_HOME='grok' }

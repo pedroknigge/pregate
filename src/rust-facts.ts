@@ -1,3 +1,4 @@
+import { isGuardClause } from "./language-facts.ts";
 import type { CodeImport } from "./types.ts";
 import type { Node, Parsed } from "./ts.ts";
 
@@ -46,14 +47,15 @@ export function rustFunctions(p: Parsed, codeBefore: number[]) {
 }
 
 export function rustNestings(p: Parsed) {
-  return nodes(p.root, CONTROLS).map(node => {
+  return nodes(p.root, CONTROLS).flatMap(node => {
+    if (isGuardClause(node)) return [];
     let depth = 1, child = node;
     for (let parent = node.parent; parent && !RUST_FUNCTIONS.includes(parent.type); parent = parent.parent) {
       const chain = child.type === "if_expression" || (child.type === "else_clause" && children(child).some(node => node.type === "if_expression"));
-      if (CONTROLS.includes(parent.type) && !(chain && parent.type === "if_expression" && parent.childForFieldName("alternative")?.id === child.id)) depth++;
+      if (CONTROLS.includes(parent.type) && !(chain && parent.type === "if_expression" && parent.childForFieldName("alternative")?.id === child.id) && !isGuardClause(parent)) depth++;
       child = parent;
     }
-    return { symbol: rustSymbol(node), line: node.startPosition.row + 1, measured: depth, own: null };
+    return [{ symbol: rustSymbol(node), line: node.startPosition.row + 1, measured: depth, own: null }];
   });
 }
 

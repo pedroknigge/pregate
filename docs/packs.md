@@ -23,7 +23,7 @@ pregate pack show --library typescript --json
 pregate rules test --library typescript
 pregate pack add --library typescript --preview
 # Human reviews and approves the printed digest-bound command.
-pregate pack enable typescript/strict-types --only TS-ANY-001,TS-BANG-001 --preview
+pregate pack enable typescript/strict-types --only TS-SWITCH-001 --preview
 ```
 
 For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `scan --plan` with `pack apply <plan.json> --preview`. Individual `pack add` and `pack enable` operations remain available. Defaults and manifests are listed below; effective parameters, scope and overrides come from `preset show`/`explain`. `deny` blocks under enforcing policy, `ask` requests permission where supported, `warn` reports, and `off` is inactive. Ordinary shadow findings are recorded. Core rules enforce unless explicitly disabled through reviewed overrides. Pack checks have documented static or project-evidence limits, not proof of complete framework compliance.

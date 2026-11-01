@@ -69,7 +69,7 @@ The [guided project workflow](guided-project-workflow.md) exposes setup, recover
 update and configuration, followed by an audit choice. Freeze records the chosen
 Git baseline for no-new checks; it does not remove findings or repair code. Repair
 adds the ranked audit plan and leaves edits to the normal gate. The
-[0.2.9 held-out observations](../research/post-release-029/blind.md) are recorded
+0.2.9 held-out observations are recorded
 before these applicability fixes, with explicit unsupported/UNVERIFIED limits.
 They establish concrete friction and false-positive cases, not a causal claim
 that a greenfield project will remain maintainable with or without PREGATE.

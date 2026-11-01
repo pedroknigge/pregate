@@ -1154,7 +1154,8 @@ describe("multi-file overlay", () => {
     await whileSpiedAsync(traced, async () => {
       const decision = await onPreEdit(changes);
       expect(decision.verdict).toBe("none");
-      expect(traced).toHaveBeenCalledTimes(2);
+      // SessionStart already compiled and cached the first root's lock; only the second root compiles here.
+      expect(traced).toHaveBeenCalledTimes(1);
       for (const proposed of changes) expect(events(s, proposed.path).at(-1)?.verdict).toBe("none");
       traced.mockClear();
       const altered = JSON.parse(old);
@@ -1164,8 +1165,9 @@ describe("multi-file overlay", () => {
       expect(traced).toHaveBeenCalledTimes(1);
       traced.mockClear();
       put(join(first, LOCK), old);
+      // The stale lock never reached the cache, so restoring the admitted bytes is a cache hit.
       expect((await onPreEdit([changes[0]!])).verdict).toBe("none");
-      expect(traced).toHaveBeenCalledTimes(1);
+      expect(traced).toHaveBeenCalledTimes(0);
     });
   });
 

@@ -147,6 +147,11 @@ function repo(name: string) {
     writeFileSync(join(p.root, rel), text);
   }
   git("init", "-q");
+  // The product commits with the repo's identity. The helper's env does not reach that process,
+  // and this fixture's HOME is an empty directory.
+  git("config", "user.name", "t");
+  git("config", "user.email", "t@example.com");
+  git("config", "commit.gpgsign", "false");
   expect(p.cli("init", "--yes", "--preset", "integrity-only").code).toBe(0);
   git("add", "-A"); git("commit", "-qm", "base");
   const approve = (review: string) => p.cli("approve", "--yes", "--digest", review.match(/Digest: ([0-9a-f]{64})/)![1]!);

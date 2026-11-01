@@ -159,7 +159,7 @@ function sample(rand: () => number): Violation[] {
 
 const SAFE_SPAN = /^[A-Za-z0-9@/._$[\]-]{0,80}$/;
 const COMMAND_SPAN =
-  /^(\/home\/user\/project\/\.pregate\/bin\/pregate|pregate) (check --stdin --path ([A-Za-z0-9@/._-]{1,300}|<file>) --format agent|explain [A-Za-z0-9@/._$-]{1,80}|preset (compile|show(?: --json)?|diagnose --json|request-schema|apply <request.json> --preview)|update --project --preview|update --engine <versión>|dispute --last|issue draft --last|storage inspect|storage recover --preview|check)$/;
+  /^(\/home\/user\/project\/\.pregate\/bin\/pregate|pregate) (check --stdin --path ([A-Za-z0-9@/._-]{1,300}|<file>) --format agent|explain [A-Za-z0-9@/._$-]{1,80}|preset (compile|show(?: --json)?|diagnose --json|request-schema|apply <request.json> --preview)|update --project --preview|update --engine <version>|dispute --last|issue draft --last|storage inspect|storage recover --preview|check)$/;
 
 function checkText(out: string, max: number): void {
   expect(out.length).toBeLessThanOrEqual(max);

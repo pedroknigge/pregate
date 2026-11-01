@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "max": 4
+  },
+  "target": "src/orders/choose.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 6,
+        "measured": 5
+      }
+    ]
+  }
+}

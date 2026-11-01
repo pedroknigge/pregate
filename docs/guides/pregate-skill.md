@@ -71,7 +71,7 @@ proposal. Choose activation in the interactive guide, or enter human
 Run `pregate --version` and `pregate doctor` after an update. `setup` refreshes owned
 registrations and companion instructions from the running engine. Read installed
 help when working with older releases: a source checkout can document options
-that are not yet published. See [delivery status](../STATUS.md).
+that are not yet published. See [v0.0.1 release notes](../releases/0.0.1.md).
 
 If a hook blocks a recovery command, the skill should name the cause and the
 supported human route. It should propose preserving the invariant, not disabling

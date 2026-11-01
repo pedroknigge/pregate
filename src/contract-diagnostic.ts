@@ -10,6 +10,7 @@ import { ruleEnforcements } from "./enforcement.ts";
 import { catFileBatch, indexFiles, unmerged } from "./git.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, isCause, json, launcher, LOCK, type Outcome, PRESET, readText, told, updateReady, VERSIONS, within } from "./inertia.ts";
 import { librarySource } from "./library.ts";
+import { cachedSourcesMatch, loadCompiledLock, storeCompiledLock } from "./lock-cache.ts";
 import { briefing, formText, notice, violationMessage } from "./message.ts";
 import { cachedPack } from "./packs.ts";
 import { inScope, machineGlobs, pathKey, protectedGlobs, slash } from "./paths.ts";
@@ -195,10 +196,14 @@ export function lockOf(root: string): Loaded | Cause {
   // MH-20: no other engine judges a pin below the floor (pinned): the lock must be recompiled.
   if (engine !== VERSIONS.engine && (typeof engine !== "string" || belowFloor(engine))) return "lock-stale";
   if (engine !== VERSIONS.engine || (lock as Lock).core !== VERSIONS.core) return "version-mismatch";
-  // The complete comparison below also checks lockVersion and the metadata hashes.
-  // Hash the builtin catalog once during compilation, rather than again beforehand.
+  // Reuse the compiled lock only when its stored text is the normalized lock file and the key
+  // still names this lock, preset, rules/packs and build. Corruption misses and recompiles.
+  const cached = loadCompiledLock(root, preset, text);
+  if (cached !== null) return cached;
   const result = compile(preset, sourcesOf(root), VERSIONS);
-  return "errors" in result || result.text !== text.replaceAll("\r\n", "\n") ? "lock-stale" : { lock: result.lock, hash: state.sha256(text) };
+  if ("errors" in result || result.text !== text.replaceAll("\r\n", "\n")) return "lock-stale";
+  storeCompiledLock(root, preset, result.text);
+  return { lock: result.lock, hash: state.sha256(text) };
 }
 
 // What compile reads for each source of the preset at `root`, from the working tree.
@@ -294,6 +299,8 @@ export function verify(sid: string, root: string, loaded: Loaded | Cause): Loade
 }
 
 export function sourcesMatch(root: string, lock: Lock): boolean {
+  // A compiled-lock hit already hashed the packs. Do not read them again for sourcesHash.
+  if (cachedSourcesMatch(root, lock)) return true;
   const preset = json(readText(join(root, PRESET)) ?? "") as Preset | undefined;
   if (!preset || (lock.gitSources ?? []).some((s) => cachedPack(s) === null)) return false;
   const files = preset.sources.filter((s) => s.kind !== "builtin").map(sourcesOf(root));

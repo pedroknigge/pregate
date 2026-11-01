@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "typescript/anti-evasion",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -31,13 +31,13 @@
       "id": "EVA-CAST-001",
       "check": "typescript/integrity/double-type-assertion",
       "defaults": {},
-      "severity": "deny",
+      "severity": "warn",
       "source": {
         "work": "PREGATE anti-evasion policy",
         "locator": "SPEC §6.2 (EVA-CAST-001)",
         "paraphrase": "Asserting through unknown or any turns the type checker off for that value; a value that does not fit its type is converted or validated instead."
       },
-      "why": "A double assertion silences the compiler exactly where the types disagree.",
+      "why": "A double assertion silences the compiler where the types disagree. `as unknown as T` is also the documented way to cross a boundary the checker cannot see, so the default contract advises.",
       "fixHint": "Validate the value with a type guard or a parser and build the target type from it, or fix the type where the value comes from.",
       "avoid": "Parentheses around the inner assertion, angle-bracket assertions, going through never or unknown[] instead of unknown, or an intermediate variable typed as unknown.",
       "examples": {
@@ -49,13 +49,13 @@
       "id": "TS-IGNORE-001",
       "check": "typescript/integrity/no-ts-ignore",
       "defaults": {},
-      "severity": "deny",
+      "severity": "warn",
       "source": {
         "work": "TypeScript Handbook: Release Notes 3.9",
         "locator": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-9.html#-ts-expect-error-comments",
         "paraphrase": "Prefer @ts-expect-error comments to @ts-ignore comments because @ts-expect-error forces an error to be present."
       },
-      "why": "A @ts-ignore comment suppresses all type errors on the following line without checking whether an error is actually present, leaving stale suppressions that hide future regressions.",
+      "why": "A @ts-ignore comment suppresses the next line without requiring an error to be present. Prefer @ts-expect-error, but an existing @ts-ignore is not itself a defect, so the default contract advises. New suppressions are still denied by core/EVA-SUP-001.",
       "fixHint": "Replace @ts-ignore with @ts-expect-error and provide an issue URL or description, or fix the underlying type error.",
       "avoid": "Do not leave bare @ts-ignore without justification or in a block comment. Use narrowing or type assertions only when sound.",
       "examples": {

@@ -5,7 +5,7 @@ and workflows. `any`, enums, non-null assertions, exhaustive switches and
 `console.log` stay in the typescript and vibe-proof packs. Process and design
 requirements need reviewed task/project assertions; a syntax tree cannot prove them.
 
-The [joint conversation review](../../docs/research/poteto-matt-pocock.md)
+The joint conversation review
 connects verification, deterministic tooling and recurring failures to PREGATE's
 actual update/onboarding paths. The [domain-language guide](../../docs/guides/domain-language.md)
 shows a runnable typed command vocabulary and how to combine this pack with
