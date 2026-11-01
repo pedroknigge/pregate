@@ -162,7 +162,8 @@ test("a large review lists every deletion and test change before the cap and nam
   const flagged = lines.indexOf("Deleted files and test changes (2, all listed):"), other = lines.indexOf("Other changes:");
   expect(flagged).toBeGreaterThan(0); expect(lines.slice(flagged + 1, other)).toEqual(["D zz/tests/guard.test.ts +0 -1 19 bytes", "M zz/guard.spec.ts +0 -1 19 bytes"]);
   expect(preview.text).toContain("...and 51 more files, listed in the draft.");
-  expect(preview.text).toContain("Changed with no text difference (file mode, symlink or binary bytes): src/blob.bin, src/run.sh.");
+  const nameless = process.platform === "win32" ? "src/blob.bin" : "src/blob.bin, src/run.sh";
+  expect(preview.text).toContain(`Changed with no text difference (file mode, symlink or binary bytes): ${nameless}.`);
 });
 
 test("a baseline review refuses content past 128 MiB before reading it", async () => {

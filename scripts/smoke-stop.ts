@@ -35,7 +35,11 @@ try {
   mkdirSync(join(root, ".pregate/requests"));
   writeFileSync(join(root, ".pregate/requests/enforce.json"), JSON.stringify({
     why: "Exercise explicitly approved enforcing policy in this isolated smoke project.",
-    patch: [{ op: "replace", path: "/enforcement", value: "enforce" }],
+    patch: [
+      { op: "replace", path: "/enforcement", value: "enforce" },
+      // Parameter growth is warn by default. This smoke checks that an enforcing denial still blocks.
+      { op: "add", path: "/overrides", value: { "clean-code/CC-FN-002": { severity: "deny" } } },
+    ],
   }));
   const approved = run(["preset", "apply", ".pregate/requests/enforce.json", "--yes"]);
   assert(approved.exitCode === 0, approved.stdout.toString() + approved.stderr.toString());

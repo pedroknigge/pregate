@@ -218,7 +218,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Engine update failed' }
           & $cli update --version $version
           if ($LASTEXITCODE -ne 0) { throw 'Update failed' }
-          & $cli uninstall --purge
+          & $cli uninstall --purge --yes
           if ($LASTEXITCODE -ne 0) { throw 'Uninstall failed' }
           for ($n = 0; $n -lt 100 -and (Test-Path "$env:XDG_DATA_HOME/pregate"); $n++) { Start-Sleep -Milliseconds 50 }
           if (Test-Path "$env:XDG_DATA_HOME/pregate") { throw 'Deferred uninstall failed' }
