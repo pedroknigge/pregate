@@ -1,6 +1,7 @@
 import { basename, posix, win32 } from "node:path";
 import { absolutePath, matches, pathKey, PROTECTED_NAMES, REQUESTS, slash } from "./paths.ts";
 import type { Cause, HarnessId } from "./types.ts";
+import { controlInFile, pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
 
 // Help must exit before any command can inspect or change installation/project state.
@@ -37,7 +38,7 @@ export interface GuardContext {
 // cwd, where a command whose cwd is unknown most likely runs. `bound`: the variables the command
 // line binds POSIX-style, shared by its nested scripts.
 type Ctx = GuardContext & { machineOnly: boolean; harness: HarnessId; held: Cause | null; origin: string; guideInspection: boolean; configurationInspection: boolean;
-  vars: Map<string, string>; pendingProtected: Set<string>; bound: Set<string> };
+  vars: Map<string, string>; pendingProtected: Set<string>; bound: Set<string>; ciSet: boolean };
 
 // What denies in any session: the machine's protected paths (isProtected answers which) and what
 // switches off the hooks of every repo. The rest needs a path of the command to reach a root.
@@ -132,7 +133,7 @@ const INTERPRETERS = new Map<string, RegExp>([
 // shell runs in (MH-29), so there a relative path is unknown until a literal cd.
 export function guard(command: string, cwd: string, context: GuardContext & { machineOnly: boolean; harness: HarnessId }): Cause | null {
   const ctx: Ctx = { ...context, held: null, origin: cwd, guideInspection: isolatedGuideInspection(command), configurationInspection: isolatedConfigurationInspection(command),
-    vars: new Map(), pendingProtected: new Set(), bound: new Set() };
+    vars: new Map(), pendingProtected: new Set(), bound: new Set(), ciSet: false };
   const start = ctx.harness === "codex" ? null : cwd;
   const cause = script(command, start, ctx) ?? (command.includes("\\") ? script(command.replace(/\\(?=[\w.-])/g, "/"), start, ctx) : null);
   return cause ?? (ctx.held !== null && ctx.touched() ? ctx.held : null);
@@ -886,6 +887,7 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   const at = words.findIndex((w) => !ASSIGNMENT.test(w.text));
   const assigned = (at < 0 ? words : words.slice(0, at)).map((w) => ASSIGNMENT.exec(w.text)![1]!);
   const [head, ...args] = at < 0 ? [] : words.slice(at);
+  if (assigned.includes("CI")) ctx.ciSet = true;
   const descriptions = commandDescriptions(words);
   const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx.gated);
   if (admin === "hook-switch" || head === undefined) return admin;
@@ -899,7 +901,7 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (EXPORTS.has(name)) return run(args.filter((w) => ASSIGNMENT.test(w.text)), cwd, ctx, stdin);
   // A sourced script runs like a command: `. pregate approve` runs the launcher in this shell.
   if (name === "source" || name === ".") return run(args, cwd, ctx, stdin);
-  if (name === "pregate") return pregate(args, ctx.guideInspection);
+  if (name === "pregate") return ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection);
   if (name === "command" && args.some((w) => /^-[vV]$/.test(w.text))) return null;   // lookup, no execution
   const runner = RUNNERS.has(`${name} ${args[0]?.text}`);
   if (WRAPPERS.has(name) || runner) return wrapped(runner ? "npx" : name, runner ? args.slice(1) : args, cwd, ctx, stdin);
@@ -914,6 +916,11 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (name === "eval" || name === "invoke-expression" || name === "iex") return inline(joined(args), cwd, ctx);
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
+  if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd) ?? writes(targets(name, args), cwd, ctx.inScope);
+  if (/\.(?:sh|bash|zsh|ksh)$/i.test(name) && head.literal) {
+    const script = controlInFile(resolve(cwd, head.text));
+    if (script !== null) return script;
+  }
   if (COPIES.has(name)) return copies(name === "copy" || name === "move" ? args.filter((w) => !/^\/-?[yabvndz]$/i.test(w.text)) : args, cwd, ctx);
   if (SESSIONS.has(name)) return "shell-write";
   if (EDITORS.has(name)) return stdin === null ? "shell-write" : first([...args, stdin], (w) => code(w, cwd, ctx));
@@ -1128,7 +1135,8 @@ function find(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   });
 }
 
-// sh -c '<literal>' is analyzed again; a script from stdin too. A script file is not read.
+// sh -c '<literal>' is analyzed again; a script from stdin too. A literal script file is read
+// only for pregate control commands.
 function shell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
   // `+o` unsets what `-o` sets: both take a value.
   const options = args.map((w) => (w.text.startsWith("+") ? { ...w, text: `-${w.text.slice(1)}` } : w));
@@ -1139,8 +1147,29 @@ function shell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): 
   if (command !== undefined) return inline(command[1] ?? operands[0], cwd, ctx);
   // -s and `-` read the script from stdin and take the operands as its arguments.
   const fromStdin = operands.length === 0 || operands[0]!.text === "-" || flags.some(([flag]) => flag === "-s");
-  // A script file is not read, but it is named like a command: `sh "$(which pregate)" approve`.
+  // A literal script is read for pregate control commands. A non-literal path is not (`bash "$SCRIPT"`).
+  const script = operands[0];
+  if (!fromStdin && script?.literal && script.text !== "-") {
+    const cause = controlInFile(resolve(cwd, script.text));
+    if (cause !== null) return cause;
+  }
+  // A script file is not otherwise executed here, but it is named like a command: `sh "$(which pregate)" approve`.
   return fromStdin ? interactive(args, stdin) ?? inline(stdin, cwd, ctx) : run(operands, cwd, ctx, stdin);
+}
+
+// `make approve` runs the recipe, which the command line does not contain. A literal Makefile is
+// scanned; an unreadable or non-literal `-f` path is not treated as proof either way.
+function makefile(args: Word[], cwd: string | null): Cause | null {
+  let named: Word | undefined;
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!;
+    const attached = /^(?:-f|--file|--makefile)=([\s\S]*)$/.exec(word.text);
+    if (attached !== null) named = { ...word, text: attached[1]! };
+    else if (word.literal && (word.text === "-f" || word.text === "--file" || word.text === "--makefile")) named = args[i + 1];
+  }
+  if (named !== undefined && !named.literal) return null;
+  const paths = named !== undefined ? [resolve(cwd, named.text)] : ["Makefile", "makefile", "GNUmakefile"].map((name) => resolve(cwd, name));
+  return first(paths, (path) => controlInFile(path));
 }
 
 // A shell that reads its script from the terminal is a session (MH-29).
@@ -1153,7 +1182,10 @@ function powershell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | nu
     const param = /^-([a-z]+)$/i.exec(args[i]!.text)?.[1]!.toLowerCase();
     if (param === undefined) continue;
     if ("encodedcommand".startsWith(param) || param === "ec") return "shell-write";
-    if (param === "file" || param === "f") return null;
+    if (param === "file" || param === "f") {
+      const target = args[i + 1];
+      return target?.literal ? controlInFile(resolve(cwd, target.text)) : null;
+    }
     if ("command".startsWith(param)) {
       const rest = args.slice(i + 1);
       return inline(rest.length === 1 && rest[0]!.text === "-" ? stdin : joined(rest), cwd, ctx);
@@ -1203,6 +1235,11 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   if (repl && stdin === null) return "shell-write";
   const inlined = program.length > 0;
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
+  // Inline code and a literal script file: `python3 -c "subprocess.run(['pregate','approve'...])"`,
+  // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
+  const control = first(program, (w) => w.literal ? pregateControlCause(w.text) : null)
+    ?? (!inlined && operands[0]?.literal && !["-", "repl"].includes(operands[0].text) ? controlInFile(resolve(cwd, operands[0].text)) : null);
+  if (control !== null) return control;
   // Code that reads its arguments (`sys.argv[1]`, `process.argv`, `@ARGV`) may write the files they
   // name; other code only reads them (`perl -ne 'print' src/a.ts`).
   const argv = program.some((w) => readsArgv(name, w.text));

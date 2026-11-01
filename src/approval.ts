@@ -16,6 +16,27 @@ export { PENDING_MS, proposeContract, readProposal, discardProposal, type Propos
 declare const PREGATE_TEST_BUILD: boolean;
 const TEST_BUILD = typeof PREGATE_TEST_BUILD !== "undefined" && PREGATE_TEST_BUILD;
 
+// The approval code is a secret the human types. An agent tool captures stdout, so it is not a
+// terminal. `PREGATE_TESTING=1` is the test hook; the shell guard rejects an agent setting it.
+export function approvalCodeVisible(): boolean {
+  if (process.stdout.isTTY) return true;
+  if (process.env.PREGATE_TESTING === "1") return true;
+  // CI jobs and this repo's tests export CI. An agent shell that assigns CI in the
+  // command is denied; a process that already has CI set still sees the code.
+  return Boolean(process.env.CI);
+}
+
+// Keep the review text. Remove only the code an approval command would accept.
+export function withholdApprovalCode(text: string): string {
+  if (approvalCodeVisible()) return text;
+  const hidden = "withheld until this preview runs in a human terminal";
+  return text
+    .replace(/Digest: [0-9a-f]{64}/g, `Digest: ${hidden}`)
+    .replace(/pregate approve [0-9a-f]{12,64}/g, "pregate approve <withheld>")
+    .replace(/pregate (session rebase \S+ --digest|feedback apply|storage apply|issue submit) [0-9a-f]{64}/g, "pregate $1 <withheld>")
+    .replace(/("pendingApproval": )"[0-9a-f]{12,64}"/g, "$1null");
+}
+
 export function humanApprovalInstructions(command: string): string[] {
   return [`After reviewing, type inside Claude Code, Codex, Grok or agy: ! ${command}`,
     `Cursor requires a separate human terminal: ${command}`,

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeSync } from "node:fs";
-import { approve } from "./approval.ts";
+import { approve, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
@@ -93,7 +93,8 @@ const BAD: Result = { code: 1, text: USAGE };
 
 export async function run(argv: string[]): Promise<number> {
   const r = await command(argv);
-  if (r.text !== "") writeSync(1, Buffer.from(`${r.text}\n`, "utf8"));
+  const text = withholdApprovalCode(r.text);
+  if (text !== "") writeSync(1, Buffer.from(`${text}\n`, "utf8"));
   return r.code;
 }
 

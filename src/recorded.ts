@@ -7,6 +7,7 @@ import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Lo
 import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
+import { scriptControlCause } from "./control.ts";
 import { canonical, findRoot, readTree } from "./disk.ts";
 import { analyze, placement } from "./evaluate.ts";
 import { ruleEnforcements } from "./enforcement.ts";
@@ -15,7 +16,7 @@ import { catFileBytesBatch, git } from "./git.ts";
 import { type Call, clock, isCause, json, launcher, LOCK, NOTHING, PRESET, PROTECTED, readText, type Rooted, told, VERSIONS, within } from "./inertia.ts";
 import { grammarOf } from "./languages.ts";
 import { adviseText, denyText, formText, warnText } from "./message.ts";
-import { inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
+import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { checkpoint, importReviewProgress } from "./progress.ts";
 import { pendingRoot } from "./proposal.ts";
@@ -186,6 +187,41 @@ function report(loaded: Loaded, reviews: (Review & { rel: string })[], phase: Ph
   return { code, text: text.length === 0 ? "PREGATE: no introduced violations." : text.join("\n\n") };
 }
 
+// Directories that show this hook was started for an enabled project, even when the edited
+// path itself is outside that project and the session has not registered a root yet.
+function invocationRoots(session: Session): string[] {
+  const found = new Set<string>();
+  for (const dir of [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT]) {
+    if (typeof dir !== "string" || !absolutePath(dir)) continue;
+    try {
+      const root = findRoot(canonical(dir), enabled);
+      if (root !== null) found.add(root);
+    } catch {
+      // A missing ancestor is not a project.
+    }
+  }
+  return [...found];
+}
+
+// User-level harness settings and the launcher, for a call whose files sit outside every
+// enabled root. In-project paths stay on the normal pre-edit path.
+function machineEdit(changes: ProposedChange[], paths: string[], startedAt: number): Decision | null {
+  const session = changes[0]?.session;
+  if (session === undefined) return null;
+  const sid = state.key(session);
+  const known = [...new Set([...invocationRoots(session), ...state.roots(sid).filter((r) => enabled(r))])];
+  const root = known[0];
+  if (root === undefined) return null;
+  const globs = globsOf(sid, root, null);
+  for (const [i, c] of changes.entries()) {
+    const abs = paths[i]!;
+    if (findRoot(dirname(abs), enabled) !== null || !protects(abs, globs)) continue;
+    const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root, rel: relative(root, abs), startedAt };
+    return decide(inputOf(call, { ...NOTHING, form: form("protected-path"), protectedPath: true }));
+  }
+  return null;
+}
+
 // ── Pre edit hook (§4.1) ──────────────────────────────────────────────────────────────
 
 // §4.1 steps 4 and 5 for each file of the call, each judged with the others as the call leaves them
@@ -201,6 +237,11 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
       return decide(inputOf(call, { ...NOTHING, form: form("protected-path"), protectedPath: true }));
     }
   }
+  // A fresh session has not registered a root yet. The hook was still started from an enabled
+  // project (cwd or the harness project variable): user-level harness files and the launcher
+  // are protected there, the same paths the shell guard denies.
+  const outside = machineEdit(changes, paths, startedAt);
+  if (outside !== null) return outside;
   // Outside every root, there is no reason to read or reconstruct the files being written.
   if (changes.every((c, i) => findRoot(dirname(paths[i]!), enabled) === null && state.roots(state.key(c.session)).filter((r) => enabled(r)).length === 0)) return told(null);
   const planned = changes.map((c, i) => plan(c, paths[i]!));
@@ -315,6 +356,10 @@ async function preEdit(planned: Planned, overlay: Overlay, startedAt: number, lo
   const deleted = c.edit.form === "delete";
   if (rel !== null && !deleted && matches(REQUESTS, rel)) return request(call, r);
   if (protects(abs, globsOf(sid, root, loaded))) return settle(call, PROTECTED);
+  if (!deleted && r.after !== null) {
+    const control = scriptControlCause(abs, r.after);
+    if (control !== null) return settle(call, { ...NOTHING, form: form(control) });
+  }
   // No PREGATE root here: nothing to enforce.
   if (root === null || rel === null || loaded === null) return decide(inputOf(call, NOTHING));
   // MH-10: Stop judges what a delete leaves in the tree.

@@ -112,6 +112,8 @@ const commit = (r: Repo, message: string, ...flags: string[]): Out => git(r, "co
 const said = (o: Out): string => o.stdout + o.stderr;
 // The CLI on PATH, as a human or the pre-commit runs it.
 const cli = (r: Repo, ...args: string[]): Out => run(["pregate", ...args], r.dir, r.env);
+// Approval codes are omitted unless stdout is a terminal or this test hook is set.
+const revealed = (r: Repo, ...args: string[]): Out => run(["pregate", ...args], r.dir, { ...r.env, PREGATE_TESTING: "1" });
 
 // ── Repositories ─────────────────────────────────────────────────────────────────────────
 
@@ -544,7 +546,7 @@ test("D29: headless edits queue validated changes; only the human command applie
   expect(agent.write(".pregate/preset.json", "{}").code).toBe(2);
   expect(cli(r, "approve").stdout).toContain("No pending");
   expect(denied(agent.write(".pregate/preset.json", content))).toContain("inside your harness with `pregate approve --preview`");
-  const preview = cli(r, "approve", "--preview");
+  const preview = revealed(r, "approve", "--preview");
   expect(preview.code).toBe(0);
   expect(preview.stdout).toMatch(/! pregate approve [0-9a-f]{12}$/m);
   expect(preview.stdout).toContain("WARNING");
@@ -601,7 +603,7 @@ test("compiled issue reporting offers an offline review and sends only the appro
   const r = repo({ ".": "backend-clean-ddd" }), a = claude(r);
   const content = 'export function tooMany(a: number, b: number, c: number, d: number, e: number): number { return 0; }\n';
   expect(denied(a.write("src/domain/report.ts", content))).toContain("pregate issue draft --last");
-  const draft = ok(cli(r, "issue", "draft", "--last", "--note", "This finding needs investigation."), "issue draft");
+  const draft = ok(revealed(r, "issue", "draft", "--last", "--note", "This finding needs investigation."), "issue draft");
   const id = /^Digest: ([0-9a-f]{64})$/m.exec(draft.stdout)![1]!;
   expect(draft.stdout).not.toContain(content.trim());
   expect(draft.stdout).toContain(`Engine: ${pkg.version}`);
@@ -1155,4 +1157,85 @@ test("install run twice writes the same settings", () => {
   const text = read(r, ".claude/settings.json");
   ok(run([BIN, "install", "--git-hook"], r.dir, r.env), "install");
   expect(read(r, ".claude/settings.json")).toBe(text);
+});
+
+// Fresh session and tool ids: no SessionStart, so the session has not registered a root.
+// The hook still runs with the project's cwd, which is what an agent tool call looks like.
+test("hook pre denies interpreter, script, Makefile and harness-settings bypasses", () => {
+  const r = repo({ ".": "backend-clean-ddd" });
+  const a = claude(r);
+  const home = r.env.HOME!;
+  const settings = join(home, ".claude/settings.json");
+  const beforeSettings = readFileSync(settings, "utf8");
+  const launcher = join(home, ".local/bin/pregate");
+  const beforeLauncher = readFileSync(launcher, "utf8");
+  const harness = [
+    settings,
+    join(home, ".claude/settings.local.json"),
+    join(r.env.CODEX_HOME!, "hooks.json"),
+    join(r.env.CODEX_HOME!, "config.toml"),
+    join(r.env.GROK_HOME!, "config.toml"),
+    join(home, ".cursor/hooks.json"),
+    join(home, ".cursor/cli-config.json"),
+    join(home, ".gemini/config/config.json"),
+    join(home, ".gemini/config/hooks.json"),
+    launcher,
+    join(r.env.XDG_DATA_HOME!, "pregate/bin/pregate"),
+  ];
+  for (const path of harness) {
+    expect(denied(a.write(path, "{}\n")), path).toContain("protected-path");
+    expect(denied(hook(a.session, "PreToolUse", tool("Edit", {
+      file_path: path, old_string: "hooks", new_string: "disabled",
+    }))), path).toContain("protected-path");
+  }
+  expect(readFileSync(settings, "utf8")).toBe(beforeSettings);
+  expect(readFileSync(launcher, "utf8")).toBe(beforeLauncher);
+
+  const inline = [
+    `python3 -c "subprocess.run(['pregate','approve','x'])"`,
+    `python3 -c "subprocess.run(['pregate','disable'])"`,
+    `python3 -c "subprocess.run(['pregate','uninstall'])"`,
+    `node -e "execSync('pregate approve x')"`,
+    `perl -e 'system("pregate","approve","x")'`,
+    `ruby -e 'system("pregate","disable")'`,
+    `php -r 'system("pregate uninstall");'`,
+  ];
+  for (const command of inline) expect(denied(a.bash(command)), command).toMatch(/shell-admin|hook-switch/);
+
+  expect(denied(a.write("run.sh", "#!/bin/sh\npregate approve x\n"))).toContain("shell-admin");
+  expect(existsSync(at(r, "run.sh"))).toBe(false);
+  expect(denied(a.write("Makefile", "approve:\n\tpregate approve x\n"))).toContain("shell-admin");
+  expect(existsSync(at(r, "Makefile"))).toBe(false);
+
+  writeFileSync(at(r, "run.sh"), "#!/bin/sh\npregate approve x\n");
+  writeFileSync(at(r, "Makefile"), "approve:\n\tpregate approve x\nall:\n\techo ok\n");
+  expect(denied(a.bash("bash ./run.sh"))).toContain("shell-admin");
+  expect(denied(a.bash("./run.sh"))).toContain("shell-admin");
+  expect(denied(a.bash("make approve"))).toContain("shell-admin");
+  expect(denied(a.bash("make -f Makefile approve"))).toContain("shell-admin");
+
+  writeFileSync(at(r, "run-ok.sh"), "#!/bin/sh\necho hello\n");
+  writeFileSync(at(r, "Makefile"), "all:\n\techo ok\n");
+  silent(a.bash("bash ./run-ok.sh"));
+  silent(a.bash("make all"));
+  silent(a.bash(`python3 -c "print(1 + 1)"`));
+  silent(a.bash(`node -e "console.log(1)"`));
+  silent(a.bash(`perl -e 'print 1'`));
+  silent(a.bash("pregate status"));
+  silent(a.bash("pregate guide --preview"));
+  silent(a.write("src/domain/note.ts", "export const note = 1;\n"));
+
+  const shadow = JSON.stringify({ ...JSON.parse(read(r, ".pregate/preset.json")), enforcement: "shadow" });
+  expect(a.write(".pregate/preset.json", shadow).code).toBe(2);
+  for (const args of [["approve", "--preview"], ["guide", "--preview"], ["status", "--json"]]) {
+    const hidden = run(["pregate", ...args], r.dir, { ...r.env, CI: "" });
+    expect(hidden.code, args.join(" ")).toBe(0);
+    expect(hidden.stdout, args.join(" ")).not.toMatch(/Digest: [0-9a-f]{64}/);
+    expect(hidden.stdout, args.join(" ")).not.toMatch(/pregate approve [0-9a-f]{12,64}/);
+    expect(hidden.stdout, args.join(" ")).not.toMatch(/"pendingApproval": "[0-9a-f]{12,64}"/);
+  }
+  const shown = revealed(r, "approve", "--preview");
+  expect(shown.stdout).toMatch(/Digest: [0-9a-f]{64}/);
+  expect(shown.stdout).toMatch(/pregate approve [0-9a-f]{12}/);
+  expect(run(["pregate", "approve", "--preview"], r.dir, { ...r.env, CI: "" }).stdout).toContain("withheld");
 });

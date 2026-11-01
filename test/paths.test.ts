@@ -262,6 +262,7 @@ describe("machineGlobs", () => {
       ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/requirements.toml",
       ".grok/config.toml", ".grok/hooks-paths", ".grok/managed_config.toml", ".grok/requirements.toml", ".grok/hooks/aa.json",
       ".gemini/config/hooks.json", ".gemini/config/config.json", ".gemini/config/plugins/pregate/hooks.json",
+      ".cursor/hooks.json", ".cursor/cli-config.json", ".cursor/managed/hooks.json",
     ]) expect(guarded(`${home}/${p}`)).toBe(true);
     expect(canonical(`${home}/.codex/config.toml`)).toBe(`${dot}/codex.toml`);
     expect(guarded(`${dot}/codex.toml`)).toBe(true);

@@ -2,7 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { enabled } from "./consent.ts";
 import { canonical, findRoot } from "./disk.ts";
-import { pathKey } from "./paths.ts";
+import { absolutePath, pathKey } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { pendingRoot, readBatch } from "./proposal.ts";
@@ -63,7 +63,18 @@ export function inert(event: HookEvent | Rejected): boolean {
   const accepted = (session: Session | null) => session !== null && roots(key(session)).some((r) => enabled(r));
   if ("cause" in event) return !accepted(event.session)
     && !(event.dirs.length === 0 ? active(process.cwd()) : event.dirs.some(active));
-  if (event.kind === "pre-edit") return event.changes.every((c) => !accepted(c.session) && !active(dirname(canonical(c.path))));
+  if (event.kind === "pre-edit") {
+    // A file outside the project used to skip the gate on a fresh session. The shell guard still
+    // sees the project through cwd. Do the same for edits when this process was started there,
+    // so user-level harness files and the launcher are not inert.
+    const rooted = event.changes.some((c) => accepted(c.session) || active(dirname(canonical(c.path))));
+    if (rooted) return false;
+    const invoked = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT];
+    return !invoked.some((dir) => {
+      if (typeof dir !== "string" || !absolutePath(dir)) return false;
+      try { return active(dir); } catch { return false; }
+    });
+  }
   if (event.kind === "stop") return !accepted(event.session);
   if (event.kind === "pre-command") return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
   return !accepted(event.session) && !active(event.cwd);
