@@ -34,7 +34,7 @@ curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/insta
 irm https://github.com/pedroknigge/pregate/releases/latest/download/install.ps1 | iex
 ```
 
-The installer downloads the release archive (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `windows-x64`) and `SHA256SUMS`, verifies the SHA-256 checksum before extraction, installs the immutable engine and `~/.local/bin/pregate` launcher, and registers non-intrusive hooks for your installed coding agents. See the [installation guide](docs/guides/installation.md) for manual checksum verification, Homebrew (`dist/pregate.rb`), Scoop (`dist/pregate.json`), and `npx pregate`.
+The installer downloads the release archive (`darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `windows-x64`) and `SHA256SUMS`, verifies the SHA-256 checksum before extraction, and, when `cosign` is installed, also verifies the Sigstore signature of that archive and `SHA256SUMS`. It installs the immutable engine and `~/.local/bin/pregate` launcher, and registers non-intrusive hooks for your installed coding agents. See the [installation guide](docs/guides/installation.md) for manual checksum and signature verification, Homebrew (`dist/pregate.rb`), Scoop (`dist/pregate.json`), and `npx pregate`.
 
 ### Install the Agent Skill (`npx skills`)
 

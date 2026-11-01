@@ -38,23 +38,7 @@ runs:
       shell: bash
       env:
         PREGATE_VERSION: ${{ inputs.version }}
-      run: |
-        set -euo pipefail
-        os=$(uname -s)
-        arch=$(uname -m)
-        case "$os-$arch" in
-          Darwin-arm64) target="darwin-arm64" ;;
-          Darwin-x86_64) target="darwin-x64" ;;
-          Linux-x86_64) target="linux-x64" ;;
-          Linux-aarch64|Linux-arm64) target="linux-arm64" ;;
-          *) echo "Unsupported runner $os-$arch" >&2; exit 1 ;;
-        esac
-        dir=$(mktemp -d)
-        curl -fsSL "https://github.com/pedroknigge/pregate/releases/download/v${PREGATE_VERSION}/pregate-${PREGATE_VERSION}-${target}.tar.gz" -o "$dir/pregate.tar.gz"
-        tar -xzf "$dir/pregate.tar.gz" -C "$dir"
-        mkdir -p "$HOME/.local/bin"
-        install -m 0755 "$dir/pregate" "$HOME/.local/bin/pregate"
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      run: bash "$GITHUB_ACTION_PATH/scripts/action-install.sh"
     - name: Run Pregate Gate
       shell: bash
       env:

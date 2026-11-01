@@ -36,6 +36,73 @@ function Get-PublicRelease([string]$Base, [string]$Name) {
     if ($entries.Count -ne 1) { throw "SHA256SUMS has no unique valid SHA-256 for $Name; nothing installed" }
     return Get-PublicFile "$Base/$Name" (Join-Path $tmp $Name) 268435456
 }
+function Invoke-CosignVerify([string]$File, [string]$Bundle) {
+    $cosign = Get-Command cosign -ErrorAction SilentlyContinue
+    if (-not $cosign) { throw 'cosign is required to verify the release signature; nothing installed' }
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        if ($env:PREGATE_COSIGN_KEY) {
+            & $cosign.Source verify-blob --key $env:PREGATE_COSIGN_KEY --bundle $Bundle $File
+        } else {
+            $identity = "^https://github.com/$repo/\.github/workflows/release\.yml@refs/tags/v"
+            & $cosign.Source verify-blob --bundle $Bundle --certificate-identity-regexp $identity --certificate-oidc-issuer https://token.actions.githubusercontent.com $File
+        }
+        if ($LASTEXITCODE -ne 0) { throw "cosign signature mismatch for $([IO.Path]::GetFileName($File)); nothing installed" }
+    } finally { $ErrorActionPreference = $previous }
+}
+function Get-ReleaseBundle([string]$Base, [string]$BundleName) {
+    $dest = Join-Path $tmp $BundleName
+    if (Test-Path -LiteralPath $dest) { return $true }
+    if (Get-PublicFile "$Base/$BundleName" $dest 1048576) { return $true }
+    Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        $previous = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            & gh release download "v$Version" --repo $repo --pattern $BundleName --dir $tmp 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0 -and (Test-Path -LiteralPath $dest)) { return $true }
+        } finally { $ErrorActionPreference = $previous }
+    }
+    Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+    return $false
+}
+function Confirm-ReleaseSignatures([string]$Base, [string]$Name, [string]$ArchivePath) {
+    $cosign = Get-Command cosign -ErrorAction SilentlyContinue
+    if (-not $cosign) {
+        if ($env:PREGATE_REQUIRE_SIGNATURE -eq '1') { throw 'cosign is required to verify the release signature; nothing installed' }
+        return
+    }
+    foreach ($bundleName in @('SHA256SUMS.bundle', "$Name.bundle")) {
+        if (!(Get-ReleaseBundle $Base $bundleName) -and $env:PREGATE_REQUIRE_SIGNATURE -eq '1') {
+            throw "release has no $bundleName; nothing installed"
+        }
+    }
+    $sumsBundle = Join-Path $tmp 'SHA256SUMS.bundle'
+    $archiveBundle = Join-Path $tmp "$Name.bundle"
+    if (Test-Path -LiteralPath $sumsBundle) { Invoke-CosignVerify (Join-Path $tmp 'SHA256SUMS') $sumsBundle }
+    if (Test-Path -LiteralPath $archiveBundle) { Invoke-CosignVerify $ArchivePath $archiveBundle }
+}
+function Confirm-OfflineSignature([string]$ArchivePath) {
+    if ($env:PREGATE_COSIGN_KEY -or $env:PREGATE_COSIGN_BUNDLE) {
+        $bundle = if ($env:PREGATE_COSIGN_BUNDLE) { $env:PREGATE_COSIGN_BUNDLE } else { "$ArchivePath.bundle" }
+        if (!(Test-Path -LiteralPath $bundle)) { throw "cosign bundle missing for $ArchivePath; nothing installed" }
+        Invoke-CosignVerify $ArchivePath $bundle
+        return
+    }
+    if ($env:PREGATE_MINISIGN_PUB) {
+        $minisign = Get-Command minisign -ErrorAction SilentlyContinue
+        if (-not $minisign) { throw 'minisign is required to verify the archive signature; nothing installed' }
+        $sig = if ($env:PREGATE_MINISIGN_SIG) { $env:PREGATE_MINISIGN_SIG } else { "$ArchivePath.minisig" }
+        if (!(Test-Path -LiteralPath $sig)) { throw "minisign signature missing for $ArchivePath; nothing installed" }
+        $previous = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            & $minisign.Source -V -p $env:PREGATE_MINISIGN_PUB -m $ArchivePath -x $sig
+            if ($LASTEXITCODE -ne 0) { throw "minisign signature mismatch for $ArchivePath; nothing installed" }
+        } finally { $ErrorActionPreference = $previous }
+    }
+}
 try {
     $name = "pregate-$Version-windows-x64.zip"
     if ($env:PREGATE_ARCHIVE) {
@@ -59,6 +126,7 @@ try {
     }
     if ($expected -notmatch '^[0-9a-fA-F]{64}$') { throw 'Expected SHA-256 must have 64 hex digits' }
     if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $expected) { throw 'SHA-256 mismatch; nothing installed' }
+    if ($env:PREGATE_ARCHIVE) { Confirm-OfflineSignature $archive } else { Confirm-ReleaseSignatures $base $name $archive }
     $extract = Join-Path $tmp 'x'
     Expand-Archive -LiteralPath $archive -DestinationPath $extract
     $binary = Join-Path $extract 'pregate.exe'

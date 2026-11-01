@@ -19,7 +19,7 @@ the source tree can contain unreleased capabilities. Check [delivery status](../
 
 ## Quick install (macOS and Linux)
 
-Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS` before setup):
+Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS`, and the Sigstore signature when `cosign` is installed, before setup):
 
 ```sh
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
@@ -56,6 +56,55 @@ sh install.sh --version 0.2.26
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
 command. A failed checksum must stop installation. The installer verifies the
 engine archive before setup. Add `~/.local/bin` to PATH.
+
+## Verify Sigstore signatures
+
+The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` with keyless [cosign](https://docs.sigstore.dev/cosign/signing/overview/) (`cosign sign-blob` through GitHub Actions OIDC). Each signed file is published as a `.bundle` (signature, certificate, and transparency-log proof). The same files also get a GitHub artifact attestation from `actions/attest-build-provenance`.
+
+`install.sh` and `install.ps1` always check SHA-256. When `cosign` is on `PATH` and the release contains a bundle, they verify that bundle and stop if it does not match. Without `cosign`, the checksum check still runs. The GitHub Action always compares the downloaded archive with `SHA256SUMS` before it extracts anything. When a cosign bundle or a GitHub artifact attestation is available, the Action verifies that too. A checksum, signature, or attestation mismatch installs nothing.
+
+Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
+
+```sh
+tag=v0.2.26
+asset=pregate-0.2.26-darwin-arm64.tar.gz
+gh release download "$tag" --repo pedroknigge/pregate \
+  --pattern "$asset" --pattern "$asset.bundle" \
+  --pattern SHA256SUMS --pattern SHA256SUMS.bundle
+
+cosign verify-blob --bundle SHA256SUMS.bundle \
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  SHA256SUMS
+
+shasum -a 256 -c SHA256SUMS --ignore-missing
+
+cosign verify-blob --bundle "$asset.bundle" \
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  "$asset"
+
+gh attestation verify "$asset" --repo pedroknigge/pregate \
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+gh attestation verify SHA256SUMS --repo pedroknigge/pregate \
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+```
+
+On Linux, use `sha256sum -c SHA256SUMS --ignore-missing` instead of `shasum`. On Windows, after the zip, `SHA256SUMS`, and both bundles are in one directory:
+
+```powershell
+# $dir is the folder that contains the zip, SHA256SUMS, and both .bundle files.
+cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com `
+  "$dir\SHA256SUMS"
+cosign verify-blob --bundle "$dir\pregate-0.2.26-windows-x64.zip.bundle" `
+  --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com `
+  "$dir\pregate-0.2.26-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.2.26-windows-x64.zip" --repo pedroknigge/pregate `
+  --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
+```
 
 ## Windows
 
