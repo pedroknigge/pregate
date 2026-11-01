@@ -29,10 +29,12 @@ if (process.env[MARK] === "1") {
 } else {
   test("a fresh clone has no node_modules entry, no symlink outside the repo, and prints the package version", () => {
     const parent = run(["git", "rev-parse", "--show-toplevel"], process.cwd()).trim();
-    const branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], parent).trim();
+    // CI checks out the pull request detached, so `--branch HEAD` is not a branch.
+    const sha = run(["git", "rev-parse", "HEAD"], parent).trim();
     const dest = mkdtempSync(join(tmpdir(), "pregate-hygiene-"));
     try {
-      run(["git", "clone", "--local", "--branch", branch, parent, dest], tmpdir());
+      run(["git", "clone", "--local", "--no-checkout", parent, dest], tmpdir());
+      run(["git", "checkout", "--detach", sha], dest);
       const listed = run(["git", "ls-files", "-s", "-z"], dest).split("\0").filter(Boolean);
       const nodeModules: string[] = [];
       const outside: string[] = [];

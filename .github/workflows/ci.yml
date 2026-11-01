@@ -46,6 +46,11 @@ jobs:
             mkdir -p "$path"
             echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
           done
+      - name: Git identity for fixture commits
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - name: Typecheck
         run: bun run typecheck
@@ -108,6 +113,12 @@ jobs:
           }
           # Without AppData\Local under USERPROFILE, PowerShell writes this cache into its working directory.
           "PSModuleAnalysisCachePath=$root/powershell-module-analysis-cache" >> $env:GITHUB_ENV
+      - name: Git identity for fixture commits
+        shell: pwsh
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - name: Documentation matches CLI and rule manifests

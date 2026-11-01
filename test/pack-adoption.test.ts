@@ -311,7 +311,13 @@ test("multi-project --yes applies and commits each prepared project; --no-commit
       git(p.root, "add", "."); git(p.root, "commit", "-qm", "pin 0.0.0");
     }
   };
-  for (const p of repos) git(p.root, "init", "-q");
+  for (const p of repos) {
+    git(p.root, "init", "-q");
+    // update --yes commits through the product, which reads this repo's identity, not the helper's -c.
+    git(p.root, "config", "user.name", "W");
+    git(p.root, "config", "user.email", "w@example.com");
+    git(p.root, "config", "commit.gpgsign", "false");
+  }
   pin();
   const [a, b] = repos as [ReturnType<typeof project>, ReturnType<typeof project>];
   const preview = a.cli(["update", "--projects", a.root, b.root, "--preview"]);

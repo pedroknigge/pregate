@@ -15,7 +15,12 @@ import { grammars, LOCK, onPreCommand, PRESET, redirect, sourcesOf, VERSIONS } f
 import { engineNote, pendingReview } from "../src/pending-review.ts";
 import type { Session } from "../src/types.ts";
 
-const git = (root: string, ...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" }).stdout.toString().trim();
+// `-c` and an explicit env: Bun does not pass process.env mutations to a spawn that omits env,
+// and an isolated CI home has no user.name. Repo config below is what the product's own commit reads.
+const git = (root: string, ...args: string[]) => Bun.spawnSync(
+  ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", ...args],
+  { cwd: root, stdout: "pipe", stderr: "pipe", env: process.env },
+).stdout.toString().trim();
 
 const ENV_NAMES = ["XDG_DATA_HOME", "XDG_STATE_HOME", "CI", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"] as const;
 
@@ -44,6 +49,9 @@ async function committedProject(cwd: string, area: string, root: string, saved: 
 function contractRepo(cwd: string, area: string, root: string): void {
   mkdirSync(join(root, ".pregate/requests"), { recursive: true });
   git(area, "init", "-q", root);
+  git(root, "config", "user.name", "t");
+  git(root, "config", "user.email", "t@example.com");
+  git(root, "config", "commit.gpgsign", "false");
   const preset = readFileSync(join(cwd, "catalog/presets/legacy-safe.json"), "utf8");
   writeFileSync(join(root, PRESET), preset);
   const compiled = compile(preset, sourcesOf(root), VERSIONS);

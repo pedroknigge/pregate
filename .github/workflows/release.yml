@@ -30,6 +30,11 @@ jobs:
             mkdir -p "$path"
             echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
           done
+      - name: Git identity for fixture commits
+        run: |
+          git config --global user.email "pregate-ci@example.com"
+          git config --global user.name "Pregate CI"
+          git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - name: The tag is package.json's version
         run: test "$GITHUB_REF_NAME" = "v$(bun -p 'require("./package.json").version')"
