@@ -7,32 +7,32 @@ import { readFileSync } from "node:fs";
 
 const EXTENSIONS = [".md", ".ts", ".tsx", ".js", ".mjs", ".json", ".yml", ".yaml", ".sh", ".ps1", ".txt"];
 const ACCENTS = /[áéíóúüñÁÉÍÓÚÜÑ¿¡]/;
+// Words that are also ordinary English (embargo, para, capa, sobre, fuera) are
+// deliberately absent: English prose must never trip the scan.
 const STOPWORDS = [
-  "para", "porque", "también", "tambien", "está", "están", "estan", "según", "segun", "mediante",
-  "cuando", "donde", "desde", "hasta", "sobre", "después", "despues", "aunque", "mientras",
+  "porque", "también", "tambien", "está", "están", "estan", "según", "segun", "mediante",
+  "cuando", "donde", "desde", "hasta", "después", "despues", "aunque", "mientras",
   "siempre", "nunca", "hacer", "archivo", "código", "codigo", "usuario", "reglas", "metodología",
   "metodologia", "función", "funcion", "siguiente", "través", "traves", "además", "ademas",
-  "embargo", "incluso", "durante", "entonces", "dentro", "fuera", "hacia", "acerca", "invariante",
-  "invariantes", "capa", "capas", "deben", "obligatorio", "obligatoria", "corré", "corre",
+  "incluso", "durante", "entonces", "dentro", "hacia", "acerca", "invariante",
+  "invariantes", "deben", "obligatorio", "obligatoria", "corré", "corre",
   "requiere", "aprobación", "aprobacion", "comportamiento", "escritura", "llamada", "llamadas",
   "agente", "agentes", "dominio", "verificado", "elegido", "elegida", "tienen", "puede", "pueden",
 ].sort((a, b) => b.length - a.length);
 const STOPWORD = new RegExp(`(?<![\\w-])(?:${STOPWORDS.join("|")})(?![\\w-])`, "i");
 
-// Proper nouns and quoted probes. Longer entries first so a quote is removed whole.
+// Proper nouns, historical filenames and the exact source snippets that embed
+// Spanish on purpose (the Spanish-detection regexes). Entries are literal
+// phrases, never bare Spanish words, so a stray "está" in prose still fails.
+// Longer entries first so a quote is removed whole.
 const ALLOW = [
+  "(must|shall|required|deben?|obligatori[oa]|tiene que)",
+  "/[áéíóúñ¿]|está|corré|requiere|turno|aprob/",
   "decisiones-usuario",
   "Garrido de Paz",
   "café.ts",
   "cafe\u0301.ts",
   "ñandú",
-  "deben?",
-  "obligatori[oa]",
-  "tiene que",
-  "[áéíóúñ¿]",
-  "está",
-  "corré",
-  "requiere",
   "é🧪",
   "notice é",
   "pack/é",
@@ -57,15 +57,30 @@ function visible(line: string): string {
   return text;
 }
 
+function offending(line: string): string | null {
+  const text = visible(line);
+  return ACCENTS.exec(text)?.[0] ?? STOPWORD.exec(text)?.[0] ?? null;
+}
+
+test("English prose that shares words with Spanish passes", () => {
+  expect(offending("a trade embargo on exports")).toBeNull();
+  expect(offending("see para 3 of the spec")).toBeNull();
+  expect(offending("the capa layer sits above the sobre layer, fuera of scope")).toBeNull();
+});
+
+test("Spanish prose fails even when a word is also in an allowed snippet", () => {
+  expect(offending("Esto está mal")).toBe("á");
+  expect(offending("esto esta mal porque si")).toBe("porque");
+  expect(offending("it requiere a turno")).toBe("requiere");
+});
+
 test("tracked text is English aside from proper nouns and quoted probes", () => {
   const failures: string[] = [];
   for (const file of trackedTextFiles()) {
     const lines = readFileSync(file, "utf8").split("\n");
     for (let index = 0; index < lines.length; index++) {
-      const line = visible(lines[index] ?? "");
-      const accent = ACCENTS.exec(line);
-      const word = STOPWORD.exec(line);
-      if (accent || word) failures.push(`${file}:${index + 1}: ${accent?.[0] ?? word?.[0]}`);
+      const hit = offending(lines[index] ?? "");
+      if (hit) failures.push(`${file}:${index + 1}: ${hit}`);
     }
   }
   expect(failures).toEqual([]);

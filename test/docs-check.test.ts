@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 
@@ -9,12 +9,16 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name === "dist" || name === ".git" || name === "vendor") continue;
     const path = join(dir, name);
-    const st = statSync(path);
+    const st = lstatSync(path);
     if (st.isSymbolicLink()) continue;
     if (st.isDirectory()) walk(path, out);
     else if (name.endsWith(".md")) out.push(path);
   }
   return out;
+}
+
+function historical(rel: string): boolean {
+  return rel === "CHANGELOG.md" || rel.startsWith("docs/releases/");
 }
 
 function outsideFences(text: string): string {
@@ -41,6 +45,9 @@ test("relative markdown links resolve and engine/core versions match package.jso
         broken.push(`${rel}:${line} -> ${href}`);
       }
     }
+    // Historical notes name the version they shipped; only living docs must
+    // track the current one.
+    if (historical(rel)) continue;
     let version: RegExpExecArray | null;
     while ((version = versionRe.exec(text))) {
       const found = version[2] ?? "";
