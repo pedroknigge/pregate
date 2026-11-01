@@ -133,7 +133,7 @@ test("explicit static enforcement keeps syntax on Pre, check and Stop without a 
   put(join(root, "src/infra/unrelated.ts"), "export const unrelated = 1;\n");
   const next = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
   next.enforcement = "shadow";
-  next.overrides = { ...next.overrides, "clean-code/CC-FN-001": { enforcement: "enforce", params: { paths: ["src/domain/**"] } } };
+  next.overrides = { ...next.overrides, "clean-code/CC-FN-001": { severity: "deny", enforcement: "enforce", params: { paths: ["src/domain/**"] } } };
   const text = JSON.stringify(next), compiled = compile(text, sourcesOf(root), VERSIONS);
   if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
   put(join(root, PRESET), text); put(join(root, LOCK), compiled.text);

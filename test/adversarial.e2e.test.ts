@@ -70,7 +70,12 @@ function buildTemplate(): string {
   git("add", "-A");
   git("commit", "-q", "-m", "demo");
   mkdirSync(join(dir, ".pregate"), { recursive: true });
-  writeFileSync(join(dir, ".pregate/preset.json"), policyFixture(readFileSync(PRESET, "utf8")));
+  // The suite exercises the ratchet, not the default severities: the rules it counts must deny.
+  const preset = JSON.parse(policyFixture(readFileSync(PRESET, "utf8"))) as { overrides?: Record<string, unknown> };
+  for (const rule of ["clean-code/CC-ER-002", "clean-code/CC-FN-001", "clean-code/CC-FN-002", "typescript/EVA-CAST-001"]) {
+    preset.overrides = { ...preset.overrides, [rule]: "deny" };
+  }
+  writeFileSync(join(dir, ".pregate/preset.json"), JSON.stringify(preset));
   ok(run([BIN, "preset", "compile"], dir, env), "preset compile");
   git("add", "-A");
   git("commit", "-q", "-m", "pregate");
