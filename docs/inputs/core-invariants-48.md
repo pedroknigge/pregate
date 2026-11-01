@@ -2,7 +2,7 @@
 
 Authoritative English requirements supplied by the user. This file preserves the
 requested requirements; it is **not** an executable rule pack or a claim that all
-48 are enforced. Track admission and missing evidence in [PRODUCT-WORK](../PRODUCT-WORK.md).
+48 are enforced. Track admission and missing evidence in [roadmap](../ROADMAP.md).
 Stable requirement IDs are `CORE-INV-001` through `CORE-INV-048`, corresponding to
 the original numbers below. Future core policy must activate its rules by default;
 explicit human-reviewed deactivation is permitted. Optional packs remain separate.

@@ -1,21 +1,16 @@
 # Install, update and remove PREGATE
 
-PREGATE distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
-x64. Published 0.2.26 targets macOS ARM64; Linux and Windows are experimental,
+PREGATE 0.0.1 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
+x64. macOS ARM64 is the stable platform. Linux and Windows are experimental
 test builds, not supported for production until native release validation passes.
 Focused source verification does not admit a final platform release.
-Bun is required only for development/builds. See
-[0.2.26 release notes](../releases/0.2.26.md) and [delivery status](../STATUS.md).
-Private project migration still needs its own review.
-The private pilot uses
-authenticated [GitHub CLI](https://cli.github.com/) with access to this repository.
-The installers and updater first try anonymous HTTPS, then
-authenticated `gh` if public transport/assets are unavailable. Public releases
-can therefore download without a GitHub account; this repository is still private.
-Public transport is verified with isolated mocks, not a claim that the private
-release is anonymously accessible.
-Choose a **published** tag from [GitHub Releases](https://github.com/pedroknigge/pregate/releases);
-the source tree can contain unreleased capabilities. Check [delivery status](../STATUS.md).
+Bun is required only for development and builds. See the
+[v0.0.1 release notes](../releases/0.0.1.md).
+The installers and updater try anonymous HTTPS first, then authenticated `gh`
+if that download is unavailable. A public release can be installed without a
+GitHub account. Choose a **published** tag from
+[GitHub Releases](https://github.com/pedroknigge/pregate/releases);
+the source tree can contain unreleased capabilities.
 
 ## Quick install (macOS and Linux)
 
@@ -23,12 +18,6 @@ Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS`, and
 
 ```sh
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
-```
-
-Private pilot one-liner (using authenticated `gh`):
-
-```sh
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.sh -O - | sh
 ```
 
 You can also install or sync the `/pregate` companion skill via [`npx skills`](https://github.com/vercel-labs/skills):
@@ -40,17 +29,17 @@ npx skills add pedroknigge/pregate
 ## Manual checksum verification (macOS and Linux)
 
 Download the selected tag's installer and checksum manifest into an empty directory.
-The examples select the published 0.2.26 macOS pilot.
+The examples select published 0.0.1 for macOS ARM64.
 
 ```sh
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
+gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
 ```
 
 Verify the installer before running it. On macOS:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing
-sh install.sh --version 0.2.26
+sh install.sh --version 0.0.1
 ```
 
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
@@ -110,17 +99,17 @@ gh attestation verify "$dir\pregate-0.2.26-windows-x64.zip" --repo pedroknigge/p
 
 Use PowerShell (Windows PowerShell 5.1 or newer):
 
-These commands select the published 0.2.26 experimental Windows archive;
+These commands select the published 0.0.1 experimental Windows archive;
 they do not establish native admission. See the [Windows retry](windows-verification.md).
 
 ```powershell
 $dir = Join-Path $env:TEMP ('pregate-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $dir | Out-Null
-gh release download v0.2.26 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
+gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
 if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 $sum = Get-Content "$dir/SHA256SUMS" | Where-Object { $_ -match '  install.ps1$' } | Select-Object -First 1
 if (!$sum -or (Get-FileHash "$dir/install.ps1" -Algorithm SHA256).Hash -ine $sum.Substring(0,64)) { throw 'Installer checksum mismatch' }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.2.26
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.1
 Remove-Item $dir -Recurse -Force
 ```
 
@@ -166,11 +155,11 @@ project locks, so inspect each contract before adopting different bundled pack d
 `setup` refreshes global registrations and installed companion instructions from
 the running engine. `doctor` reports missing or stale skills.
 
-Update the global engine to 0.2.13 and review one or several
+Update the global engine to 0.0.1 and review one or several
 project contracts together:
 
 ```sh
-pregate update --version 0.2.13
+pregate update --version 0.0.1
 pregate guide --projects "/path/project-a" "/path/project-b"
 ```
 
@@ -199,7 +188,7 @@ For interactive choices use `pregate guide --projects <path...>`. For one projec
 the guide inspects the complete installed catalog and offers a grouped pack/audit
 choice when it finds missing recommendations. Otherwise it prints the audit
 command. The 0.2.12 catalog also includes the optional Rust pack; check
-[delivery status](../STATUS.md) for verification and platform limits.
+[v0.0.1 release notes](../releases/0.0.1.md) for verification and platform limits.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.

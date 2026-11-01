@@ -1,6 +1,6 @@
 # Verify the core requirements
 
-Core 0.3.1 keeps **68 rules by default**, introduced in core 0.3.0: 64 project
+Core 0.0.1 keeps **68 rules by default**, introduced when the core was numbered 0.3.0: 64 project
 obligations and four general change guards. The [original 48](../inputs/core-invariants-48.md)
 retain their identities; the [additional maintainability set](core-maintainability-update.md)
 extends overlapping conditions and adds 16 distinct obligations. Stable IDs are
@@ -290,7 +290,7 @@ other formatting changes require regeneration. Matching
 version and metadata hashes alone cannot admit changed rules, scope, enforcement
 or failure policy. An altered or malformed lock is rejected as `lock-stale`;
 regenerate it with `pregate preset compile`. Admission grants neither consent nor
-passing fitness evidence. See the [actual admission controls](../research/repository-contract-admission.md).
+passing fitness evidence. See the actual admission controls.
 
 Receipts live in PREGATE's local state, under `fitness/`, partitioned by project,
 contract hash and verifier. They are not read from project fixtures or repros.

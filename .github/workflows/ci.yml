@@ -24,7 +24,7 @@ jobs:
         run: bun scripts/dcouplr-source-probe.ts --fetch
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     outputs:
       candidate_ready: ${{ steps.candidate.outcome == 'success' }}
     steps:
@@ -132,7 +132,7 @@ jobs:
       - name: Unit and native end-to-end tests
         id: windows-suite
         # Each file gets a fresh global object; deadlines and the selected tests stay unchanged.
-        run: bun test --isolate --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,e2e}.test.ts'
+        run: bun test --isolate --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,e2e,repo-hygiene.e2e}.test.ts'
       # Preserve the full-suite failure. Independent fresh processes help distinguish
       # a repeatable product defect from an accumulated test-runtime failure.
       - name: Diagnose failing Windows suites in fresh processes

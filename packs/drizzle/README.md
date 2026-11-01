@@ -52,7 +52,7 @@ function; intervening calls/writes and mutable initializer flows remain unproved
 Unknown validators, split query construction, schema wrappers, aggregates and
 database migration state need project assertions. The policy proves modeled
 result cardinality, not database execution cost or deployed schema integrity.
-The [issue controls](../../docs/research/issue-19-rule-cases-0210.md)
+The issue controls
 record the original reported cases. See [Drizzle select](https://orm.drizzle.team/docs/select)
 and [invariant enforcement](../../docs/guides/invariant-enforcement.md).
 

@@ -18,6 +18,9 @@ export function selectMethodology(input: Preset, manifest: Manifest, only?: stri
   if (unknown.length || selected.size === 0) return { errors: [`Unknown or empty invariant selection for ${manifest.id}: ${unknown.join(", ")}. Use pack show ${manifest.id}.`] };
   const preset = structuredClone(input);
   preset.methodologies = [...new Set([...preset.methodologies, manifest.id])];
+  // A pack that names how two of its methodologies share a dimension is applied
+  // when the second one is selected, so guide does not stop on its own suggestion.
+  recordSuggestedResolution(preset, manifest);
   if (only === undefined && ns !== "core") return preset;
   const overrides = preset.overrides ??= {};
   for (const alias of manifest.invariants) {
@@ -51,6 +54,19 @@ export function addInvariant(input: Preset, manifest: Manifest, aliasId: string)
   const preset = structuredClone(input);
   for (const key of [aliasId, `${ns}/${aliasId}`]) switchOn(preset.overrides ?? {}, key);
   return preset;
+}
+
+function recordSuggestedResolution(preset: Preset, manifest: Manifest): void {
+  const selected = new Set(preset.methodologies);
+  const additions: [string, string][] = [];
+  for (const conflict of manifest.conflicts) {
+    if (!selected.has(conflict.with)) continue;
+    if (preset.resolve?.[conflict.dimension]) continue;
+    additions.push([conflict.dimension, conflict.suggest.use]);
+  }
+  if (!additions.length) return;
+  const resolve = preset.resolve ??= {};
+  for (const [dimension, use] of additions) resolve[dimension] ??= { use };
 }
 
 function switchOn(overrides: NonNullable<Preset["overrides"]>, key: string): void {

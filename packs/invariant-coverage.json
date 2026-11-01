@@ -5207,7 +5207,7 @@
     },
     {
       "id": "PS-87",
-      "text": "**Cotizador universal:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
+      "text": "**Universal quoter:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 106,
@@ -5224,7 +5224,7 @@
     },
     {
       "id": "PS-88",
-      "text": "**Cotizador universal:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
+      "text": "**Universal quoter:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 106,
@@ -5241,7 +5241,7 @@
     },
     {
       "id": "PS-89",
-      "text": "**Cotizador universal:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
+      "text": "**Universal quoter:** Pricing derived from load, scope, value, not raw guesswork; opportunity cost included; options presented.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 106,
@@ -5258,7 +5258,7 @@
     },
     {
       "id": "PS-90",
-      "text": "**Estimador de horas:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
+      "text": "**Hour estimator:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 107,
@@ -5275,7 +5275,7 @@
     },
     {
       "id": "PS-91",
-      "text": "**Estimador de horas:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
+      "text": "**Hour estimator:** Parkinson, Hofstadter, Murphy, Pareto applied explicitly; separate 20% driver from buffer.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 107,
@@ -5377,7 +5377,7 @@
     },
     {
       "id": "PS-97",
-      "text": "**Modelado de casos de uso:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
+      "text": "**Use-case modeling:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 110,
@@ -5394,7 +5394,7 @@
     },
     {
       "id": "PS-98",
-      "text": "**Modelado de casos de uso:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
+      "text": "**Use-case modeling:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 110,
@@ -5411,7 +5411,7 @@
     },
     {
       "id": "PS-99",
-      "text": "**Modelado de casos de uso:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
+      "text": "**Use-case modeling:** Actors, goals, success scenario before extensions; functional requirements traceable; exception flows explicit.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 110,
@@ -5428,7 +5428,7 @@
     },
     {
       "id": "PS-100",
-      "text": "**Winston / charla épica:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
+      "text": "**Winston / epic talk:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 111,
@@ -5445,7 +5445,7 @@
     },
     {
       "id": "PS-101",
-      "text": "**Winston / charla épica:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
+      "text": "**Winston / epic talk:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 111,
@@ -5462,7 +5462,7 @@
     },
     {
       "id": "PS-102",
-      "text": "**Winston / charla épica:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
+      "text": "**Winston / epic talk:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 111,
@@ -5479,7 +5479,7 @@
     },
     {
       "id": "PS-103",
-      "text": "**Winston / charla épica:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
+      "text": "**Winston / epic talk:** Empowerment promise opener; 3 cycles per major idea; slides minimal; close returns to promise.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 111,
@@ -5564,7 +5564,7 @@
     },
     {
       "id": "PS-108",
-      "text": "**Revisor de calendarios:** Inspects every calendar; report overlaps; clear calendar explicitly reported.",
+      "text": "**Calendar reviewer:** Inspects every calendar; report overlaps; clear calendar explicitly reported.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 114,
@@ -5581,7 +5581,7 @@
     },
     {
       "id": "PS-109",
-      "text": "**Revisor de calendarios:** Inspects every calendar; report overlaps; clear calendar explicitly reported.",
+      "text": "**Calendar reviewer:** Inspects every calendar; report overlaps; clear calendar explicitly reported.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 114,

@@ -1,16 +1,16 @@
 # The release (MULTI-HARNESS MH-32): a tag v<x>, where x is package.json's version, publishes all
-# archives and installers only after the same packaged candidates pass native bootstrap and
-# product smoke on every target. Publish then signs each archive and SHA256SUMS with keyless
-# cosign (GitHub OIDC) and records a build-provenance attestation. Post-publication checks also
-# verify the GitHub download path, including those bundles.
+# archives and installers only after `test` passes and the same packaged candidates pass native
+# bootstrap and product smoke on every target. `publish` needs `test`, then signs each archive and
+# SHA256SUMS with keyless cosign (GitHub OIDC) and records a build-provenance attestation.
+# Post-publication checks also verify the GitHub download path, including those bundles.
 name: Release
 on:
   push:
     tags: ["v*"]
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -35,6 +35,28 @@ jobs:
         run: test "$GITHUB_REF_NAME" = "v$(bun -p 'require("./package.json").version')"
       - run: bun run typecheck
       - run: bun test
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - name: Isolate runtime homes
+        run: |
+          root=/private/tmp/claude-501/pregate-release
+          sudo mkdir -p "$root"
+          sudo chown "$(id -u):$(id -g)" "$root"
+          for entry in HOME:home XDG_DATA_HOME:data XDG_STATE_HOME:state XDG_CONFIG_HOME:config TMPDIR:tmp CODEX_HOME:codex GROK_HOME:grok; do
+            path="$root/${entry#*:}"
+            mkdir -p "$path"
+            echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
+          done
+      - run: bun install --frozen-lockfile
       # rules test catalog, every target, install.sh and SHA256SUMS; it refuses an install.sh whose
       # DEFAULT_VERSION is not package.json's.
       - run: bun run build
@@ -57,7 +79,7 @@ jobs:
     permissions:
       contents: read
   publish:
-    needs: [build, native]
+    needs: [test, build, native]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

@@ -17,7 +17,7 @@ sha512-lPvTKxbikMRLKmPPGUnam0X6aH10H8OY+ND2Zx53UpANuFxmnj4S12GxAmwr0kFN1eLN5ORx2
 
 The 0.2.10 candidate follows one same-scope immutable alias for factory effect
 and injection policies without granting new constructor-root exemptions. The
-[source-backed review](../../docs/research/dcouplr-use-enforcement-0210.md)
+source-backed review
 records current canaries and static-analysis limits. Use the
 [custom managed-boundary request](../../docs/examples/dcouplr-managed-boundary/README.md)
 when your application lives outside the default `src/application` and `src/services`
@@ -84,12 +84,12 @@ The [exact reference](REFERENCE.md) lists every rule, default and limit. The
 The [public API inventory](API-COVERAGE.json) records all 115 exported names,
 154 reachable named contracts and 529 member-signature occurrences in the pinned
 declarations. Inherited and repeated signatures remain separate occurrences.
-The [graph and inspector source contrast](../../docs/research/dcouplr-observability-contract.md)
+The graph and inspector source contrast
 adds thirteen real runtime cases and brings project associations to 96 contracts.
 The [bounded export example](../../docs/examples/dcouplr-observability/README.md)
 shows how to bind one actual redaction assertion without certifying other exports.
 119 contracts have no related syntax slice; an association on another contract
-does not prove complete coverage. See [inventory verification](../../docs/research/dcouplr-api-inventory.md).
+does not prove complete coverage. See inventory verification.
 The [delivery contract](DELIVERY-CONTRACT.json) links ten conditions to actual
 published-runtime canaries and seventeen API contracts. Those evidence
 associations remain separate from syntax associations and consumer proof.
@@ -152,14 +152,14 @@ rebinding or duplicate declarations, and initialized exported constants, for
 effects and parameter policies. Exported factories do not receive exclusive
 constructor-root ownership: declaration exports and local named/default value
 exports revoke that exception. Type-only exports and foreign re-exports remain
-distinct. The [declared-creator contrast](../../docs/research/dcouplr-declared-factory-ownership.md)
+distinct. The declared-creator contrast
 records the controls and conservative write-resolution limits.
 Mutable/imported/cross-scope creators and full call-graph ownership remain
-unresolved. See the [named-creator contrast](../../docs/research/dcouplr-named-factory-ownership.md).
+unresolved. See the named-creator contrast.
 
 Pack 1.10.0 checks literal join-reference uniqueness before the runtime rejects
 start. Mixed quote forms, escapes, dynamic values and cross-call graph ownership
-remain unresolved. The [source contrast](../../docs/research/dcouplr-duplicate-references.md)
+remain unresolved. The source contrast
 records valid/bypass controls and the remaining graph gaps.
 
 ## Select the policy
@@ -200,7 +200,7 @@ an inline factory can hide clock or database dependencies. Prepare narrow,
 fixture-tested adaptations for the actual ownership instead of disabling dcouplr.
 Do not infer wiring from registration alone or forbid intentional publication
 into distinct dependency containers without checking their lookup contracts.
-The [consumer diagnostic](../../docs/research/dcouplr-consumer-calibration.md)
+The consumer diagnostic
 records these limits and an audit reader defect found with a real private project.
 
 The pack deliberately includes stricter project policies than upstream ESLint:
@@ -217,7 +217,7 @@ need data-flow coverage. Constructor-root ownership does not gain that alias exc
 TypeScript `typeof` type queries are erased and do not read a global at runtime.
 Both effect checks admit those queries in aliases, annotations, generics, casts
 and signatures. Executable `typeof fetch` and a value reference such as
-`fetch as typeof fetch` remain checked. See the [type/runtime contrast](../../docs/research/dcouplr-type-query-effects.md).
+`fetch as typeof fetch` remain checked. See the type/runtime contrast.
 
 The force-admission rule reserves `registerForce` and `registerSingletonForce`
 calls in selected production paths; it does not infer receiver types. Narrow the
@@ -307,10 +307,10 @@ Hoisted function definitions remain valid sources. Multiple/destructured aliases
 imported/cross-scope policies, mutable bindings, dynamic returns,
 computed/spread/getter/prototype shapes and complete return-flow
 inference remain unresolved. Verification return values are not constrained.
-See the [named-policy contrast](../../docs/research/dcouplr-named-policy-contract.md)
+See the named-policy contrast
 for truthy malformed validation results, delayed verification and valid replacement
 controls. This is optional-pack data; the core does not infer dcouplr semantics.
-The [alias-policy contrast](../../docs/research/dcouplr-aliased-policy-contract.md)
+The alias-policy contrast
 records the added controls and the retained multi-alias gap.
 
 Setup requires a string `charEncoding` under the public type contract. Plain
@@ -325,7 +325,7 @@ undefined, shorthand and dynamic values remain valid or unresolved; spread,
 computed, getter, method, prototype and escaped-key configurations need project
 verification, as do named factories and actual output member/behavior contracts.
 These are reserved call-name predicates, not imported receiver/type inference.
-See [system factory evidence](../../docs/research/dcouplr-system-factory-contract.md).
+See system factory evidence.
 
 Inspector options use the public field types: string `host`/`instanceId`, numeric
 `port`/`maxEvents`, boolean `captureOnStart`/`announce`, and boolean or object
@@ -345,8 +345,8 @@ overflow literals, aliases and wrapped receivers remain unresolved.
 This is bounded field/value validation, not proof of valid numeric ranges, local-only
 binding, authorization, production configuration or lifecycle. The actual inspector
 has a production guard, but origin restrictions do not authorize HTTP commands.
-See [inspector evidence](../../docs/research/dcouplr-inspector-contract.md).
-The [finite-budget contrast](../../docs/research/dcouplr-inspector-numeric-budget.md)
+See inspector evidence.
+The finite-budget contrast
 records the additional policy, valid controls and remaining numeric gaps.
 
 The factory policies identify the first inline arrow/function creator through
@@ -356,7 +356,7 @@ exceptions. Bounded named creator ownership follows the const/declaration rules
 described above, plus one immutable const alias for effect and parameter checks.
 Multi-alias, mutable, imported, cross-scope, generator and indirect creators remain
 unresolved; returned-constructor value wrappers are a separate limitation.
-See [factory ownership evidence](../../docs/research/dcouplr-factory-ownership.md).
+See factory ownership evidence.
 
 `settings.setSetting` cannot overwrite `charEncoding`, `mode`, `ephemeral`,
 `forbiddenElements` or `instanceId`; configure system values in setup and use
@@ -366,11 +366,11 @@ remains valid, but the pinned setup path forwards undefined and overwrites the
 kernel constructor's true stored default. The delivery gates separately apply
 `getSetting('ephemeral') ?? true`: with no broker adapter, omitted/undefined/true
 uses blocking local delivery, while false uses nonblocking local delivery.
-The [delivery contrast](../../docs/research/dcouplr-delivery-contract.md) verifies
+The delivery contrast verifies
 that behavior; a stored undefined value alone does not establish a nonblocking
 default. Choose and verify the application's actual lifetime policy.
 The pack does not certify consumer broker delivery or whole-program setup
-order guarantees. See [bootstrap evidence](../../docs/research/dcouplr-bootstrap-contract.md).
+order guarantees. See bootstrap evidence.
 
 Direct fluent singleton registration accepts omitted input or a nonnull object.
 Arrays and regular-expression objects remain valid under the actual object
@@ -406,8 +406,8 @@ start/stop and subscription removal. Generator handlers register but do not run
 their bodies during delivery; the pack rejects their literal declarations.
 Repeated unescaped literal join references are checked across single, double and
 template quote forms. Duplicate node IDs, unknown references and dynamic/escaped reference equality remain
-runtime-only graph controls. See [saga contracts](../../docs/research/dcouplr-saga-contract.md)
-and [mixed-quote reference verification](../../docs/research/dcouplr-mixed-reference-quotes.md).
+runtime-only graph controls. See saga contracts
+and mixed-quote reference verification.
 The probe also runs the repository's pinned TypeScript compiler against the
 integrity-checked public declarations: twenty-five valid assignments pass and forty-six
 invalid assignments produce the exact expected diagnostics. This independently confirms

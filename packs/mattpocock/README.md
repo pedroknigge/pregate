@@ -4,7 +4,7 @@ Optional engineering practice rules derived from [Matt Pocock's engineering skil
 
 The complete review of all 20 skills and their companion references is in [INVARIANTS.md](INVARIANTS.md). [BACKLOG.md](BACKLOG.md) records the requirements the current engine cannot establish. [REFERENCE.md](REFERENCE.md) gives each executable rule's precise scope, defaults, provenance and repairs. See the [pack library](../README.md) and [conversion guide](../../docs/guides/docs-to-rule-pack.md).
 
-The [conversation review](../../docs/research/poteto-matt-pocock.md) and
+The conversation review and
 [domain-language guide](../../docs/guides/domain-language.md) show how to combine
 this pack with pstack and project-specific assertions. They add workflow guidance
 and an executable example; the six bounded rule contracts remain unchanged.

@@ -361,6 +361,25 @@ test("initial and repeated init guide progressive verification instead of disabl
   expect(fitness.requirements.every((r: { status: string }) => r.status === "unverified")).toBe(true);
 }));
 
+test("guide --packs architecture records the pack's own deps.layers resolution", () => inPreviewProject(({ root, cli, env }) => {
+  mkdirSync(join(root, "src/core"), { recursive: true });
+  mkdirSync(join(root, "src/shell"), { recursive: true });
+  writeFileSync(join(root, "src/core/order.ts"), "export const order = 1;\n");
+  writeFileSync(join(root, "src/shell/cli.ts"), "export const cli = 1;\n");
+  const preview = cli(root, "guide", "--preview", "--packs", "architecture", "--enforcement", "advisor");
+  const text = preview.stderr.toString() + preview.stdout.toString();
+  expect(text).not.toContain("unresolved conflict");
+  expect(preview.exitCode).toBe(0);
+  const proposal = readProposal(canonical(root), join(env.XDG_DATA_HOME!, "pregate"));
+  const presetText = proposal?.writes.find((write) => write.path.endsWith("preset.json"))?.after;
+  expect(presetText).toBeTruthy();
+  const preset = JSON.parse(presetText!) as { resolve?: Record<string, { use: string }>; methodologies: string[] };
+  expect(preset.methodologies).toEqual(expect.arrayContaining([
+    "architecture/clean-architecture", "architecture/functional-core-imperative-shell",
+  ]));
+  expect(preset.resolve?.["deps.layers"]?.use).toBe("architecture/CA-DEP-001");
+}));
+
 test("init, enable and status succeed in a plain directory without git", () => inTempDir("pregate-plain-", (dir) => {
   const root = join(dir, "standalone-project");
   mkdirSync(root);

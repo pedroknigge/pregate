@@ -17,7 +17,7 @@ backlog cases, not pass fixtures or claimed trap coverage.
 | REDIS-TTL-001 | A wrapper `save(key, value)` that adds `{ EX }` before calling `set`. | Parameter taint and wrapper call graphs. |
 | REDIS-KEY-001 | `redis.get(fullKey)` where `fullKey` was built with a namespace in another module. | Cross-file value propagation. |
 | REDIS-KEY-001 | `redis.get(prefix + id)` split concatenation without a visible colon. | Constant evaluation of string expressions. |
-| REDIS-SCAN-001 | `client.keys` passed as a callback or invoked via bracket access `client["keys"](...)`. | Receiver alias and bracket-call resolution. |
+| REDIS-SCAN-001 | `client.keys` passed as a callback or invoked via bracket access `client"keys"`. | Receiver alias and bracket-call resolution. |
 | REDIS-DANGER-001 | `admin.flushall()` on a wrapped client that forwards to Redis. | Receiver aliases through wrappers. |
 | REDIS-CONNECT-001 | `client.on("error", report)` where `report` is an empty imported function. | Imported-function body inspection. |
 | REDIS-PUBSUB-001 | `redis.publish(channel, msg)` where `channel` is a namespaced imported constant. | Imported-value evaluation. |

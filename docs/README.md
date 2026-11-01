@@ -1,7 +1,7 @@
 # PREGATE documentation
 
 Use this index for the current product contract. The source checkout can include
-unreleased features; [delivery status](STATUS.md) identifies their verification
+unreleased features; [v0.0.1 release notes](releases/0.0.1.md) identifies their verification
 and release state. Historical research is evidence for its recorded candidate,
 not proof that a later candidate passes.
 
@@ -48,20 +48,11 @@ not proof that a later candidate passes.
 - [Architecture and implementation decisions](ARCHITECTURE.md)
 - [Harness specifications and observed capabilities](MULTI-HARNESS.md)
 - [Specification and design history](SPEC.md)
-- [Requirement ledger](PRODUCT-WORK.md), [delivery status](STATUS.md) and [roadmap](ROADMAP.md)
-- [Kragg audit: selective adoption and counterexamples](research/kragg-audit.md)
-- [Stop advisory repair and latest issue triage](research/issue-22-stop-advisory.md)
+- [Roadmap](ROADMAP.md) and [v0.0.1 release notes](releases/0.0.1.md)
 - [Pending guided refactoring, QA and bulk/classifier work](features/maintainability-and-bulk-audit.md)
-- [Published 0.2.11 release notes and exact verification](releases/0.2.11.md)
-- [0.2.14: rule interactions, 68 new pack rules and fixes for #34–#36](releases/0.2.14.md)
-- [Published 0.2.13 Mac pilot, verified repairs and remaining limits](releases/0.2.13.md)
-- [Pre-public adoption readiness plan](releases/pre-public-readiness.md)
-- [Earlier 0.2.10 release notes](releases/0.2.10.md)
-- [Published-artifact onboarding and repository controls](research/post-release-0210.md)
 - [Interactive daily workflow](features/guided-project-workflow.md)
 - [Guided scan, combined pack approval and team restoration](features/guided-pack-adoption.md)
-- [0.2.10 paired greenfield results and interpretation limits](research/greenfield-0210/RESULTS.md)
-- [Earlier 0.2.5 paired greenfield experiment](research/greenfield-comparison-025.md)
+- Earlier pilot notes (0.2.5–0.2.14 release notes, the Kragg audit, greenfield results, and the pre-public plan) are not in this tree. A bare title in older pages is history, not a file to open.
 
 ## Documentation maintenance
 

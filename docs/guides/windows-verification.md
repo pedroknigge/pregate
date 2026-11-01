@@ -48,9 +48,9 @@ assertions in the complete Mac source suite. Human repository admission is
 complete and issues #19 and #25–#29 are closed; #10 remains open. These results
 do not certify Windows. Native Windows and manual harness checks remain pending.
 Older candidate hashes, author reports and hosted-job records retain their
-historical scope. See [current integration](../research/fix-open-issues-20261008.md#current-integrated-verification).
+historical scope. See current integration.
 The bundle's instructions were prepared before wave 33 and retain an earlier
-failed latency result. The [current complete budget capture](../research/fix-open-issues-20261008.md#current-production-latency-capture)
+failed latency result. The current complete budget capture
 passes; the bundle bytes, source binding and asset hashes remain unchanged.
 
 From a folder without an existing checkout, use PowerShell:
@@ -134,7 +134,7 @@ regression for both a live and missing launcher. The complete runner isolates in
 and records the commit and archive hashes. Locally built development archives are
 not substitutes for the current wave 27 handoff artifacts; retain their reports separately.
 Actual harness UI approvals still require independent evidence. See the
-[reviewed command and latency limits](../research/windows-hook-latency.md).
+reviewed command and latency limits.
 
 The procedure is committed in the repository. Use the source commit associated
 with the supplied candidate, not an older installed version or a moving branch.

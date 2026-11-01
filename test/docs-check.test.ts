@@ -1,0 +1,63 @@
+import { expect, test } from "bun:test";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import pkg from "../package.json" with { type: "json" };
+
+const ROOT = join(import.meta.dir, "..");
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules" || name === "dist" || name === ".git" || name === "vendor") continue;
+    const path = join(dir, name);
+    const st = statSync(path);
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) walk(path, out);
+    else if (name.endsWith(".md")) out.push(path);
+  }
+  return out;
+}
+
+function outsideFences(text: string): string {
+  return text.split(/(```[\s\S]*?```)/g).map((part, i) => (i % 2 === 1 ? part.replace(/[^\n]/g, " ") : part)).join("");
+}
+
+test("relative markdown links resolve and engine/core versions match package.json", () => {
+  const broken: string[] = [];
+  const versions: string[] = [];
+  const versionRe = /(?<![\w/@.-])(engine|core)\s+(?:\*\*)?v?(\d+\.\d+\.\d+)\b/gi;
+  const linkRe = /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  for (const file of walk(ROOT)) {
+    const text = outsideFences(readFileSync(file, "utf8"));
+    const rel = file.slice(ROOT.length + 1);
+    let link: RegExpExecArray | null;
+    while ((link = linkRe.exec(text))) {
+      const href = link[3] ?? "";
+      if (!href || href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href)) continue;
+      const pathPart = decodeURIComponent(href.split("#")[0] ?? "");
+      if (!pathPart) continue;
+      const target = resolve(dirname(file), pathPart);
+      if (!existsSync(target)) {
+        const line = text.slice(0, link.index).split("\n").length;
+        broken.push(`${rel}:${line} -> ${href}`);
+      }
+    }
+    let version: RegExpExecArray | null;
+    while ((version = versionRe.exec(text))) {
+      const found = version[2] ?? "";
+      if (found !== pkg.version) {
+        const line = text.slice(0, version.index).split("\n").length;
+        versions.push(`${rel}:${line} ${version[1]} ${found}`);
+      }
+    }
+  }
+  const install = readFileSync(join(ROOT, "docs/guides/installation.md"), "utf8");
+  const architecture = readFileSync(join(ROOT, "docs/ARCHITECTURE.md"), "utf8");
+  expect(install).not.toContain("0.2.26");
+  expect(install).not.toContain("0.2.13");
+  expect(install).toContain(pkg.version);
+  expect(architecture).not.toContain("private macOS pilot");
+  expect(architecture).toContain(`engine ${pkg.version}`);
+  expect(architecture).toContain(`core ${pkg.version}`);
+  expect(broken).toEqual([]);
+  expect(versions).toEqual([]);
+});

@@ -1,13 +1,16 @@
 # Product roadmap
 
-0.2.14 / core 0.3.1 is published as the manual macOS ARM64 pilot. See the
-[release notes](releases/0.2.14.md), [current status](STATUS.md) and the single
-list of [open issues](OPEN-ISSUES.md). The 0.2.14 artifact passes the unchanged
-latency budgets (shell/no-preset p50 24.9/21.8 ms against 25 ms; route p95 at most
-137.5 ms against 150 ms). Public visibility and any name change remain deferred.
-Star counts are not an acceptance criterion; useful activation and repeated use
-need actual independent users before making adoption claims.
-Native Linux/Windows admission remains deferred; those builds are experimental.
+0.0.1 / core 0.0.1 is the public release. macOS ARM64 is stable. Linux and Windows
+builds stay experimental until native release validation passes. See the
+[v0.0.1 release notes](releases/0.0.1.md). Star counts are not an acceptance
+criterion; useful activation and repeated use need actual independent users
+before making adoption claims.
+
+The sections below record earlier private pilots. Their release notes and evidence
+files are not in this tree, so a bare title is history, not a link to follow.
+The 0.2.14 macOS pilot reported shell/no-preset p50 24.9/21.8 ms against 25 ms
+and route p95 at most 137.5 ms against 150 ms. That figure is not a measurement
+of the 0.0.1 binaries.
 
 ## Proposed public pack distribution
 
@@ -60,8 +63,8 @@ Valid TypeScript parser/property ownership and tracked-build inventory repairs,
 bounded stdin JSON diagnostics, passive advisory Stop, compact audits and the
 design-contract guide address observed daily-use debt. Reviewed `agent-practices`
 adds 22 optional requirements; source and installed catalogs have 42 packs.
-Core defaults remain unchanged. See [delivery status](STATUS.md) and
-[exact verification](research/candidate-0211.md) for publication, global-install
+Core defaults remain unchanged. See [v0.0.1 release notes](releases/0.0.1.md) and
+exact verification for publication, global-install
 preservation, original control failures and remaining latency limits.
 
 Remaining work includes native Windows/Linux admission, trusted Cursor human
@@ -70,7 +73,7 @@ and broader empirical maintainability evaluation. Rule fixtures and limited pair
 experiments do not establish an 80% false-positive confidence estimate ([measurement](benchmarks/false-positives.md)) or general
 maintainability certification. Keep no-new defaults and honest evidence limits.
 
-The [published 0.2.10 repository controls](research/post-release-0210.md) add seven
+The published 0.2.10 repository controls add seven
 concrete follow-ups delivered in 0.2.11 with separate positive and negative cases:
 valid optional `abstract` property parsing; local versus exported property
 ownership; proposed coverage before first approval; Vue peer-dependency pack
@@ -78,13 +81,13 @@ recommendations; tracked authored files under `build/`; fallback-aware error
 guidance; and generator/test repair ownership. The original audits remain frozen.
 Their parser, discovery, inventory and repair-plan controls now pass in the frozen
 source suite and admitted Mac artifact; no original audit was rewritten.
-The [paired greenfield calls](research/greenfield-0210/RESULTS.md) also reproduce
+The paired greenfield calls also reproduce
 read-only checks denied when the launcher is assigned to a shell variable before
 a loop. Literal diagnostic commands remain the supported route. Improve bounded
 binding-aware admission with write/substitution counterexamples; a blanket
 variable exemption would not preserve protected-state guarantees.
 
-The [Kragg review](research/kragg-audit.md) adds a compact human audit in 0.2.11
+The Kragg review adds a compact human audit in 0.2.11
 while retaining full text and complete machine evidence. Next
 evaluate concrete verifier-environment recovery and concise historical context
 using existing fitness/report infrastructure. Public-symbol discovery for reuse
@@ -93,7 +96,7 @@ mutation may inform advisory test planning; graph reach and assertion syntax do
 not establish product correctness. Keep qualified-call heuristics in optional
 language/library packs until alias, rebinding and scope controls support them.
 
-The [prospective 0.2.11 dogfood and held-out checks](research/prospective-0211.md)
+The prospective 0.2.11 dogfood and held-out checks
 verify grouped updates with custom packs/disabled consent and complete audit
 evidence on three fresh repos. They add a reduced valid `using` parameter parser
 gap alongside the optional `abstract` property case. 0.2.11 carries hook readiness into
@@ -116,17 +119,17 @@ artifact verification, publication and installation are complete.
 Catalog expansion must not displace
 evaluation of this daily experience.
 
-The [published-engine dogfood](research/post-release-029/dogfood.md) and
-[held-out first pass](research/post-release-029/blind.md) now prioritize the next
+The published-engine dogfood and
+held-out first pass now prioritize the next
 patch: incremental enforcing dependency review; language and owning-workspace
 scopes; direct callback and router identity; contextual repair advice; complete
 coverage labels; and grouped evidence planning. Keep the existing core defaults,
 human approval and unchanged latency targets. Optional heuristic policies retain
 shadow defaults until their applicability is supported by counterexamples.
 0.2.8 adds explicit multi-project updates, preserved custom policy and current
-contract no-ops; see [delivery status](STATUS.md) for its verified publication state.
+contract no-ops; see [v0.0.1 release notes](releases/0.0.1.md) for its verified publication state.
 
-The [conversation and real-session review](research/poteto-matt-pocock.md) now
+The conversation and real-session review now
 drives focused recovery/onboarding corrections and a
 [project domain-language workflow](guides/domain-language.md). Unhappy-path
 gaps remain explicitly tracked; additional packs do not substitute for fixing
@@ -136,24 +139,24 @@ The published 0.2.7 macOS pilot delivers unified update preparation, fast intera
 imports, variance parsing and focused diagnostic/Stop/report/fitness improvements.
 The user authorizes the macOS pilot release while independent native Windows
 validation remains pending. Current delivery and remaining issue requirements are
-tracked in [STATUS](STATUS.md), the [verification record](research/post-release-027.md)
-and the [remaining scope](releases/0.2.7-plan.md). Shell p50 remains over its target;
+tracked in [v0.0.1 release notes](releases/0.0.1.md), the verification record
+and the remaining scope. Shell p50 remains over its target;
 the performance failure is retained rather than counted as full admission.
 
 ## 0.2.6 baseline and original 0.2.7 requests
 
 Updated 2026-10-06. Published and globally installed 0.2.6 targets macOS ARM64,
-with core 0.3.0. Full Linux and Windows
+with its bundled core (numbered 0.3.0 in that pilot). Full Linux and Windows
 validation is deferred to the next release; those builds are experimental and
 partially functional. This is the current delivery roadmap. SPEC §18 remains the
 historical vision; its version waves are not a current feature inventory.
-Implementation and verification are tracked in [PRODUCT-WORK.md](PRODUCT-WORK.md).
+Implementation and verification are tracked in [roadmap](ROADMAP.md).
 
 The user explicitly moves remaining **Cursor in-harness approval and complete
 dcouplr coverage to 0.2.7**. They no longer block 0.2.6; Cursor retains its
 human-terminal fallback and dcouplr retains its preview disclosure. See the
-[0.2.7 plan](releases/0.2.7-plan.md). Mac artifact admission, publication and
-global update are complete for 0.2.6. [Post-release audits](research/post-release-026.md)
+0.2.7 plan. Mac artifact admission, publication and
+global update are complete for 0.2.6. Post-release audits
 add a reduced valid-TypeScript variance parser defect to the 0.2.7 backlog.
 
 ## Evaluation of the previous roadmap
@@ -276,20 +279,20 @@ behavior, useful tests and reduced effort on subsequent changes.
 
 ## Research requiring real evidence
 
-Version [0.2.9](releases/0.2.9.md) is published and globally installed.
-The [guided workflow verification](research/post-release-029.md) records current
+Version 0.2.9 is published and globally installed.
+The guided workflow verification records current
 admission and post-publication research. The
 [guided scan/batch approval/audit workflow](features/guided-pack-adoption.md)
 is delivered; it is not pending onboarding work.
 
-The [post-release 0.2.6 record](research/post-release-026.md) verifies installation,
+The post-release 0.2.6 record verifies installation,
 dogfooding and held-out public repositories without tuning rules to their findings.
 It records coverage gaps, a confirmed parser defect and bounded timings; policy
 matches are not independently labeled defects. The first installed 0.2.5 public
 pass and bounded parser/onboarding repairs are recorded in
-[the pinned audit report](research/public-repository-audit-025.md). Independent
+the pinned audit report. Independent
 labels and complete consumer calibration remain. The first paired construction
-and change experiment is now [recorded](research/greenfield-comparison-025.md):
+and change experiment is now recorded:
 both arms pass external behavior; the treatment costs more time and produces
 separate domain modules. It does not establish a general maintainability benefit;
 independent review and replications remain.
