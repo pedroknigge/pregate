@@ -1,0 +1,11 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 3
+  },
+  "target": "src/billing/total.ts",
+  "before": "before/",
+  "expect": {
+    "verdict": "pass"
+  }
+}

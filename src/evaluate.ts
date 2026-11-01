@@ -3,7 +3,7 @@
 import { compilePattern, type Compiled, findAll } from "./match.ts";
 import { inScope, layerOf, matches, REQUESTS, ruleApplies as applies } from "./paths.ts";
 import { type Edge, loadTsPaths, reexportTargets, resolve } from "./resolve.ts";
-import { astHash, classes, functions, grammarOf, imports, metricBodies, nestings, type Node, type Parsed, parse, suggestFunctionSplit, suggestNestingFix, symbolOf, symbols } from "./ts.ts";
+import { astHash, classes, functions, grammarOf, imports, metricBodies, nestings, type Node, type Parsed, parse, suggestFunctionSplit, suggestNestingFix, symbolBodies, symbolOf, symbols } from "./ts.ts";
 import type { Analysis, Clock, Form, Grammar, Host, Impl, Lock, LockRule, PatternConfig, Phase, Placement, Read, Violation } from "./types.ts";
 import { languageApplies } from "./languages.ts";
 import { markerLocations } from "./markers.ts";
@@ -23,6 +23,8 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   const rules = inScope(lock, rel) ? running(lock, phase, rel) : [];
   const p = typeof state !== "string" ? state : grammarOf(rel) !== null ? parse(rel, state) : null;
   const text = typeof state === "string" ? state : state?.text ?? null;
+  // Body hashes before any nested parse. A later parse on this grammar drops the live tree.
+  const ownedBodies = p?.root ? symbolBodies(p) : {};
   const found: Violation[] = [];
   const counts: Record<string, number> = {};
   const markerSites: NonNullable<Analysis["markerSites"]> = {};
@@ -58,7 +60,8 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   // Every match stays, even several on one line: the ratchet counts them; introduced() reports one per line.
   const measured = new Set(found.filter((v) => v.measured !== null).map((v) => `${v.symbol}\0${v.line}`));
   return { symbols: p ? (named ? symbols(p) : [MODULE]) : [], violations: found, counts, markerSites,
-    metricBodies: p && measured.size > 0 ? metricBodies(p, measured) : {}, astHash: p && host.hash !== false ? astHash(p) : null };
+    metricBodies: p && measured.size > 0 ? metricBodies(p, measured) : {}, symbolBodies: ownedBodies,
+    astHash: p && host.hash !== false ? astHash(p) : null };
 }
 
 interface Measurements { report: Report; functions?: ReturnType<typeof functions> }

@@ -17,7 +17,7 @@ are the same.
 | Violation moved inside the same symbol | Sound | The count for that rule and symbol is unchanged, so the move is not new debt. A second site in the same symbol is denied. |
 | One violation removed and a different one added in the same function | Sound | Swapping two matches of the same rule is net zero. A different rule is not compensation and is denied. |
 | Equivalent code in different syntax | Best-effort | Modeled forms of one rule (`as unknown as`, parentheses, `as any as`) stay one violation and are denied when newly introduced. Pregate does not decide that arbitrary programs are equivalent. |
-| Symbol renamed, duplicated, or extracted | Sound | A metric body keeps its baseline across a rename or a move onto a new name when the old symbol is gone. A copy cannot borrow a symbol that is still there. A pattern violation on a new name, including one extracted beside the old function, is new and is denied. |
+| Symbol renamed, duplicated, or extracted | Sound | An unchanged function body in the same file keeps its debt across a rename (`parseBody` to `parseBody2`), a move onto another symbol, or an extraction that leaves the old name with a different body. The declared name is outside the body hash. A second copy of a body that is still present is new debt. A body moved into a different file is not paired. |
 | Import hidden behind a barrel or a path alias | Sound | A re-export and a `tsconfig` `paths` alias are resolved, including a package name that an alias points at a local file. A chain past three re-export hops fails closed (`unresolvable-import` or the layer edge on the hop that is still visible). |
 
 ## Trust boundaries

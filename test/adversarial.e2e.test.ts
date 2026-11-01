@@ -192,7 +192,7 @@ test("equivalent assertion syntax stays the same debt and is caught when it is n
   blocks(r, "typescript/EVA-CAST-001");
 });
 
-test("renamed metric debt follows the body; a copy or an extracted pattern does not", () => {
+test("an unchanged body can be renamed, moved or extracted, and a copy cannot", () => {
   const r = fresh();
   const rel = "src/domain/total.ts";
   put(r, rel, long("legacy"));
@@ -207,8 +207,47 @@ test("renamed metric debt follows the body; a copy or an extracted pattern does 
   put(r, pattern, swallowed("legacy"));
   commit(r, "swallowed legacy");
   put(r, pattern, swallowed("renamed"));
-  blocks(r, "clean-code/CC-ER-002");
+  allows(r);
   put(r, pattern, `export function legacy(): string {\n  return taken();\n}\n${swallowed("taken")}`);
+  allows(r);
+  put(r, pattern, `${swallowed("legacy")}\n${swallowed("legacyCopy")}`);
+  blocks(r, "clean-code/CC-ER-002");
+});
+
+// sindresorhus/got `parseBody`: an arrow with four parameters, a try that is not the whole
+// function, and a branch nested three deep. Renaming only the binding used to report those
+// pre-existing findings as new because the symbol name changed.
+const RESPONSE_TYPES = `type Response = { rawBody: string };\ntype ResponseType = "text" | "json" | "buffer";\n`;
+const PARSE_ARROW = `(response: Response, responseType: ResponseType, parseJson: (text: string) => unknown, encoding?: string): unknown => {
+  const { rawBody } = response;
+  try {
+    if (responseType === "text") return rawBody;
+    if (responseType === "json") {
+      if (rawBody.length === 0) return "";
+      return parseJson(rawBody);
+    }
+    if (responseType === "buffer") return rawBody;
+    return rawBody;
+  } catch (error) {
+    throw new Error(String(error));
+  }
+}`;
+const parseBodyFile = (name: string): string => `${RESPONSE_TYPES}export const ${name} = ${PARSE_ARROW};\n`;
+
+test("renaming parseBody to parseBody2 does not resurface the findings already in its body", () => {
+  const r = fresh();
+  const rel = "src/domain/response.ts";
+  put(r, rel, parseBodyFile("parseBody"));
+  commit(r, "parseBody");
+  const before = ratchet(r);
+  expect(before.code, said(before)).toBe(0);
+  put(r, rel, parseBodyFile("parseBody2"));
+  allows(r);
+  put(r, rel, `${RESPONSE_TYPES}export const api = {\n  parseBody: ${PARSE_ARROW},\n};\n`);
+  allows(r);
+  put(r, rel, `${RESPONSE_TYPES}export const parseBody = ${PARSE_ARROW};\nexport const parseBody2 = ${PARSE_ARROW};\n`);
+  blocks(r, "clean-code/CC-FN-002");
+  put(r, rel, parseBodyFile("parseBody2").replace("throw new Error(String(error));", "void error;"));
   blocks(r, "clean-code/CC-ER-002");
 });
 

@@ -245,6 +245,44 @@ export function metricBodies(p: Parsed, targets: Set<string>): Record<string, st
   }));
 }
 
+// One hash per symbol the node itself declares. The name and parameters sit outside the body, so a
+// rename does not change it. An anonymous callback inherits its parent's symbol and is not a second body.
+export function symbolBodies(p: Parsed): Record<string, string> {
+  // Hash a copy. Walking cursors on the live tree drops nodes a later query still holds.
+  const tree = p.root.tree.copy();
+  try {
+    return bodiesOf({ ...p, root: tree.rootNode });
+  } finally {
+    tree.delete();
+  }
+}
+
+function bodiesOf(p: Parsed): Record<string, string> {
+  const kinds = grammarOf(p.rel) === "rust" ? RUST_FUNCTIONS : ["python", "go"].includes(grammarOf(p.rel)!) ? [...OTHER_FUNCTIONS, ...OTHER_CLASSES] : [...FUNCTION_KINDS, ...CLASS_KINDS];
+  const found = new Map<string, string>();
+  for (const n of descendants(p.root, kinds)) {
+    if (!declaresSymbol(n)) continue;
+    const symbol = symbolOf(n);
+    const hash = astHash({ ...p, root: n.childForFieldName("body") ?? n });
+    const prev = found.get(symbol);
+    if (prev === undefined) found.set(symbol, hash);
+    else if (prev !== hash) found.set(symbol, "");
+  }
+  const out: Record<string, string> = {};
+  for (const [symbol, hash] of found) if (hash !== "") out[symbol] = hash;
+  return out;
+}
+
+function declaresSymbol(n: Node): boolean {
+  const own = scopeName(n);
+  const tail = symbolOf(n).split(".").pop();
+  if (own !== null) return own === tail;
+  const parent = n.parent;
+  if (parent === null) return false;
+  const binding = parent.type === "variable_declarator" || parent.type === "pair" || parent.type === "public_field_definition";
+  return binding && scopeName(parent) === tail && parent.childForFieldName("value")?.id === n.id;
+}
+
 export function imports(p: Parsed): Import[] {
   if (grammarOf(p.rel) === "rust") return rustImports(p);
   if (["python", "go"].includes(grammarOf(p.rel)!)) return languageImports(p);
