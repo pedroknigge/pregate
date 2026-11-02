@@ -30,9 +30,7 @@ function blockedEnv(): Record<string, string> {
   return env;
 }
 
-if (WINDOWS) {
-  test.skip("offline signing guard is POSIX (the signing suites are shell)", () => {});
-} else test("default signing tests pass with Sigstore blocked", () => {
+test.skipIf(WINDOWS)("default signing tests pass with Sigstore blocked", () => {
   const dir = mkdtempSync(join(tmpdir(), "pregate-signing-guard-"));
   const report = join(dir, "junit.xml");
   try {

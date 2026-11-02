@@ -14,7 +14,7 @@ const enabled = process.env[SIGSTORE_E2E_ENV] === "1" && !WINDOWS;
 const sha256 = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
 
 if (!enabled) {
-  test.skip(
+  test.skipIf(!enabled)(
     WINDOWS
       ? `real Sigstore cosign verification runs in Linux CI (${SIGSTORE_E2E_ENV}=1)`
       : `real Sigstore cosign verification is skipped; set ${SIGSTORE_E2E_ENV}=1 to contact Sigstore (GitHub Actions sets this)`,

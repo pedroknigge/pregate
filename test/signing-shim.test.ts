@@ -21,9 +21,7 @@ function archive(dir: string): string {
   return out;
 }
 
-if (WINDOWS) {
-  test.skip("offline cosign shim is POSIX (install.sh and the shim are shell)", () => {});
-} else describe("offline cosign shim", () => {
+describe.skipIf(WINDOWS)("offline cosign shim", () => {
   test("the shim is the fixed in-repo script and has no network client", () => {
     const source = readFileSync(FAKE_COSIGN, "utf8");
     expect(source.startsWith("#!/bin/sh\n")).toBe(true);
