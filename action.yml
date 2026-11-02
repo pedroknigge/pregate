@@ -34,6 +34,10 @@ inputs:
     description: "Install cosign and refuse a release whose Sigstore bundle is missing or does not verify. Set to false to install on SHA-256 alone (e.g. a release cut before signing)."
     required: false
     default: "true"
+  accept-contract:
+    description: "Contract loosening digests (printed by a failing ratchet) that a maintainer accepts. Pass a repository variable (vars.PREGATE_ACCEPT_CONTRACT), never a value the change under check can set."
+    required: false
+    default: ""
   github-token:
     description: "Token gh uses to verify the GitHub artifact attestation of the download. Defaults to github.token."
     required: false
@@ -61,4 +65,5 @@ runs:
         PREGATE_BASE: ${{ inputs.base }}
         PREGATE_ARGS: ${{ inputs.args }}
         PREGATE_SARIF: ${{ inputs.sarif || inputs.sarif-file }}
+        PREGATE_ACCEPT_CONTRACT: ${{ inputs.accept-contract }}
       run: bash "$GITHUB_ACTION_PATH/scripts/action-run.sh"

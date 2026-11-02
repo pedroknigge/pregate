@@ -146,6 +146,8 @@ jobs:
           bun scripts/docs-reference.ts --check
       - name: Verify native runtime and onboarding
         run: bun test test/runtime.test.ts test/onboard.test.ts
+      - name: UTF-16 PowerShell scripts are scanned
+        run: bun test test/windows-powershell-script.e2e.test.ts
       - name: Native Windows bootstrap
         run: bun test test/windows-distribution.e2e.test.ts
       # These four suites execute POSIX shell fixtures. Native Windows equivalents are in

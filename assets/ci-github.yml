@@ -45,7 +45,13 @@ jobs:
           echo "PREGATE=$RUNNER_TEMP/pregate" >> "$GITHUB_ENV"
       - name: Test the path rule sources
         run: '"$PREGATE" rules test'
+      # A change that loosens the contract fails here until a maintainer accepts that exact loosening:
+      # the job prints its digest, and the repository variable PREGATE_ACCEPT_CONTRACT set to it (one
+      # or more digests, separated by spaces or commas) accepts it. Repository variables are not part
+      # of the change; protect .pregate/ and .github/workflows/ with CODEOWNERS so the change cannot
+      # rewrite this job either.
       - name: Check the change against its base
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
+          PREGATE_ACCEPT_CONTRACT: ${{ vars.PREGATE_ACCEPT_CONTRACT }}
         run: '"$PREGATE" check --ratchet --base "$BASE"'

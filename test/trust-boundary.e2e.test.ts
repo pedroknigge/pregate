@@ -393,23 +393,6 @@ test("a UTF-16 PowerShell script is decoded, not skipped as binary", () => {
   silent(a.bash("pwsh -File ok.ps1"));
 });
 
-test.skipIf(process.platform !== "win32")("Windows PowerShell runs a UTF-16LE script, and the hook denies it", () => {
-  const r = fresh();
-  const marker = join(r.dir, "ran.txt");
-  const stub = join(TMP, "stub-bin");
-  mkdirSync(stub, { recursive: true });
-  writeFileSync(join(stub, "pregate.cmd"), `@echo off\r\necho %* > "${marker}"\r\n`);
-  put(r, "off.ps1", Buffer.from("\ufeffpregate disable --yes\r\n", "utf16le"));
-  const ps = run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", join(r.dir, "off.ps1")], r.dir,
-    { ...r.env, PATH: [stub, process.env.PATH, process.env.Path].filter(Boolean).join(delimiter) });
-  expect(ps.code, said(ps)).toBe(0);
-  expect(readFileSync(marker, "utf8")).toContain("disable --yes");
-  const a = claude(r);
-  ok(a.start(), "session");
-  denied(a.bash(`powershell -NoProfile -File ${join(r.dir, "off.ps1").replaceAll("\\", "/")}`), "shell-admin");
-  denied(a.bash("powershell -NoProfile -File off.ps1"), "shell-admin");
-});
-
 test("inline interpreter code with a write sink is a write, whatever its file names look like", () => {
   const r = fresh();
   const a = claude(r);
