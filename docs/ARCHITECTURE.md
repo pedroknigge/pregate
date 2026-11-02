@@ -206,16 +206,18 @@ export type Cause =
   | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch"   // hook-switch: MH-17
   // only a human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
-  | "snapshot-missing" | "state-io" | "git-failed" | "regex-limit";
+  | "snapshot-missing" | "state-io" | "git-failed" | "regex-limit" | "contract-loosened";
 export const FIXABLE_BY = {
   "protected-path": "agent", "request-invalid": "agent", "tool-will-fail": "agent",
   "cannot-reconstruct": "agent", "syntax": "agent", "unresolvable-import": "agent",
   "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent",
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-failed": "human", "regex-limit": "human",
+  "contract-loosened": "human",
 } as const satisfies Record<Cause, "agent" | "human">;
 // "lock-stale" covers a missing, invalid, or old lock, sources that do not verify, and a disappeared preset: same remedy.
 // "regex-limit": a rule's regex may have given up on this file; its "does not match" is not an answer (O27).
+// "contract-loosened": Stop or pre-commit found a looser lock than the session or HEAD started with, and no human approval record for it.
 // "timeout" and "engine-crash" are not Cause: the launcher emits them (literal text in launcher.sh, A6).
 
 // ── Normalized input (harness-agnostic) ─────────────────────────────────
@@ -528,7 +530,7 @@ Outside every preset, only machine protections run: `hook-switch` blocks disabli
 
 **Allows** reads and pre-check: `pregate` on PATH or `<DATA>/bin/pregate`, with `check --stdin`, `explain`, `preset show` or `rules test`. Input redirection and literal heredocs to these commands remain read-only (MH-29).
 
-Deletions (`rm`, `git reset --hard`, `git clean`, …) are not denied: the truth is the tree (SPEC §10.2.4) and Stop sees them. A deletion of `.pregate/` is caught by step 4 (`lock-stale`) and pre-commit; a deletion of `sessions/<sid>/` makes the new snapshot take HEAD as the base (step 9).
+Deletions (`rm`, …) are not denied: the truth is the tree (SPEC §10.2.4) and Stop sees them. Git commands that move history or the worktree (`reset`, `checkout <commit>`, `switch`, `stash`, `clean -f`, `cherry-pick`, `revert`, `read-tree`, `checkout-index`) are judged as writes of the files Git reports they would change (`src/git-changes.ts`, read-only Git): a file under `.pregate/` is `protected-path`, and a form whose files cannot be listed is `shell-write`. A deletion of `.pregate/` is caught by step 4 (`lock-stale`) and pre-commit; a deletion of `sessions/<sid>/` makes the new snapshot take HEAD as the base (step 9).
 
 **Cost:** ~20 ms p50, against the §13.6 target of ≤ 15 ms **[Δ: 25 ms budget]**. Bun's measured process floor is 13.7 to 16 ms; if 15 ms is hard, that is an argument for Rust in v1, not for a daemon.
 

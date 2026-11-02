@@ -24,8 +24,7 @@ preset exists. Proposal discovery stops at another Git repository boundary.
 
 While that proposal is pending, hooks protect contract administration in its
 project even though local consent does not exist. Unsupported agent approval
-attempts are denied with the exact human command; eligible native permission
-requests still require the harness to enforce the human decision. Protected
+attempts are denied with the exact human command. Protected
 candidate writes, wrapped approval commands and malformed hook payloads cannot
 skip this review. Ordinary project rules remain inactive until approval.
 
@@ -78,7 +77,7 @@ are missing or consent is disabled; its status explains those separate condition
 An invalid contract or a different requested preset returns 1 with next actions.
 
 The direct human terminal prompt remains available with `pregate init`; piped input
-cannot answer it. `--yes` skips the question only when `CI` is already set in the
+cannot answer it. `--yes` skips the question only when `PREGATE_UNATTENDED_APPROVAL=1` is already set in the
 environment; elsewhere it still asks on the terminal. It cannot be combined with
 `--preview`. Agents can prepare literal previews through the shell
 guard; applying an established protected contract uses the human review path.

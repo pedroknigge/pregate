@@ -92,17 +92,16 @@ Current controlled observations pass in Claude Code, Codex, Grok and agy.
 Cursor's tested Shell Mode invokes the same gated Pre without a trusted human
 origin marker; use a separate human terminal there. Do not bypass its guard or
 disable PREGATE. See native observations.
-Under `CI`, `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Native Claude permission can
-also approve that exact literal command. Other harnesses reject the agent's attempt
-and explain the human route. The digest binds the writes, compiled lock, baseline
+With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI job; `CI` alone does not count), `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Every harness, Claude Code included,
+rejects the agent's attempt to run the approval command and explains the human route: a
+native permission prompt cannot give the command the terminal it needs. The digest binds the writes, compiled lock, baseline
 and expiry; a replaced proposal, changed baseline or altered sources cannot apply
 the reviewed proposal. It expires 24 hours after preparation.
 
 `pregate approve` retains its direct terminal prompt for existing users. A bare
-`--yes` is a CI automation interface, not a way around the terminal; the recommended
-harness workflow always supplies the digest. Protected shell calls reject unsupported
-approval commands; eligible exact commands request native permission. Preventing
-self-approval also depends on that harness enforcing the human decision.
+`--yes` is an unattended automation interface (`PREGATE_UNATTENDED_APPROVAL=1`), not a way around the terminal; the recommended
+harness workflow always supplies the digest. Protected shell calls reject every
+approval command an agent issues and name the human `!` route (a separate terminal in Cursor).
 
 The automation verifies source diffs, altered/stale candidates, exact application,
 no-TTY native hook output, known Claude Code headless/subagent rejection, CI

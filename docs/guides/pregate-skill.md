@@ -52,9 +52,8 @@ Inside a supported human shell route, enter the displayed command yourself:
 ! pregate approve <displayed code>
 ```
 
-Claude Code can also request native permission in a supported interactive parent
-session. Controlled human `!` approval is verified for Claude Code, Codex, Grok
-and agy. Cursor's tested hook route cannot distinguish human Shell Mode from an
+Every harness denies an approval command the agent issues. Controlled human `!`
+approval is verified for Claude Code, Codex, Grok and agy. Cursor's tested hook route cannot distinguish human Shell Mode from an
 agent tool; use a separate human terminal there. The agent must not execute an
 approval on your behalf. See [approval routes](../features/approval-in-harness.md).
 
@@ -65,7 +64,7 @@ Global installation does not migrate every private project automatically.
 For a current cloned/disabled contract, plain `guide --preview` makes no activation
 proposal. Choose activation in the interactive guide, or run `pregate enable` in a
 terminal after reviewing `status` and type `y`. `--yes` does not skip that question
-unless `CI` is already set. Updates preserve disabled consent.
+unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates preserve disabled consent.
 
 ## Keep the guide current
 

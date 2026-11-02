@@ -166,7 +166,7 @@ For a current cloned/disabled contract, a plain `guide --preview` is a no-op,
 not an activation proposal. Choose activation in the interactive guide, or let
 the human run `pregate enable` in a terminal after reviewing `status` and type `y`.
 A harness `!` line qualifies only when that harness gives the command an interactive
-stdin. `--yes` does not skip the question unless `CI` is already set. Updates and
+stdin. `--yes` does not skip the question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates and
 pack adoption preserve disabled consent; the agent must not run the activation command.
 
 ## Audit and recovery

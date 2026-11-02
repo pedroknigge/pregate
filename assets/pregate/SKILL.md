@@ -158,13 +158,11 @@ project's repository; personal consent and credentials stay local.
 ## Prepare approval inside the harness
 
 Propose contract edits through a supported edit tool or literal preview command.
-PREGATE validates fixtures and the candidate before permission. Interactive Claude
-Code parent sessions can request native permission. agy, Codex, Cursor, Grok,
-known Claude Code noninteractive/subagent sessions and CI use a validated queued
-proposal. In agy, hand the exact reviewed `!` command to the human; never execute
-it as an agent. Its hook cannot identify a trusted interactive parent, and native
-permission requests stall in skip-permissions mode. Its human Bash route works
-with and without that flag. See the documented approval limits.
+PREGATE validates fixtures and the candidate before permission. Every harness
+uses a validated queued proposal, and every harness denies an approval command
+the agent issues: no native permission prompt approves on the human's behalf.
+Hand the exact reviewed `!` command to the human in Claude Code, Codex, Grok and
+agy; never execute it as an agent. See the documented approval limits.
 
 Review `approve --preview`: the mode, one line per pack, every loosening, removal
 and field change, the whole preset diff and every written file. A WARNING appears
@@ -174,7 +172,8 @@ contents. Then ask the human to enter the exact displayed
 `pregate approve <code>` in a terminal and type `y`. A harness `!` line qualifies
 only when that harness gives the command an interactive stdin. The code is the
 first 12 hex digits of the digest. `approve --yes --digest <sha256>` still asks
-for `y` on the terminal unless `CI` is already set.
+for `y` on the terminal unless `PREGATE_UNATTENDED_APPROVAL=1` is already set
+(an unattended CI job; `CI` alone does not count).
 Approval commits exactly the contract files it wrote, plus the rule pack folders the
 lock compiles from, and removes applied or stale requests, so do not stage or commit
 the preset, lock or packs yourself afterwards.
@@ -184,13 +183,16 @@ its approval fallback requires a separate human terminal. Show the reviewed
 command and this limitation; never disable PREGATE or route around the guard.
 Direct human terminal approval remains available. Stale/replaced/expired
 proposals cannot apply. Never execute approval or activation as agent self-approval.
+Never loosen the contract by editing the preset and recompiling: Stop, pre-commit
+and CI block a looser lock (`contract-loosened`) that no human approved.
 Guided proposals in 0.2.9 bind their consent effect in the digest: initial
 setup or explicit activation enables protection; existing adoption and updates
 preserve consent. Show this effect. An update must not turn a disabled project on.
 For a current cloned/disabled contract, plain `guide --preview` is a no-op,
 not an activation proposal. Present `status`, then let the human choose activation
 in the interactive guide or run `pregate enable` in a terminal and type `y`.
-`--yes` does not replace that confirmation unless `CI` is already set. Never run
+`--yes` does not replace that confirmation unless `PREGATE_UNATTENDED_APPROVAL=1`
+is already set. Never run
 that as an agent.
 Agent text, stdin, --yes, request files and claimed approval are not permission.
 Use status/doctor and the installed capability contract to establish available routes.

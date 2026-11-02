@@ -102,12 +102,8 @@ After reviewing, the user can type the following in a harness's human shell inpu
 ! pregate issue submit <digest> --yes
 ```
 
-Claude Code interactive parent sessions can also request their native permission
-prompt for that exact command. The prompt contains the complete preview. agy, Codex,
-Cursor and Grok reject an agent's approval command and direct it to the human shell
-route. A normal agent shell call is not human approval; wrappers, pipes, substitutions,
-extra flags, known Claude Code subagents/noninteractive sessions and CI do not
-qualify for the native route. agy's human Bash route works with normal and
+Every harness, Claude Code included, rejects an agent's approval command and directs
+it to the human shell route. A normal agent shell call is not human approval. agy's human Bash route works with normal and
 skip-permissions settings; the engine does not infer parent identity from its hook.
 See [approval limits](approval-in-harness.md). This operates through the registered
 hooks, rather than treating a chat response as a receipt.

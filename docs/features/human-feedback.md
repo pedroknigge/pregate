@@ -32,12 +32,10 @@ command inside the harness:
 ! pregate feedback apply <digest> --yes
 ```
 
-An interactive Claude Code parent can request native permission for this
-exact digest-bound command. agy uses its human Bash `!` route; model commands deny.
-Known Claude Code children/noninteractive sessions and CI are rejected. agy's hook
-does not establish trusted parent identity; see [approval limits](approval-in-harness.md).
+Every harness denies this digest-bound command when the agent issues it and names
+the human `!` route (a separate terminal in Cursor); see [approval limits](approval-in-harness.md).
 Agents can list, draft and show feedback; an ordinary protected shell call cannot
-apply it without the native request. Actual human permission and self-approval
+apply it. Actual human permission and self-approval
 prevention in all harness UIs remain release verification items.
 A human running the CLI directly can use its terminal prompt or `--yes`.
 

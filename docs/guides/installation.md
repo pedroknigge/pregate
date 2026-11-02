@@ -139,8 +139,8 @@ activation from the actual project state. In a harness, enter human
 `! pregate guide`, or load `/pregate` and ask the agent to prepare one `guide --preview`
 for your approval. Current cloned/disabled contracts need activation separately;
 choose it in the guide, or run `pregate enable` in a terminal after reviewing
-`status` and type `y`. `--yes` does not skip that question unless `CI` is already
-set. Use `status --json` to inspect contract validity, effective policy,
+`status` and type `y`. `--yes` does not skip that question unless
+`PREGATE_UNATTENDED_APPROVAL=1` is already set. Use `status --json` to inspect contract validity, effective policy,
 capabilities and backstops. See [using the skill](pregate-skill.md).
 
 Optionally add repository backstops after initialization:
@@ -148,6 +148,16 @@ Optionally add repository backstops after initialization:
 ```sh
 pregate install --git-hook --ci github
 ```
+
+The CI workflow runs `pregate check --ratchet` against the pull request's base. It
+fails on any change that loosens the contract (a weaker enforcement, a removed or
+downgraded rule) and prints that loosening's digest. A maintainer who accepts the
+loosening sets the repository variable `PREGATE_ACCEPT_CONTRACT` to that digest
+(several digests may be separated by spaces or commas) and reruns the job. The
+workflow also refuses a change that pins an older engine than its base unless the
+repository variable `PREGATE_ACCEPT_ENGINE` names that version. Repository variables
+are outside the change under review; the workflow file is not, so protect
+`.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews.
 
 ## Updates and removal
 
