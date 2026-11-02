@@ -15,6 +15,7 @@ import { homeDir } from "./platform.ts";
 import { pendingRoot, type Batch } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
 import { controlInFile } from "./control-file.ts";
+import { gitChanges } from "./git-changes.ts";
 import { guard, type GuardContext } from "./shell.ts";
 import * as state from "./state.ts";
 import { storagePreview, storageReview } from "./storage-command.ts";
@@ -60,7 +61,7 @@ export function onPreCommand(c: ProposedCommand): Decision {
     if (approval !== null) return approval;
     const globs = machine();
     const ctx: GuardContext = { launcher: launcher(), engines: engineHome(), isProtected: (p) => protects(canonical(p), globs),
-      inScope: () => false, under: () => false, touched: () => true, readControlFile: controlInFile };
+      inScope: () => false, under: () => false, touched: () => true, readControlFile: controlInFile, gitChanges };
     const cause = guard(c.command, cwd, { ...ctx, machineOnly: root === null, harness: c.session.harness });
     const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
     return decide(inputOf(call, { ...NOTHING, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" }));
@@ -184,7 +185,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
-    configurationRead: (p) => configurationRead(sid, root, p), readControlFile: controlInFile,
+    configurationRead: (p) => configurationRead(sid, root, p), readControlFile: controlInFile, gitChanges,
     isProtected: (p) => {
       const abs = canonical(p);
       if (protects(abs, globs)) return true;

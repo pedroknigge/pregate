@@ -35,7 +35,11 @@ export interface GuardContext {
   configurationRead?: (abs: string) => boolean;
   // Reads one literal script for pregate control commands. The shell layer supplies it; the core does not open files.
   readControlFile?: (path: string) => Cause | null;
+  // The files a git command that moves history or the worktree would change (`args` from the
+  // subcommand on), or null when they cannot be known. Without it such a command may write anything.
+  gitChanges?: (cwd: string, args: string[]) => GitChanges | null;
 }
+export interface GitChanges { worktree: string[]; index: string[] }
 // `machineOnly`: neither the cwd nor the session reached a root (MH-17). `held`: the first cause
 // that applies only with a root, kept while the rest of the command is read. `origin`: the call's
 // cwd, where a command whose cwd is unknown most likely runs. `bound`: the variables the command
@@ -1136,6 +1140,14 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   if (sub === "commit" && getopt(rest, ["-m", "-F", "-c", "-C", "-t"]).flags.some(([flag]) => flag === "-n")) return "shell-admin";
   const has = (re: RegExp) => rest.some((w) => re.test(w.text));
   const dash = rest.findIndex((w) => w.text === "--");
+  if (sub !== undefined && movesHistory(sub, rest, dash)) {
+    const literal = base !== null && rest.every((w) => w.literal)
+      && flags.every(([flag, v]) => flag === "-C" || (flag === "-c" && v?.literal === true && !/^core\.(worktree|bare)\b/i.test(v.text)));
+    const change = literal ? ctx.gitChanges?.(base, [sub, ...rest.map((w) => w.text)]) ?? null : null;
+    if (change === null) return "shell-write";
+    if ([...change.worktree, ...change.index].some((p) => ctx.isProtected(p))) return "protected-path";
+    return writes(change.worktree.map((text) => ({ text, literal: true, subs: [] })), base, ctx.inScope);
+  }
   // Without `--` the first operand is a revision, unless it is `.`, which cannot name one.
   const changed = sub === "apply" ? (has(/^--(check|stat|numstat|summary)$/) ? [] : [UNKNOWN])
     : sub === "checkout" ? (dash >= 0 ? rest.slice(dash + 1) : getopt(rest, ["-b", "-B", "--orphan"]).operands.filter((w, k) => k > 0 || w.text === "."))
@@ -1143,6 +1155,33 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
     : [];
   // Git expands pathspecs itself: a glob or a `:(magic)` pathspec may name any file.
   return writes(changed.map((w) => (/^:|[*?[]/.test(w.text) ? UNKNOWN : w)), base, ctx.under);
+}
+
+// A git command that rewrites the worktree or the index from another commit, a stash or nothing
+// (clean): which files it changes depends on the repository, so GuardContext.gitChanges answers.
+// Branch creation at HEAD, listings, dry runs and path checkouts (judged above) move nothing.
+function movesHistory(sub: string, rest: Word[], dash: number): boolean {
+  const flag = (re: RegExp) => rest.some((w) => re.test(w.text));
+  const cluster = (letter: string) => rest.some((w) => /^-[A-Za-z]+$/.test(w.text) && w.text.includes(letter));
+  switch (sub) {
+    case "reset": return !flag(/^--soft$/) && (flag(/^--(hard|merge|keep)$/) || rest.some((w, k) => !/^-./.test(w.text) && (dash < 0 || k < dash)));
+    case "checkout": {
+      if (dash >= 0) return false;
+      const { flags, operands } = getopt(rest, ["-b", "-B", "--orphan"]);
+      if (flags.some(([f]) => f === "--orphan")) return false;
+      return operands.length === 1 && operands[0]!.text !== "." || flags.some(([f]) => f === "--detach") && operands.length === 1;
+    }
+    case "switch": {
+      const { flags, operands } = getopt(rest, ["-c", "-C", "--create", "--force-create", "--orphan"]);
+      return operands.length > 0 || flags.some(([f]) => f === "--orphan");
+    }
+    case "stash": return rest.length === 0 || /^-|^(push|save|pop|apply|branch)$/.test(rest[0]!.text);
+    case "clean": return (cluster("f") || flag(/^--force$/) || cluster("i") || flag(/^--interactive$/)) && !cluster("n") && !flag(/^--dry-run$/);
+    case "cherry-pick": case "revert": return !flag(/^--quit$/);
+    case "read-tree": return true;
+    case "checkout-index": return !cluster("n") && !flag(/^--no-create$/);
+    default: return false;
+  }
 }
 
 function find(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {

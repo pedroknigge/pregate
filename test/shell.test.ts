@@ -388,10 +388,12 @@ const allowed: string[] = [
   "dd if=src/a.ts of=/tmp/a.bak",
   "rm -rf src/old",
   "git rm src/a.ts",
-  "git reset --hard",
-  "git checkout main",
   "git checkout -b feature/x",
-  "git checkout -b fix origin/main",
+  "git stash list",
+  "git clean -n",
+  "git clean -fdn",
+  "git reset",
+  "git reset --soft HEAD~1",
   "git restore --staged src/a.ts",
   "git apply --check fix.patch",
   "git commit -m 'fix: n things'",
@@ -412,6 +414,13 @@ const allowed: string[] = [
   'node -e "console.log(process.version)"',
   "perl -ne 'print if /x/' src/a.ts",
   'deno eval "console.log(1)"',
+  "python3 -c 'import json, sys; print(json.dumps({\"a\": 1}))'",
+  "python3 -c 'print(open(\"README.md\").read())'",
+  "python3 -c 'print(open(\"README.md\", \"rb\").read())'",
+  "python3 -c 'print(\"open the file and exec it\")'",
+  "node -e 'console.log([1, 2].map((x) => x * 2))'",
+  "perl -e 'print 1'",
+  "ruby -e 'puts 1 + 1'",
   "find src -name '*.ts'",
   "find . -name '*.ts' -exec grep -l foo {} +",
   "find src -name '*.ts' | xargs -I{} cp {} /tmp/",
@@ -585,6 +594,22 @@ const denied: [string, Cause][] = [
   ["bun -e \"await Bun.write('test/x.test.ts', '')\"", "shell-write"],
   ["perl -e 'open F, \">src/a.ts\"'", "shell-write"],
   ["php -r 'file_put_contents(\"src/a.ts\", \"x\");'", "shell-write"],
+  // inline code that reaches a write or exec sink, whatever its path tokens look like
+  ["python3 -c 'from os import open as o,write as w,close as c;fd=o(\"LICENSE\",577,438);w(fd,b\"x\");c(fd)'", "shell-write"],
+  ["python3 -c 'import os; os.system(\"touch x\")'", "shell-write"],
+  ["python3 -c 'open(\"/tmp/x\", \"w\").write(\"y\")'", "shell-write"],
+  ["python3 -c 'o = open; o(\"x\")'", "shell-write"],
+  ["python3 -c 'getattr(__builtins__, \"op\" + \"en\")(\"x\", \"w\")'", "shell-write"],
+  ["python3 -c 'print(f\"{open(chr(120), chr(119))}\")'", "shell-write"],
+  ["node -e 'const f=require(\"f\"+\"s\");f[\"writeFile\"+\"Sync\"](\"x\",\"y\")'", "shell-write"],
+  ["node -e 'fs.writeFileSync(\"x\",\"y\")'", "shell-write"],
+  ["node -e 'process.binding(\"fs\")'", "shell-write"],
+  ["node -e 'console[\"constructor\"]'", "shell-write"],
+  ["ruby -e 'File.write(\"x\", \"y\")'", "shell-write"],
+  ["ruby -rfileutils -e 'FileUtils.touch(\"x\")'", "shell-write"],
+  ["perl -e 'open(my $f, \">\", \"x\")'", "shell-write"],
+  ["perl -MFile::Copy -e 'copy(\"a\", \"b\")'", "shell-write"],
+  ["php -r '$f=\"file_put_contents\";$f(\"x\",\"y\");'", "shell-write"],
   // spellings of the same write
   ["echo x>src/a.ts", "shell-write"],
   [">>src/a.ts echo x", "shell-write"],
@@ -992,6 +1017,36 @@ describe("allowed", () => {
 
 describe("denied", () => {
   for (const [command, cause] of denied) test(command, () => expect(guard(command, ROOT, ctx)).toBe(cause));
+});
+
+describe("git commands that move history or the worktree are writes of the files they change", () => {
+  const moves = ["git reset --hard", "git reset --hard HEAD~1", "git reset HEAD~1", "git checkout main", "git checkout -b fix origin/main",
+    "git checkout --detach v1", "git switch main", "git switch --detach abc123", "git switch -c fix origin/main", "git stash", "git stash -u",
+    "git stash pop", "git clean -fdx", "git clean -f", "git cherry-pick abc123", "git revert HEAD", "git read-tree abc123",
+    "git read-tree -u --reset abc123", "git checkout-index -a -f"];
+  const answering = (change: { worktree: string[]; index: string[] } | null) => {
+    const asked: string[][] = [];
+    return { asked, context: { ...ctx, gitChanges: (_cwd: string, args: string[]) => { asked.push(args); return change; } } };
+  };
+  for (const command of moves) {
+    test(command, () => {
+      // Without the repository to ask, the change is unknown.
+      expect(guard(command, ROOT, ctx)).toBe("shell-write");
+      expect(guard(command, ROOT, answering(null).context)).toBe("shell-write");
+      expect(guard(command, ROOT, answering({ worktree: [`${ROOT}/README.md`], index: [`${ROOT}/README.md`] }).context)).toBeNull();
+      expect(guard(command, ROOT, answering({ worktree: [`${ROOT}/src/a.ts`], index: [] }).context)).toBe("shell-write");
+      expect(guard(command, ROOT, answering({ worktree: [], index: [`${ROOT}/.pregate/preset.json`] }).context)).toBe("protected-path");
+      expect(guard(command, ROOT, answering({ worktree: [`${ROOT}/.pregate/pregate.lock.json`], index: [] }).context)).toBe("protected-path");
+    });
+  }
+  test("the repository is asked from the command's directory with the literal arguments", () => {
+    const { asked, context } = answering({ worktree: [], index: [] });
+    expect(guard("git -C sub checkout v1", ROOT, context)).toBeNull();
+    expect(asked).toEqual([["checkout", "v1"]]);
+    expect(guard('git checkout "$REV"', ROOT, context)).toBe("shell-write");
+    expect(guard("git --work-tree=/elsewhere checkout v1", ROOT, context)).toBe("shell-write");
+    expect(guard("git -c core.worktree=/elsewhere checkout v1", ROOT, context)).toBe("shell-write");
+  });
 });
 
 describe("without a valid lock everything under the root is in scope", () => {
