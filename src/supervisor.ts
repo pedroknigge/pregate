@@ -105,7 +105,9 @@ export async function supervise(data: string, version: string, args: string[], i
   });
   const consent = join(data, "consent");
   // SessionStart passes without consent: the engine's dormant notice is for users with no project yet.
-  if (kind !== "session-start" && (!existsSync(consent) || !readdirSync(consent).some((f) => f.endsWith(".json"))) && !active(raw, data)) return { exit: 0, stdout: "", stderr: "" };
+  // Stop does once a session reached a consented root, so it can warn when consent was removed.
+  const passes = kind === "session-start" || (kind === "stop" && existsSync(join(data, "reached")));
+  if (!passes && (!existsSync(consent) || !readdirSync(consent).some((f) => f.endsWith(".json"))) && !active(raw, data)) return { exit: 0, stdout: "", stderr: "" };
   const dir = mkdtempSync(join(tmpdir(), "pregate-supervisor-"));
   const watch = { end: (entry.startedAt ?? performance.now()) + (kind === "stop" ? 45_000 : kind === "session-start" ? 10_000 : 5_000), extension: join(dir, "approval") };
   return await engineEmission({ data, version, argv, input, raw, kind, harness, dir, watch, inputTimeout: entry.inputTimeout });

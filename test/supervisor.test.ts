@@ -1,9 +1,9 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { enable } from "../src/consent.ts";
+import { enable, markReached } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { supervise } from "../src/supervisor.ts";
 
@@ -41,6 +41,20 @@ test("actual resolution timeout does not blame a completed individual rule", asy
   expect(out.stdout + out.stderr).toContain("executing shared dependency resolution");
   expect(out.stdout + out.stderr).not.toContain("executing rule");
   expect(out.stdout + out.stderr).not.toContain("pack/COMPLETED-001");
+});
+
+test("without consent records, Stop reaches the engine only after a session reached a consented root", async () => {
+  const bare = join(area, "bare-data");
+  mkdirSync(join(bare, version), { recursive: true });
+  copyFileSync(process.execPath, join(bare, version, ENGINE_FILE));
+  const engine = join(area, "reached-engine.ts");
+  writeFileSync(engine, `process.stdout.write("engine reached");`);
+  const stop = JSON.stringify({ hook_event_name: "Stop", cwd: root, session_id: "removed" });
+  const inert = { exit: 0 as const, stdout: "", stderr: "" };
+  expect(await supervise(bare, version, [engine, "stop"], stop)).toEqual(inert);
+  markReached(bare);
+  expect(await supervise(bare, version, [engine, "stop"], stop)).toEqual({ exit: 0, stdout: "engine reached", stderr: "" });
+  expect(await supervise(bare, version, [engine, "pre"], raw)).toEqual(inert);
 });
 
 test("no arguments and no input print a hint instead of running the engine", async () => {
