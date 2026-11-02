@@ -76,7 +76,7 @@ function candidateProject(label: string) {
       assumptions: { domain: [], data: ["src/budget.txt contains the applicable numeric budget."], performance: ["This asserts a configuration budget, not a runtime latency measurement."] }, limits: "Only the declared budget; other resource limits are not established." },
   ] };
   const file = join(root, "pregate.fitness.json"); writeFileSync(file, JSON.stringify(manifest));
-  const env = { ...process.env, CI: "1", HOME: join(area, label + "-home"), XDG_DATA_HOME: join(area, label + "-data"), XDG_STATE_HOME: join(area, label + "-state") };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, label + "-home"), XDG_DATA_HOME: join(area, label + "-data"), XDG_STATE_HOME: join(area, label + "-state") };
   const run = (...args: string[]) => {
     const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
     if (child.error || child.signal) throw new Error(`${args}: ${child.error?.message ?? child.signal}`);
@@ -270,7 +270,7 @@ function verifierProject(kind: "source" | "compiled", label: string, code: strin
   const compiled = compile(JSON.stringify(preset), () => readTree("catalog", false), VERSIONS);
   if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
   writeFileSync(join(root, PRESET), JSON.stringify(preset)); writeFileSync(join(root, LOCK), compiled.text);
-  const env = { ...process.env, CI: "1", HOME: join(area, `${name}-home`), XDG_DATA_HOME: join(area, `${name}-data`), XDG_STATE_HOME: join(area, `${name}-state`) };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, `${name}-home`), XDG_DATA_HOME: join(area, `${name}-data`), XDG_STATE_HOME: join(area, `${name}-state`) };
   const worker = join(area, `fitness-${name}.ts`);
   // Source macros resolve from the repository before the public command enters the fixture.
   writeFileSync(worker, `import { fitness } from ${JSON.stringify(join(import.meta.dir, "../src/fitness-command.ts"))};
@@ -419,7 +419,7 @@ test("compiled fitness verification evaluates the actual project and invalidates
   const root = join(area, "project");
   mkdirSync(join(root, "src"), { recursive: true });
   mkdirSync(join(root, ".pregate"));
-  const env = { ...process.env, CI: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") };
   const run = (...args: string[]) => {
     const child = spawnSync(binary, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], timeout: 20000 });
     if (child.error || child.signal) throw new Error(`${args}: ${child.error?.message ?? child.signal}\n${child.stdout}\n${child.stderr}`);
@@ -500,7 +500,7 @@ test("compiled fitness verification evaluates the actual project and invalidates
 test("compiled onboarding keeps all 64 requirements active while verifiers are adopted one at a time", () => {
   const root = join(area, "progressive-project");
   mkdirSync(join(root, "src"), { recursive: true }); mkdirSync(join(root, "quality")); mkdirSync(join(root, ".pregate"));
-  const env = { ...process.env, CI: "1", HOME: join(area, "progressive-home"), XDG_DATA_HOME: join(area, "progressive-data"), XDG_STATE_HOME: join(area, "progressive-state") };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "progressive-home"), XDG_DATA_HOME: join(area, "progressive-data"), XDG_STATE_HOME: join(area, "progressive-state") };
   const run = (...args: string[]) => {
     const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
     expect(child.error).toBeUndefined(); expect(child.signal).toBeNull();
@@ -555,7 +555,7 @@ test("compiled onboarding keeps all 64 requirements active while verifiers are a
 test("timeouts, source mutation and contract mutation during a verifier cannot produce passing evidence", () => {
   const root = join(area, "unstable-project");
   mkdirSync(join(root, "src"), { recursive: true }); mkdirSync(join(root, ".pregate"));
-  const env = { ...process.env, CI: "1", HOME: join(area, "unstable-home"), XDG_DATA_HOME: join(area, "unstable-data"), XDG_STATE_HOME: join(area, "unstable-state") };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "unstable-home"), XDG_DATA_HOME: join(area, "unstable-data"), XDG_STATE_HOME: join(area, "unstable-state") };
   const run = (...args: string[]) => {
     const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
     expect(child.error).toBeUndefined(); expect(child.signal).toBeNull();

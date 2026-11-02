@@ -24,7 +24,7 @@ function releasedCapture<T>(capture: string, descriptors: number[], body: () => 
 function project(files: Record<string, string>) {
   const root = join(area, randomUUID());
   mkdirSync(root);
-  const env = { ...process.env, CI: "1", HOME: join(root, "home"), XDG_DATA_HOME: join(root, "data"),
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(root, "home"), XDG_DATA_HOME: join(root, "data"),
     XDG_STATE_HOME: join(root, "state"), CODEX_HOME: join(root, "codex"), GROK_HOME: join(root, "grok"),
     GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.com" };
   const put = (path: string, text: string) => {

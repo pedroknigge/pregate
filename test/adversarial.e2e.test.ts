@@ -42,7 +42,7 @@ let states = 0;
 
 function envOf(): Env {
   return {
-    CI: "1", PATH: [join(HOME, ".local/bin"), join(DATA, "pregate", "bin"), process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
+    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: [join(HOME, ".local/bin"), join(DATA, "pregate", "bin"), process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
     GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",

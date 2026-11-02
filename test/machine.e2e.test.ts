@@ -77,7 +77,7 @@ function machine(found: HarnessId[], fakes: Partial<Record<string, string>> = {}
     PATH: `${bin}:${home}/.local/bin`, SHELL: "/bin/zsh", LOG: join(root, "log"),
     // The fixture replaces the process environment. CI is the product's existing non-interactive
     // channel for --yes; this machine is not an agent in a consumer project.
-    CI: "1",
+    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
   };
   const m: Machine = {
     root, home, data: join(env.XDG_DATA_HOME, "pregate"), state: join(env.XDG_STATE_HOME, "pregate"), codex, env,
@@ -129,7 +129,7 @@ function ok(o: Out, what: string): Out {
 
 const pregate = (m: Machine, ...args: string[]): Out => run([BIN, ...args], m);
 // uninstall asks the human for y on the terminal; a CI job passes --yes instead.
-const human = (m: Machine, cmd: string[]): Out => run(cmd, { ...m, env: { ...m.env, CI: "1" } });
+const human = (m: Machine, cmd: string[]): Out => run(cmd, { ...m, env: { ...m.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" } });
 const uninstall = (m: Machine, ...args: string[]): Out => human(m, [BIN, "uninstall", "--yes", ...args]);
 const read = (path: string): string | null => (existsSync(path) ? readFileSync(path, "utf8") : null);
 const json = (path: string): Json => JSON.parse(read(path)!) as Json;

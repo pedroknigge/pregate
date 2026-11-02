@@ -19,10 +19,10 @@ afterAll(() => rmSync(area, { recursive: true, force: true }));
 function project() {
   const root = canonical(join(area, randomUUID()));
   mkdirSync(root);
-  const env = { ...process.env, CI: "1", HOME: join(root, "home"), XDG_DATA_HOME: join(root, "data"), XDG_STATE_HOME: join(root, "state"),
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(root, "home"), XDG_DATA_HOME: join(root, "data"), XDG_STATE_HOME: join(root, "state"),
     CODEX_HOME: join(root, "codex"), GROK_HOME: join(root, "grok") };
   const run = (args: string[], input?: object, ci = "1") => {
-    const out = Bun.spawnSync([binary, ...args], { cwd: root, env: { ...env, CI: ci },
+    const out = Bun.spawnSync([binary, ...args], { cwd: root, env: { ...env, CI: ci, PREGATE_UNATTENDED_APPROVAL: ci },
       stdin: input === undefined ? "ignore" : new Blob([JSON.stringify(input)]), stdout: "pipe", stderr: "pipe" });
     return { code: out.exitCode, text: out.stdout.toString(), error: out.stderr.toString() };
   };

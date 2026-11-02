@@ -44,7 +44,7 @@ function project(name: string, files: Record<string, string> = {}, git = false) 
   if (git) expect(Bun.spawnSync(["git", "init", "-q", root], { stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
   const machine = join(area, name + "-machine");
   const env = { ...process.env, HOME: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
-    CLAUDE_CONFIG_DIR: join(machine, "claude"), XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1",
+    CLAUDE_CONFIG_DIR: join(machine, "claude"), XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
     ...(process.platform === "win32" ? {} : { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" }) };
   const cli = (args: string[], cwd = root) => {
     const out = Bun.spawnSync([binary, ...args], { cwd, env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
@@ -452,7 +452,7 @@ else:
     os.kill(pid, signal.SIGKILL); _, status = os.waitpid(pid, 0)
 print(json.dumps({"code": os.waitstatus_to_exitcode(status), "responses": index, "text": text}))
 `;
-  const env: Record<string, string | undefined> = { ...p.env }; delete env.CI; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
+  const env: Record<string, string | undefined> = { ...p.env }; delete env.CI; delete env.PREGATE_UNATTENDED_APPROVAL; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
   const out = Bun.spawnSync([python!, "-c", script, JSON.stringify([binary, ...args]), JSON.stringify(responses), JSON.stringify(mutations)], { cwd: p.root, env, stdout: "pipe", stderr: "pipe", timeout: 40_000 });
   expect(out.exitCode, out.stderr.toString() + out.stdout.toString()).toBe(0);
   return JSON.parse(out.stdout.toString()) as { code: number; responses: number; text: string };

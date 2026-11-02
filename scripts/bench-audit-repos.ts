@@ -49,7 +49,7 @@ function measure(source: string, index: number) {
   const compiled = compile(JSON.stringify(preset), sourcesOf(root), VERSIONS);
   if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
   writeFileSync(join(root, ".pregate/pregate.lock.json"), compiled.text);
-  const env = { ...process.env, HOME: join(home, "home"), XDG_DATA_HOME: join(home, "data"), XDG_STATE_HOME: join(home, "state"), CI: "1" };
+  const env = { ...process.env, HOME: join(home, "home"), XDG_DATA_HOME: join(home, "data"), XDG_STATE_HOME: join(home, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const samples = [], labels = ["cold", "populate", "warm-1", "warm-2", "fresh"];
   let reference = "";
   for (const label of labels) {

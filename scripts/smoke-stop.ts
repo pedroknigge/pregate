@@ -10,7 +10,7 @@ import { canonical } from "../src/disk.ts";
 const area = realpathSync(mkdtempSync(join(tmpdir(), "pregate-stop-native-")));
 const root = canonical(join(area, "repo"));
 const binary = smokeBinary();
-const env = { ...process.env, CI: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"),
+const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"),
   XDG_STATE_HOME: join(area, "state"), CODEX_HOME: join(area, "codex"), GROK_HOME: join(area, "grok") };
 function run(args: string[], input?: object) {
   return runNative({ binary, args, cwd: root, env, stdin: input === undefined ? undefined : JSON.stringify(input) });

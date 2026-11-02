@@ -19,7 +19,7 @@ const output = args[3] ? resolve(args[3]) : join(tmpdir(), "pregate-windows-repo
 if (existsSync(output)) throw new Error("Report directory must be new: " + output);
 mkdirSync(output, { recursive: true });
 const home = mkdtempSync(join(tmpdir(), "pregate-windows-verification-"));
-const env: Record<string, string | undefined> = { ...process.env, CI: "1", CLAUDE_CONFIG_DIR: join(home, "home/.claude") };
+const env: Record<string, string | undefined> = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", CLAUDE_CONFIG_DIR: join(home, "home/.claude") };
 for (const [key, folder] of Object.entries({ HOME: "home", USERPROFILE: "home", LOCALAPPDATA: "data", APPDATA: "config", XDG_DATA_HOME: "data", XDG_STATE_HOME: "state", XDG_CONFIG_HOME: "config", TMPDIR: "tmp", TMP: "tmp", TEMP: "tmp", CODEX_HOME: "codex", GROK_HOME: "grok" })) {
   const path = join(home, folder); mkdirSync(path, { recursive: true }); env[key] = path;
 }

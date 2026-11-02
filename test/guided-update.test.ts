@@ -35,7 +35,7 @@ function fixture(engine = binary) {
   mkdirSync(project, { recursive: true }); mkdirSync(tools);
   const env = { ...process.env, HOME: join(directory, "home"), CODEX_HOME: join(directory, "codex"), GROK_HOME: join(directory, "grok"),
     CLAUDE_CONFIG_DIR: join(directory, "claude"), XDG_DATA_HOME: join(directory, "data"), XDG_STATE_HOME: join(directory, "state"),
-    PATH: `${tools}:/usr/bin:/bin`, CI: "1", LOG: join(directory, "gh.log") };
+    PATH: `${tools}:/usr/bin:/bin`, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", LOG: join(directory, "gh.log") };
   const run = (command: string[], cwd = project) => {
     const out = Bun.spawnSync(command, { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
     return { code: out.exitCode, text: out.stdout.toString() + out.stderr.toString() };

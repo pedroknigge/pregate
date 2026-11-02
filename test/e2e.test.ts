@@ -80,7 +80,7 @@ const MONEY_TEST_WEAKER = MONEY_TEST.replace('  expect(Money.zero("USD").cents).
 let states = 0;
 function envOf(): Env {
   return {
-    CI: "1", PATH: `${HOME}/.local/bin:/usr/bin:/bin`, HOME, TMPDIR: join(TMP, "tmp"),
+    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: `${HOME}/.local/bin:/usr/bin:/bin`, HOME, TMPDIR: join(TMP, "tmp"),
     CODEX_HOME: join(HOME, ".codex"), GROK_HOME: join(HOME, ".grok"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
@@ -588,7 +588,7 @@ test("D29: pending contracts expire and reject a changed baseline", () => {
 test("D29: enforced native Claude permission activates only the exact tool result", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const content = JSON.stringify({ ...JSON.parse(read(r, ".pregate/preset.json")), enforcement: "shadow" });
-  const agent = claude(r, { env: { CI: "", PREGATE_TESTING: "", PREGATE_TEST_ANSWER: "" } });
+  const agent = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "", PREGATE_TESTING: "", PREGATE_TEST_ANSWER: "" } });
   const asked = agent.write(".pregate/preset.json", content);
   expect(asked.code).toBe(0);
   expect(json(asked).hookSpecificOutput.permissionDecision).toBe("ask");
@@ -612,7 +612,7 @@ test("compiled issue reporting offers an offline review and sends only the appro
   expect(draft.stdout).toContain(`Engine: ${pkg.version}`);
   expect(cli(r, "issue", "submit", id).code).toBe(1);
   expect(a.bash(`pregate issue submit ${id} --yes`).code).toBe(2);
-  const native = claude(r, { env: { CI: "" } }).bash(`pregate issue submit ${id} --yes`);
+  const native = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "" } }).bash(`pregate issue submit ${id} --yes`);
   expect(json(native).hookSpecificOutput.permissionDecision).toBe("ask");
   expect(json(native).hookSpecificOutput.additionalContext).toContain("This finding needs investigation.");
   const stub = at(r, "gh-stub");
@@ -1231,7 +1231,7 @@ test("hook pre denies interpreter, script, Makefile and harness-settings bypasse
   const shadow = JSON.stringify({ ...JSON.parse(read(r, ".pregate/preset.json")), enforcement: "shadow" });
   expect(a.write(".pregate/preset.json", shadow).code).toBe(2);
   for (const args of [["approve", "--preview"], ["guide", "--preview"], ["status", "--json"]]) {
-    const hidden = run(["pregate", ...args], r.dir, { ...r.env, CI: "" });
+    const hidden = run(["pregate", ...args], r.dir, { ...r.env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" });
     expect(hidden.code, args.join(" ")).toBe(0);
     expect(hidden.stdout, args.join(" ")).not.toMatch(/Digest: [0-9a-f]{64}/);
     expect(hidden.stdout, args.join(" ")).not.toMatch(/pregate approve [0-9a-f]{12,64}/);
@@ -1240,7 +1240,7 @@ test("hook pre denies interpreter, script, Makefile and harness-settings bypasse
   const shown = revealed(r, "approve", "--preview");
   expect(shown.stdout).toMatch(/Digest: [0-9a-f]{64}/);
   expect(shown.stdout).toMatch(/pregate approve [0-9a-f]{12}/);
-  expect(run(["pregate", "approve", "--preview"], r.dir, { ...r.env, CI: "" }).stdout).toContain("withheld");
+  expect(run(["pregate", "approve", "--preview"], r.dir, { ...r.env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }).stdout).toContain("withheld");
 });
 
 test("a recomputed digest cannot approve without a terminal, and a human TTY confirmation can", () => {
@@ -1255,7 +1255,7 @@ test("a recomputed digest cannot approve without a terminal, and a human TTY con
   });
   if (file === undefined) throw new Error("pending proposal was not written");
   const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
-  const agent = { ...r.env, CI: "", PREGATE_TESTING: "" };
+  const agent = { ...r.env, CI: "", PREGATE_UNATTENDED_APPROVAL: "", PREGATE_TESTING: "" };
   for (const args of [["approve", "--yes", "--digest", digest], ["approve", digest]]) {
     const piped = run(["pregate", ...args], r.dir, agent, "y\n");
     expect(piped.code, args.join(" ")).toBe(1);

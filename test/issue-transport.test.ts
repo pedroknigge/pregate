@@ -95,7 +95,7 @@ function project(kind: "source" | "compiled", scenario: string) {
   writeFileSync(join(root, PRESET), preset);
   writeFileSync(join(root, LOCK), contract.text);
   const env = { ...process.env, PATH: bin, HOME: join(local, "home"), USERPROFILE: join(local, "home"),
-    XDG_DATA_HOME: join(local, "data"), XDG_STATE_HOME: join(local, "state"), CI: "1",
+    XDG_DATA_HOME: join(local, "data"), XDG_STATE_HOME: join(local, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
     PREGATE_GH_CASE: scenario, PREGATE_GH_CALLS: join(local, "calls"), PREGATE_GH_PID: join(local, "pid"),
     PREGATE_GH_BODY: join(local, "published-body") };
   underStateHome(env.XDG_STATE_HOME, process.env.XDG_STATE_HOME, () => {

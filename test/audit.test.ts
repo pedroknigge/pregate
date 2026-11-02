@@ -63,7 +63,7 @@ test("whole-tree audit includes committed debt, shadow and warnings, every locat
     expect(human.text).not.toContain("+5 more"); expect(human.text).toContain("Existing debt is included");
 
     const binary = join(area, ENGINE_FILE); compileBinary(hostTarget(), binary);
-    const run = (...args: string[]) => Bun.spawnSync([binary, ...args], { cwd: root, env: { ...process.env, CI: "1", HOME: join(area, "home"),
+    const run = (...args: string[]) => Bun.spawnSync([binary, ...args], { cwd: root, env: { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "home"),
       XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") }, stdout: "pipe", stderr: "pipe", timeout: 10000 });
     expect(run("audit", "--json").exitCode).toBe(2);
     expect(run("check", "--ratchet", "--base", "HEAD").exitCode).toBe(0);

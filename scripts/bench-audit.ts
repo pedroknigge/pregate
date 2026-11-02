@@ -28,7 +28,7 @@ try {
   }
   const binary = join(base, ENGINE_FILE); compileBinary(hostTarget(), binary);
   const elapsed: number[] = [], wall: number[] = [], maxRSS: number[] = [];
-  const env = { ...process.env, HOME: join(base, "home"), XDG_DATA_HOME: join(base, "data"), XDG_STATE_HOME: join(base, "state"), CI: "1" };
+  const env = { ...process.env, HOME: join(base, "home"), XDG_DATA_HOME: join(base, "data"), XDG_STATE_HOME: join(base, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   let reference = "";
   for (let i = 0; i < 5; i++) {
     const start = performance.now();

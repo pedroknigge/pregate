@@ -58,7 +58,7 @@ test("local Git packs pin commit and content, never auto-update, reject corrupti
     mkdirSync(root);
     Bun.spawnSync(["git", "init", "-q", root]);
     const env = { ...process.env, HOME: join(area, "home"), CODEX_HOME: join(area, "codex"), GROK_HOME: join(area, "grok"), TMPDIR: area,
-      XDG_STATE_HOME: join(area, "state"), CI: "1" };
+      XDG_STATE_HOME: join(area, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
     const cli = (...args: string[]) => {
       const child = spawnSync(binary, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
       const stdout = child.stdout.toString(), stderr = child.stderr.toString();

@@ -17,14 +17,21 @@ export { PENDING_MS, proposeContract, readProposal, discardProposal, type Propos
 declare const PREGATE_TEST_BUILD: boolean;
 const TEST_BUILD = typeof PREGATE_TEST_BUILD !== "undefined" && PREGATE_TEST_BUILD;
 
+// A machine with nobody at the keyboard (a CI job, this repository's tests) opts in to approval
+// without a terminal with PREGATE_UNATTENDED_APPROVAL=1 in its own environment. `CI` is not that
+// opt-in: tools and harness sessions set it. The shell guard denies a command that assigns any
+// PREGATE_ variable and the control scan flags a script that does; a job that also runs an agent
+// must not set it.
+export function unattendedApproval(): boolean {
+  return process.env.PREGATE_UNATTENDED_APPROVAL === "1";
+}
+
 // The approval code is a secret the human types. An agent tool captures stdout, so it is not a
 // terminal. `PREGATE_TESTING=1` is the test hook; the shell guard rejects an agent setting it.
 export function approvalCodeVisible(): boolean {
   if (process.stdout.isTTY) return true;
   if (process.env.PREGATE_TESTING === "1") return true;
-  // CI jobs and this repo's tests export CI. An agent shell that assigns CI in the
-  // command is denied; a process that already has CI set still sees the code.
-  return Boolean(process.env.CI);
+  return unattendedApproval();
 }
 
 // Keep the review text. Remove only the code an approval command would accept.
@@ -44,7 +51,7 @@ export function withholdApprovalCode(text: string): string {
 export function humanApprovalInstructions(command: string): string[] {
   return [`After reviewing, the human runs in a terminal: ${command}`,
     "Inside Claude Code, Codex, Grok or agy, the ! prefix works only when that harness gives the command an interactive stdin; Cursor needs a separate terminal. The command then asks for y on the terminal.",
-    "The agent must not run the approval command. --yes skips the question only when CI is already set in the environment."];
+    "The agent must not run the approval command. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in the environment (an unattended CI job)."];
 }
 
 // The launcher arms a separate deadline before validating a contract proposal.
@@ -63,7 +70,7 @@ function testAnswer(): string | undefined {
 
 function tty(): number | null {
   // CONIN$ can exist in a CI console whose blocking read never reaches the abort timer.
-  if (process.env.CI || (WINDOWS && !terminalIo().isatty(0))) return null;
+  if (process.env.CI || unattendedApproval() || (WINDOWS && !terminalIo().isatty(0))) return null;
   return openTerminal();
 }
 
@@ -86,10 +93,10 @@ export function hasTerminal(): boolean {
   return true;
 }
 
-// Why a caller was not allowed to apply. CI and the test hook are the only non-terminal
-// exceptions; an agent tool pipes stdin and cannot type on /dev/tty.
+// Why a caller was not allowed to apply. The unattended opt-in and the test hook are the only
+// non-terminal exceptions; an agent tool pipes stdin and cannot type on /dev/tty.
 export function approvalRefusal(): string {
-  if (!process.env.CI && testAnswer() === undefined && !process.stdin.isTTY) {
+  if (!unattendedApproval() && testAnswer() === undefined && !process.stdin.isTTY) {
     return "Human approval requires an interactive stdin and a confirmation typed on the terminal (/dev/tty or CONIN$). An agent tool call cannot supply that. Nothing applied.";
   }
   return "Human approval unavailable or rejected; nothing applied.";
@@ -97,14 +104,14 @@ export function approvalRefusal(): string {
 
 export async function approve(summary: string, warning: boolean, yes = false): Promise<boolean> {
   const answer = testAnswer();
-  // CI jobs pass --yes without a person at the keyboard. A digest alone is not that channel.
-  const prompting = answer !== undefined ? !yes : !(process.env.CI && yes);
+  // Unattended jobs pass --yes without a person at the keyboard. A digest alone is not that channel.
+  const prompting = answer !== undefined ? !yes : !(unattendedApproval() && yes);
   const text = Buffer.from(approvalText(summary, warning, prompting), "utf8");
   if (answer !== undefined) {
     writeAll(1, text);
     return /^(y|yes)$/i.test(answer.trim());
   }
-  if (process.env.CI && yes) {
+  if (unattendedApproval() && yes) {
     writeAll(1, text);
     return true;
   }

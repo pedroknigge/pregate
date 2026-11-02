@@ -115,7 +115,7 @@ test("production JSONL arrives before process exit; interruption has no end and 
   const debt = Array.from({ length: 64 }, (_, i) => `export function debt${i}(a: number, b: number, c: number) { return a + b + c; }`).join("\n");
   for (let i = 0; i < 120; i++) put(`src/domain/stream${String(i).padStart(3, "0")}.ts`, debt);
   const child = Bun.spawn([binary, "audit", "--repo", root, "--jsonl", "--incremental"],
-    { cwd: root, env: { ...process.env, CI: "1" }, stdout: "pipe", stderr: "pipe" });
+    { cwd: root, env: { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdout: "pipe", stderr: "pipe" });
   const reader = child.stdout.getReader(), decoder = new TextDecoder();
   let pending = "", files = 0;
   const records: Record<string, any>[] = [];
@@ -193,7 +193,7 @@ test("warm audits reevaluate newly admitted and expired project fitness evidence
   put(PRESET, JSON.stringify(preset)); refreshContract();
   const initial = await report("--incremental");
   expect(initial.data.fitness[0].status).toBe("unverified");
-  const executed = Bun.spawnSync([binary, "fitness", "run", "--all"], { cwd: root, env: { ...process.env, CI: "1" }, stdout: "pipe", stderr: "pipe", timeout: 10000 });
+  const executed = Bun.spawnSync([binary, "fitness", "run", "--all"], { cwd: root, env: { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdout: "pipe", stderr: "pipe", timeout: 10000 });
   expect(executed.exitCode).toBe(0);
   const admitted = await report("--incremental");
   expect(admitted.data.incremental).toMatchObject({ reusedFiles: 4, evaluatedFiles: 0 });
@@ -334,7 +334,7 @@ test("oversized entries and persisted files stay within cache byte budgets", () 
 test("an actual killed compiled audit resumes completed checkpoints and matches a cold run", async () => {
   for (let i = 0; i < 160; i++) put(`src/domain/batch${i}.ts`, Array.from({ length: 80 }, (_, n) => `export const value${n} = ${n};`).join("\n"));
   const file = join(process.env.XDG_STATE_HOME!, "pregate/audits", sha256(canonical(root)) + ".json");
-  const env = { ...process.env, CI: "1" };
+  const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const child = Bun.spawn([binary, "audit", "--incremental", "--json"], { cwd: root, env, stdout: "ignore", stderr: "pipe" });
   const started = Date.now();
   while (!existsSync(file) && Date.now() - started < 10000) await Bun.sleep(5);

@@ -369,7 +369,7 @@ finally:
   }
   rmSync(join(i.data, "consent"), { recursive: true });
   rmSync(`${i.engine(VERSION)}.args`);
-  neutral(run([python, "-c", script, SHELLS[0]!, i.launcher], "", { CI: "1" }));
+  neutral(run([python, "-c", script, SHELLS[0]!, i.launcher], "", { CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }));
   expect(existsSync(`${i.engine(VERSION)}.args`)).toBe(false);
 });
 

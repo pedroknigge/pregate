@@ -14,7 +14,7 @@ const bytes=readFileSync(join(resolve(source),"dist/index.mjs"));
 strictEqual(createHash("sha256").update(bytes).digest("hex"),PIN.files["dist/index.mjs"]);
 const area=mkdtempSync(join(tmpdir(),"pregate-system-bus-fitness-"));
 const root=join(area,"repo"),binary=smokeBinary();
-const env={...process.env,HOME:join(area,"home"),XDG_DATA_HOME:join(area,"data"),XDG_STATE_HOME:join(area,"state"),CI:"1"};
+const env={...process.env,HOME:join(area,"home"),XDG_DATA_HOME:join(area,"data"),XDG_STATE_HOME:join(area,"state"),CI:"1",PREGATE_UNATTENDED_APPROVAL:"1"};
 const fixture=join(import.meta.dir,"../docs/examples/dcouplr-system-bus");
 const command=(args:string[])=>runNative({binary,args,cwd:root,env});
 try {

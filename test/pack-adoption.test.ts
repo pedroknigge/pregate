@@ -30,7 +30,7 @@ function project(name: string) {
   const machine = join(area, name + "-machine");
   mkdirSync(machine, { recursive: true });
   const env = { ...process.env, HOME: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
-    XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1" };
+    XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const cli = (args: string[], extra = {}) => {
     // A pipe can deliver a short read of a large audit report. Capture the bytes in files.
     const out = join(machine, "stdout"), err = join(machine, "stderr");

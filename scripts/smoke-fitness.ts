@@ -8,7 +8,7 @@ import { hostTarget } from "./build.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-fitness-native-"));
 const root = join(area, "repo"), binary = smokeBinary();
-const env = { ...process.env, CI: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") };
+const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") };
 function run(args: string[]) { return runNative({ binary, args, cwd: root, env }); }
 function assert(value: boolean, message: string) { if (!value) throw new Error(message); }
 const domain = 'exports.ship = (lines) => { if (lines.length === 0) throw new Error("An order needs lines"); return { state: "shipped", lines: [...lines] }; };\n';

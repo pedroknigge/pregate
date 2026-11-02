@@ -33,7 +33,7 @@ function project(name: string) {
   }
   const machine = join(area, `${name}-machine`);
   const env = { ...process.env, HOME: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
-    XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1" };
+    XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const cli = (...args: string[]) => {
     const result = Bun.spawnSync([binary, ...args], { cwd: root, env, stdout: "pipe", stderr: "pipe", timeout: 20_000 });
     return { code: result.exitCode, text: result.stdout.toString() + result.stderr.toString() };

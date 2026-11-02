@@ -24,7 +24,7 @@ const installer = WINDOWS ? "install.ps1" : "install.sh";
 verified(installer);
 const area = mkdtempSync(join(tmpdir(), "pregate-candidate-native-"));
 // PREGATE_NO_MODIFY_PATH: the Windows installer must not write the tester's user PATH.
-const env: Record<string, string | undefined> = { ...process.env, CI: "1", PREGATE_ARCHIVE: archive, PREGATE_SHA256: digest, PREGATE_NO_MODIFY_PATH: "1", CLAUDE_CONFIG_DIR: join(area, "home/.claude") };
+const env: Record<string, string | undefined> = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PREGATE_ARCHIVE: archive, PREGATE_SHA256: digest, PREGATE_NO_MODIFY_PATH: "1", CLAUDE_CONFIG_DIR: join(area, "home/.claude") };
 for (const [name, folder] of Object.entries({ HOME: "home", USERPROFILE: "home", LOCALAPPDATA: "data", APPDATA: "config", XDG_DATA_HOME: "data", XDG_STATE_HOME: "state", XDG_CONFIG_HOME: "config", TMPDIR: "tmp", TMP: "tmp", TEMP: "tmp", CODEX_HOME: "codex", GROK_HOME: "grok" })) {
   const path = join(area, folder); mkdirSync(path, { recursive: true }); env[name] = path;
 }

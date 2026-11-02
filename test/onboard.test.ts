@@ -193,7 +193,7 @@ test("init refuses piped approval and broken Git without writing a contract", ()
   writeFileSync(join(root, "a.ts"), "export const a = 1;\n");
   expect(Bun.spawnSync(["git", "init", "-q", root]).exitCode).toBe(0);
   const env = { ...process.env, HOME: join(dir, "home"), XDG_DATA_HOME: join(dir, "data"), XDG_STATE_HOME: join(dir, "state"),
-    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1" };
+    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const args = [binary, "init", "--yes", "--preset", "legacy-safe"];
   expect(Bun.spawnSync(args, { cwd: root, env: { ...env, GIT_CONFIG_COUNT: "invalid" }, stdout: "pipe", stderr: "pipe" }).exitCode).toBe(1);
   expect(existsSync(join(root, ".pregate/preset.json"))).toBe(false);
@@ -386,7 +386,7 @@ test("init, enable and status succeed in a plain directory without git", () => i
   mkdirSync(root);
   writeFileSync(join(root, "index.ts"), "export const hello = 'world';\n");
   const env = { ...process.env, HOME: join(dir, "home"), XDG_DATA_HOME: join(dir, "data"), XDG_STATE_HOME: join(dir, "state"),
-    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1" };
+    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const cli = (...command: string[]) => Bun.spawnSync([binary, ...command], { cwd: root, env, stdout: "pipe", stderr: "pipe" });
   const initRes = cli("init", "--yes", "--preset", "legacy-safe");
   expect(initRes.exitCode).toBe(0);
@@ -401,7 +401,7 @@ function previewProject() {
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(join(root, "src/a.ts"), "export const a = 1;\n");
   const env = { ...process.env, HOME: join(dir, "home"), XDG_DATA_HOME: join(dir, "data"), XDG_STATE_HOME: join(dir, "state"),
-    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1",
+    TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
     PATH: process.platform === "win32" ? process.env.PATH : "/usr/bin:/bin", CLAUDE_CONFIG_DIR: "" };
   const cli = (cwd: string, ...command: string[]) => Bun.spawnSync([binary, ...command], { cwd, env, stdout: "pipe", stderr: "pipe" });
   return { dir, root, cli, env };

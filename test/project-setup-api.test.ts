@@ -28,7 +28,7 @@ async function project(run: (root: string, area: string) => Promise<void>) {
   const root = canonical(join(area, "project with spaces"));
   mkdirSync(root);
   const values = { HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
-    CODEX_HOME: join(area, "codex"), GROK_HOME: join(area, "grok"), CI: "1" };
+    CODEX_HOME: join(area, "codex"), GROK_HOME: join(area, "grok"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" };
   const before = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
   Object.assign(process.env, values);
   await withCleanupAsync(() => run(root, area), () => {

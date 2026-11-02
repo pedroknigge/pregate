@@ -21,10 +21,10 @@ test.skipIf(process.platform === "win32")("a release binary enables only after y
     compileBinary(hostTarget(), binary, false);
     const env: Record<string, string | undefined> = {
       ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
-      TMPDIR: area, CI: "1", PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y",
+      TMPDIR: area, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y",
     };
     const status = () => Bun.spawnSync([binary, "status"], { cwd: root, env, stdout: "pipe", stderr: "pipe" }).stdout.toString();
-    const piped = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe" });
+    const piped = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe" });
     expect(piped.exitCode).toBe(1);
     expect(piped.stdout.toString()).toContain("interactive stdin");
     expect(status()).toContain("is inactive");
@@ -59,7 +59,7 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
     const data = join(area, "data");
     const env: Record<string, string | undefined> = {
       ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: data, XDG_STATE_HOME: join(area, "state"),
-      TMPDIR: area, CI: "1",
+      TMPDIR: area, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
     };
     delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
     const preview = Bun.spawnSync([binary, "init", "--preview", "--preset", "legacy-safe"], {
@@ -69,7 +69,7 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
     const digest = /Digest: ([a-f0-9]{64})/.exec(preview.stdout.toString())?.[1];
     expect(digest, preview.stdout.toString()).toMatch(/^[a-f0-9]{64}$/);
     const piped = Bun.spawnSync([binary, "approve", "--yes", "--digest", digest!], {
-      cwd: root, env: { ...env, CI: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
+      cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
     });
     expect(piped.exitCode).toBe(1);
     expect(piped.stdout.toString()).toContain("interactive stdin");

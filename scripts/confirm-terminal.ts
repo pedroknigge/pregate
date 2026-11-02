@@ -2,14 +2,14 @@ import { spawnSync } from "node:child_process";
 
 // Drive a human-only pregate command the way a person at the keyboard does: stdin is a
 // pseudo-terminal, and this process types the answer on that terminal's /dev/tty.
-// `CI`, `PREGATE_TESTING` and `PREGATE_TEST_ANSWER` are removed first, so `--yes` and
+// `CI`, `PREGATE_UNATTENDED_APPROVAL`, `PREGATE_TESTING` and `PREGATE_TEST_ANSWER` are removed first, so `--yes` and
 // `approve <code>` cannot take the product's non-interactive shortcuts. This is not a
 // product flag and it is not available to an agent running the installed CLI.
 const PYTHON = `
 import os, pty, select, sys, time
 answer = os.environ.pop("PREGATE_PTY_ANSWER").encode() + b"\\n"
 cwd = os.environ.pop("PREGATE_PTY_CWD")
-for key in ("CI", "PREGATE_TESTING", "PREGATE_TEST_ANSWER"):
+for key in ("CI", "PREGATE_UNATTENDED_APPROVAL", "PREGATE_TESTING", "PREGATE_TEST_ANSWER"):
     os.environ.pop(key, None)
 cmd = sys.argv[1:]
 pid, fd = pty.fork()
@@ -81,7 +81,7 @@ export function confirmOnTerminal(cmd: string[], cwd: string, env: Record<string
   if (python === null) throw new Error("python3 is required to type a human confirmation on a pseudo-terminal.");
   const child: Record<string, string> = {};
   for (const [key, value] of Object.entries(env)) {
-    if (value === undefined || key === "CI" || key === "PREGATE_TESTING" || key === "PREGATE_TEST_ANSWER") continue;
+    if (value === undefined || key === "CI" || key === "PREGATE_UNATTENDED_APPROVAL" || key === "PREGATE_TESTING" || key === "PREGATE_TEST_ANSWER") continue;
     child[key] = value;
   }
   child.PREGATE_PTY_ANSWER = answer;

@@ -22,7 +22,7 @@ function put(rel: string, text: string) {
 function json(rel: string, value: unknown) { put(rel, JSON.stringify(value, null, 2) + "\n"); }
 function run(args: string[], stdin?: string, cwd = root) {
   return runNative({ binary, args, cwd, stdin,
-    env: { ...process.env, CI: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") } });
+    env: { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state") } });
 }
 function assert(condition: boolean, message: string) { if (!condition) throw new Error(message); }
 
@@ -45,7 +45,7 @@ async function acceptStarter(binary: string, starter: string, digest: string): P
   const env: Record<string, string | undefined> = {
     ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
   };
-  delete env.CI; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
+  delete env.CI; delete env.PREGATE_UNATTENDED_APPROVAL; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
   const confirmed = confirmOnTerminal([binary, "approve", digest], starter, env);
   return { exitCode: confirmed.code, stdout: confirmed.stdout, stderr: confirmed.stderr };
 }

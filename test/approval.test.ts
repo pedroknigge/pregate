@@ -30,8 +30,8 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
       const result = Bun.spawnSync([binary, ...args], { cwd: root, env: { ...env, PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: answer }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
       return { code: result.exitCode, text: result.stdout.toString() };
     };
-    expect(Bun.spawnSync([binary, "enable"], { cwd: root, env: { ...env, CI: "1" }, stdin: Buffer.from("y\n"), timeout: 5_000 }).exitCode).toBe(1);
-    expect(Bun.spawnSync([binary, "enable"], { cwd: root, env: { ...env, CI: "1" }, stdin: "inherit", timeout: 5_000 }).exitCode).toBe(1);
+    expect(Bun.spawnSync([binary, "enable"], { cwd: root, env: { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdin: Buffer.from("y\n"), timeout: 5_000 }).exitCode).toBe(1);
+    expect(Bun.spawnSync([binary, "enable"], { cwd: root, env: { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdin: "inherit", timeout: 5_000 }).exitCode).toBe(1);
     const no = tty("", "enable");
     expect(no.code).toBe(1);
     expect(no.text).toContain(`Enable protection for worktree ${root}.\n\nApprove? [y/N] `);
@@ -44,7 +44,7 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
     expect(status()).toContain("is active");
     expect(tty("y", "disable").code).toBe(0);
     expect(status()).toContain("is inactive");
-    const automated = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "1" }, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 5_000 });
+    const automated = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 5_000 });
     expect(automated.exitCode).toBe(0);
     expect(automated.stdout.toString()).toContain(`Enable protection for worktree ${root}.`);
     expect(automated.stdout.toString()).not.toContain("Approve? [y/N]");

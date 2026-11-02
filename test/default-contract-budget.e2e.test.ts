@@ -64,7 +64,7 @@ const data = join(root, "data");
 const binary = join(root, ENGINE_FILE);
 const env = {
   ...process.env,
-  CI: "1",
+  CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
   HOME: home,
   TMPDIR: join(root, "tmp"),
   XDG_DATA_HOME: data,

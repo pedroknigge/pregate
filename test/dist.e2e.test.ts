@@ -384,7 +384,7 @@ describe("the built release", () => {
     expect(Bun.spawnSync(["git", "init", "-q", m.dir]).exitCode).toBe(0);
     const binary = join(DIST, `pregate-${pkg.version}-${target}`, "pregate");
     const result = Bun.spawnSync([binary, "init"], { cwd: m.dir,
-      env: { ...m.env, PATH: "/usr/bin:/bin", CI: "1", PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y" }, stdout: "pipe", stderr: "pipe" });
+      env: { ...m.env, PATH: "/usr/bin:/bin", CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y" }, stdout: "pipe", stderr: "pipe" });
     expect(result.exitCode).toBe(1);
     expect(result.stdout.toString()).toContain("Human approval unavailable");
     expect(existsSync(join(m.dir, ".pregate/preset.json"))).toBe(false);
