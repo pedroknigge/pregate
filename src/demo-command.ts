@@ -71,7 +71,7 @@ function demoEnvironment(machine: string, git: string): Record<string, string> {
   return { ...system, PATH: [dirname(git), ...(process.platform === "win32" ? [join(system.SystemRoot!, "System32"), join(system.SystemRoot!, "System32/WindowsPowerShell/v1.0")] : ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])].join(process.platform === "win32" ? ";" : ":"),
     HOME: home, USERPROFILE: home, LOCALAPPDATA: join(machine, "local"), XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"),
     CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"), CLAUDE_CONFIG_DIR: join(machine, "claude"),
-    TMPDIR: machine, TMP: machine, TEMP: machine,
+    TMPDIR: machine, TMP: machine, TEMP: machine, CGO_ENABLED: "0",
     // Owned samples only. This lets the throwaway directory print its digest and apply
     // `approve --yes`. It is not a switch a script may set to consent a consumer project.
     CI: "1", LANG: "C.UTF-8", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(machine, "gitconfig"),

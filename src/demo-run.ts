@@ -12,9 +12,9 @@ export interface DemoContext {
   receipts: DemoReceipt[]; git: string; native: { python: string | null; go: string | null; rust: string | null };
 }
 
-export function demoProcess(c: DemoContext, phase: string, executable: string, args: string[], input?: string) {
+export function demoProcess(c: DemoContext, phase: string, executable: string, args: string[], input?: string, timeout = 30_000) {
   const out = Bun.spawnSync([executable, ...args], { cwd: c.root, env: c.env, stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
-    stdout: "pipe", stderr: "pipe", timeout: 30_000 });
+    stdout: "pipe", stderr: "pipe", timeout });
   const stdout = out.stdout.toString(), stderr = out.stderr.toString();
   c.receipts.push({ phase, args: args.map(arg => arg.replaceAll(c.area, "<owned-demo>")), code: out.exitCode, stdoutHash: sha256(stdout), stderrHash: sha256(stderr) });
   return { code: out.exitCode, stdout, stderr };
@@ -142,7 +142,9 @@ function demoNative(c: DemoContext, sample: DemoSample, phase: string) {
   let args = sample.language === "python" ? ["-B", "-m", "unittest", "discover", "-s", "tests"] : ["test", "./..."];
   c.env.PREGATE_DEMO_EXPECTED_TOTAL = phase === "baseline" ? "10" : "11";
   if (sample.language === "rust") args = ["--edition=2021", "--test", "src/lib.rs", ...(phase !== "baseline" ? ["--cfg", "demo_repair"] : []), "-o", join(c.area, "rust-tests")];
-  const run = demoProcess(c, `native-${phase}-tests`, tool, args);
+  // A cold GOCACHE compiles the standard library before go test prints anything. On a Windows
+  // runner that exceeds the 30s hang limit used for pregate and git commands.
+  const run = demoProcess(c, `native-${phase}-tests`, tool, args, undefined, sample.language === "go" ? 90_000 : 30_000);
   demoAssert(version.code === 0 && run.code === 0, `The own ${sample.language} sample failed native verification.`);
   if (sample.language === "rust") demoAssert(demoProcess(c, `native-${phase}-test-executable`, join(c.area, "rust-tests"), []).code === 0, "Owned Rust tests failed.");
   return { status: "passed", version: version.stdout.trim(), command: args.map(arg => arg.startsWith(c.area) ? "<owned-output>" : arg) };

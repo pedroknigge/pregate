@@ -6,7 +6,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { sha256 } from "../src/state.ts";
 
-setDefaultTimeout(90_000);
+setDefaultTimeout(180_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-demo-controls-"));
 const binary = process.env.PREGATE_DEMO_BINARY ?? join(area, process.platform === "win32" ? "pregate.exe" : "pregate");
 beforeAll(() => {
@@ -17,7 +17,7 @@ beforeAll(() => {
 afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
 
 function cli(args: string[], env: Record<string, string | undefined> = {}) {
-  const out = Bun.spawnSync([binary, "demo", ...args], { cwd: area, env: { ...process.env, ...env }, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 75_000 });
+  const out = Bun.spawnSync([binary, "demo", ...args], { cwd: area, env: { ...process.env, ...env }, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 150_000 });
   return { code: out.exitCode, text: out.stdout.toString(), stderr: out.stderr.toString() };
 }
 
