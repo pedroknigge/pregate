@@ -5,7 +5,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ASSETS } from "./assets.ts";
-import { canonical } from "./disk.ts";
+import { canonical, renameReleased } from "./disk.ts";
 import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, status } from "./consent.ts";
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./inertia.ts";
@@ -22,7 +22,6 @@ import { stateDir } from "./state.ts";
 import { installSkill, removeSkill, skillProblems } from "./skill.ts";
 import type { HarnessId } from "./types.ts";
 import { downloadRelease, latestRelease } from "./release-download.ts";
-import { renameReleased } from "./rename-released.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
 // writes nothing; whatever cannot be done safely is left untouched and reported, and the exit is 1.
