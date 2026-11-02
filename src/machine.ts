@@ -5,7 +5,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { ASSETS } from "./assets.ts";
-import { canonical, renameReleased } from "./disk.ts";
+import { canonical, removeReleased, renameReleased } from "./disk.ts";
 import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, status } from "./consent.ts";
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./inertia.ts";
@@ -732,7 +732,7 @@ function installEngine(p: Paths, from: string, v: string): string | null {
   const r = spawn([tmp, "--version"], 60_000);
   const named = /^pregate (\S+)(?: \(core (\d+\.\d+\.\d+)\))?$/.exec(r.stdout.trim());
   if (r.exit !== 0 || named?.[1] !== v) {
-    rmSync(tmp, { force: true });
+    removeReleased(tmp);
     return `Engine ${v} does not start (exit ${r.exit}: ${clip(r.stdout + r.stderr) || "no output"}); not installed.`;
   }
   renameReleased(tmp, target);

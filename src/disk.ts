@@ -210,17 +210,17 @@ function renameOrDiscard(tmp: string, path: string): void {
   }
 }
 
-const LOCKED = new Set(["EBUSY", "EPERM", "EACCES"]);
+const LOCKED = new Set(["EBUSY", "EPERM", "EACCES", "ENOTEMPTY"]);
 const pause = new Int32Array(new SharedArrayBuffer(4));
 
-// Windows refuses to rename a file that another process holds open without delete sharing. An
-// on-access scanner opens a new executable that way for a moment after it is written or first run.
+// Windows refuses to rename or delete a file that another process holds open without delete sharing.
+// An on-access scanner opens a new executable that way for a moment after it is written or first run.
 // Wait for that handle to close. A lock that outlasts `waitMs` is still an error.
-export function renameReleased(from: string, to: string, waitMs = 15_000, windows = process.platform === "win32"): void {
+function whenReleased(run: () => void, waitMs: number, windows: boolean): void {
   const deadline = Date.now() + waitMs;
   for (let delay = 10; ; delay = Math.min(delay * 2, 500)) {
     try {
-      renameSync(from, to);
+      run();
       return;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -228,4 +228,12 @@ export function renameReleased(from: string, to: string, waitMs = 15_000, window
       Atomics.wait(pause, 0, 0, delay);
     }
   }
+}
+
+export function renameReleased(from: string, to: string, waitMs = 15_000, windows = process.platform === "win32"): void {
+  whenReleased(() => renameSync(from, to), waitMs, windows);
+}
+
+export function removeReleased(path: string, waitMs = 15_000, windows = process.platform === "win32"): void {
+  whenReleased(() => rmSync(path, { recursive: true, force: true }), waitMs, windows);
 }

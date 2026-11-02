@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { Lang, parse as oracleParse } from "@ast-grep/napi";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { removeReleased } from "./remove-tree.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -13,7 +14,7 @@ import type { Preset } from "../src/types.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-import-type-parser-"));
 beforeAll(setUpGrammars);
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeReleased(area), 20_000);
 
 const calls = [
   "useRef<import('maplibre-gl').Marker[]>([])",

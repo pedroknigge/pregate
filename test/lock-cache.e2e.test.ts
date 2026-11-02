@@ -42,8 +42,8 @@ afterAll(() => rmSync(work, { recursive: true, force: true }));
 
 test("Pre hook reuses the compiled lock and reports cold versus warm latency", () => {
   install();
-  const coldAllow = measure("allow", true);
-  const warmAllow = measure("allow", false);
+  // Cold and warm samples alternate so a busy runner cannot make only the later series slower.
+  const { cold: coldAllow, warm: warmAllow } = measurePair("allow");
   const coldDeny = hook("syntax-cold", { kind: "syntax" }, true);
   const warmDeny = hook("syntax-warm", { kind: "syntax" }, false);
   expect(decision(coldDeny)).toEqual(decision(warmDeny));
@@ -100,11 +100,14 @@ function install(): void {
   enable(repo);
 }
 
-function measure(kind: Edit["kind"], cold: boolean): Out[] {
-  if (!cold) hook("prime", { kind }, true);
-  const samples: Out[] = [];
-  for (let i = 0; i < RUNS; i++) samples.push(hook(`${kind}-${cold ? "cold" : "warm"}-${i}`, { kind }, cold));
-  return samples;
+function measurePair(kind: Edit["kind"]): { cold: Out[]; warm: Out[] } {
+  const cold: Out[] = [];
+  const warm: Out[] = [];
+  for (let i = 0; i < RUNS; i++) {
+    cold.push(hook(`${kind}-cold-${i}`, { kind }, true));
+    warm.push(hook(`${kind}-warm-${i}`, { kind }, false));
+  }
+  return { cold, warm };
 }
 
 function hook(session: string, edit: Edit, dropCache: boolean): Out {

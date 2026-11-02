@@ -241,7 +241,7 @@ test("fitness evidence includes tracked authored build files and excludes ignore
   expect(p.run("fitness", "run", "--all").code).toBe(0);
   rmSync(join(p.root, "build/authored.txt"));
   expect(JSON.parse(p.run("fitness", "status", "--json").text).summary.needsEvidence).toBe(3);
-});
+}, 30_000); // Seven compiled CLI calls; each Windows spawn is a large fraction of bun's 5s default.
 
 test("candidate selectors, flags and external files cannot mutate policy or execute commands", () => {
   const p = candidateProject("candidate-invalid-args"), original = p.contract();

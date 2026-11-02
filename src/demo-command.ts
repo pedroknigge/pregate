@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { DEMO_LANGUAGES, demoSample, type DemoLanguage } from "./demo-samples.ts";
 import { demoCase, type DemoContext, type DemoReceipt } from "./demo-run.ts";
+import { removeReleased } from "./disk.ts";
 import { sha256 } from "./state.ts";
 import { VERSIONS } from "./versions.ts";
 
@@ -48,7 +49,7 @@ function demoRun(run: DemoRun): { code: number; report: DemoReport } {
   } catch (e) {
     return { code: 1, report: { schemaVersion: 1, mode: "isolated-owned-sample-automation", engine: VERSIONS,
       cleanup: true, attempts: run.attempts, error: String((e as Error).message).replaceAll(run.area, "<owned-demo>") } };
-  } finally { rmSync(run.area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
+  } finally { removeReleased(run.area); }
 }
 
 function demoOptions(args: string[]): { languages: DemoLanguage[]; json: boolean } | null {
