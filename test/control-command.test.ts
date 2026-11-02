@@ -42,9 +42,47 @@ test("prose that mentions pregate is not an invocation; a quoted list across lin
   expect(pregateControlCause("CI=1 pregate status")).toBe("hook-switch");
   expect(pregateControlCause("CI = 1\napprove:\n\tpregate approve x\n")).toBe("hook-switch");
   expect(pregateControlCause("os.environ['CI'] = '1'\nsubprocess.run(['pregate', 'status'])")).toBe("hook-switch");
-  // A long program is judged by its first MiB, not denied for its size.
+  // A long program is read whole: padding neither hides a command nor denies by itself.
   expect(pregateControlCause("x".repeat(1_048_577))).toBeNull();
   expect(pregateControlCause(`pregate approve x\n${"x".repeat(1_048_577)}`)).toBe("shell-admin");
+  expect(pregateControlCause(`${"#".repeat(1_048_577)}\nCI=1 pregate disable --yes\n`)).toBe("hook-switch");
+  expect(pregateControlCause(`${"x".repeat(1_048_577)}\npregate disable --yes\n`)).toBe("shell-admin");
+});
+
+test("continued lines, computed verbs and contract-writing commands are control commands", () => {
+  expect(pregateControlCause("pregate \\\nsetup\n")).toBe("hook-switch");
+  expect(pregateControlCause("pregate \\\r\n  disable --yes\r\n")).toBe("shell-admin");
+  expect(pregateControlCause("preg\\\nate disable --yes\n")).toBe("shell-admin");
+  expect(pregateControlCause("pregate `\n  disable --yes\n")).toBe("shell-admin");
+  expect(pregateControlCause('pregate "$verb" --yes')).toBe("shell-admin");
+  expect(pregateControlCause("pregate preset compile")).toBe("shell-admin");
+  expect(pregateControlCause("pregate preset apply loosen.json --yes")).toBe("shell-admin");
+  expect(pregateControlCause("pregate preset apply loosen.json --preview")).toBeNull();
+  expect(pregateControlCause("pregate init --yes")).toBe("shell-admin");
+  expect(pregateControlCause("pregate promote --yes")).toBe("shell-admin");
+  expect(pregateControlCause("pregate feedback apply x --yes")).toBe("shell-admin");
+  expect(pregateControlCause("pregate storage apply x --yes")).toBe("shell-admin");
+  expect(pregateControlCause("pregate issue submit x --yes")).toBe("shell-admin");
+  expect(pregateControlCause("export PREGATE_UNATTENDED_APPROVAL=1")).toBe("hook-switch");
+  expect(pregateControlCause("rm ~/.local/share/pregate/consent/*.json")).toBe("hook-switch");
+  expect(pregateControlCause("pregate preset show")).toBeNull();
+  expect(pregateControlCause("echo pregate is \\\nfine")).toBeNull();
+});
+
+test("a script file is decoded from UTF-16 and UTF-32, and undecodable text fails closed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "pregate-control-"));
+  const utf16 = (text: string, bom: boolean) => Buffer.concat([bom ? Buffer.from([0xff, 0xfe]) : Buffer.alloc(0), Buffer.from(text, "utf16le")]);
+  writeFileSync(join(dir, "le.ps1"), utf16("pregate disable --yes\r\n", true));
+  writeFileSync(join(dir, "be.ps1"), Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from("pregate uninstall\r\n", "utf16le").swap16()]));
+  writeFileSync(join(dir, "plain.ps1"), utf16("pregate disable --yes\r\n", false));
+  writeFileSync(join(dir, "ok.ps1"), utf16("Write-Output hello\r\n", true));
+  writeFileSync(join(dir, "odd.ps1"), Buffer.from([0x70, 0, 0x72, 0, 0, 1, 2, 3, 0, 0, 0xff, 0, 0x13]));
+  expect(controlInFile(join(dir, "le.ps1"))).toBe("shell-admin");
+  expect(controlInFile(join(dir, "be.ps1"))).toBe("hook-switch");
+  expect(controlInFile(join(dir, "plain.ps1"))).toBe("shell-admin");
+  expect(controlInFile(join(dir, "ok.ps1"))).toBeNull();
+  expect(controlInFile(join(dir, "odd.ps1"))).toBe("shell-admin");
+  expect(controlInFile("/bin/ls")).toBeNull();
 });
 
 test("a script fed on stdin or run without a suffix is read; a CI prefix binds only its command", () => {
