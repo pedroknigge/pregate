@@ -3,6 +3,7 @@ import { absolutePath, matches, pathKey, PROTECTED_NAMES, REQUESTS, slash } from
 import type { Cause, HarnessId } from "./types.ts";
 import { pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
+import { inlineSink } from "./inline-sinks.ts";
 
 // Help must exit before any command can inspect or change installation/project state.
 const HELP_COMMANDS = new Set([
@@ -1269,6 +1270,8 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // perl and ruby edit files in place with -i, checked on every option: in `perl -pie`, -i takes
   // "e" as its backup suffix.
   const inPlace = (name === "perl" || name === "ruby") && args.some((w) => /^-[A-Za-z0-9]*i/.test(w.text));
+  const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);
   return first(argv ? [...program, ...operands] : program, (w) => code(w, cwd, ctx))
+    ?? first(program, (w) => (w.literal && w.file === undefined && inlineSink(name, w.text, options) ? "shell-write" : null))
     ?? (inPlace ? writes(inlined ? operands : operands.slice(1), cwd, ctx.inScope) : null);
 }
