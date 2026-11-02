@@ -154,8 +154,8 @@ fails on any change that loosens the contract (a weaker enforcement, a removed o
 downgraded rule) and prints that loosening's digest. A maintainer who accepts the
 loosening sets the repository variable `PREGATE_ACCEPT_CONTRACT` to that digest
 (several digests may be separated by spaces or commas) and reruns the job. The
-workflow also refuses a change that pins an older engine than its base unless the
-repository variable `PREGATE_ACCEPT_ENGINE` names that version. Repository variables
+engine that runs the check is the one the base branch's lock pins, so a change
+cannot select an older engine by editing its own lock. Repository variables
 are outside the change under review; the workflow file is not, so protect
 `.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews.
 
