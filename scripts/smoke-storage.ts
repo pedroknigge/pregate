@@ -84,10 +84,11 @@ try {
     assert(data.sessions[0].markers.some((item: { pid: number; state: string }) => item.pid === pid && item.state === "dead"), "OS did not establish the killed owner's absence");
     const recovery = checked(["storage", "recover", "--preview"]), id = /Digest: ([a-f0-9]{64})/.exec(recovery)?.[1];
     assert(id !== undefined && recovery.includes("PID " + pid), "Expected exact recovery owner review");
-    const ask = run(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "native-retention", cwd: root,
+    const agent = run(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "native-retention", cwd: root,
       permission_mode: "default", tool_name: "Bash", tool_use_id: "recover-" + kind,
       tool_input: { command: "pregate storage apply " + id + " --yes" } }, "");
-    assert(ask.exitCode === 0 && JSON.parse(ask.stdout.toString()).hookSpecificOutput.permissionDecision === "ask", "Production recovery did not request native permission");
+    assert(agent.exitCode === 2 && (agent.stdout.toString() + agent.stderr.toString()).includes(`type ! pregate storage apply ${id} --yes inside the harness`),
+      "Production recovery from the agent was not denied with the human ! route");
     assert(run(["storage", "apply", id!]).exitCode === 1, "Unattended recovery must refuse");
     checked(["storage", "apply", id!, "--yes"]);
   }
@@ -99,5 +100,5 @@ try {
   console.log(JSON.stringify({ target: hostTarget(), observed: "one real recorded shadow observation; short test retention window",
     approval: "unattended refused; explicit digest automation applied", removed: "one historical source copy",
     preserved: "live dirty-source baseline, snapshot bytes, contract bytes, report count and resumed Stop",
-    recovery: "real killed source-helper writer/cleaner; production native permission requested; unattended refused; explicit digest applied", github: "no publication" }));
+    recovery: "real killed source-helper writer/cleaner; agent apply denied with the ! route; unattended refused; explicit digest applied", github: "no publication" }));
 } finally { rmSync(area, { recursive: true, force: true }); }

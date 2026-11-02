@@ -142,7 +142,7 @@ automation and checks preserved baseline/snapshot/contract bytes, report counts
 and a resumed Stop. All data and approvals belong to a temporary test project;
 this does not certify actual harness UI interaction or erase user state.
 The same smoke kills real cooperating source-helper writer/cleaner processes,
-then checks production-binary PID inspection, native permission requests,
-unattended refusal, approved recovery and unchanged baseline/history. The
+then checks production-binary PID inspection, the denial of an agent's apply
+with the human `!` route, unattended refusal, approved recovery and unchanged baseline/history. The
 producer helpers use the source coordination module; this is not a claim that
 an actual harness UI or a production gate process was killed during verification.
