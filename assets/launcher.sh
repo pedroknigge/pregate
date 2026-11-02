@@ -71,7 +71,8 @@ bare= hint="pregate: no command. Run pregate in a terminal for the guide, or pre
 [ -n "$bare" ] && [ -t 0 ] && printf '%s\n' "$hint" >&2 && exit 0
 event=$2
 # SessionStart reaches the engine without consent: its dormant notice is for users with no project yet.
-has_consent || [ -n "$bare" ] || [ "$event" = session-start ] || exit 0
+# Stop does once a session reached a consented root, so it can warn when consent was removed.
+has_consent || [ -n "$bare" ] || [ "$event" = session-start ] || { [ "$event" = stop ] && [ -f "$data/reached" ]; } || exit 0
 # Stop and SessionStart fail closed only in Claude Code: elsewhere Pre already blocks, and pre-commit
 # and CI cover the rest. Cursor and Grok run the same registration, flagged claude-code (MH-04).
 claude=

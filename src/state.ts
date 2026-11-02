@@ -1,5 +1,6 @@
 import { existsSync, linkSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { markReached } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
 import { catFileBatch, git } from "./git.ts";
 import type { CallEvent, Cause, Session, Snapshot } from "./types.ts";
@@ -325,7 +326,9 @@ export function ensureSnapshot(sid: string, root: string, start: ((rel: string) 
     const dirty = Object.fromEntries(Object.entries(texts).map(([rel, text]) => [rel, text === null ? null : blob(dir, text)]));
     return publish(sid, { root, head: rev.head, start: start !== null, dirty, ...(tips === undefined ? {} : { tips }), at });
   }));
-  return made === null || made === "missing" ? "snapshot-missing" : made;
+  if (made === null || made === "missing") return "snapshot-missing";
+  if (typeof made === "object") io(() => markReached());
+  return made;
 }
 
 // The snapshot's directory is built aside and renamed into place. The rename fails when another

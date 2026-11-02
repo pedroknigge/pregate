@@ -11,6 +11,16 @@ export function dataHome(): string {
   return storageDir("data");
 }
 
+// Written the first time a session reaches a consented root. The launcher skips the engine when no
+// consent record exists; this marker keeps Stop reaching it after a script deletes the last record,
+// so Stop can warn that consent disappeared mid-session.
+export function markReached(data = dataHome()): void {
+  const path = join(data, "reached");
+  if (existsSync(path)) return;
+  mkdirSync(data, { recursive: true });
+  writeAtomic(path, "");
+}
+
 function file(root: string, data: string): string {
   const key = new Bun.CryptoHasher("sha256").update(canonical(root)).digest("hex");
   return join(data, "consent", `${key}.json`);

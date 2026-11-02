@@ -75,7 +75,8 @@ export function inert(event: HookEvent | Rejected): boolean {
       try { return active(dir); } catch { return false; }
     });
   }
-  if (event.kind === "stop") return !accepted(event.session);
+  // A session that reached a root is judged at Stop even when its consent is gone: Stop warns.
+  if (event.kind === "stop") return roots(key(event.session)).length === 0;
   if (event.kind === "pre-command") return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
   return !accepted(event.session) && !active(event.cwd);
 }

@@ -181,8 +181,10 @@ export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs =
   const agentH = e.session.agentId === null ? "-" : state.H(e.session.agentId);
   const scope = stopScope(sid, e.session);
   // A removed worktree leaves nothing to judge; its consent record may outlive it.
-  const roots = state.roots(sid).filter((r) => existsSync(r) && enabled(r) && scope.roots(r));
-  if (roots.length === 0) return told(null);
+  const live = state.roots(sid).filter((r) => existsSync(r) && scope.roots(r));
+  const roots = live.filter((r) => enabled(r));
+  const lost = consentLost(live.filter((r) => !enabled(r)));
+  if (roots.length === 0) return told(lost);
   // Cursor's Stop followups each get a new generation_id; they still belong to the blocked turn.
   const turn = turnOf(e.session.harness === "cursor" ? { ...e.session, turnId: null } : e.session);
   await grammars();
@@ -212,7 +214,16 @@ export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs =
     root: chosen?.root ?? null, enforcement: ruleEnforcements(chosen?.lock ?? null),
     afterSha: null, astHash: null,
   }, null);
-  return failed === undefined ? d : decide({ ...input, form: form(failed) });
+  const decided = failed === undefined ? d : decide({ ...input, form: form(failed) });
+  return lost === null ? decided : { ...decided, notice: [decided.notice, lost].filter(Boolean).join("\n\n") };
+}
+
+// A root this session reached while it was enabled, whose consent is now disabled or gone. A human
+// can do that on purpose; so can a script the agent ran. Either way nothing is judged there now.
+function consentLost(roots: string[]): string | null {
+  if (roots.length === 0) return null;
+  return `PREGATE WARNING: consent for ${roots.join(", ")} was disabled or removed during this session, so PREGATE no longer judges ${roots.length === 1 ? "it" : "them"}. `
+    + "If you did not run pregate disable, a command or script did: inspect pregate status, re-enable with pregate enable in a terminal, and review the changes made since.";
 }
 
 function stopDecision(call: Call, results: RootResult[], chosen: RootResult | undefined, priorStops: CallEvent[], stop: StopControl): {

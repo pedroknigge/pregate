@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -7,7 +7,6 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { compile } from "../src/compile.ts";
 import { disable, enable } from "../src/consent.ts";
 import { sourcesOf } from "../src/contract-diagnostic.ts";
-import { canonical } from "../src/disk.ts";
 import { hookCommand } from "../src/register.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture } from "./policy-fixtures.ts";
@@ -251,7 +250,7 @@ test("Stop and status warn when consent is disabled or removed during a session"
     ok(a.start(), "session");
     silent(a.write("src/domain/note.ts", "export const note = 1;\n"));
     if (tamper === "disabled") disable(r.dir, ENGINE_DATA);
-    else rmSync(join(ENGINE_DATA, "consent", `${createHash("sha256").update(canonical(r.dir)).digest("hex")}.json`));
+    else rmSync(join(ENGINE_DATA, "consent"), { recursive: true, force: true });
     const stop = a.stop();
     expect(stop.code, said(stop)).toBe(0);
     expect(JSON.parse(stop.stdout).systemMessage, tamper).toContain("consent");

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "./capabilities.ts";
 import { compile } from "./compile.ts";
@@ -21,7 +21,8 @@ import { deadGlobLines } from "./onboard.ts";
 import { validate } from "./schema.ts";
 import type { Preset } from "./types.ts";
 import { librarySources, newerPin } from "./library.ts";
-import { sha256 } from "./state.ts";
+import { H, sha256, stateDir } from "./state.ts";
+import { canonical } from "./disk.ts";
 import { normalize } from "./reconstruct.ts";
 import { readBatch, readProposal } from "./proposal.ts";
 
@@ -175,7 +176,8 @@ export function protectionStatus(root: string | null) {
     complete: contract.valid && fitness.every(r => r.status === "pass") };
   const diagnosis = root === null ? null : contractDiagnosis(root);
   const globWarnings = root === null || typeof diagnosis?.preset !== "object" || diagnosis.preset === null ? [] : deadGlobLines(diagnosis.preset, () => listedPaths(root));
-  return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
+  const consentLostIn = consent || root === null ? 0 : sessionsOf(root);
+  return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, consentLostIn, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
     engine: VERSIONS.engine, core: VERSIONS.core, project: diagnosis?.project ?? null,
     servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent },
@@ -188,7 +190,25 @@ export function protectionStatus(root: string | null) {
 
 type Status = ReturnType<typeof protectionStatus>;
 
-// The short form answers three questions: am I protected, is it current, what next.
+const RECENT_SESSION_MS = 24 * 60 * 60 * 1000;
+
+// Sessions that snapshotted this root in the last day: consent was active when each reached it.
+// The window bounds how long a deliberate human disable keeps the warning.
+function sessionsOf(root: string): number {
+  const dir = join(stateDir(), "sessions");
+  if (!existsSync(dir)) return 0;
+  const rootHash = H(canonical(root)), since = Date.now() - RECENT_SESSION_MS;
+  return readdirSync(dir).filter((sid) => {
+    const snapshot = join(dir, sid, rootHash, "snapshot.json");
+    return existsSync(snapshot) && statSync(snapshot).mtimeMs >= since;
+  }).length;
+}
+
+function consentLostLine(s: Status): string[] {
+  if (s.consentLostIn === 0) return [];
+  return [`WARNING: consent was active in ${s.consentLostIn} session${s.consentLostIn === 1 ? "" : "s"} recorded for ${s.root} in the last day and is now disabled or missing. If no human ran pregate disable, a command or script removed it: re-enable with pregate enable in a terminal and review the changes made since.`];
+}
+
 export function statusText(s: Status, verbose = false): string {
   return verbose ? verboseStatus(s) : briefStatus(s).join("\n");
 }
@@ -203,13 +223,14 @@ function ruleCounts(s: Status) {
   };
 }
 
+// The short form answers three questions: am I protected, is it current, what next.
 function briefStatus(s: Status): string[] {
   if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview --enforcement advisor (the human approves its review)."];
   const { enforced, advisor, shadow } = ruleCounts(s);
   return [
     `Protected: ${s.state === "active" ? "yes" : "no"}. PREGATE local consent is ${s.consent ? "active" : "inactive"} in ${s.root}; effective protection: ${s.state}.`,
     `Mode: ${s.mode ?? "unknown"} (${enforced} enforcing, ${advisor} advisor, ${shadow} shadow). ${versionLine(s)}`,
-    ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
+    ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
 }
@@ -249,6 +270,7 @@ function verboseStatus(s: Status): string {
   const { enforced, advisor, shadow, warns } = ruleCounts(s);
   return [
     `PREGATE local consent is ${s.consent ? "active" : "inactive"}${s.root === null ? "" : ` in ${s.root}`}. Effective protection: ${s.state}.`,
+    ...consentLostLine(s),
     `Contract: ${s.contract.valid ? "valid; preset, sources and compiled lock match" : "not ready"}.`, ...s.contract.errors,
     ...uncommittedLine(s), ...s.globWarnings,
     `Installation: launcher ${s.installation.launcherPresent ? "present" : "missing"}, engine ${s.engine} ${s.installation.enginePresent ? "present" : "missing"}.`,

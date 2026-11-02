@@ -30,7 +30,7 @@ const CI_ASSIGNMENT = /(?:^|[ \t;&|(])(?:export[ \t]+)?CI=|^[ \t]*CI[ \t]*[:?]?=
 // Variables that reveal approval codes, approve without a terminal or accept a loosened contract.
 const APPROVAL_VARIABLE = /\bPREGATE_(?:TEST(?:ING|_ANSWER)|UNATTENDED_APPROVAL|ACCEPT_CONTRACT)\b/;
 // PREGATE's consent and session records, which a script must not rewrite or delete.
-const STATE_PATH = /\bpregate[\\/]+(?:consent|sessions|contract-approvals|pending|proposals)\b/i;
+const STATE_PATH = /\bpregate[\\/]+(?:consent|sessions|contract-approvals|pending|proposals|reached)\b/i;
 
 // A pregate invocation an agent must not run: approve/disable/enable, install/setup/update/uninstall,
 // a pack mutation, a contract compile or apply, init/promote --yes, a review application, or a
