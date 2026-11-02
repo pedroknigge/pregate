@@ -1,5 +1,5 @@
 # PREGATE (ARCHITECTURE §4.5, MULTI-HARNESS MH-28), written by `pregate install --ci github`: the engine
-# the committed lock pins checks every pull request, whatever harness wrote the code.
+# the base branch pins checks every pull request, whatever harness wrote the code.
 name: PREGATE
 on:
   pull_request:
@@ -12,24 +12,35 @@ jobs:
       run:
         working-directory: "@ROOT@"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      # The releases repository is private: its downloads need a token that can read it, stored as the
-      # PREGATE_RELEASES_TOKEN secret. Once it is public, the job's own token is enough. SHA256SUMS
-      # covers every asset of the release (MH-32); --ignore-missing skips the ones not downloaded and
-      # still fails when the tar is not listed.
-      - name: Install the engine the lock pins
+      # The release is public, so the job token can download it. The engine version comes from the
+      # base branch lock: a pull request cannot select another binary by editing its own lock.
+      # SHA256SUMS covers every asset. Cosign must verify SHA256SUMS and the archive before unpack.
+      - name: Install the engine the base branch pins
         env:
           GH_TOKEN: ${{ secrets.PREGATE_RELEASES_TOKEN || github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -eu
-          version=$(jq -r .engine .pregate/pregate.lock.json)
+          lock="@ROOT@/.pregate/pregate.lock.json"
+          lock=${lock#./}
+          version=$(git show "$BASE:$lock" | jq -r .engine)
           printf '%s\n' "$version" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'
           tar="pregate-$version-linux-x64.tar.gz"
           cd "$RUNNER_TEMP"
-          gh release download "v$version" -R pedroknigge/pregate -p "$tar" -p SHA256SUMS
+          gh release download "v$version" -R pedroknigge/pregate -p "$tar" -p "$tar.bundle" -p SHA256SUMS -p SHA256SUMS.bundle
           sha256sum -c --ignore-missing SHA256SUMS
+          identity='^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v'
+          cosign verify-blob --bundle SHA256SUMS.bundle \
+            --certificate-identity-regexp "$identity" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            SHA256SUMS
+          cosign verify-blob --bundle "$tar.bundle" \
+            --certificate-identity-regexp "$identity" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            "$tar"
           tar -xzf "$tar" pregate
           echo "PREGATE=$RUNNER_TEMP/pregate" >> "$GITHUB_ENV"
       - name: Test the path rule sources

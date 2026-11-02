@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import core from "../catalog/source.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
 
 const ROOT = join(import.meta.dir, "..");
@@ -25,7 +26,7 @@ function outsideFences(text: string): string {
   return text.split(/(```[\s\S]*?```)/g).map((part, i) => (i % 2 === 1 ? part.replace(/[^\n]/g, " ") : part)).join("");
 }
 
-test("relative markdown links resolve and engine/core versions match package.json", () => {
+test("relative markdown links resolve and engine/core versions match the release", () => {
   const broken: string[] = [];
   const versions: string[] = [];
   const versionRe = /(?<![\w/@.-])(engine|core)\s+(?:\*\*)?v?(\d+\.\d+\.\d+)\b/gi;
@@ -51,7 +52,8 @@ test("relative markdown links resolve and engine/core versions match package.jso
     let version: RegExpExecArray | null;
     while ((version = versionRe.exec(text))) {
       const found = version[2] ?? "";
-      if (found !== pkg.version) {
+      const wanted = (version[1] ?? "").toLowerCase() === "core" ? core.version : pkg.version;
+      if (found !== wanted) {
         const line = text.slice(0, version.index).split("\n").length;
         versions.push(`${rel}:${line} ${version[1]} ${found}`);
       }
@@ -64,7 +66,7 @@ test("relative markdown links resolve and engine/core versions match package.jso
   expect(install).toContain(pkg.version);
   expect(architecture).not.toContain("private macOS pilot");
   expect(architecture).toContain(`engine ${pkg.version}`);
-  expect(architecture).toContain(`core ${pkg.version}`);
+  expect(architecture).toContain(`core ${core.version}`);
   expect(broken).toEqual([]);
   expect(versions).toEqual([]);
 

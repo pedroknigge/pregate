@@ -66,17 +66,24 @@ function run(cmd: string[], env: Record<string, string> = {}, cwd = ROOT): void 
   if (r.exitCode !== 0) throw new Error(`${cmd.join(" ")} exited ${r.exitCode}`);
 }
 
+// install.sh, install.ps1 and the Action download the release named here. Published under another
+// version, the bootstrap of MH-32 would install the previous release, and the Action's default
+// would ask for bundles that tag never published.
+export function assertReleaseVersions(root = ROOT): void {
+  const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version as string;
+  const pinned = /^DEFAULT_VERSION=(.*)$/m.exec(readFileSync(join(root, "install.sh"), "utf8"))?.[1];
+  if (pinned !== version) throw new Error(`install.sh DEFAULT_VERSION=${pinned} differs from package.json ${version}`);
+  const psPinned = /^\$DEFAULT_VERSION = '(.+)'$/m.exec(readFileSync(join(root, "install.ps1"), "utf8"))?.[1];
+  if (psPinned !== version) throw new Error(`install.ps1 DEFAULT_VERSION=${psPinned} differs from package.json ${version}`);
+  const actionPinned = /^  version:\n(?:    .*\n)*?    default: "([^"]*)"/m.exec(readFileSync(join(root, "action.yml"), "utf8"))?.[1];
+  if (actionPinned !== version) throw new Error(`action.yml version default=${actionPinned ?? "missing"} differs from package.json ${version}`);
+}
+
 if (import.meta.main) {
   const asked = process.argv.slice(2);
   const unknown = asked.filter((t) => !isTarget(t));
   if (unknown.length > 0) throw new Error(`unknown target ${unknown.join(", ")}; known: ${TARGETS.join(", ")}`);
-  // install.sh downloads the release named by its DEFAULT_VERSION: published under another version,
-  // the bootstrap of MH-32 would install the previous release.
-  const script = readFileSync(join(ROOT, "install.sh"), "utf8");
-  const pinned = /^DEFAULT_VERSION=(.*)$/m.exec(script)?.[1];
-  if (pinned !== pkg.version) throw new Error(`install.sh DEFAULT_VERSION=${pinned} differs from package.json ${pkg.version}`);
-  const psPinned = /^\$DEFAULT_VERSION = '(.+)'$/m.exec(readFileSync(join(ROOT, "install.ps1"), "utf8"))?.[1];
-  if (psPinned !== pkg.version) throw new Error(`install.ps1 DEFAULT_VERSION=${psPinned} differs from package.json ${pkg.version}`);
+  assertReleaseVersions();
   run([process.execPath, "scripts/core-invariants.ts", "--check"]);
   run([process.execPath, "scripts/readiness-packs.ts", "--check"]);
   run([process.execPath, "scripts/dcouplr-delivery-rules.ts", "--check"]);

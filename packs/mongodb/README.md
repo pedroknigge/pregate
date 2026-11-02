@@ -1,6 +1,6 @@
 # mongodb
 
-TypeScript client-side MongoDB driver/mongoose rules. Source version **1.2.0**, for engine **0.0.1**.
+TypeScript client-side MongoDB driver/mongoose rules. Source version **1.2.0**, for engine **0.0.2**.
 The engine parses TS/JS only: this pack enforces client-side usage (queries, ObjectIds,
 connections, sessions, schema options). Everything the engine cannot see — index selection,
 `$jsonSchema` validation, replica-set topology, GridFS chunking, change-stream resume

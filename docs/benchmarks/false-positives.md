@@ -14,7 +14,7 @@ Labeled sample (not a rate): 11 correct, 11 false-positive, 0 uncertain, 9081 un
 4. Run the same check execution as `pregate rules test` on every check, and count `pass` fixtures as negative and `fail` plus `trap` fixtures as positive.
 5. Apply labels from the label file. Each label names one site. The rate is `falsePositives / labeledFindings` only when every finding in that set is labeled `correct` or `false-positive`.
 
-Engine 0.0.1, core 0.0.1. Evaluator fingerprint `50ea49ff386c8ecd56cd6c35443ba0c762d4f5a99a079466fe9e42a2cb20bc6c` covers `src`, `schema`, the parser wasm, and the Bun version that ran this script.
+Recorded on release 0.0.1; core 0.0.1. Evaluator fingerprint `50ea49ff386c8ecd56cd6c35443ba0c762d4f5a99a079466fe9e42a2cb20bc6c` covers `src`, `schema`, the parser wasm, and the Bun version that ran this script.
 
 ## Corpus
 

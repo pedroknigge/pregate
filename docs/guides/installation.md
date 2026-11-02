@@ -1,10 +1,11 @@
 # Install, update and remove PREGATE
 
-PREGATE 0.0.1 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
+PREGATE 0.0.2 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
 x64. macOS ARM64 is the stable platform. Linux and Windows are experimental
 test builds, not supported for production until native release validation passes.
 Focused source verification does not admit a final platform release.
 Bun is required only for development and builds. See the
+[changelog](../../CHANGELOG.md) and the
 [v0.0.1 release notes](../releases/0.0.1.md).
 The installers and updater try anonymous HTTPS first, then authenticated `gh`
 if that download is unavailable. A public release can be installed without a
@@ -29,17 +30,17 @@ npx skills add pedroknigge/pregate
 ## Manual checksum verification (macOS and Linux)
 
 Download the selected tag's installer and checksum manifest into an empty directory.
-The examples select published 0.0.1 for macOS ARM64.
+The examples select 0.0.2 for macOS ARM64. Install a tag that has actually been published.
 
 ```sh
-gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
+gh release download v0.0.2 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
 ```
 
 Verify the installer before running it. On macOS:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing
-sh install.sh --version 0.0.1
+sh install.sh --version 0.0.2
 ```
 
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
@@ -55,8 +56,8 @@ The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` 
 Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
 
 ```sh
-tag=v0.0.1
-asset=pregate-0.0.1-darwin-arm64.tar.gz
+tag=v0.0.2
+asset=pregate-0.0.2-darwin-arm64.tar.gz
 gh release download "$tag" --repo pedroknigge/pregate \
   --pattern "$asset" --pattern "$asset.bundle" \
   --pattern SHA256SUMS --pattern SHA256SUMS.bundle
@@ -87,11 +88,11 @@ cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
   "$dir\SHA256SUMS"
-cosign verify-blob --bundle "$dir\pregate-0.0.1-windows-x64.zip.bundle" `
+cosign verify-blob --bundle "$dir\pregate-0.0.2-windows-x64.zip.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
-  "$dir\pregate-0.0.1-windows-x64.zip"
-gh attestation verify "$dir\pregate-0.0.1-windows-x64.zip" --repo pedroknigge/pregate `
+  "$dir\pregate-0.0.2-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.0.2-windows-x64.zip" --repo pedroknigge/pregate `
   --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
 ```
 
@@ -99,17 +100,17 @@ gh attestation verify "$dir\pregate-0.0.1-windows-x64.zip" --repo pedroknigge/pr
 
 Use PowerShell (Windows PowerShell 5.1 or newer):
 
-These commands select the published 0.0.1 experimental Windows archive;
+These commands select the 0.0.2 experimental Windows archive;
 they do not establish native admission. See the [Windows retry](windows-verification.md).
 
 ```powershell
 $dir = Join-Path $env:TEMP ('pregate-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $dir | Out-Null
-gh release download v0.0.1 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
+gh release download v0.0.2 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
 if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 $sum = Get-Content "$dir/SHA256SUMS" | Where-Object { $_ -match '  install.ps1$' } | Select-Object -First 1
 if (!$sum -or (Get-FileHash "$dir/install.ps1" -Algorithm SHA256).Hash -ine $sum.Substring(0,64)) { throw 'Installer checksum mismatch' }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.2
 Remove-Item $dir -Recurse -Force
 ```
 
@@ -121,9 +122,9 @@ Windows Git hooks require Git for Windows' shell.
 
 ## Verify and activate
 
-In 0.2.12, `pregate demo` offers an owned sample before
-you configure a project. It needs Git, runs the compiled engine and cleans up its
-temporary projects and settings. See [the demo guide](demo.md).
+`pregate demo` offers an owned sample before you configure a project. It needs
+Git, runs the compiled engine and cleans up its temporary projects and settings.
+See [the demo guide](demo.md).
 
 ```sh
 pregate --version
@@ -156,11 +157,11 @@ project locks, so inspect each contract before adopting different bundled pack d
 `setup` refreshes global registrations and installed companion instructions from
 the running engine. `doctor` reports missing or stale skills.
 
-Update the global engine to 0.0.1 and review one or several
+Update the global engine to 0.0.2 and review one or several
 project contracts together:
 
 ```sh
-pregate update --version 0.0.1
+pregate update --version 0.0.2
 pregate guide --projects "/path/project-a" "/path/project-b"
 ```
 
@@ -169,27 +170,27 @@ projects. It preserves custom packs, scope, exclusions, overrides and disabled
 consent. Current projects remain unchanged. In a supported harness, the human can
 enter the same commands with `!`; the agent must not approve its own proposal.
 
-Version 0.2.7 introduced [one reviewed project update](../features/project-update.md):
-`update` prepares a project review after global installation; `update --project
---preview` or `pack update --all --preview` prepares all registered pins with the
-installed engine. Version 0.2.6 does not provide that migration workflow.
-Do not move the lock aside, reset the preset or promise that global installation
-alone migrates a consumer. Initial use with an older pinned hook requires the
-human `! pregate update` route once the new release is available.
+`update` prepares a [reviewed project update](../features/project-update.md) after
+global installation. `update --project --preview` or `pack update --all --preview`
+prepares registered pins with the installed engine. Do not move the lock aside,
+reset the preset or promise that global installation alone migrates a consumer.
+Initial use with an older pinned hook requires the human `! pregate update` route
+once the new release is available.
 
-With 0.2.12 installed, `update --projects <path...> --preview` prepares one or
-several explicit project roots from any directory. Review the output, then let
-the human rerun the path list with `--yes` in the harness. All candidates preflight
-before application; each project applies independently and current contracts are
-no-ops. Custom policy and disabled consent stay unchanged. See the
+`update --projects <path...> --preview` prepares one or several explicit project
+roots from any directory. Review the output, then let the human rerun the path
+list with `--yes` in the harness. All candidates preflight before application;
+each project applies independently and current contracts are no-ops. Custom policy
+and disabled consent stay unchanged. See the
 [multi-project workflow](../features/project-update.md#update-several-projects-from-one-directory).
 
 For interactive choices use `pregate guide --projects <path...>`. For one project,
 `guide --preview --packs <ns,ns>` can combine selected additions with migration;
 the guide inspects the complete installed catalog and offers a grouped pack/audit
 choice when it finds missing recommendations. Otherwise it prints the audit
-command. The 0.2.12 catalog also includes the optional Rust pack; check
-[v0.0.1 release notes](../releases/0.0.1.md) for verification and platform limits.
+command. The catalog includes the optional Rust pack; check the
+[v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified
+and the [changelog](../../CHANGELOG.md) for 0.0.2.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.
@@ -197,7 +198,7 @@ Both ask the human for `y` on the terminal (`--yes` skips that only under `CI`).
 Repository contracts and pre-install backups remain. Windows removes a running
 engine after its process exits.
 
-## Download checks in 0.2.12
+## Download checks
 
 HTTPS downloads use `curl -q` (`curl.exe` on Windows), TLS 1.2 or newer,
 HTTPS-only redirects, at most five redirects, a ten-second connect budget and a
@@ -226,3 +227,19 @@ Histories and source copies are local. Use `storage inspect` and a reviewed
 `storage prune`/`recover` plan; see [storage and retention](../features/local-storage.md).
 See [native release verification](../features/release-verification.md) for what
 packaged smoke tests establish and what still needs actual harness testing.
+
+## Release history
+
+This guide describes 0.0.2. Public releases use the 0.0.x line. Earlier private
+builds used 0.2.x numbers; those notes stay here so the steps above do not mix
+two version lines.
+
+- **0.2.6** did not prepare a project migration after a global install. That binary
+  will not rewrite a consumer lock for you.
+- **0.2.7** introduced one reviewed project update: `update` prepares a project
+  review after global installation, and `update --project --preview` or
+  `pack update --all --preview` prepares registered pins with the installed engine.
+- **0.2.12** added `pregate demo`, `update --projects <path...> --preview`, the
+  optional Rust pack, and the download limits above (`curl -q`, TLS 1.2, redirect
+  and size budgets). Those behaviors are what 0.0.2 installs. See the
+  [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.

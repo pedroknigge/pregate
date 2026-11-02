@@ -11,7 +11,7 @@ executable enforcement. Historical pack counts/acceptance apply to their candida
 
 The current core 0.0.1 activates 64 project requirements, including the original
 48 software invariants, plus four general change guards by default, with reviewed
-explicit disable. Unbound requirements remain unverified. Source engine 0.0.1
+explicit disable. Unbound requirements remain unverified. Source engine 0.0.2
 is the published release. Engineering
 policies formerly named `core/clean-code`, `core/clean-architecture`, `core/tdd`
 and `core/ddd-tactical` are now optional packs. [Project fitness](features/project-fitness.md)

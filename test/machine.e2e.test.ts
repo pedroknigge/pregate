@@ -543,34 +543,34 @@ describe("update", () => {
   test("update removes engines no registered project pins and keeps the pinned, previous and new ones", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");
-    for (const v of ["0.0.0", "0.0.2"]) put(join(m.data, v, "pregate"), "#!/bin/sh\n", 0o755);
+    for (const v of ["0.0.0", "0.0.1"]) put(join(m.data, v, "pregate"), "#!/bin/sh\n", 0o755);
     const root = join(m.root, "pinned");
     mkdirSync(root);
     ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
     const lock = join(root, ".pregate/pregate.lock.json");
-    put(lock, JSON.stringify({ ...json(lock), engine: "0.0.2" }));
+    put(lock, JSON.stringify({ ...json(lock), engine: "0.0.1" }));
     put(join(m.root, "bin/gh"), ghOf(release(m)), 0o755);
     const out = ok(run([m.link, "update"], m), "update");
-    expect(out.stdout).toContain(`Removed 1 older engines (0.0.0); kept ${["0.0.2", pkg.version, NEXT].sort().join(", ")}.`);
+    expect(out.stdout).toContain(`Removed 1 older engines (0.0.0); kept ${["0.0.1", pkg.version, NEXT].sort().join(", ")}.`);
     expect(existsSync(join(m.data, "0.0.0"))).toBe(false);
-    for (const v of ["0.0.2", pkg.version, NEXT]) expect(existsSync(join(m.data, v, "pregate"))).toBe(true);
+    for (const v of ["0.0.1", pkg.version, NEXT]) expect(existsSync(join(m.data, v, "pregate"))).toBe(true);
   });
 
   test("update keeps the engine a worktree pins through repository consent after the consented worktree is removed", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");
-    put(join(m.data, "0.0.2", "pregate"), "#!/bin/sh\n", 0o755);
+    put(join(m.data, "0.0.1", "pregate"), "#!/bin/sh\n", 0o755);
     const main = join(m.root, "repo main"), agent = join(m.root, "agent wt");
     mkdirSync(main);
     const git = (...args: string[]) => ok(run(["git", "-c", "user.name=W", "-c", "user.email=w@example.com", "-c", "commit.gpgsign=false", ...args], m, main), args[0]!);
     git("init", "-q"); git("commit", "-q", "--allow-empty", "-m", "init"); git("worktree", "add", "-q", "-b", "agent", agent);
     ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, agent), "init in the agent worktree");
-    put(join(main, ".pregate/pregate.lock.json"), JSON.stringify({ engine: "0.0.2" }));
+    put(join(main, ".pregate/pregate.lock.json"), JSON.stringify({ engine: "0.0.1" }));
     git("worktree", "remove", "--force", agent);
     put(join(m.root, "bin/gh"), ghOf(release(m)), 0o755);
     const out = ok(run([m.link, "update"], m), "update");
-    expect(out.stdout).not.toContain("0.0.2)");
-    expect(existsSync(join(m.data, "0.0.2", "pregate"))).toBe(true);
+    expect(out.stdout).not.toContain("0.0.1)");
+    expect(existsSync(join(m.data, "0.0.1", "pregate"))).toBe(true);
     // The inheriting checkout is reviewed too (the fake release engine prints no preview).
     expect(out.stdout).toContain("Each project's preset, lock and consent remain unchanged until approval.");
   });

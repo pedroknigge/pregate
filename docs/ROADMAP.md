@@ -1,6 +1,6 @@
 # Product roadmap
 
-0.0.1 / core 0.0.1 is the public release. macOS ARM64 is stable. Linux and Windows
+0.0.2 / core 0.0.1 is the public release. macOS ARM64 is stable. Linux and Windows
 builds stay experimental until native release validation passes. See the
 [v0.0.1 release notes](releases/0.0.1.md). Star counts are not an acceptance
 criterion; useful activation and repeated use need actual independent users
@@ -10,7 +10,7 @@ The sections below record earlier private pilots. Their release notes and eviden
 files are not in this tree, so a bare title is history, not a link to follow.
 The 0.2.14 macOS pilot reported shell/no-preset p50 24.9/21.8 ms against 25 ms
 and route p95 at most 137.5 ms against 150 ms. That figure is not a measurement
-of the 0.0.1 binaries.
+of the 0.0.2 binaries.
 
 ## Proposed public pack distribution
 

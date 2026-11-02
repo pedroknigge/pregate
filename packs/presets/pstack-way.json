@@ -2,7 +2,7 @@
   "$schema": "../../schema/preset.v1.json",
   "name": "pstack-way",
   "version": "1.0.0",
-  "engine": "0.0.1",
+  "engine": "0.0.2",
   "sources": [
     {
       "ns": "core",

@@ -2,6 +2,7 @@ import { expect, setDefaultTimeout, test } from "bun:test";
 import { lstatSync, mkdtempSync, readlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import core from "../catalog/source.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
 
 // A fresh clone of this branch must be installable. The published tree once
@@ -63,7 +64,7 @@ if (process.env[MARK] === "1") {
       run(["bun", "run", "scripts/build.ts", target], dest);
       const bin = join(dest, "dist", `pregate-${pkg.version}-${target}`, process.platform === "win32" ? "pregate.exe" : "pregate");
       const version = run([bin, "--version"], dest).trim();
-      expect(version).toBe(`pregate ${pkg.version} (core ${pkg.version})`);
+      expect(version).toBe(`pregate ${pkg.version} (core ${core.version})`);
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }

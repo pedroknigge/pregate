@@ -7,21 +7,21 @@ branding:
 
 inputs:
   version:
-    description: "Pregate release version (e.g. 0.0.1)"
+    description: "Pregate release version (e.g. 0.0.2). scripts/build.ts requires this to match package.json."
     required: false
-    default: "0.0.1"
+    default: "0.0.2"
   mode:
-    description: "Command mode: check | ratchet | audit"
+    description: "Command mode: check (whole tree) | audit | ratchet (requires base)"
     required: false
     default: "check"
   base:
-    description: "Git base ref or SHA when mode is ratchet"
+    description: "Git base ref or SHA. Required when mode is ratchet; the action fails before running if it is empty."
     required: false
     default: ""
   args:
-    description: "Additional arguments passed to pregate (e.g. --all)"
+    description: "Extra arguments for check and audit. Empty uses the mode default: check passes --all, audit passes none. Ratchet ignores this and always runs check --ratchet --base."
     required: false
-    default: "--all"
+    default: ""
   sarif:
     description: "Optional path to write SARIF 2.1.0 report for GitHub Code Scanning"
     required: false
@@ -61,20 +61,4 @@ runs:
         PREGATE_BASE: ${{ inputs.base }}
         PREGATE_ARGS: ${{ inputs.args }}
         PREGATE_SARIF: ${{ inputs.sarif || inputs.sarif-file }}
-      run: |
-        set -euo pipefail
-        if [ -n "$PREGATE_SARIF" ]; then
-          if [ "$PREGATE_MODE" = "audit" ]; then
-            pregate audit $PREGATE_ARGS --sarif > "$PREGATE_SARIF"
-          elif [ "$PREGATE_MODE" = "ratchet" ] && [ -n "$PREGATE_BASE" ]; then
-            pregate check --ratchet --base "$PREGATE_BASE" --format sarif > "$PREGATE_SARIF"
-          else
-            pregate check $PREGATE_ARGS --format sarif > "$PREGATE_SARIF"
-          fi
-        else
-          if [ "$PREGATE_MODE" = "ratchet" ] && [ -n "$PREGATE_BASE" ]; then
-            pregate check --ratchet --base "$PREGATE_BASE"
-          else
-            pregate "$PREGATE_MODE" $PREGATE_ARGS
-          fi
-        fi
+      run: bash "$GITHUB_ACTION_PATH/scripts/action-run.sh"

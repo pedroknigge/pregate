@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { chmodSync } from "node:fs";
 import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
+import { VERSIONS } from "../src/versions.ts";
 import { homebrewFormula, parseSums, scoopManifest } from "../scripts/release-manifests.ts";
 
 test("release-manifests generates valid Homebrew formula and Scoop manifest from SHA256SUMS", () => {
@@ -35,5 +36,5 @@ test("bin/pregate.mjs delegates to the local source entrypoint when run in the r
   chmodSync(binPath, 0o755);
   const out = Bun.spawnSync(["node", binPath, "--version"], { stdout: "pipe", stderr: "pipe" });
   expect(out.exitCode, out.stderr.toString()).toBe(0);
-  expect(out.stdout.toString().trim()).toBe(`pregate ${pkg.version} (core ${pkg.version})`);
+  expect(out.stdout.toString().trim()).toBe(`pregate ${VERSIONS.engine} (core ${VERSIONS.core})`);
 });

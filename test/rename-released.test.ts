@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { renameReleased } from "../src/disk.ts";
+import { renameReleased, writeAtomic } from "../src/disk.ts";
 
 const WINDOWS = process.platform === "win32";
 
@@ -21,6 +21,14 @@ async function holdExclusive(path: string, ms: number) {
   expect(new TextDecoder().decode(first.value)).toContain("locked");
   return child;
 }
+
+test("an atomic write replaces the previous bytes", inTemp((dir) => {
+  const path = join(dir, "lock.json");
+  writeAtomic(path, "one");
+  writeAtomic(path, "two");
+  expect(readFileSync(path, "utf8")).toBe("two");
+  expect(existsSync(path)).toBe(true);
+}));
 
 test("a free file is renamed at once", inTemp((dir) => {
   writeFileSync(join(dir, "a"), "engine");

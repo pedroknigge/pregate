@@ -14,8 +14,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - name: Install test shells
@@ -52,8 +52,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
       - name: Isolate runtime homes
@@ -71,7 +71,7 @@ jobs:
       # DEFAULT_VERSION is not package.json's.
       - run: bun run build
       - run: bun run manifests
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-candidate
           if-no-files-found: error
@@ -97,12 +97,12 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: release-candidate
           path: dist
-      - uses: sigstore/cosign-installer@v4.1.1
+      - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Sign archives and SHA256SUMS
         run: |
           set -euo pipefail
@@ -112,7 +112,7 @@ jobs:
             # Keyless: GitHub OIDC, Fulcio certificate, Rekor entry, written as a Sigstore bundle.
             cosign sign-blob --yes --bundle "${f}.bundle" "$f"
           done
-      - uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             dist/pregate-*.tar.gz
@@ -149,7 +149,7 @@ jobs:
       # The literal bootstrap of MH-32 in an empty HOME, except that gh names the tag: without one it
       # takes the latest release, which a pre-release is not. cosign is installed so install.sh
       # verifies the keyless bundles this workflow just published.
-      - uses: sigstore/cosign-installer@v4.1.1
+      - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Bootstrap on a clean machine
         env:
           GH_TOKEN: ${{ github.token }}
@@ -177,7 +177,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: sigstore/cosign-installer@v4.1.1
+      - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Bootstrap and update on native Windows
         shell: pwsh
         env:

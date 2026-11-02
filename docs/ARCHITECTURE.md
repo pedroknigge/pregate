@@ -2,7 +2,7 @@
 
 > *A gate for explicit, executable code and architecture constraints.*
 
-**Current source: published engine 0.0.1, core 0.0.1:** 68 default rules (64 project fitness requirements and four
+**Current source: published engine 0.0.2, core 0.0.1:** 68 default rules (64 project fitness requirements and four
 general change guards); language/practice/pattern policies are optional packs.
 Human-reviewed off overrides are supported. The pure evidence gate is
 [fitness.ts](../src/fitness.ts); execution and file fingerprints live in
@@ -10,7 +10,7 @@ Human-reviewed off overrides are supported. The pure evidence gate is
 defines its approval, staleness, scope and semantic limits. Earlier core names,
 non-disableable integrity claims and default rule counts below are historical.
 
-**Current status:** 0.0.1 is the public release. macOS ARM64 is stable. Linux and
+**Current status:** 0.0.2 is the public release. macOS ARM64 is stable. Linux and
 Windows builds are experimental. It adds
 Python/Go/Rust demos, bounded Rust source analysis and public-ready HTTPS downloads
 with private fallback. Core is unchanged. See
@@ -139,7 +139,7 @@ pregate/
 ├─ assets/                      embedded; `install` writes them into the repo
 │  ├─ launcher.sh               supervises the engine: hard deadline, exit 3 ⇒ pinned engine, rc ∉ {0,2} ⇒ event fail-closed output
 │  ├─ pre-commit.sh             global pregate check --staged --ratchet
-│  └─ ci-github.yml             timeout-minutes; downloads the pinned engine (verifies sha256);
+│  └─ ci-github.yml             timeout-minutes; installs the base branch's engine (sha256 + cosign);
 │                               pregate rules test (path sources) + pregate check --ratchet --base <sha>
 ├─ src/
 │  ├─ main.ts        shell · argv → hook <event> | hook auto | CLI (no last-resort try/catch: A6)

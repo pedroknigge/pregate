@@ -203,7 +203,7 @@ export function writeAtomic(path: string, text: string): void {
 
 function renameOrDiscard(tmp: string, path: string): void {
   try {
-    renameSync(tmp, path);
+    renameReleased(tmp, path);
   } catch (e) {
     rmSync(tmp, { force: true });
     throw e;

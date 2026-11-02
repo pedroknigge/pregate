@@ -78,8 +78,8 @@ function gitHook(root: string, top: string): string {
   return `Pre-commit enabled (core.hooksPath=${path}); commit ${HOOKS_DIR}/.`;
 }
 
-// The template reads the engine from the lock, so a lock recompiled with another engine needs no
-// change to the workflow (MH-28).
+// The template installs the engine pinned on the base branch, so a pull request cannot swap the
+// binary by editing its own lock (MH-28).
 function ci(root: string, top: string): string {
   const workflow = join(top, ".github/workflows/pregate.yml");
   write(workflow, ASSETS["ci-github.yml"]!.replaceAll("@ROOT@", relative(top, root) || "."), false);

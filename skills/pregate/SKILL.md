@@ -1,6 +1,6 @@
 ---
 name: pregate
-description: "0.0.1 — PREGATE: guide project setup and recovery, pre-check edits, audit debt, compose packs and prepare reviewed approvals"
+description: "0.0.2 — PREGATE: guide project setup and recovery, pre-check edits, audit debt, compose packs and prepare reviewed approvals"
 ---
 
 # PREGATE
@@ -19,7 +19,7 @@ only if installed, absent tools remain not verified, and the 64 core fitness
 requirements stay unverified. It demonstrates no-new, a denied new dependency
 before writing, and accepted repairs; it does not test a live model or human UI.
 
-Skill version: 0.0.1. Run `pregate --version` and compare the engine with
+Skill version: 0.0.2. Run `pregate --version` and compare the engine with
 this skill and the lock's engine. Warn the human about mismatches. `doctor`
 diagnoses missing/stale registrations and companion instructions. Do not repair
 global settings without explicit authorization.
