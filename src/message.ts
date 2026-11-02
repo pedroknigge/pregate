@@ -82,7 +82,7 @@ const WHY: Record<Cause | Halt, string> = {
   "snapshot-missing": "the session snapshot is missing; start a new session.",
   "state-io": "cannot write PREGATE state; run `pregate storage inspect`, check permissions/available disk space, and review abandoned-owner recovery with `pregate storage recover --preview`.",
   "regex-limit": "a rule regex hit its backtracking limit; rewrite it without repeated groups and run `pregate preset compile`.",
-  "contract-loosened": "the contract was loosened during the session without a recorded human approval; the human restores it (git checkout -- .pregate) or applies the change through a reviewed preview and `pregate approve`.",
+  "contract-loosened": "the contract was loosened during the session without a recorded human approval; the human restores it (git checkout -- .pregate) or applies the change through a reviewed preview and their own approval.",
 };
 
 const RANK: Record<Severity, number> = { deny: 0, ask: 1, warn: 2 };

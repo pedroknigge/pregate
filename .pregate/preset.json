@@ -97,7 +97,8 @@
         "src/interval-cleanup.ts",
         "src/react-index-key.ts",
         "src/credential-literal.ts",
-        "src/sarif.ts"
+        "src/sarif.ts",
+        "src/inline-sinks.ts"
       ],
       "mayImport": [],
       "kind": "core"
@@ -166,7 +167,9 @@
         "src/lock-cache.ts",
         "src/rules-draft-command.ts",
         "src/embedded.ts",
-        "src/rules-add-command.ts"
+        "src/rules-add-command.ts",
+        "src/git-changes.ts",
+        "src/loosening.ts"
       ],
       "mayImport": [
         "core"

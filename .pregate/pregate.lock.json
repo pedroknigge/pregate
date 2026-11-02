@@ -55,7 +55,8 @@
         "src/interval-cleanup.ts",
         "src/react-index-key.ts",
         "src/credential-literal.ts",
-        "src/sarif.ts"
+        "src/sarif.ts",
+        "src/inline-sinks.ts"
       ]
     },
     "shell": {
@@ -126,7 +127,9 @@
         "src/lock-cache.ts",
         "src/rules-draft-command.ts",
         "src/embedded.ts",
-        "src/rules-add-command.ts"
+        "src/rules-add-command.ts",
+        "src/git-changes.ts",
+        "src/loosening.ts"
       ]
     }
   },
@@ -152,7 +155,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "c96aee71567e18ef70e2f73e36fbb52cac035d128c42e0af4c99ce9763dc600d",
+  "presetHash": "cf6a8f06956a46d7ef511b2504cecdcff605b1504634edfbf380ab3e85b7b18c",
   "ratchet": "no-new",
   "rules": [
     {
@@ -221,7 +224,8 @@
           "src/interval-cleanup.ts",
           "src/react-index-key.ts",
           "src/credential-literal.ts",
-          "src/sarif.ts"
+          "src/sarif.ts",
+          "src/inline-sinks.ts"
         ]
       },
       "phases": [
@@ -340,7 +344,8 @@
           "src/interval-cleanup.ts",
           "src/react-index-key.ts",
           "src/credential-literal.ts",
-          "src/sarif.ts"
+          "src/sarif.ts",
+          "src/inline-sinks.ts"
         ]
       },
       "phases": [
@@ -862,7 +867,8 @@
           "src/interval-cleanup.ts",
           "src/react-index-key.ts",
           "src/credential-literal.ts",
-          "src/sarif.ts"
+          "src/sarif.ts",
+          "src/inline-sinks.ts"
         ]
       },
       "phases": [
@@ -5347,6 +5353,7 @@
           "src/react-index-key.ts",
           "src/credential-literal.ts",
           "src/sarif.ts",
+          "src/inline-sinks.ts",
           "src/main.ts",
           "src/gate.ts",
           "src/assets.ts",
@@ -5409,7 +5416,9 @@
           "src/lock-cache.ts",
           "src/rules-draft-command.ts",
           "src/embedded.ts",
-          "src/rules-add-command.ts"
+          "src/rules-add-command.ts",
+          "src/git-changes.ts",
+          "src/loosening.ts"
         ]
       },
       "phases": [
