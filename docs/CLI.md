@@ -19,7 +19,7 @@ usage:
   pregate check --staged [--ratchet]
   pregate check --ratchet --base <sha>
   pregate explain <rule> | --path <file>
-  pregate preset show [--json] | request-schema | compile | apply <request.json> [--preview|--yes]
+  pregate preset show [--json] | request-schema | compile [--yes] | apply <request.json> [--preview|--yes]
   pregate preset diagnose [--json] | schema
   pregate rules test [<dir> | --library <ns> | --fixture <dir|repro.json>]
   pregate rules add "<sentence>" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]

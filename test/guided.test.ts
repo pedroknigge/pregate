@@ -263,7 +263,7 @@ test("existing-project adoption expands missing real roots in one review while p
   const preset = JSON.parse(p.bytes()[0]!) as Preset;
   preset.scope = { include: ["lib/**"], exclude: ["components/generated/**"] };
   writeFileSync(join(p.root, ".pregate/preset.json"), JSON.stringify(preset, null, 2) + "\n");
-  expect(p.cli(["preset", "compile"]).code).toBe(0);
+  expect(p.cli(["preset", "compile", "--yes"]).code).toBe(0);
   expect(p.cli(["disable", "--yes"]).code).toBe(0);
   const before = p.bytes();
   const out = p.cli(["guide", "--preview", "--packs", "typescript,react", "--enforcement", "shadow"]);
@@ -586,7 +586,7 @@ test.skipIf(process.platform === "win32" || python === null)("multi-project upda
   bPreset.methodologies = bPreset.methodologies.filter(method => method !== "typescript/anti-evasion");
   bPreset.overrides = { ...bPreset.overrides, "core/CORE-INV-003": "off" };
   writeFileSync(join(b.root, ".pregate/preset.json"), JSON.stringify(bPreset, null, 2) + "\n");
-  expect(b.cli(["preset", "compile"]).code).toBe(0);
+  expect(b.cli(["preset", "compile", "--yes"]).code).toBe(0);
   const missing = JSON.parse(b.cli(["guide", "--json"]).text).discovery.suggestedAdditions.find((item: { ns: string }) => item.ns === "typescript");
   expect(missing.methodologies).toEqual(["typescript/anti-evasion"]);
   const aPreset = JSON.parse(a.bytes()[0]!) as Preset; aPreset.engine = "0.0.0";

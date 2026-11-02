@@ -171,7 +171,7 @@ const read = (r: Repo, rel: string): string => readFileSync(at(r, rel), "utf8");
 // A preset change, compiled through the launcher and committed through the pre-commit.
 function recommit(r: Repo, change: (p: Record<string, unknown>) => void): void {
   editPreset(r, change);
-  ok(cli(r, "preset", "compile"), "preset compile");
+  ok(cli(r, "preset", "compile", "--yes"), "preset compile");
   ok(git(r, "add", "-A"), "git add");
   ok(commit(r, "preset"), "git commit");
 }
@@ -612,9 +612,9 @@ test("compiled issue reporting offers an offline review and sends only the appro
   expect(draft.stdout).toContain(`Engine: ${pkg.version}`);
   expect(cli(r, "issue", "submit", id).code).toBe(1);
   expect(a.bash(`pregate issue submit ${id} --yes`).code).toBe(2);
-  const native = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "" } }).bash(`pregate issue submit ${id} --yes`);
-  expect(json(native).hookSpecificOutput.permissionDecision).toBe("ask");
-  expect(json(native).hookSpecificOutput.additionalContext).toContain("This finding needs investigation.");
+  const parent = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "" } }).bash(`pregate issue submit ${id} --yes`);
+  expect(parent.code).toBe(2);
+  expect(parent.stdout + parent.stderr).toContain(`type ! pregate issue submit ${id} --yes inside the harness`);
   const stub = at(r, "gh-stub");
   mkdirSync(stub);
   const fake = join(stub, "gh"), args = join(stub, "args");
@@ -769,7 +769,14 @@ test("a committed lock that no longer matches its preset fails the pre-commit an
   expect(ci.code).toBe(1);
   expect(ci.stdout).toContain("pregate.lock.json does not match the preset and its sources");
   recommit(r, () => {});
-  expect(cli(r, "check", "--ratchet", "--base", "HEAD~1").code).toBe(0);
+  // The stale lock is gone; what remains is the loosening itself (a longer function limit), which
+  // only the maintainer's acceptance of its digest lets through.
+  const loosened = cli(r, "check", "--ratchet", "--base", "HEAD~1");
+  expect(loosened.code).toBe(1);
+  expect(loosened.stdout).not.toContain("pregate.lock.json does not match the preset and its sources");
+  const digest = /Contract loosening digest: ([0-9a-f]{64})/.exec(loosened.stdout)?.[1];
+  expect(digest, said(loosened)).toBeDefined();
+  expect(run(["pregate", "check", "--ratchet", "--base", "HEAD~1"], r.dir, { ...r.env, PREGATE_ACCEPT_CONTRACT: digest! }).code).toBe(0);
 });
 
 test("pre-commit resolves imports against the index, not the working tree", () => {

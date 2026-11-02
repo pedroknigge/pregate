@@ -111,7 +111,7 @@ test("one installed-engine update migrates old pins and proposes malformed overr
   const coreId = "core/CORE-INV-001";
   preset.overrides = { "testing/TDD-FOCUS-001": { severity: "deny", enforcement: "shadow", params: { paths: ["test/**"], exclude: ["test/legacy/**"] }, note: "Team scope" }, [coreId]: "off", "core/CORE-INV-002": { note: "Keep the reviewed rationale" } };
   writeFileSync(join(p.root, ".pregate/preset.json"), JSON.stringify(preset));
-  expect(p.cli(["preset", "compile"]).code).toBe(0);
+  expect(p.cli(["preset", "compile", "--yes"]).code).toBe(0);
   const previous = JSON.parse(p.contract()[1]!);
   const focus = previous.rules.find((rule: { id: string }) => rule.id === "testing/TDD-FOCUS-001");
   preset.engine = "0.0.0";
@@ -566,7 +566,7 @@ test("scan proposes missing source roots and packs in one review; scope-only cha
   const preset = JSON.parse(p.contract()[0]!);
   preset.scope = { include: ["lib/**"], exclude: ["app/generated/**"] };
   writeFileSync(join(p.root, ".pregate/preset.json"), JSON.stringify(preset));
-  expect(p.cli(["preset", "compile"]).code).toBe(0);
+  expect(p.cli(["preset", "compile", "--yes"]).code).toBe(0);
   for (const path of ["lib/orders.ts", "app/page.tsx", "components/order.tsx", "tests/order.test.ts", "app/generated/api.ts", "proxy.ts"]) {
     mkdirSync(dirname(join(p.root, path)), { recursive: true });
     writeFileSync(join(p.root, path), "export const value = 1;\n");

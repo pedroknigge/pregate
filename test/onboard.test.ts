@@ -246,7 +246,7 @@ test("preset request preview validates a bounded adaptation and requires exact h
   preset.enforcement = "enforce";
   preset.overrides = { "architecture/FCIS-IO-001": { params: { paths: ["src/**"] } } };
   writeFileSync(presetPath, JSON.stringify(preset));
-  expect(cli(root, "preset", "compile").exitCode).toBe(0);
+  expect(cli(root, "preset", "compile", "--yes").exitCode).toBe(0);
   const before = [presetPath, lockPath].map(path => readFileSync(path, "utf8"));
   const consent = cli(root, "status", "--json").stdout.toString();
   mkdirSync(join(root, ".pregate/requests"));
