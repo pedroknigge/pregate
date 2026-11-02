@@ -320,5 +320,5 @@ test("promote prepares a digest review for clean advisor rules and refuses viola
 });
 
 async function inScratch(dir: string, use: () => Promise<void>): Promise<void> {
-  try { await use(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { await use(); } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
 }
