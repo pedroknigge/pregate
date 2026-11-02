@@ -419,7 +419,7 @@ function inTempDir(prefix: string, run: (dir: string) => void): void {
 // A cleanup error must not replace the test's own failure: bun prints only the error that escapes.
 function removing(dir: string, run: (dir: string) => void): void {
   try { run(dir); } catch (error) {
-    try { removeTree(dir); } catch (cleanup) { console.error(`Could not remove ${dir} after the failure below: ${cleanup}`); }
+    try { removeTree(dir); } catch (cleanup) { throw new Error(`The test failed (cause below), then ${dir} could not be removed: ${cleanup}`, { cause: error }); }
     throw error;
   }
   removeTree(dir);
