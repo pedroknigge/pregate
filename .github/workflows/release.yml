@@ -214,5 +214,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Engine update failed' }
           & $cli update --version $version
           if ($LASTEXITCODE -ne 0) { throw 'Update failed' }
-          & $cli uninstall --purge
+          $env:PREGATE_UNATTENDED_APPROVAL = '1'
+          & $cli uninstall --purge --yes
           if ($LASTEXITCODE -ne 0) { throw 'Uninstall failed' }

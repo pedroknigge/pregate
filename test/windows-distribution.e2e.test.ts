@@ -68,7 +68,7 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
     expect(userPath(r.key)).toEqual({ type: "REG_EXPAND_SZ", value: bin });
     expect(r.text).toContain(`Added ${bin} to your user PATH`);
     const cli = join(r.dir, "data/pregate/bin/pregate.cmd");
-    const run = (...args: string[]) => Bun.spawnSync(["cmd.exe", "/d", "/c", cli, ...args], { env: r.env, timeout: 90_000 });
+    const run = (...args: string[]) => Bun.spawnSync(["cmd.exe", "/d", "/c", cli, ...args], { env: { ...r.env, PREGATE_UNATTENDED_APPROVAL: "1" }, timeout: 90_000 });
     expect(run("--version").stdout.toString().trim()).toBe(`pregate ${pkg.version} (core ${VERSIONS.core})`);
     expect(run("update", "--engine", pkg.version).exitCode).toBe(0);
     expect(run("update", "--version", pkg.version).exitCode).toBe(0);
