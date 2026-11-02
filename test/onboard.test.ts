@@ -415,8 +415,13 @@ function inTempDir(prefix: string, run: (dir: string) => void): void {
   removing(mkdtempSync(join(tmpdir(), prefix)), run);
 }
 
+// A cleanup error must not replace the test's own failure: bun prints only the error that escapes.
 function removing(dir: string, run: (dir: string) => void): void {
-  try { run(dir); } finally { removeTree(dir); }
+  try { run(dir); } catch (error) {
+    try { removeTree(dir); } catch (cleanup) { console.error(`Could not remove ${dir} after the failure below: ${cleanup}`); }
+    throw error;
+  }
+  removeTree(dir);
 }
 
 // Windows keeps a just-executed pregate.exe mapped for a moment. Cleanup waits that out;
