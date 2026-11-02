@@ -5,6 +5,17 @@ All notable changes to **Pregate** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Development, CI, and release jobs install Bun 1.4.4 from `.bun-version`. Bun 1.4.2 can segfault while leaving `bun test --isolate` after the tests have passed ([oven-sh/bun#43056](https://github.com/oven-sh/bun/issues/43056)); that crash is fixed in 1.4.3 and later. The Windows suite is the job that runs with `--isolate`. GitHub Actions stay pinned to a full commit SHA.
+
+### Fixed
+- A compiled-lock cache write no longer drops every error in an empty `catch`. A filesystem failure leaves the cache unwritten and admission stands, so the next hook recompiles. Any other error propagates.
+- Terminal approval reads `/dev/tty` directly. Bun 1.4.4 pauses stdin when a readline stream on that device is destroyed, so the next question never saw what was typed.
+- Looking up the project that started a hook no longer drops every error in an empty `catch`. A path with no existing ancestor is still not a project. A symlink loop or any other error propagates.
+- The two known symlink gaps stay skipped, and they are not a passing attack. They use `test.skipIf` until `PREGATE_RUN_KNOWN_GAPS` is set, so `check --all` no longer sees an unconditional `test.skip`.
+
 ## [0.0.2] - 2026-11-02
 
 What changed for people installing or gating a repository. The first public tag remains [0.0.1](docs/releases/0.0.1.md).

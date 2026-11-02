@@ -342,7 +342,7 @@ describe("a regex that may have given up never reads as no match", () => {
   });
 
   test("pinned runtime regex controls: long noncapturing match, capture-memory exhaustion and safe-length matches", () => {
-    // Far past LONG the runtime's answer to a valid match varies: the pinned Bun 1.4.2 matches,
+    // Far past LONG the runtime's answer to a valid match varies: the pinned Bun 1.4.4 matches,
     // Bun 1.3.14 gives up and answers false. Either way the engine never reads it as no match.
     const answered = /^(?:ab)*$/.test("ab".repeat(1_400_000));
     if (Bun.version === readFileSync(join(import.meta.dir, "../.bun-version"), "utf8").trim()) expect(answered).toBe(true);

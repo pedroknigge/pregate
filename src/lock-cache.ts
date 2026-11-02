@@ -53,8 +53,11 @@ export function storeCompiledLock(root: string, presetText: string, compiledText
     mkdirSync(dirname(file), { recursive: true });
     const body = { v: CACHE_VERSION, key, text: compiledText };
     writeAtomic(file, JSON.stringify({ ...body, digest: digestOf(body) }));
-  } catch {
-    // Admission already succeeded. The next hook recompiles when the file is absent.
+  } catch (error) {
+    // The compiled lock is already what admission returns. A filesystem error leaves the
+    // cache unwritten, and the next hook recompiles. Any other error is a bug.
+    if (typeof (error as NodeJS.ErrnoException).code === "string") return;
+    throw error;
   }
 }
 

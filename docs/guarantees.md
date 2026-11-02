@@ -93,7 +93,7 @@ are the same.
 
 ### Known gaps
 
-These tests are skipped. They record a limit rather than a passing attack.
+These tests stay skipped unless `PREGATE_RUN_KNOWN_GAPS` is set. They record a limit rather than a passing attack.
 
 - **External target of a committed symlink.** Git diffs the link text. Changing the file outside the repo, without a hook write through the in-repo path, is not a `check --ratchet` diff.
 - **Directory symlink out of the repo.** The workspace walk does not follow a symlink directory, and git lists the link rather than the files behind it. Violations that exist only there are not in the diff.

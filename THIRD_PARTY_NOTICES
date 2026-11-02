@@ -64,11 +64,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 --------------------------------------------------------------------------------
-Bun runtime 1.4.2
+Bun runtime 1.4.4
 https://github.com/oven-sh/bun
 Embedded: the runtime that `bun build --compile` links into the binary
 License: MIT. The libraries Bun links statically, with their licenses, are listed in
-https://github.com/oven-sh/bun/blob/bun-v1.4.2/LICENSE.md
+https://github.com/oven-sh/bun/blob/bun-v1.4.4/LICENSE.md
 
 JavaScriptCore / WebKit (LGPL-2): Bun statically links JavaScriptCore and WebKit, licensed under
 the GNU Lesser General Public License version 2. The patched WebKit Bun uses is published at

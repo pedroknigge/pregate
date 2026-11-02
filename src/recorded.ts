@@ -210,8 +210,11 @@ function invocationRoots(session: Session): string[] {
     try {
       const root = findRoot(canonical(dir), enabled);
       if (root !== null) found.add(root);
-    } catch {
-      // A missing ancestor is not a project.
+    } catch (error) {
+      // A path with no existing ancestor is not a project. A symlink loop or any other
+      // failure stays a failure: canonical() denies those on purpose.
+      if (error instanceof Error && error.message.endsWith(": no existing ancestor")) continue;
+      throw error;
     }
   }
   return [...found];

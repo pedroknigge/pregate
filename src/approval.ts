@@ -1,8 +1,6 @@
-import { existsSync, mkdirSync, openSync, readFileSync, rmSync, closeSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, read, readFileSync, rmSync, closeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeAll } from "./write-all.ts";
-import type { Interface } from "node:readline/promises";
-import type { ReadStream } from "node:tty";
 import { approvalText } from "./contract.ts";
 import { dataHome, enable } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
@@ -13,7 +11,6 @@ import { WINDOWS } from "./platform.ts";
 export const APPROVAL_MS = 90_000;
 // Loaded on first use: these builtins take milliseconds to initialize, and every hook would pay it.
 const terminalIo = () => require("node:tty") as typeof import("node:tty");
-const prompts = () => require("node:readline/promises") as typeof import("node:readline/promises");
 export { PENDING_MS, proposeContract, readProposal, discardProposal, type Proposal } from "./proposal.ts";
 declare const PREGATE_TEST_BUILD: boolean;
 const TEST_BUILD = typeof PREGATE_TEST_BUILD !== "undefined" && PREGATE_TEST_BUILD;
@@ -120,29 +117,50 @@ export async function approve(summary: string, warning: boolean, yes = false): P
   if (!process.stdin.isTTY) return false;
   const fd = openTerminal();
   if (fd === null) return false;
-  const input = new (terminalIo().ReadStream)(fd);
-  const terminal = prompts().createInterface({ input });
   const abort = new AbortController();
-  terminal.once("close", () => abort.abort());
   const deadline = setTimeout(() => abort.abort(), APPROVAL_MS);
-  return terminalAnswer({ fd, text, input, terminal, signal: abort.signal, deadline });
+  return terminalAnswer(fd, text, abort.signal, deadline);
 }
 
-type Prompt = { fd: number; text: Buffer; input: ReadStream; terminal: Interface; signal: AbortSignal; deadline: ReturnType<typeof setTimeout> };
-
-async function terminalAnswer(prompt: Prompt): Promise<boolean> {
+async function terminalAnswer(fd: number, text: Buffer, signal: AbortSignal, deadline: ReturnType<typeof setTimeout>): Promise<boolean> {
   try {
     // Materialize UTF-8 bytes once: no subprocess argv, format string or rope conversion.
-    if (WINDOWS) writeAll(2, prompt.text);
-    else writeAll(prompt.fd, prompt.text);
-    return /^(y|yes)$/i.test((await prompt.terminal.question("", { signal: prompt.signal })).trim());
+    if (WINDOWS) writeAll(2, text);
+    else writeAll(fd, text);
+    return /^(y|yes)$/i.test((await readTerminalLine(fd, signal)).trim());
   } catch {
     return false;
   } finally {
-    clearTimeout(prompt.deadline);
-    prompt.terminal.close();
-    prompt.input.destroy();
+    clearTimeout(deadline);
+    closeSync(fd);
   }
+}
+
+// readline's ReadStream on /dev/tty pauses process.stdin when destroyed (Bun 1.4.4), and the
+// next question never receives a line. Read this fd directly so stdin stays usable.
+function readTerminalLine(fd: number, signal: AbortSignal): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const finish = (error: Error | null, line = "") => {
+      signal.removeEventListener("abort", onAbort);
+      if (error === null) resolve(line);
+      else reject(error);
+    };
+    const onAbort = () => finish(new Error("approval timed out"));
+    signal.addEventListener("abort", onAbort);
+    const step = () => {
+      const buf = Buffer.alloc(256);
+      read(fd, buf, 0, buf.length, null, (error, n) => {
+        if (signal.aborted) return;
+        if (error) return finish(error);
+        if (n > 0) chunks.push(Buffer.from(buf.subarray(0, n)));
+        const line = Buffer.concat(chunks).toString("utf8");
+        if (n === 0 || /[\r\n]/.test(line)) return finish(null, line);
+        step();
+      });
+    };
+    step();
+  });
 }
 
 // The lock becomes current only once the approved tool has written the exact candidate bytes.

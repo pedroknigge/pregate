@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { BUILTIN } from "../src/assets.ts";
@@ -100,6 +100,17 @@ test("compiled lock cache hits, falls back when corrupt, and misses when the loc
   edited.name = "renamed-preset";
   write(join(root, PRESET), `${JSON.stringify(edited, null, 2)}\n`);
   expect(lockOf(root)).toBe("lock-stale");
+});
+
+test("a cache directory that is not a directory still admits the compiled lock", () => {
+  const { root } = project();
+  const cold = admitted(root);
+  const file = cacheFile(root);
+  const dir = dirname(file);
+  rmSync(dir, { recursive: true, force: true });
+  writeFileSync(dir, "not a directory\n");
+  expect(admitted(root)).toEqual(cold);
+  expect(existsSync(file)).toBe(false);
 });
 
 test("a path source without a path misses the cache and reports lock-stale instead of throwing", () => {
