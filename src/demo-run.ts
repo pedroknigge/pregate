@@ -142,9 +142,10 @@ function demoNative(c: DemoContext, sample: DemoSample, phase: string) {
   let args = sample.language === "python" ? ["-B", "-m", "unittest", "discover", "-s", "tests"] : ["test", "./..."];
   c.env.PREGATE_DEMO_EXPECTED_TOTAL = phase === "baseline" ? "10" : "11";
   if (sample.language === "rust") args = ["--edition=2021", "--test", "src/lib.rs", ...(phase !== "baseline" ? ["--cfg", "demo_repair"] : []), "-o", join(c.area, "rust-tests")];
-  // A cold GOCACHE compiles the standard library before go test prints anything. On a Windows
-  // runner that exceeds the 30s hang limit used for pregate and git commands.
-  const run = demoProcess(c, `native-${phase}-tests`, tool, args, undefined, sample.language === "go" ? 90_000 : 30_000);
+  // A cold GOCACHE compiles the standard library before go test prints anything. Windows
+  // on-access scanning of those new objects can exceed 90s; killing the compiler then leaves
+  // the sample directory locked, so the budget has to cover the compile rather than cut it off.
+  const run = demoProcess(c, `native-${phase}-tests`, tool, args, undefined, sample.language === "go" ? 180_000 : 30_000);
   demoAssert(version.code === 0 && run.code === 0, `The own ${sample.language} sample failed native verification.`);
   if (sample.language === "rust") demoAssert(demoProcess(c, `native-${phase}-test-executable`, join(c.area, "rust-tests"), []).code === 0, "Owned Rust tests failed.");
   return { status: "passed", version: version.stdout.trim(), command: args.map(arg => arg.startsWith(c.area) ? "<owned-output>" : arg) };

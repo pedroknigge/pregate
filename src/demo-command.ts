@@ -49,7 +49,11 @@ function demoRun(run: DemoRun): { code: number; report: DemoReport } {
   } catch (e) {
     return { code: 1, report: { schemaVersion: 1, mode: "isolated-owned-sample-automation", engine: VERSIONS,
       cleanup: true, attempts: run.attempts, error: String((e as Error).message).replaceAll(run.area, "<owned-demo>") } };
-  } finally { removeReleased(run.area); }
+  } finally {
+    // A just-compiled Go test binary can stay locked by an on-access scanner longer than the
+    // usual rename wait. The directory still has to disappear; only the wait is longer on Windows.
+    removeReleased(run.area, process.platform === "win32" ? 60_000 : 15_000);
+  }
 }
 
 function demoOptions(args: string[]): { languages: DemoLanguage[]; json: boolean } | null {

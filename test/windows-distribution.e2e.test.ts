@@ -9,7 +9,7 @@ import { WINDOWS } from "../src/platform.ts";
 import { VERSIONS } from "../src/versions.ts";
 
 if (WINDOWS) describe("native Windows bootstrap with the real release engine", () => {
-  setDefaultTimeout(120_000);
+  setDefaultTimeout(240_000);
   const area = mkdtempSync(join(tmpdir(), "pregate-win-dist-"));
   const source = join(area, "archive");
   const zip = join(area, "release.zip");
@@ -54,7 +54,9 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
       PSModuleAnalysisCachePath: join(dir, "powershell-module-analysis-cache"),
       PREGATE_ARCHIVE: zip, PREGATE_SHA256: hash, PREGATE_PATH_KEY: key, ...extra };
     const args = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", entry, ...(version === undefined ? [] : ["-Version", version])];
-    const r = Bun.spawnSync(args, { env, stdout: "pipe", stderr: "pipe", timeout: 90_000 });
+    // The first public-channel install on a hosted runner has exceeded 90s (a later one in the
+    // same job finishes in about 25s). 180s is the Windows budget for that cold start.
+    const r = Bun.spawnSync(args, { env, stdout: "pipe", stderr: "pipe", timeout: 180_000 });
     return { code: r.exitCode, text: r.stdout.toString() + r.stderr.toString(), dir, temp, env, key, args };
   }
   test("verified ZIP bootstraps, updates and purges the real engine", async () => {
@@ -114,6 +116,9 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
 function Get-Command([string]$Name, [object]$ErrorAction) {
     if ($Name -eq 'curl.exe') { return [pscustomobject]@{ Source = 'Test-Curl' } }
     if ($Name -eq 'gh') { return [pscustomobject]@{ Source = 'gh' } }
+    # This fixture has no signer. A real lookup of a missing cosign walks PATH, including
+    # WindowsApps execution aliases, and that stall consumed the public-channel budget.
+    if ($Name -eq 'cosign' -or $Name -eq 'cosign.exe' -or $Name -eq 'minisign' -or $Name -eq 'minisign.exe') { return $null }
     Microsoft.PowerShell.Core\\Get-Command -Name $Name -ErrorAction SilentlyContinue
 }
 function Test-Curl {

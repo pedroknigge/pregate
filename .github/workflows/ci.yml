@@ -123,6 +123,21 @@ jobs:
           }
           # Without AppData\Local under USERPROFILE, PowerShell writes this cache into its working directory.
           "PSModuleAnalysisCachePath=$root/powershell-module-analysis-cache" >> $env:GITHUB_ENV
+      # Freshly compiled engines and a cold `go test` write many new binaries. Real-time scanning
+      # of those files is what pushed the Go demo past its compile budget and the first public
+      # install past its process budget. The isolated root already holds TEMP, HOME and GOCACHE.
+      - name: Exclude CI work directories from Defender
+        shell: pwsh
+        run: |
+          $root = 'C:\private\tmp\claude-501\pregate-ci'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $targets = @([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE), [IO.Path]::GetFullPath($root))
+          foreach ($path in $targets) { Add-MpPreference -ExclusionPath $path }
+          $kept = @((Get-MpPreference).ExclusionPath)
+          foreach ($path in $targets) {
+            if (-not ($kept | Where-Object { $_ -ieq $path })) { throw "Defender did not keep the exclusion for $path" }
+            Write-Output "Defender exclusion: $path"
+          }
       - name: Git identity for fixture commits
         shell: pwsh
         run: |
@@ -144,6 +159,24 @@ jobs:
           bun scripts/invariant-coverage.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun scripts/docs-reference.ts --check
+      # The demo keeps its own empty GOCACHE (no network, no user cache). Compiling this module
+      # once first loads the toolchain and the standard library into the OS cache, which is the
+      # difference between the timed-out first Go demo and the passing run that followed it.
+      - name: Warm the Go toolchain
+        shell: pwsh
+        working-directory: examples/demo/go
+        env:
+          GOCACHE: C:/private/tmp/claude-501/pregate-ci/go-cache
+          GOPATH: C:/private/tmp/claude-501/pregate-ci/gopath
+          GOTMPDIR: C:/private/tmp/claude-501/pregate-ci/tmp
+          GOPROXY: "off"
+          GOSUMDB: "off"
+          GOTOOLCHAIN: local
+          CGO_ENABLED: "0"
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:GOCACHE, $env:GOPATH, $env:GOTMPDIR | Out-Null
+          go version
+          go test ./...
       - name: Verify native runtime and onboarding
         run: bun test test/runtime.test.ts test/onboard.test.ts
       - name: UTF-16 PowerShell scripts are scanned
