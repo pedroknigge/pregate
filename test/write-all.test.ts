@@ -35,8 +35,8 @@ for (const fd of [1, 2] as const) {
 }
 
 test("text is written as UTF-8", () => {
-  const script = `import { writeAll } from ${modulePath}; writeAll(1, "Grüße ✓\\n");`;
+  const script = `import { writeAll } from ${modulePath}; writeAll(1, "5 € — ✓\\n");`;
   const run = Bun.spawnSync([process.execPath, "-e", script], { stdout: "pipe", stderr: "pipe" });
   expect(run.exitCode, run.stderr.toString()).toBe(0);
-  expect(run.stdout.toString("utf8")).toBe("Grüße ✓\n");
+  expect(run.stdout.toString("utf8")).toBe("5 € — ✓\n");
 });
