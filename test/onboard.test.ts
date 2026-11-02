@@ -17,7 +17,7 @@ import pkg from "../package.json" with { type: "json" };
 import { readProposal } from "../src/proposal.ts";
 import { sha256 } from "../src/state.ts";
 import { canonical } from "../src/disk.ts";
-import { removeTree } from "./remove-tree.ts";
+import { removeReleased, removeTree } from "./remove-tree.ts";
 
 // The scenarios isolate project/home state; they can share the unchanged executable.
 // Each case spawns the compiled engine several times; on Windows a spawn costs 0.3-1 s.
@@ -492,7 +492,9 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial r
   }
   expect(existsSync(join(data, "consent"))).toBe(false);
   // A missing engine and then a missing launcher must not turn this review into permission.
-  rmSync(join(data, pkg.version, ENGINE_FILE));
+  // The engine just ran, so Windows may still have it open; a lock that lasts is still a failure.
+  removeReleased(join(data, pkg.version, ENGINE_FILE));
+  expect(existsSync(join(data, pkg.version, ENGINE_FILE))).toBe(false);
   const failed = run([binary, "--supervise", data, pkg.version, ...args]);
   expect(failed.stdout.toString() + failed.stderr.toString()).toContain("could not evaluate");
   const launcher = join(data, "bin", process.platform === "win32" ? "launcher.ps1" : "pregate");
