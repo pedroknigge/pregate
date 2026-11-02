@@ -96,14 +96,16 @@ test("reviewed recovery removes a killed writer's lease without source or counte
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(1);
 });
 
-test("a killed cleaner can be recovered through the same native human permission route", async () => {
+test("a killed cleaner is recovered through the same human route; the agent's apply is denied", async () => {
   const p = project(); p.record("old source", 60); await abandoned(p.folder, "cleanup");
   const id = recoveryDraft(p), payload = { hook_event_name: "PreToolUse", session_id: "shared", cwd: p.root,
     permission_mode: "default", tool_name: "Bash", tool_use_id: "recover",
     tool_input: { command: "pregate storage apply " + id + " --yes" } };
-  const ask = p.run(["hook", "pre"], payload, "");
-  expect(ask.code).toBe(0); expect(JSON.parse(ask.text).hookSpecificOutput.permissionDecision).toBe("ask");
-  expect(ask.text).toContain("Recover abandoned storage");
+  expect(p.run(["storage", "show", id]).text).toContain("Recover abandoned storage");
+  const parent = p.run(["hook", "pre"], payload, "");
+  expect(parent.code).toBe(2);
+  expect(parent.text + parent.error).toContain(`type ! pregate storage apply ${id} --yes inside the harness`);
+  expect(existsSync(join(p.folder, ".pruning"))).toBe(true);
   expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(2);
   expect(p.run(["hook", "pre"], payload).code).toBe(2);
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(0);
@@ -245,13 +247,14 @@ test("active writers and an exclusive cleanup marker prevent unsafe source remov
   expect(hook.text + hook.error).toContain("storage inspect");
 });
 
-test("native cleanup approval is digest-bound and cannot be self-approved by children or wrappers", () => {
+test("cleanup approval cannot be self-approved by the parent, children or wrappers; the denial names the human route", () => {
   const p = project(); p.record("old source", 60); const id = p.draft();
   const payload = { hook_event_name: "PreToolUse", session_id: "shared", cwd: p.root, permission_mode: "default", tool_name: "Bash", tool_use_id: "cleanup",
     tool_input: { command: "pregate storage apply " + id + " --yes" } };
+  expect(p.run(["storage", "show", id]).text).toContain("Snapshots, baseline caches, histories");
   const parent = p.run(["hook", "pre"], payload, "");
-  expect(parent.code).toBe(0); expect(JSON.parse(parent.text).hookSpecificOutput.permissionDecision).toBe("ask");
-  expect(parent.text).toContain("Snapshots, baseline caches, histories");
+  expect(parent.code).toBe(2);
+  expect(parent.text + parent.error).toContain(`type ! pregate storage apply ${id} --yes inside the harness`);
   for (const input of [{ ...payload, agent_id: "child" }, { ...payload, tool_input: { command: "env " + payload.tool_input.command } }]) {
     expect(p.run(["hook", "pre"], input, "").code).toBe(2);
   }

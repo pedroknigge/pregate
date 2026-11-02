@@ -119,15 +119,15 @@ test("recomputed digests cannot disguise metadata, invalid notes or a future tim
   }
 });
 
-test("native feedback approval asks the interactive parent; children, headless calls and wrappers cannot self-label", () => {
+test("feedback approval is denied to the parent, children, headless calls and wrappers; the denial names the human route", () => {
   const p = project(), digest = p.draft();
   const payload = { cwd: p.root, session_id: "approval", hook_event_name: "PreToolUse", permission_mode: "acceptEdits", prompt_id: "t",
     tool_name: "Bash", tool_use_id: "feedback", tool_input: { command: "pregate feedback apply " + digest + " --yes" } };
   const hook = (input: object, ci = "") => p.run(["hook", "pre", "--harness", "claude-code"], input, ci);
+  expect(p.run(["feedback", "show", digest]).text).toContain("Label: correct");
   const parent = hook(payload);
-  expect(parent.code).toBe(0);
-  expect(JSON.parse(parent.text).hookSpecificOutput.permissionDecision).toBe("ask");
-  expect(parent.text).toContain("Label: correct");
+  expect(parent.code).toBe(2);
+  expect(parent.text + parent.error).toContain(`type ! pregate feedback apply ${digest} --yes inside the harness`);
   expect(hook({ ...payload, agent_id: "child" }).code).toBe(2);
   expect(hook(payload, "1").code).toBe(2);
   expect(hook({ ...payload, tool_input: { command: "env " + payload.tool_input.command } }).code).toBe(2);
