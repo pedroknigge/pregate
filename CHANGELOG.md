@@ -28,9 +28,20 @@ What changed for people installing or gating a repository. The first public tag 
 - Docs generation sorts the same way on every machine. Bench and smoke approve `enable` at a terminal, so they do not skip the human gate. Stdout and stderr finish writing when the pipe is non-blocking, which matters for hook decisions on Windows and in CI.
 - On Windows, setup waits for an on-access scanner to release a new `pregate.exe` before renaming it into place. Ordinary atomic writes use that same retry. A lock that outlasts the wait still fails.
 - `node_modules` is not tracked.
+- **Action needed for unattended jobs:** `CI` in the environment no longer approves anything. Tools and agent sessions set `CI` too, so it was never a safe signal that nobody was at the keyboard. A job that really runs without a person (for example, one that calls `pregate enable --yes` or `uninstall --yes`) now sets `PREGATE_UNATTENDED_APPROVAL=1` itself. The shell guard denies an agent command that sets it.
 
 ### Fixed
-- A separate pull request fixes an agent loosening the contract with a short script. See that PR for the contract-loosening fix.
+Thank you to the pre-release reviewers who found these trust-boundary holes. Each one now has an end-to-end test that runs the compiled binary.
+- **Loosening the contract needs a person.** Before this fix, a short script could switch rules to `advisor` and run `pregate preset compile`, and every check accepted the result. Now:
+  - `check --ratchet` compares the base lock with the head lock and fails on any loosening. It prints a digest for that exact change. A maintainer accepts it by putting the digest in the repository variable `PREGATE_ACCEPT_CONTRACT`, which a pull request cannot edit. The Action has a matching `accept-contract` input. Protect `.pregate/` and `.github/workflows/` with CODEOWNERS so a pull request cannot rewrite the check either.
+  - Stop and the pre-commit hook block a looser lock unless this machine recorded a person approving that exact lock. These local records help, but the same user can forge them. CI is the boundary.
+  - `preset compile` asks a person before it writes a looser lock.
+  - Scripts that run `preset compile`/`apply`, `init` or `promote` without `--preview`, `feedback apply`, `storage apply` or `issue submit` count as control commands, like `approve` and `disable` already did.
+- **Removing consent is no longer silent.** If consent for a project is disabled or deleted mid-session, Stop warns and names the project, and `pregate status` warns for a day. This works on Linux, macOS and Windows, even when every consent record is gone.
+- **Git history commands are writes.** `reset --hard`, `checkout <commit>`, `switch --detach`, `stash`, `clean -f`, `cherry-pick`, `revert`, `read-tree` and `checkout-index` are judged by the files Git says they would change. They are denied when they would change `.pregate/`.
+- **Agents cannot approve through a native permission prompt.** Every harness denies an approval command the agent issues and tells the person what to type: `! pregate approve <code>` in Claude Code, Codex, Grok and agy, or a separate terminal in Cursor.
+- **The control-command scan is harder to dodge.** It joins lines split with `\`, a backtick or `^`, reads the whole script instead of stopping at 1 MiB (anything over 64 MiB is refused), and decodes UTF-16 and UTF-32 scripts such as Windows PowerShell files. Inline Python, Node, Bun, Deno, Perl, Ruby and PHP code is judged by the write calls it makes, not by whether an argument looks like a file name.
+- `docs/guarantees.md` and `SECURITY.md` now say exactly which of these protections are enforced in CI, which are best-effort on a local machine, and which detect tampering rather than prevent it.
 
 ## [0.0.1] - 2026-11-01
 
