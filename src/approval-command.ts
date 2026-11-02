@@ -10,6 +10,7 @@ import { readTree, writeAtomic } from "./disk.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
 import { grammars, sourcesOf } from "./contract-diagnostic.ts";
 import { clock, LOCK, PRESET, readText, VERSIONS, within } from "./inertia.ts";
+import { recordApproval } from "./loosening.ts";
 import { sha256 } from "./state.ts";
 import { approvalCode, BATCH_STALE, batchItemError, batchReview, consentLine, currentProposal as current, digestMismatch, pendingBatch, pendingReview, presetGlobLines, proposalDiff, writeDiffs } from "./pending-review.ts";
 import { discardBatch, engineLabel, engineStamp, type Batch } from "./proposal.ts";
@@ -107,6 +108,7 @@ export async function applyReviewedProposal(root: string, digest: string, option
     else { mkdirSync(dirname(w.path), { recursive: true }); writeAtomic(w.path, w.after); }
   }
   writeAtomic(join(root, LOCK), checked.text);
+  recordApproval(root, checked.text);
   if (options.activate) enable(root);
   discardProposal(root);
   const settled = settleRequests(root, proposal.request);
@@ -260,5 +262,6 @@ export async function applyPreset(root: string, text: string, mode: ApplyMode = 
   }
   writeAtomic(join(root, PRESET), text);
   writeAtomic(join(root, LOCK), result.text);
+  recordApproval(root, result.text);
   return { code: 0, text: `${PRESET} updated and ${LOCK} written (${result.lock.rules.length} rules); commit it.` };
 }

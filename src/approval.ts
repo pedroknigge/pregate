@@ -6,6 +6,7 @@ import type { ReadStream } from "node:tty";
 import { approvalText } from "./contract.ts";
 import { dataHome, enable } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
+import { recordApproval } from "./loosening.ts";
 import { H, sha256 } from "./state.ts";
 import { WINDOWS } from "./platform.ts";
 
@@ -159,6 +160,7 @@ export function finishContract(root: string): void {
   const done = pending.writes.every((w) => w.hash === null ? !existsSync(w.path) : existsSync(w.path) && sha256(readFileSync(w.path, "utf8")) === w.hash);
   if (!done) return;
   writeAtomic(join(root, ".pregate/pregate.lock.json"), pending.lockText);
+  recordApproval(root, pending.lockText);
   enable(root);
   rmSync(file);
 }

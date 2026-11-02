@@ -10,7 +10,9 @@ import { dispute } from "./dispute-command.ts";
 import { importReviewCost, pack, projectUpdate } from "./pack-command.ts";
 import { projectUpdates, registryHint, worktreeHint } from "./project-updates.ts";
 import { guide } from "./guided.ts";
-import { validateContract } from "./contract.ts";
+import { bundledBetween, reviewDiff, validateContract } from "./contract.ts";
+import { git } from "./git.ts";
+import { recordApproval } from "./loosening.ts";
 import { dirname, join, resolve } from "node:path";
 import { relativePath as relative } from "./paths.ts";
 import { writeAll } from "./write-all.ts";
@@ -267,7 +269,7 @@ function preset(args: string[]): Promise<Result> | Result {
 }
 
 // U2: the `path` sources pass `rules test` before anything compiles from them.
-function compileTo(root: string, presetText: string): Result {
+async function compileTo(root: string, presetText: string): Promise<Result> {
   const tested = sourceDirs(presetText).map((dir) => testDir(resolve(root, dir)));
   if (tested.some((t) => !t.ok)) {
     return { code: 1, text: [...tested.flatMap((t) => t.lines), "rules test failed; lock not written."].join("\n") };
@@ -276,7 +278,17 @@ function compileTo(root: string, presetText: string): Result {
   if ("errors" in r) return { code: 1, text: [...new Set([...r.errors, ...contractDiagnosis(root).errors]), "Preset compilation failed; lock not written.",
     "Source and rule validation continue only after schema and pin errors are resolved; more errors can remain in those later checks.",
     "Compilation is not migration. Inspect pregate preset diagnose --json; prepare pregate update --project --preview to review engine, core, packs and supported override corrections together."].join("\n") };
-  writeAtomic(join(root, LOCK), r.text);
+  // A lock that enforces less than the current one (or the committed one, when none is on disk)
+  // is written only after a human approves it on the terminal, which then records that approval.
+  const previous = readText(join(root, LOCK)) ?? git(root, ["show", `HEAD:./${LOCK}`]);
+  const diff = previous === null ? null : reviewDiff(previous, r.lock, bundledBetween(readText(join(root, PRESET)), presetText));
+  if (diff?.warning === true && previous!.replaceAll("\r\n", "\n") !== r.text) {
+    if (!await approve(`Compile a looser lock for ${root}.\n${diff.lines.join("\n")}`, true)) {
+      return { code: 1, text: ["This preset loosens the contract:", ...diff.lines.map((line) => `  ${line}`), approvalRefusal(), "Lock not written."].join("\n") };
+    }
+    writeAtomic(join(root, LOCK), r.text);
+    recordApproval(root, r.text);
+  } else writeAtomic(join(root, LOCK), r.text);
   return { code: 0, text: [`${LOCK} written (${r.lock.rules.length} rules); commit it.`, ...importReviewCost(root, r.lock)].join("\n") };
 }
 

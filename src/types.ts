@@ -26,18 +26,20 @@ export type Cause =
   | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch"
   // only the human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
-  | "snapshot-missing" | "state-io" | "git-failed" | "regex-limit";
+  | "snapshot-missing" | "state-io" | "git-failed" | "regex-limit" | "contract-loosened";
 export const FIXABLE_BY = Object.freeze({
   "protected-path": "agent", "request-invalid": "agent", "tool-will-fail": "agent",
   "cannot-reconstruct": "agent", "syntax": "agent", "unresolvable-import": "agent",
   "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent",
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-failed": "human", "regex-limit": "human",
+  "contract-loosened": "human",
 } as const satisfies Record<Cause, "agent" | "human">);
 // "lock-stale" covers a missing, invalid or old lock, sources that fail verification and a vanished
 // preset: same remedy. "timeout" and "engine-crash" are not causes: launcher.sh emits them (A6).
 // "regex-limit": a rule's regex may have given up on this file, so its "no match" is not an answer
-// (O27); the rule's author fixes it.
+// (O27); the rule's author fixes it. "contract-loosened": the contract now enforces less than the
+// session started with, and no human approval of it was recorded.
 
 // ── Normalized input (harness-agnostic) ──────────────────────────────────────────
 export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy";
