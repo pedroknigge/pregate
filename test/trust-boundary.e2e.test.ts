@@ -6,6 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { compile } from "../src/compile.ts";
 import { disable, enable } from "../src/consent.ts";
+import { canonical } from "../src/disk.ts";
 import { sourcesOf } from "../src/contract-diagnostic.ts";
 import { hookCommand } from "../src/register.ts";
 import { VERSIONS } from "../src/versions.ts";
@@ -254,7 +255,7 @@ test("Stop and status warn when consent is disabled or removed during a session"
     const stop = a.stop();
     expect(stop.code, said(stop)).toBe(0);
     expect(JSON.parse(stop.stdout).systemMessage, tamper).toContain("consent");
-    expect(said(stop)).toContain(r.dir);
+    expect(said(stop)).toContain(canonical(r.dir));
     const status = cli(r, ["status"]);
     expect(status.code).toBe(0);
     expect(said(status), tamper).toContain("consent was active in");
