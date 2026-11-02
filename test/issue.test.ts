@@ -28,9 +28,9 @@ const secret = 'export const secret = "private-token-do-not-upload";\n';
 
 async function isolated(run: (root: string, session: Session) => Promise<void>, recorded: Partial<CallEvent> = {}): Promise<void> {
   const cwd = process.cwd(), area = canonical(mkdtempSync(join(tmpdir(), "pregate-issue-")));
-  const names = ["XDG_DATA_HOME", "XDG_STATE_HOME", "CI"] as const;
+  const names = ["XDG_DATA_HOME", "XDG_STATE_HOME", "CI", "PREGATE_UNATTENDED_APPROVAL"] as const;
   const saved = names.map((n) => process.env[n]);
-  process.env.XDG_DATA_HOME = join(area, "data"); process.env.XDG_STATE_HOME = join(area, "state"); process.env.CI = "1";
+  process.env.XDG_DATA_HOME = join(area, "data"); process.env.XDG_STATE_HOME = join(area, "state"); process.env.CI = "1"; process.env.PREGATE_UNATTENDED_APPROVAL = "1";
   const root = canonical(join(area, "repo"));
   await withCleanupAsync(async () => {
     mkdirSync(join(root, ".pregate"), { recursive: true });
@@ -365,7 +365,7 @@ test("reconciliation cannot remove a successor owner that appeared during GitHub
   expect(readFileSync(join(dir, `${process.pid}-successor.json`), "utf8")).toContain('"checking"');
 }));
 
-test("native approval works without a TTY; other harnesses and CI cannot self-approve", () => isolated(async (root, session) => {
+test("no harness approves a submission from the agent; each denial names the human route", () => isolated(async (root, session) => {
   const id = idOf((await issue(["draft", "--last"])).text);
   const command = (s: Session, text = `pregate issue submit ${id} --yes`) => onPreCommand({ session: s, callId: "publish", tool: "Bash", cwd: root, command: text });
   for (const harness of ["codex", "cursor", "grok"] as const) {
@@ -375,16 +375,19 @@ test("native approval works without a TTY; other harnesses and CI cannot self-ap
     if (harness === "cursor") expect(denied.full).not.toContain("! pregate issue submit");
   }
   expect(command({ ...session, harness: "claude-code", interactive: true }).verdict).toBe("deny");
-  delete process.env.CI;
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   const denied = command({ ...session, harness: "agy", interactive: true });
   expect(denied.verdict).toBe("deny");
   expect(denied.full).toContain(`! pregate issue submit ${id} --yes`);
+  // An approved Bash command runs without a terminal, so Claude Code's permission prompt could
+  // only start a submission that then refuses: the human types it with `!` instead.
   const humanSession = { ...session, harness: "claude-code" as const, interactive: true };
-  const asked = command(humanSession);
-  expect(asked.verdict).toBe("ask"); expect(asked.full).toContain("Includes source code: no");
-  const out = HARNESSES["claude-code"].encode("pre-command", asked);
-  expect(out.exit).toBe(0);
-  expect(out.stdout).toContain('"permissionDecision":"ask"');
+  const routed = command(humanSession);
+  expect(routed.verdict).toBe("deny");
+  expect(routed.full).toContain(`type ! pregate issue submit ${id} --yes inside the harness`);
+  const out = HARNESSES["claude-code"].encode("pre-command", routed);
+  expect(out.exit).toBe(2);
+  expect(out.stdout).not.toContain('"permissionDecision":"ask"');
   for (const suffix of ["; echo injected", " | cat", " --extra", " && true"]) expect(command(humanSession, `pregate issue submit ${id} --yes${suffix}`).verdict).toBe("deny");
   expect(command({ ...humanSession, agentId: "worker" }).verdict).toBe("deny");
   expect(command(humanSession, `pregate issue submit ${"0".repeat(64)} --yes`).verdict).toBe("deny");
@@ -398,14 +401,15 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   expect(preview.text).toContain(`pregate approve ${digest.slice(0, 12)}`);
   expect((await approvePending(root, true, "0".repeat(64))).code).toBe(1);
   expect(readFileSync(join(root, PRESET), "utf8")).not.toBe(next);
-  delete process.env.CI;
-  const asked = onPreCommand({ session: { ...session, harness: "claude-code", interactive: true }, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve --yes --digest ${digest}` });
-  expect(asked.verdict).toBe("ask"); expect(asked.full).toContain("WARNING: this may weaken protection.");
-  expect(asked.full).toContain("(was enforce)");
-  const loosened = pendingReview(root, undefined, true).text.split("\n").filter((line) => line.startsWith("Changes (may loosen) "));
-  expect(loosened.length).toBeGreaterThan(0);
-  for (const line of loosened) expect(asked.full).toContain(line);
-  process.env.CI = "1";
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
+  const routed = onPreCommand({ session: { ...session, harness: "claude-code", interactive: true }, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve --yes --digest ${digest}` });
+  expect(routed.verdict).toBe("deny");
+  expect(routed.full).toContain(`type ! pregate approve --yes --digest ${digest} inside the harness`);
+  const review = pendingReview(root, undefined, true).text;
+  expect(review).toContain("WARNING: this may weaken protection.");
+  expect(review).toContain("(was enforce)");
+  expect(review.split("\n").filter((line) => line.startsWith("Changes (may loosen) ")).length).toBeGreaterThan(0);
+  process.env.CI = "1"; process.env.PREGATE_UNATTENDED_APPROVAL = "1";
   expect(await approvePending(root, true, digest)).toMatchObject({ code: 0 });
   expect(readFileSync(join(root, PRESET), "utf8")).toBe(next);
 }));

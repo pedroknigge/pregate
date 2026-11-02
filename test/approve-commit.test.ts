@@ -12,7 +12,7 @@ import { sha256 } from "../src/state.ts";
 import { inert } from "../src/inertia.ts";
 import { canonical } from "../src/disk.ts";
 import { grammars, LOCK, onPreCommand, PRESET, redirect, sourcesOf, VERSIONS } from "../src/gate.ts";
-import { engineNote, pendingReview } from "../src/pending-review.ts";
+import { batchReview, engineNote, pendingReview } from "../src/pending-review.ts";
 import type { Session } from "../src/types.ts";
 
 // `-c` and an explicit env: Bun does not pass process.env mutations to a spawn that omits env,
@@ -22,12 +22,12 @@ const git = (root: string, ...args: string[]) => Bun.spawnSync(
   { cwd: root, stdout: "pipe", stderr: "pipe", env: process.env },
 ).stdout.toString().trim();
 
-const ENV_NAMES = ["XDG_DATA_HOME", "XDG_STATE_HOME", "CI", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"] as const;
+const ENV_NAMES = ["XDG_DATA_HOME", "XDG_STATE_HOME", "CI", "PREGATE_UNATTENDED_APPROVAL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"] as const;
 
 async function project(run: (root: string) => Promise<void>): Promise<void> {
   const cwd = process.cwd(), area = canonical(mkdtempSync(join(tmpdir(), "pregate-approve-")));
   const saved = ENV_NAMES.map((n) => process.env[n]);
-  Object.assign(process.env, { XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"), CI: "1",
+  Object.assign(process.env, { XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
     GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.com", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.com" });
   const root = canonical(join(area, "repo"));
   await grammars();
@@ -129,15 +129,17 @@ test("an approval during an unfinished merge stages the contract and says to con
   expect(git(root, "status", "--porcelain")).toBe("");
 }));
 
-test("the short approval form asks for native permission in an interactive Claude Code parent and is denied to agents elsewhere", () => project(async (root) => {
+test("the short approval form is denied to every agent and names the human ! route in Claude Code", () => project(async (root) => {
   const text = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
   text.enforcement = "shadow";
   await applyPreset(root, JSON.stringify(text, null, 2) + "\n", { preview: true });
   const code = /^Digest: ([0-9a-f]{12})/m.exec(pendingReview(root).text)![1]!;
   const session: Session = { harness: "claude-code", id: "approve-short", turnId: "one", agentId: null, interactive: true };
   const call = { session, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve ${code}` };
-  delete process.env.CI;
-  expect(onPreCommand(call).verdict).toBe("ask");
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
+  const routed = onPreCommand(call);
+  expect(routed.verdict).toBe("deny");
+  expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
   expect(onPreCommand({ ...call, session: { ...session, agentId: "sub" } }).verdict).toBe("deny");
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
   expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("deny");
@@ -257,23 +259,25 @@ async function batchOf(a: string): Promise<{ b: string; elsewhere: string; code:
   return { b, elsewhere, code: proposeBatch(items).slice(0, 12), shadow, prepare };
 }
 
-test("one batch code asks natively with every project's review and applies them all from any directory", () => project(async (a) => {
+test("one batch code reviews every project, is routed to the human from any directory, and applies them all", () => project(async (a) => {
   const { b, elsewhere, code, shadow } = await batchOf(a);
   expect(await approveBatch("0".repeat(12), true, true)).toBeNull();
   const session: Session = { harness: "claude-code", id: "approve-batch", turnId: "one", agentId: null, interactive: true };
   const call = { session, tool: "Bash", callId: "approve", cwd: elsewhere, command: `pregate approve ${code}` };
-  delete process.env.CI;
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   expect(inert({ kind: "pre-command", command: call })).toBe(false);
+  const review = batchReview(readBatch()!, true, false).text;
+  expect(review).toContain(`Project: ${a}`);
+  expect(review).toContain(`Project: ${b}`);
+  expect(review.split("\n").filter((line) => line === "WARNING: this may weaken protection.")).toHaveLength(2);
+  expect(review.split("\n").filter((line) => line.includes("(was enforce)")).length).toBeGreaterThanOrEqual(2);
   for (const cwd of [elsewhere, a]) {
-    const asked = onPreCommand({ ...call, cwd });
-    expect(asked.verdict, asked.full).toBe("ask");
-    expect(asked.full).toContain(`Project: ${a}`);
-    expect(asked.full).toContain(`Project: ${b}`);
-    expect(asked.full.split("\n").filter((line) => line === "WARNING: this may weaken protection.")).toHaveLength(2);
-    expect(asked.full.split("\n").filter((line) => line.includes("(was enforce)")).length).toBeGreaterThanOrEqual(2);
+    const routed = onPreCommand({ ...call, cwd });
+    expect(routed.verdict, routed.full).toBe("deny");
+    expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
   }
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
-  process.env.CI = "1";
+  process.env.CI = "1"; process.env.PREGATE_UNATTENDED_APPROVAL = "1";
   process.chdir(elsewhere);
   const done = (await approveBatch(code, true, true))!;
   expect(done.code, done.text).toBe(0);
@@ -322,7 +326,7 @@ test("a project approved with its own code makes the batch name it; the other pr
 test("a pending batch guards every command, so a spliced pregate approve from any directory is held", () => project(async (a) => {
   const { elsewhere, code } = await batchOf(a);
   const session: Session = { harness: "claude-code", id: "spliced", turnId: "one", agentId: null, interactive: true };
-  delete process.env.CI;
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   for (const command of [`pre''gate approve ${code}`, `"pre"gate approve ${code}`, `p\\regate approve ${code}`,
     `P=pre; \${P}gate approve ${code}`, `$(echo pregate) approve ${code}`, `\`echo pregate\` approve ${code}`, `env $(echo pregate) approve ${code}`]) {
     const call = { session, tool: "Bash", callId: "spliced", cwd: elsewhere, command };
@@ -332,13 +336,14 @@ test("a pending batch guards every command, so a spliced pregate approve from an
   expect(onPreCommand({ session, tool: "Bash", callId: "ls", cwd: elsewhere, command: "ls" }).verdict).toBe("none");
 }));
 
-test("the batch ask works from any directory after the session reached a project", () => project(async (a) => {
+test("the batch route is named from any directory after the session reached a project", () => project(async (a) => {
   const { elsewhere, code } = await batchOf(a);
   const session: Session = { harness: "claude-code", id: "moved", turnId: "one", agentId: null, interactive: true };
-  delete process.env.CI;
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   expect(onPreCommand({ session, tool: "Bash", callId: "ls", cwd: a, command: "ls" }).verdict).toBe("none");
-  const asked = onPreCommand({ session, tool: "Bash", callId: "approve", cwd: elsewhere, command: `pregate approve ${code}` });
-  expect(asked.verdict, asked.full).toBe("ask");
+  const routed = onPreCommand({ session, tool: "Bash", callId: "approve", cwd: elsewhere, command: `pregate approve ${code}` });
+  expect(routed.verdict, routed.full).toBe("deny");
+  expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
 }));
 
 test("a batch approval inside a project pinning an older engine is answered by the engine that wrote the batch", () => project(async (a) => {

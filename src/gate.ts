@@ -1,25 +1,22 @@
 import { statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { approvalDeadline, finishContract } from "./approval.ts";
+import { finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
-import { feedbackPreview, feedbackReview } from "./feedback-command.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./inertia.ts";
-import { issuePreview, issueReview } from "./issue-command.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
-import { APPROVE_CODE, batchReview, literalPregate, pendingBatch, pendingReview } from "./pending-review.ts";
+import { APPROVE_CODE, literalPregate, pendingBatch } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
-import { pendingRoot, type Batch } from "./proposal.ts";
+import { pendingRoot } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
 import { controlInFile } from "./control-file.ts";
 import { gitChanges } from "./git-changes.ts";
 import { guard, type GuardContext } from "./shell.ts";
 import * as state from "./state.ts";
-import { storagePreview, storageReview } from "./storage-command.ts";
-import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand, Session } from "./types.ts";
+import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand } from "./types.ts";
 
 // The imperative shell around the pure core (ARCHITECTURE §4): one function per hook event, plus
 // `check` for the pre-check, pre-commit and CI. Every known cause goes through decide; anything
@@ -87,66 +84,25 @@ export function onPreCommand(c: ProposedCommand): Decision {
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
 }
 
-function nativeApproval(session: Session): boolean {
-  return !process.env.CI && session.agentId === null
-    && session.harness === "claude-code" && session.interactive;
-}
-
-// Only one literal, digest-bound command can request native permission. Wrappers, substitutions,
-// extra flags and pipelines go through the ordinary guard and cannot grant themselves approval.
-// A batch code needs no root: it names its projects. Any other approval needs the pending root.
+// An approval command reads the human's y on a terminal, which an agent's shell tool does not
+// have, so no harness can complete one from the agent: a permission prompt would only run a
+// command that then refuses. The agent is told the human route instead. A batch code needs no
+// root: it names its projects. Any other approval needs the pending root.
 function administrativeApproval(root: string | null, c: ProposedCommand): Decision | null {
   const command = literalPregate(c.command, launcher());
   if (command === null) return null;
-  const issue = /^issue submit ([0-9a-f]{64}) --yes$/.exec(command);
-  const feedback = /^feedback apply ([0-9a-f]{64}) --yes$/.exec(command);
-  const storage = /^storage apply ([0-9a-f]{64}) --yes$/.exec(command);
+  const known = [/^issue submit [0-9a-f]{64} --yes$/, /^feedback apply [0-9a-f]{64} --yes$/, /^storage apply [0-9a-f]{64} --yes$/].some((re) => re.test(command));
   const contract = APPROVE_CODE.exec(command);
-  if (issue === null && contract === null && feedback === null && storage === null) return null;
-  const batch = contract === null ? null : pendingBatch(contract[1] ?? contract[2]!);
-  if (root === null && batch === null) return null;
-  if (!nativeApproval(c.session)) {
-    const reason = c.session.harness === "agy"
-      ? "agy approval uses human shell input because its hook cannot identify an interactive parent."
-      : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
-      : "this harness cannot request native permission for this action.";
-    const route = c.session.harness === "cursor" ? `run ${c.command} in a separate human terminal`
-      : `type ! ${c.command} inside the harness`;
-    const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
-    return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
-  }
-  approvalDeadline();
-  return batch !== null ? batchPrompt(batch) : approvalPrompt(root!, issue, feedback, storage, contract);
-}
-
-// The native dialog shows every project's compact review, WARNING and loosening lines included.
-// A batch too long to read there is approved in a terminal instead, never in a truncated dialog.
-const BATCH_ASK_CHARS = 12_000;
-
-function batchPrompt(batch: Batch): Decision {
-  const code = batch.digest.slice(0, 12), summary = batchSummary(batch);
-  if ("review" in summary && summary.review.length <= BATCH_ASK_CHARS) return { ...told(null), verdict: "ask", contractApproval: true, full: summary.review, compact: summary.review, notice: summary.review };
-  const text = "denial" in summary ? summary.denial
-    : `PREGATE: batch approval: type ! pregate approve ${code} in a terminal. Its ${batch.items.length} project reviews are too long for the approval dialog; show the update preview to the user. The agent must not run the approval command.`;
+  if (!known && contract === null) return null;
+  if (root === null && (contract === null || pendingBatch(contract[1] ?? contract[2]!) === null)) return null;
+  const reason = c.session.harness === "agy"
+    ? "agy approval uses human shell input because its hook cannot identify an interactive parent."
+    : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
+    : "an approval command needs the human's confirmation on a terminal, which the agent's shell tool does not have.";
+  const route = c.session.harness === "cursor" ? `run ${c.command} in a separate human terminal`
+    : `type ! ${c.command} inside the harness`;
+  const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
   return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
-}
-
-// The batch review, or a denial naming each project whose review no longer stands.
-function batchSummary(batch: Batch): { review: string } | { denial: string } {
-  try { return { review: batchReview(batch, true, false).text }; }
-  catch (e) { return { denial: `PREGATE: batch approval ${batch.digest.slice(0, 12)} unavailable or changed: ${(e as Error).message}` }; }
-}
-
-function approvalPrompt(root: string, issue: RegExpExecArray | null, feedback: RegExpExecArray | null, storage: RegExpExecArray | null, contract: RegExpExecArray | null): Decision {
-  try {
-    const summary = issue !== null ? issuePreview(issueReview(root, issue[1]!), issue[1]!)
-      : feedback !== null ? feedbackPreview(feedbackReview(root, feedback[1]!), feedback[1]!)
-      : storage !== null ? storagePreview(storageReview(root, storage[1]!), storage[1]!) : pendingReview(root, contract![1] ?? contract![2]!, false, false).text;
-    return { ...told(null), verdict: "ask", contractApproval: true, full: summary, compact: summary, notice: summary };
-  } catch (e) {
-    const text = `PREGATE: approval candidate unavailable or changed: ${(e as Error).message}`;
-    return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
-  }
 }
 
 // What the guard asks about a path, answered on its canonical form by the root that holds it: a
