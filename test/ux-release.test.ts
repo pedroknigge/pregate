@@ -17,12 +17,16 @@ import { slash } from "../src/paths.ts";
 setDefaultTimeout(120_000);
 
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-ux0210-")));
-const oldEnv = { data: process.env.XDG_DATA_HOME, state: process.env.XDG_STATE_HOME };
+const oldEnv = { data: process.env.XDG_DATA_HOME, state: process.env.XDG_STATE_HOME, unattended: process.env.PREGATE_UNATTENDED_APPROVAL };
 const originalCwd = process.cwd();
-beforeAll(async () => { process.env.XDG_DATA_HOME = join(area, "data"); process.env.XDG_STATE_HOME = join(area, "state"); await grammars(); });
+// Reviewed baselines are applied with `--yes`, as an unattended job would.
+beforeAll(async () => {
+  process.env.XDG_DATA_HOME = join(area, "data"); process.env.XDG_STATE_HOME = join(area, "state"); process.env.PREGATE_UNATTENDED_APPROVAL = "1";
+  await grammars();
+});
 afterAll(() => {
   process.chdir(originalCwd);
-  for (const [name, value] of [["XDG_DATA_HOME", oldEnv.data], ["XDG_STATE_HOME", oldEnv.state]] as const) {
+  for (const [name, value] of [["XDG_DATA_HOME", oldEnv.data], ["XDG_STATE_HOME", oldEnv.state], ["PREGATE_UNATTENDED_APPROVAL", oldEnv.unattended]] as const) {
     if (value === undefined) delete process.env[name]; else process.env[name] = value;
   }
   rmSync(area, { recursive: true, force: true });
