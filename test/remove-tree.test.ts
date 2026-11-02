@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { removeReleased } from "./remove-tree.ts";
 
 const WINDOWS = process.platform === "win32";
-const SHARING = new Set(["EBUSY", "EPERM", "EACCES", "ENOTEMPTY"]);
 
 function inTemp(run: (dir: string) => void | Promise<void>): () => Promise<void> {
   return async () => {
@@ -32,14 +31,10 @@ test("a free file is removed at once", inTemp((dir) => {
   expect(existsSync(file)).toBe(false);
 }));
 
+// rm with force ignores a missing path on every platform; a NUL byte is rejected before any file is touched.
 test("an error that is not a sharing lock fails without waiting", inTemp((dir) => {
-  const file = join(dir, "not-a-directory");
-  writeFileSync(file, "x");
   const started = performance.now();
-  let caught: NodeJS.ErrnoException | undefined;
-  try { removeReleased(join(file, "child"), 10_000); } catch (error) { caught = error as NodeJS.ErrnoException; }
-  expect(caught?.code).toBeDefined();
-  expect(SHARING.has(caught!.code!)).toBe(false);
+  expect(() => removeReleased(join(dir, "pregate\0.exe"), 10_000)).toThrow(expect.objectContaining({ code: "ERR_INVALID_ARG_VALUE" }));
   expect(performance.now() - started).toBeLessThan(500);
 }));
 
