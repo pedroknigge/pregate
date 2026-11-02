@@ -416,7 +416,22 @@ function inTempDir(prefix: string, run: (dir: string) => void): void {
 }
 
 function removing(dir: string, run: (dir: string) => void): void {
-  try { run(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { run(dir); } finally { removeTree(dir); }
+}
+
+// Windows keeps a just-executed pregate.exe mapped for a moment. Cleanup waits that out;
+// a lock that remains still fails the test.
+function removeTree(dir: string): void {
+  const pause = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try { rmSync(dir, { recursive: true, force: true }); return; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EBUSY" && code !== "EPERM" && code !== "ENOTEMPTY") throw error;
+      Atomics.wait(pause, 0, 0, 50);
+    }
+  }
+  rmSync(dir, { recursive: true, force: true });
 }
 
 function restoringGitConfig(saved: string | undefined, run: () => void): void {
