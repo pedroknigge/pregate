@@ -113,17 +113,14 @@ application of the current candidate's exact preset/lock bytes. Its transcript
 classifies these as human shell commands, with no model tool calls. See the
 observation and scope.
 The current Codex 0.160.1 human-shell observation
-passes four initial/existing normal/bypass cases on the 0.2.6 pilot (core numbered 0.3.0).
+passes four initial/existing normal/bypass cases.
 A different digest leaves preset/lock unchanged; the reviewed digest applies
 every expected write. All 68 core defaults remain active, with zero model Pre
 calls. Controlled test inputs are not actual user consent receipts.
-Actual Codex 0.160.0 headless and TUI model turns on the core-0.2.0 candidate
+Actual Codex 0.160.0 headless and TUI model turns
 reject one exact approval attempt per surface, record native tool denials and
 completed turns, and preserve the contract and pending proposals. See the
 model scenarios and limits.
-The 0.2.5 post-release runtime also passes four initial/existing headless/TUI model
-self-approval attempts while the existing fixtures retain all 52 core defaults.
-See current harness verification.
 Other approval commands, other harness UIs and native prompts remain separate
 verification. The current human shell checks do not recapture every model tool
 or certify every interaction in all five UIs.
@@ -135,7 +132,7 @@ the issue draft and find an existing report on real GitHub without publication.
 The evidence and failed probes
 retain Cursor's limitation and Claude's attempted model continuation.
 
-The later 0.2.6 working source (core numbered 0.3.0) also passes four exact model rejection
+The same checks also pass four exact model rejection
 cases with Codex 0.160.1, retaining all 68 defaults: existing/initial proposals in
 headless/TUI surfaces. Native denial, displayed human command and unchanged
 contract/proposal hashes are recorded. See current source evidence.

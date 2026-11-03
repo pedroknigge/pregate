@@ -204,7 +204,7 @@ and the [changelog](../../CHANGELOG.md) for 0.0.2.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.
-Both ask the human for `y` on the terminal (`--yes` skips that only under `CI`).
+Both ask the human for `y` on the terminal (`--yes` skips that only when `PREGATE_UNATTENDED_APPROVAL=1` is already set).
 Repository contracts and pre-install backups remain. Windows removes a running
 engine after its process exits.
 
@@ -238,18 +238,10 @@ Histories and source copies are local. Use `storage inspect` and a reviewed
 See [native release verification](../features/release-verification.md) for what
 packaged smoke tests establish and what still needs actual harness testing.
 
-## Release history
+## Release line
 
-This guide describes 0.0.2. Public releases use the 0.0.x line. Earlier private
-builds used 0.2.x numbers; those notes stay here so the steps above do not mix
-two version lines.
-
-- **0.2.6** did not prepare a project migration after a global install. That binary
-  will not rewrite a consumer lock for you.
-- **0.2.7** introduced one reviewed project update: `update` prepares a project
-  review after global installation, and `update --project --preview` or
-  `pack update --all --preview` prepares registered pins with the installed engine.
-- **0.2.12** added `pregate demo`, `update --projects <path...> --preview`, the
-  optional Rust pack, and the download limits above (`curl -q`, TLS 1.2, redirect
-  and size budgets). Those behaviors are what 0.0.2 installs. See the
-  [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.
+This guide describes 0.0.2. Public releases use the 0.0.x line. `pregate demo`,
+`update --projects <path...> --preview`, the optional Rust pack, and the download
+limits above (`curl -q`, TLS 1.2, redirect and size budgets) are what 0.0.2
+installs. See the [v0.0.1 release notes](../releases/0.0.1.md) for what the first
+public tag verified and the [changelog](../../CHANGELOG.md) for 0.0.2.

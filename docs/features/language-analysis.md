@@ -1,20 +1,11 @@
 # Language analysis
 
-The published 0.2.11 pilot includes JS/TS, Python and Go analysis. The unpublished
-0.2.12 checkout adds Rust with the vendored `tree-sitter-rust` 0.24.2 WASM grammar,
+0.0.2 analyzes JS/TS, Python, Go, and Rust. Rust uses the vendored `tree-sitter-rust` 0.24.2 WASM grammar,
 source metrics, structural patterns, comments and bounded Cargo module resolution.
 Language policies remain optional packs; core policy remains language-independent.
-See [v0.0.1 release notes](../releases/0.0.1.md) for verification of this checkout. Native pilot
-release verification targets macOS ARM64; Linux and Windows remain experimental
-until their native gates close.
+See [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified, and the [changelog](../../CHANGELOG.md) for 0.0.2. Linux and Windows remain experimental until their native gates close.
 
-Post-release public audits expose valid newline-separated generic type members
-and type-only wildcard exports rejected by 0.2.5. Version 0.2.6 repairs those
-cases and the subsequently reduced nested generic function type argument with
-compiler/parser controls. The 0.2.5 observations
-retain their historical scope. A new 0.2.6 held-out audit
-finds valid `in`/`out` interface variance annotations rejected by the parser.
-Version 0.2.7 repairs that defect in both TS and TSX grammars. Valid annotations,
+The TypeScript and TSX grammars accept newline-separated generic type members, type-only wildcard exports, nested generic function type arguments, and valid `in`/`out` interface variance annotations.
 constraints/defaults, AST names/spans and retained import locations pass; malformed
 annotation controls remain rejected. The patched grammars pass all 112 upstream
 corpus tests. The annotation syntax is defined in the

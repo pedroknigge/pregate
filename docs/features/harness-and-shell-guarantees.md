@@ -7,7 +7,7 @@ they do not certify interaction in every installed harness UI. The machine-reada
 inventory is `pregate status --json`; its source is
 [capabilities.ts](../../src/capabilities.ts).
 
-Version 0.2.6's `doctor` reports launcher registration separately from
+`doctor` reports launcher registration separately from
 runtime canaries. Direct engine hook calls do not have the launcher's crash and
 timeout handling. A canary uses the generated wrapper command, so passing it
 cannot clear a missing or modified registration. This diagnostic does not infer
@@ -26,13 +26,11 @@ hook configuration do not mean every project assertion has evidence.
 | Grok | Compact deny JSON and stderr, exit 2 | Human command route | No | No | No supported channel |
 | agy | Deny JSON, exit 0 | Human Bash `!` route; agent approval is denied because parent context is unavailable | Yes | No | No supported channel |
 
-In **0.2.11**, a nonblocking Claude Stop emits no
+A nonblocking Claude Stop emits no
 `hookSpecificOutput.additionalContext`: that channel continues the model's turn
 even with exit 0. Human notices use `systemMessage`, and warning/shadow findings
 stay recorded for `report`. Pre warning context remains available; real denials
-and bounded incomplete-stop behavior retain their existing policy. Published
-0.2.10 still has the advisory continuation defect. See
-issue 22 verification.
+and bounded incomplete-stop behavior retain their existing policy.
 
 Grok's reason is a compact first line, at most 256 characters. The other adapters
 can carry the engine's longer reason. A dropped warning or completion notice
@@ -52,7 +50,7 @@ existing supervisor Pre budget. Inactive projects remain inert; a discarded
 oversized payload needs a project known through cwd/environment. Buffering in
 a wrapper before the engine runs is outside this deadline. These assertions use
 compiled entry points and captured dialects. Windows transport verification
-passes in the terminal `187c0a0f` hosted run; actual harness UI observations
+is covered by the Windows suite; actual harness UI observations
 remain separate. See the transport evidence.
 
 ## Shell inspection has a bounded guarantee
@@ -63,13 +61,13 @@ mutation commands, literal inline shell scripts, protected paths and attempts to
 change hooks or the engine's administrative state. Substitutions and supported
 wrappers are inspected; a recognized writer with an uncertain target can be
 denied. Simple shell variable bindings (`bin="/path/to/pregate"`, `root=$(pwd)`)
-are tracked across compound read-only commands and `for` loops (0.2.19) so
+are tracked across compound read-only commands and `for` loops so
 read-only launcher loops are admitted while arbitrary dynamic interpolation and
 protected paths remain denied. Literal read-only PREGATE commands do not grant permission to apply drafts,
 change policy, delete state or publish issues. Source-code fixtures are data,
 not executable extensions.
 
-Source 0.2.11 admits a closed subset of isolated Python stdin JSON inspection.
+The shell guard admits a closed subset of isolated Python stdin JSON inspection.
 For example, `pregate fitness plan --json | python3 -I -c 'import json,sys;
 print(json.dumps(json.load(sys.stdin), indent=2))'` can format a diagnostic.
 The subset supports standard `json`/`sys` imports, JSON-derived local values,
@@ -116,19 +114,18 @@ those two files from source suppression/placement rules. Altered locks still
 fail admission. There is no folder-wide exemption: code added under `.pregate/`
 still has placement checks. Use `pregate preset show` to inspect policy. Literal
 reads/diffs of this root's preset/lock and inventory listing are supported recovery
-exceptions; arbitrary state reads remain protected. See the
-issue #8 regression.
+exceptions; arbitrary state reads remain protected.
 
 ## Review a turn that finished with unresolved work
 
-Since 0.2.7, an unchanged unbound-fitness coverage notice is emitted once per
+An unchanged unbound-fitness coverage notice is emitted once per
 session, then repeated only when the reported count changes. The obligations
 remain active and reports/audit/status still expose their evidence gaps.
 Blocking decisions are not converted into successful checks by notice suppression.
 
 The snapshot still retains its original Git baseline. Stop therefore includes
 changes merged during a session; it does not prove who authored them. Automatic
-upstream attribution is not inferred from a commit or remote reference. In 0.2.10,
+upstream attribution is not inferred from a commit or remote reference.
 the human can review and adopt a new committed baseline without deleting history:
 
 ```sh

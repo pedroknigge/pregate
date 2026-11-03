@@ -1,6 +1,6 @@
 # Maintainability progression and large-scale compliance audits
 
-The advisory `audit --plan` workflow, introduced in 0.2.6, provides
+The advisory `audit --plan` workflow provides
 deterministic classification from selected-rule metadata and bounded source reads.
 It groups repairs by file/rule, preserves snapshot hashes and separates evaluation
 errors, failed assertions and unverified requirements. It does not infer business
@@ -68,9 +68,7 @@ changes. Ratchet checks and full-tree audits must remain visibly distinct.
 The [guided project workflow](guided-project-workflow.md) exposes setup, recovery,
 update and configuration, followed by an audit choice. Freeze records the chosen
 Git baseline for no-new checks; it does not remove findings or repair code. Repair
-adds the ranked audit plan and leaves edits to the normal gate. The
-0.2.9 held-out observations are recorded
-before these applicability fixes, with explicit unsupported/UNVERIFIED limits.
+adds the ranked audit plan and leaves edits to the normal gate. Unsupported and UNVERIFIED limits stay explicit.
 They establish concrete friction and false-positive cases, not a causal claim
 that a greenfield project will remain maintainable with or without PREGATE.
 

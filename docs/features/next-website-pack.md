@@ -1,9 +1,8 @@
 # Next.js website pack
 
-Shipped after the two readiness packs in **0.2.6**. The optional preview pack
+Included in 0.0.2. The optional preview pack
 contains 54 distinct `NEXT-WEBSITE-NNN` project evidence gates through
-`next-website/readiness`. Older 0.2.5 engines do not
-contain it. No deployment, browser performance or complete Next.js product
+`next-website/readiness`. No deployment, browser performance or complete Next.js product
 coverage is established merely by selecting the pack.
 
 The scope is a production website using the App Router. A Pages Router site uses

@@ -92,3 +92,42 @@ test("relative markdown links resolve and engine/core versions match the release
   expect(npm).toEqual([]);
   expect(actions).toEqual([]);
 });
+
+test("install commands and living docs use this release, not a pre-rename version", () => {
+  const versionRe = /(?:releases\/download\/v|gh release download v|pregate-)(\d+\.\d+\.\d+)|(?:--version|-Version)\s+v?(\d+\.\d+\.\d+)/g;
+  const oldLine = /(?<![\d.])0\.2\.\d+/;
+  const oldCommit = /b2cec675|39ef4ebd|dc8eb434/;
+  const stalePull = /github\.com\/pedroknigge\/pregate\/(?:pull|issues)\/(\d+)/g;
+  const installHits: string[] = [];
+  const oldHits: string[] = [];
+  const pullHits: string[] = [];
+  const roots = [join(ROOT, "README.md"), join(ROOT, "CONTRIBUTING.md"), join(ROOT, "SECURITY.md"), ...walk(join(ROOT, "docs")), ...walk(join(ROOT, "skills")), ...walk(join(ROOT, "assets")), ...walk(join(ROOT, "packs"))];
+  for (const file of roots) {
+    const rel = file.slice(ROOT.length + 1);
+    if (historical(rel) || rel.includes("/fixtures/")) continue;
+    const text = readFileSync(file, "utf8");
+    const lines = text.split("\n");
+    lines.forEach((line, index) => {
+      if (oldLine.test(line) || oldCommit.test(line)) oldHits.push(`${rel}:${index + 1}`);
+    });
+    let match: RegExpExecArray | null;
+    while ((match = versionRe.exec(text))) {
+      const found = match[1] ?? match[2] ?? "";
+      if (found !== pkg.version) {
+        const line = text.slice(0, match.index).split("\n").length;
+        installHits.push(`${rel}:${line} uses ${found}`);
+      }
+    }
+    versionRe.lastIndex = 0;
+    while ((match = stalePull.exec(text))) {
+      const number = Number(match[1]);
+      if (number < 1 || number > 14) {
+        const line = text.slice(0, match.index).split("\n").length;
+        pullHits.push(`${rel}:${line} #${number}`);
+      }
+    }
+  }
+  expect(installHits).toEqual([]);
+  expect(oldHits).toEqual([]);
+  expect(pullHits).toEqual([]);
+});

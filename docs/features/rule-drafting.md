@@ -1,13 +1,13 @@
 # Turn a correction into a rule
 
-Implemented in 0.2.15 and expanded in 0.2.19. `rules draft` covers the
+Included in 0.0.2. `rules draft` covers the
 case the feedback commands do not: no rule fired, the agent wrote something a
 reviewer rejected, and the team wants that mistake to be impossible next time.
 `feedback`, `dispute` and `issue` handle the opposite case, a rule that was wrong.
 
 ## One sentence, one review
 
-Since 0.2.26, `rules add` is the short path from a team rule to an active one:
+`rules add` is the short path from a team rule to an active one:
 
 ```sh
 pregate rules add "domain must not import infra"

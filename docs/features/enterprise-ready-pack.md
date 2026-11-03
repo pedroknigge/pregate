@@ -1,8 +1,7 @@
 # Enterprise-ready pack
 
-Shipped in **0.2.6**, after the recorded
-0.2.5 experiments. This optional preview pack contains 57 project evidence gates.
-Older 0.2.5 engines do not contain it. Gate fixtures and a bounded
+Included in 0.0.2. This optional preview pack contains 57 project evidence gates.
+Gate fixtures and a bounded
 isolation example pass; a real enterprise product has not been certified.
 
 The requested optional pack is `enterprise-ready`. It is separate from the 68

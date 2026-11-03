@@ -66,7 +66,7 @@ Adopt [project verifiers](project-fitness.md) with
 assertion. Unbound requirements do not block work, while adopted bindings require
 current passing evidence for check and Stop.
 The `integrity-only` recipe selects no optional packs; it still activates all core rules.
-Python, Go and (in the 0.2.12 candidate) Rust use their own parsers and selected language policies; detection
+Python, Go, and Rust use their own parsers and selected language policies; detection
 alone does not activate an architecture/effects methodology or cover other languages.
 
 Repeating `init` returns the current verified contract/status and leaves the

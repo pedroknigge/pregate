@@ -1,7 +1,6 @@
 # Local source storage and reviewed retention
 
-These commands are included in the 0.2.5 macOS ARM64 pilot. Linux and Windows
-builds are experimental pending full validation in the next release.
+These commands are in 0.0.2. Linux and Windows builds stay experimental until native validation passes.
 
 PREGATE's session state can contain complete local source text. It is not a
 hash-only log. Session retention is explicit: session records do not expire or

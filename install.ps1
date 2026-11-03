@@ -16,7 +16,7 @@ function Get-PublicFile([string]$Url, [string]$File, [long]$Limit) {
     $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
     if (!$curl) { return $false }
     # Windows PowerShell 5 can turn native stderr into a terminating error under Stop.
-    # Inspect the native exit code so a private-repo 404 can take the authenticated fallback.
+    # Inspect the native exit code so a failed public download can take the gh fallback.
     $previous = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
@@ -114,7 +114,7 @@ try {
         $base = "https://github.com/$repo/releases/download/v$Version"
         if (!(Get-PublicRelease $base $name)) {
             Remove-Item -LiteralPath (Join-Path $tmp $name), (Join-Path $tmp 'SHA256SUMS') -Force -ErrorAction SilentlyContinue
-            if (!(Get-Command gh -ErrorAction SilentlyContinue)) { throw 'Public release unavailable; gh is required for the private pilot: https://cli.github.com, then gh auth login. Or use PREGATE_ARCHIVE with PREGATE_SHA256.' }
+            if (!(Get-Command gh -ErrorAction SilentlyContinue)) { throw 'Public release unavailable; gh is required: https://cli.github.com, then gh auth login. Or use PREGATE_ARCHIVE with PREGATE_SHA256.' }
             & gh release download "v$Version" --repo $repo --pattern $name --pattern SHA256SUMS --dir $tmp
             if ($LASTEXITCODE -ne 0) { throw "Could not download v$Version; check the network, gh auth status and repository access" }
         }

@@ -1,8 +1,7 @@
 # Try a guardrail before adopting a contract
 
-`pregate demo` is available in the 0.2.12 release candidate. It needs the
-compiled binary and Git. Check [v0.0.1 release notes](../releases/0.0.1.md) before installation;
-the currently installed 0.2.11 pilot does not have this command.
+`pregate demo` is included in 0.0.2. It needs the
+compiled binary and Git. Check [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.
 
 ```sh
 pregate demo

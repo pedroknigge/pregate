@@ -23,7 +23,7 @@ function publicFile(url: string, file: string, limit: number): Failure | null {
 }
 
 function authenticated(args: string[], publicError: string): Answer {
-  if (Bun.which("gh") === null) return { error: `Public release access is unavailable (${publicError}). For the private pilot, install gh (https://cli.github.com), run gh auth login and check read access to ${REPO}. Or use the verified local archive installer.` };
+  if (Bun.which("gh") === null) return { error: `Public release access is unavailable (${publicError}). Install gh (https://cli.github.com), run gh auth login, and confirm it can read ${REPO}. Or use the verified local archive installer.` };
   const result = Bun.spawnSync(["gh", ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 300_000 });
   return result.exitCode === 0 ? result.stdout.toString() : { error: `Public release access failed (${publicError}); authenticated gh failed: ${detail(result.stderr.toString()) || `exit ${result.exitCode}`}. Check the network, gh auth status and read access to ${REPO}.` };
 }
@@ -37,7 +37,7 @@ function manifestProblem(file: string, asset: string): string | null {
   return entries.length === 1 ? null : `SHA256SUMS must list exactly one valid SHA-256 for ${asset}; nothing installed.`;
 }
 
-// Management commands only. Public releases need no account; the private pilot keeps gh auth.
+// Management commands only. Public releases need no account. gh auth is the fallback when anonymous metadata is unavailable.
 export function latestRelease(): Answer {
   return releaseIn(mkdtempSync(join(tmpdir(), "pregate-release-")));
 }

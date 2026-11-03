@@ -50,7 +50,7 @@ TypeScript browser messaging, credentialed CORS, token verification options and 
 
 ## Coverage and compatibility
 
-Version `1.0.0`; first released with engine `0.2.26`. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or values that flow through variables. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
+Version `1.0.0`; included with engine 0.0.2. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or values that flow through variables. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
 
 The existing `vibe-proof`, `express` and `agent-practices` packs cover adjacent forms (wildcard CORS with credentials, an open CORS header, security-review practices). Rules here that overlap them declare explicit relations.
 

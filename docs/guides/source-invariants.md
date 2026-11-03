@@ -1,6 +1,6 @@
 # Adopt the original source invariants
 
-Version 0.2.6 introduced the conversion of every authored clause of the original
+0.0.2 includes the conversion of every authored clause of the original
 PR catalog into optional project-evidence rules. Inspect the engine and pack
 versions before selecting these methods.
 

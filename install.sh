@@ -4,7 +4,7 @@
 #
 #   sh install.sh [--version vX.Y.Z]
 #
-# Public releases use anonymous HTTPS; the private pilot falls back to gh and the user's session.
+# Public releases use anonymous HTTPS. If that download fails, fall back to gh and the user's session.
 # Offline and in tests, PREGATE_ARCHIVE=<tar.gz> with PREGATE_SHA256=<hex> replaces the download.
 # PREGATE_SHA256 alone pins the hash from outside: SHA256SUMS comes from the same release, so it
 # protects the transport and not a compromised release (MH-32).
@@ -171,7 +171,7 @@ else
     # Do not combine a partial public download with an authenticated manifest or archive.
     rm -f "$tmp/$name" "$tmp/SHA256SUMS"
     command -v gh >/dev/null 2>&1 ||
-      die "public release unavailable; gh is required for the private pilot $REPO (https://cli.github.com, then gh auth login), or use PREGATE_ARCHIVE with PREGATE_SHA256"
+      die "public release unavailable; gh is required for $REPO (https://cli.github.com, then gh auth login), or use PREGATE_ARCHIVE with PREGATE_SHA256"
     gh release download "v$version" --repo "$REPO" --pattern "$name" --pattern SHA256SUMS --dir "$tmp" ||
       die "could not download v$version from $REPO: check the network, gh auth status and read access to the repository"
   fi

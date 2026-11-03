@@ -1,10 +1,9 @@
 # Consumer SaaS pack
 
-Shipped after `enterprise-ready` in **0.2.6**.
+Included in 0.0.2.
 This optional preview pack contains 39 distinct `CONSUMER-NNN` evidence gates,
 selected through `consumer-saas/readiness` or `pack enable --only`. It remains
-separate from core and is not automatically selected for other products. The
-older 0.2.5 engines do not contain it. No actual consumer product is certified.
+separate from core and is not automatically selected for other products. No actual consumer product is certified.
 
 The scope is a software product a person can buy or use without an enterprise
 contract. An invariant is a condition the product must satisfy at all times.

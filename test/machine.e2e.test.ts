@@ -496,7 +496,7 @@ describe("update", () => {
     mkdirSync(root);
     ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
     const files = ["preset.json", "pregate.lock.json"].map(file => join(root, ".pregate", file));
-    // Exercise a migration, not the current-contract no-op introduced in 0.2.8.
+    // Exercise a migration, not the current-contract no-op.
     for (const file of files) {
       const old = JSON.parse(read(file)!); old.engine = "0.0.0";
       put(file, JSON.stringify(old));

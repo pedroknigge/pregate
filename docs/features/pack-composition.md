@@ -26,7 +26,7 @@ bundled packs, categories, checks and methodology IDs, including Python, Go and 
 `--category` filters list results; category metadata does not activate policy.
 Discovery validates schemas, namespaces
 and references; it does not run fixtures or certify precision. The working-tree engine
-analyzes JS/TS, Python, Go and Rust; Rust is new in the 0.2.12 candidate. `rules test` runs fixtures and `preset show` explains effective
+analyzes JS/TS, Python, Go, and Rust. `rules test` runs fixtures and `preset show` explains effective
 policies, including overrides, shadow and ownership. A selected methodology can
 still contain disabled rules.
 

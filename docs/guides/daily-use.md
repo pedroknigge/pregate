@@ -2,7 +2,7 @@
 
 ## Starting work
 
-The guided coordinator is available in 0.2.9; check `--help` for `guide`.
+The guided coordinator is included in 0.0.2; check `--help` for `guide`.
 Use [the pregate skill](pregate-skill.md) in your coding harness: invoke `/pregate`, then ask
 for setup, an update, an audit or a bounded repair. Setup/update installs the
 matching companion instructions. Loading them grants no approval.
@@ -21,7 +21,7 @@ protection remains degraded. A failed setup leaves the preview unapplied;
 cancelling the contract review retains completed global setup. Inspection and
 preview modes do not install anything.
 
-On published 0.2.8, or when inspection is permitted through explicit commands,
+When inspection is permitted through explicit commands,
 run `pregate status` when entering a project and `/pregate` in the harness. Status
 shows consent, contract validity and whether protection is degraded. `doctor`
 checks the global installation. A disabled project remains disabled when `init`
@@ -85,7 +85,7 @@ needs meaningful pass/fail/bypass fixtures before it enters the batch.
 See [guided adoption](../features/guided-pack-adoption.md). Then audit and choose
 small repairs or explicit no-new protection for existing debt.
 
-Since 0.2.8, `scan --json` also reports source-scope gaps and can
+`scan --json` also reports source-scope gaps and can
 propose detected roots plus selected packs in the same plan. Review exclusions
 and the inventory before approval; a root-layout app must not be described as
 covered merely because `lib/**` is in scope. Existing contracts are not widened
@@ -115,15 +115,14 @@ It rehashes retained inputs and reports reused/evaluated files. Rerun the same
 command after interruption to resume valid checkpoints. Use `audit --fresh` for
 a cold comparison; incomplete coverage and fresh fitness evidence still apply.
 
-Published 0.2.11 adds a compact default `audit`: totals and coverage gaps first,
+The default `audit` is compact: totals and coverage gaps first,
 then a limited number of examples. Use `audit --full` to see every text location;
 JSON/JSONL retain all evidence. `--plan` still requests the complete plan.
-Older 0.2.10 installations do not provide these presentation options.
 
 ## When an edit is denied
 
-The [project-update workflow](../features/project-update.md), available since
-0.2.7, provides `preset diagnose --json`, `preset schema` and
+The [project-update workflow](../features/project-update.md)
+provides `preset diagnose --json`, `preset schema` and
 `update --project --preview`. It reviews engine/core/pack pins together and keeps
 active files unchanged until approval. The current guide uses the same
 repair mechanism; it displays the cause and supported next action.
@@ -225,10 +224,8 @@ watchdog. Stop has a 45-second deadline; the five-second deadline is for Pre.
 The observed historical direct-engine command does not record its binary version.
 Unreleased supervisor diagnostics separate an unfinished rule from shared
 dependency resolution when progress is valid. The existing hook deadline still
-applies. The wave 11 source and registered POSIX controls verify NUL stderr
-preservation and malformed nested-progress attribution. Its source overhead and
-final latency capture failed; passing byte controls do not certify performance.
-See [v0.0.1 release notes](../releases/0.0.1.md) for the current limits.
+applies. Passing byte controls do not certify performance.
+See [v0.0.1 release notes](../releases/0.0.1.md) and the [changelog](../../CHANGELOG.md).
 
 The source dependency checkpoint reuses authenticated resolver reads only after
 rehashing the importer and every recorded input, including missing candidates,
@@ -237,20 +234,9 @@ missing module, changing an alias/barrel/schema input or retargeting a path can
 invalidate it. A missing, invalid or unavailable checkpoint falls back to fresh
 resolution. It caches no verdicts: affected unchanged importers are evaluated
 again. The local state owner who controls both the checkpoint and its separate
-authentication key remains trusted. The isolated wave 9 benchmark passed its
-unchanged limits; that capture does not guarantee latency for every load or
-replace contract approval, and it predates wave 11's different launcher bytes
-and failed timing capture.
+authentication key remains trusted. A benchmark on an earlier runtime does not
+guarantee latency for every load or contract approval.
 The Stop loop is bounded; finishing a turn does not prove compliance.
-
-The complete unreleased `bun test` run on Bun 1.4.2 recorded 6,771 passes,
-four existing Windows-native skips and one failure in 14 minutes 40 seconds.
-The active contract has no layer for `src/dependency-cache.ts`; the test stops
-at that first missing module and does not verify the remaining classifications.
-Recorded input hashes and supported literal `pregate preset show --json` output
-were unchanged before and after. Accepted log receipts retain exit 1. This run
-predates the NUL/progress repair; final native/manual and private-consumer gates
-remain open. No original consumer source, policy or consent was changed.
 
 For Claude skill cost, use the live `/context` Skills row after the listing
 budget, rather than the supplied 21k raw estimate. Review router file reads

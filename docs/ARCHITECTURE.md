@@ -490,7 +490,7 @@ The first touch costs ~10 ms more than the second: the A12 `git cat-file`. The m
 
 **Compiled-lock cache.** Step 6 recompiles only when no valid entry exists. The key is the hash of the normalized lock, of the preset, of every pack the compiler reads (builtin, library, `path` and pinned git) and of this build (`engine`, `core` and the compiler fingerprint). The file lives in the state directory, `locks/<sha256(root)>.json`. If it is missing, truncated, or its digest does not match, the hook recompiles. The `before_session` analysis is still recomputed on every call (A12).
 
-Measured with the real `hook pre` binary on a `backend-clean-ddd` fixture plus one `path` rule, a new session per sample, an allowed edit of `src/domain/values/money.ts` (linux-x64, 4 vCPU, Bun 1.4.2). Before the cache, n=15: p50 72.6 ms, p95 100.9 ms. With the cache, `bun test test/lock-cache.e2e.test.ts`, n=25:
+Measured with the real `hook pre` binary on a `backend-clean-ddd` fixture plus one `path` rule, a new session per sample, an allowed edit of `src/domain/values/money.ts` (linux-x64, 4 vCPU, recorded before this repository pinned Bun 1.4.4; not a v0.0.2 measurement). Before the cache, n=15: p50 72.6 ms, p95 100.9 ms. With the cache, `bun test test/lock-cache.e2e.test.ts`, n=25:
 
 | Pass | p50 | p95 |
 |---|---|---|
@@ -565,7 +565,7 @@ The launcher watchdog is 45 s and the hook `timeout` is 60 s.
 
 - **Enforcement:** `check` and `decide` share `blocking(lock, violations, cause)`. The preset selects a default; an active alias/check override can select `enforce` or `shadow` independently (O53). Integrity always enforces. Form causes still use the preset default, with human causes and protected-path guards always blocking.
 - **Output:** exit 1 if anything blocking remains (`deny` or `ask`), the lock does not match, or the version differs. `warn` ⇒ exit 0 with the text. In pre-commit and CI there is no state and no counters: every introduced blocking violation fails.
-- MH-19/20/28: pre-commit invokes global `pregate` on PATH. `check`, `explain` and `preset show` delegate to the lock's engine; `preset compile` uses the current engine. Pins below `FLOOR = "0.2.0"` deny as `lock-stale`; missing pinned engines request `pregate update --engine <v>`. `check --staged` reports registration/trust drift without changing its verdict.
+- MH-19/20/28: pre-commit invokes global `pregate` on PATH. `check`, `explain` and `preset show` delegate to the lock's engine; `preset compile` uses the current engine. Pins below `FLOOR = "0.0.1"` deny as `lock-stale`; missing pinned engines request `pregate update --engine <v>`. `check --staged` reports registration/trust drift without changing its verdict.
 
 ---
 

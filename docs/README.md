@@ -1,9 +1,9 @@
 # PREGATE documentation
 
-Use this index for the current product contract. The source checkout can include
-unreleased features; [v0.0.1 release notes](releases/0.0.1.md) identifies their verification
-and release state. Historical research is evidence for its recorded candidate,
-not proof that a later candidate passes.
+Use this index for the current product contract. 0.0.2 is the published release.
+[v0.0.1 release notes](releases/0.0.1.md) record the first public tag, and the
+[changelog](../CHANGELOG.md) records 0.0.2. Historical research is evidence for
+its recorded candidate, not proof that a later candidate passes.
 
 ## Start and use the tool
 
@@ -52,7 +52,7 @@ not proof that a later candidate passes.
 - [Pending guided refactoring, QA and bulk/classifier work](features/maintainability-and-bulk-audit.md)
 - [Interactive daily workflow](features/guided-project-workflow.md)
 - [Guided scan, combined pack approval and team restoration](features/guided-pack-adoption.md)
-- Earlier pilot notes (0.2.5–0.2.14 release notes, the Kragg audit, greenfield results, and the pre-public plan) are not in this tree. A bare title in older pages is history, not a file to open.
+- Notes from before the public 0.0.x line (the Kragg audit, greenfield results, and the pre-public plan) are not in this tree. A bare title in an older page is history, not a file to open.
 
 ## Documentation maintenance
 
@@ -63,10 +63,9 @@ when those references differ from the CLI or manifests. CI and release builds ru
 this check. Change behavior, its feature guide and its verification evidence
 together; regenerate after changing options or pack data.
 
-Research, input notes and pilot observations retain their dates and candidate
-versions. The current feature guides and source-generated references take
-precedence when historical notes describe an older behavior. The following index
-lists those records for traceability.
+Research and input notes keep their dates. The current feature guides and
+source-generated references take precedence when an older note describes
+different behavior. The following index lists those records for traceability.
 
 <!-- BEGIN generated reference -->
 

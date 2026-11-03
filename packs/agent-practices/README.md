@@ -1,6 +1,6 @@
 # Agent practices
 
-Unreleased: included in 0.2.11 development source. Published 0.2.10 does not bundle this pack.
+Included in 0.0.2.
 
 22 optional preview evidence rules distilled from user-supplied posts. Choose
 the relevant policy without changing core or adopting every recommendation:

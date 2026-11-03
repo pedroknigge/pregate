@@ -10,8 +10,8 @@ setup, update, audit, repair or pack authoring. This guide is installed by setup
 and refreshed by update. Loading it changes no consent or contract; hooks enforce
 the policy. Give one useful next action and present related choices together.
 
-Version 0.2.12 adds `pregate demo [--language python|go|rust|all]
-[--json]` for a human who wants to try the behavior first. It uses a compiled
+`pregate demo [--language python|go|rust|all]
+[--json]` lets a human try the behavior first. It uses a compiled
 binary and Git to create, approve, check and delete only owned toy projects and
 settings. It accepts no consumer path. Use human `! pregate demo` where available;
 do not treat sample automation as approval for this project. Native tools run
@@ -77,8 +77,8 @@ application code there or edit lock bytes.
 
 ## Start and compose a project
 
-The guided coordinator was introduced in 0.2.9 and expanded in 0.2.10; it is absent from 0.2.8.
-Check installed help for availability. The human
+The guided coordinator is included in 0.0.2.
+Check installed help before relying on a flag. The human
 can run `pregate` in an interactive terminal or `! pregate guide` where the harness
 provides one. Bare no-argument input redirected by a hook retains hook-auto;
 use explicit `guide --json` for agent/script inspection. There is no `guide --yes`.
@@ -185,7 +185,7 @@ Direct human terminal approval remains available. Stale/replaced/expired
 proposals cannot apply. Never execute approval or activation as agent self-approval.
 Never loosen the contract by editing the preset and recompiling: Stop, pre-commit
 and CI block a looser lock (`contract-loosened`) that no human approved.
-Guided proposals in 0.2.9 bind their consent effect in the digest: initial
+Guided proposals bind their consent effect in the digest: initial
 setup or explicit activation enables protection; existing adoption and updates
 preserve consent. Show this effect. An update must not turn a disabled project on.
 For a current cloned/disabled contract, plain `guide --preview` is a no-op,
@@ -378,7 +378,7 @@ failed/unproven adopted assertions; 2 means incomplete analysis or invalid input
 requirements, and 1 for any finding. Inspect the fitness array,
 unsupported/uncovered files, errors, exclusions and skipped
 change-only/delegated rules before describing coverage. Parsers cover JS/TS,
-Python and Go; version 0.2.12 adds Rust source analysis. Rust macros are not
+Python, Go, and Rust. Rust macros are not
 expanded, and native Vue/Svelte parsing is not implemented. A framework
 pack does not add a parser. Syntax does not certify security or maintainability.
 
@@ -516,12 +516,12 @@ never type. Full library coverage remains incomplete.
 
 For an existing project, inspect installed versus project/lock versions rather
 than assuming `--version` identifies the engine used by every hook. Unified
-migration forms are available since 0.2.7; check `--help` when using an older
-engine. Prepare `update --project --preview` or
+migration forms are in 0.0.2; check `--help` when the installed engine is older.
+Prepare `update --project --preview` or
 `pack update --all --preview`: engine, core and every registered pack enter one
 candidate and one digest-bound human approval. A single-pack update uses the
 installed engine and expands to one project migration when other pins are stale.
-In 0.2.10, `guide --preview --packs <ns,ns>` can combine that migration with
+`guide --preview --packs <ns,ns>` can combine that migration with
 selected additions. Discovery examines the entire catalog, including inactive
 methodologies. After update, suggest relevant new/changed packs and an audit;
 never assume the user saw release notes. Historical comparisons use the previous
@@ -546,7 +546,7 @@ fails another; show only the failed paths to retry. Current projects need no
 approval or rewrite, and unrelated pending proposals must not be applied.
 Without a terminal, show each project's exact digest command in its own root.
 Keep disabled consent and custom policies; native harness limits still apply.
-Since 0.2.8, prepare `update --projects <path...> --preview` to migrate one or
+Prepare `update --projects <path...> --preview` to migrate one or
 several explicit project roots from any directory. Quote paths with spaces.
 Show every project's diff, digest and failure. With two or more reviews it
 prints one batch code: `! pregate approve <code>` approves every prepared project
@@ -575,15 +575,15 @@ exact admitted contract pair. It cannot stage invalid policy, mutate its content
 use arbitrary pathspec options or grant human approval. For Codex, establish a
 literal `cd` to the project first when the shell cwd is unknown.
 
-Since 0.2.8, isolated literal recovery previews and preset
+Isolated literal recovery previews and preset
 diagnosis/schema/help use the installed guard instead of an older locked
-guard. Published 0.2.7 does not contain that routing repair. Use one helper per
+guard. Use one helper per
 call; combining it with other commands, wrappers or redirections retains locked
 routing. Application edits, Stop and approval still use the locked engine.
 
 During onboarding, inspect source inventory against the proposed scope before
 approval. Do not assume src/lib/test cover app/components/tests/e2e, root files or
-workspace packages. Version 0.2.8 init includes detected source roots while
+workspace packages. Init includes detected source roots while
 preserving exclusions. scan --json reports scope gaps, and scan
 --plan can include a scope expansion alongside packs. pack apply accepts that
 optional scope in one reviewed plan; existing contracts are never widened silently.

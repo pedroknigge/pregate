@@ -1,6 +1,6 @@
 # Agent practices pack
 
-Available in published 0.2.11; older 0.2.10 does not bundle this pack.
+Included in 0.0.2.
 See [v0.0.1 release notes](../releases/0.0.1.md) before selecting it from an installed catalog.
 
 An optional preview pack derived from four user-supplied posts on 2026-10-07.

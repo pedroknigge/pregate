@@ -1,11 +1,11 @@
 # Review the actual source scope
 
-Since 0.2.8, initial onboarding adapts the selected recipe to the source
+Initial onboarding adapts the selected recipe to the source
 roots found in the repository. A root-layout Next.js project must not inherit
 only `src/**`, `lib/**` and `test/**`. Detected `app`, `components`, `tests`,
 `scripts`, `e2e`, workspace packages and root source files enter the proposal.
 The recipe's existing exclusions remain. The human reviews the scope together
-with policy before activation. Published 0.2.7 does not contain this adaptation.
+with policy before activation.
 
 `init --preview` reports how many inventoried parser-supported source files lie inside the
 candidate scope and samples any gaps/exclusions. Git inventory includes tracked
@@ -14,7 +14,7 @@ This denominator does not include every asset, unsupported source language or
 dependency on the machine. A file in scope can still have no applicable optional
 rule. Scope coverage, rule coverage and verified behavior are different facts.
 
-Since 0.2.10, coverage also reports `sourceLikeInventoried`, unsupported source-like
+Coverage also reports `sourceLikeInventoried`, unsupported source-like
 paths and advisory role groups: production candidates, tests, examples, fixtures
 and vendor/generated conventions. Unsupported `.vue`, `.svelte` and other
 source-like files remain visible even though their bodies have no parser analysis.
@@ -23,7 +23,7 @@ counts. Role labels come from path conventions; they do not exclude files or
 certify that a file is production code. A monorepo cannot claim whole-project
 coverage from a parser-supported numerator while concealing unsupported bodies.
 
-Since 0.2.11, `guide --json` and `scan --json` also show coverage before
+`guide --json` and `scan --json` also show coverage before
 initial setup. `coverageState: "proposed"` means counts use the default recipe's
 scope plus detected source roots; recipe exclusions remain. No contract or
 consent is created by inspection. A schema-valid existing preset reports

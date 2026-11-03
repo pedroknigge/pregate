@@ -1,30 +1,27 @@
 # One reviewed project update
 
-Available since **0.2.7**, in response to GitHub
-[#10](https://github.com/pedroknigge/pregate/issues/10). The 0.2.6 binary
-does not have these commands. Updating the global installation prepares a review;
+Included in 0.0.2. Updating the global installation prepares a review;
 only human approval migrates an existing project's contract.
 
 The human starts `! pregate update` inside Claude Code, Codex, Grok or agy.
 It installs the selected published engine and refreshes its registrations, then
 prepares one review of every registered project that pins an older engine (see
-[the machine's project registry](#the-machines-project-registry-0226)). Installation
+[the machine's project registry](#the-machines-project-registry)). Installation
 and project approval are separate: the existing preset, lock and consent remain
 unchanged during preparation. Cursor's existing separate-terminal limit remains.
 An unchanged contract can be degraded after an engine change; inspect `status`
 instead of assuming that the former contract remains effective.
 
-Since 0.2.8, an isolated literal recovery preview (`update --project
+An isolated literal recovery preview (`update --project
 --preview`, `pack update --all --preview`), preset diagnosis/schema inspection
 and command help are guarded by the invoking installed engine, even when the
 lock pins an older engine. This prevents an older guard from rejecting a recovery
 command that it does not know. Application edits, checks, Stop and approval retain
 locked-engine routing. Redirections, substitutions, wrappers and combined commands
-do not receive this routing exception. Published 0.2.7 predates this correction;
-its initial recovery preview can still require the human command route.
+do not receive this routing exception.
 
 Literal `<command> --help` and supported `<command> <subcommand> --help` forms
-since 0.2.8 exit before project or installation work. Extra flags and unknown command
+exit before project or installation work. Extra flags and unknown command
 paths are rejected. Help never activates a migration or substitutes for approval.
 
 To prepare the project update with an already installed engine:
@@ -55,11 +52,11 @@ Preparation never deletes the old lock, resets Git changes or disables protectio
 After approval, audit and commit the preset and lock. `--yes` is human automation;
 an agent cannot approve or perform the global update through a tool call.
 
-## Guided updates in 0.2.9
+## Guided updates
 
 The [guide](guided-project-workflow.md) presents these
-operations as choices from the actual project state. These choices require
-0.2.9 or later; check `--help` for `guide`. In a terminal, run `pregate`, choose
+operations as choices from the actual project state. Check `--help` for `guide`.
+In a terminal, run `pregate`, choose
 update/repair or several projects, and inspect the complete reviews before one
 human confirmation. Explicit paths work too:
 
@@ -85,7 +82,7 @@ Native harness interaction retains the documented approval-route limitations.
 
 ## Update several projects from one directory
 
-With 0.2.8 installed, give the existing project paths explicitly. Paths with spaces
+Give the existing project paths explicitly. Paths with spaces
 are supported, and a project subdirectory resolves to its contract root. Duplicate
 roots are processed once. This command uses the installed engine and does not
 download another release:
@@ -132,14 +129,14 @@ Already-current contracts return without rewriting or requesting another approva
 Custom paths, selected rules, scope, parameters and existing consent are retained;
 disabled projects stay disabled. This command does not initialize new projects.
 
-Since 0.2.26, `--yes` applies exactly the candidate it just prepared for each
+`--yes` applies exactly the candidate it just prepared for each
 project through the same path as `pregate approve`: each project's preset and lock
 land as one commit (`chore: apply reviewed PREGATE contract <code>`), and other
 staged or dirty work stays out of it. Add `--no-commit` to keep the files
 uncommitted. The output has one line per project (`Updated`, `Current` or
 `Failed`) and a final count. `--no-commit` is accepted only with `--yes`.
 
-## The machine's project registry (0.2.26)
+## The machine's project registry
 
 Every `pregate enable`, `pregate disable` and approval that activates a project
 writes a consent record on this machine. Those records are the registry: no
@@ -167,10 +164,10 @@ pinned engine was removed, its launcher fails closed with
 When a session starts in a project whose lock pins an older engine and a newer
 one is installed, the pinned engine's SessionStart briefing begins with
 `PREGATE update ready (<pinned> -> <installed>). Ask the user to run: ! pregate update`.
-This only reaches projects pinned to 0.2.26 or later; older engines answer
+An engine older than the one that added this notice answers
 SessionStart without it.
 
-Since 0.2.15, `update --project` (run by `! pregate update`) lists the other
+`update --project` (run by `! pregate update`) lists the other
 worktrees of the same Git repository whose lock pins another engine and prints the
 ready `update --projects <paths> --preview` command for them. It only names them;
 each worktree still changes through its own reviewed update. An agent may prepare the explicit `--preview` form but
@@ -214,7 +211,7 @@ commit and CI retain the broader observations. A Stop with no changes does not
 need that dependency sweep. With enforcing import rules, any changed resolver
 input can matter, including configs without a conventional file extension.
 Enforcing import rules still reevaluate unchanged importers when code or resolver
-configuration changes affect resolution. In 0.2.10, ordinary body edits with the
+configuration changes affect resolution. Ordinary body edits with the
 same parser validity and re-export surface use direct-file review. Creation,
 deletion, parser validity, re-export changes and arbitrary resolver config edits
 retain the scoped importer sweep; alias-remap, symlink and barrel controls remain

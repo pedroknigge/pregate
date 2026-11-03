@@ -42,7 +42,7 @@ pregate fitness plan --template --auto > pregate.fitness.json
 ```
 
 The template writes JSON to stdout only. By default it lists unbound requirements with empty
-commands and inputs and `coverage: "partial"`; with `--auto` (added in 0.2.19) it inspects
+commands and inputs and `coverage: "partial"`; with `--auto` it inspects
 the project's test files and `package.json` to pre-populate candidate test-slice commands,
 narrowed input globs and observed assertion counts. Keep the small set you can actually verify, replace the
 prompts with project facts, implement the assertions and their negative controls,
@@ -137,7 +137,7 @@ Three passing adopted assertions with remaining unbound requirements are incompl
 not certification of all 64. The engine validates declarations and execution
 receipts; it cannot establish that project-authored coverage claims are complete.
 
-Since 0.2.7, scaffold a binding from an existing test with one preview:
+Scaffold a binding from an existing test with one preview:
 
 ```sh
 pregate fitness bind core/CORE-INV-001 \

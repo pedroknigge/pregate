@@ -1,215 +1,251 @@
-# Verify the release candidate on Windows
+# Verify 0.0.2 on Windows
 
-This is the manual handoff for David or another Windows tester. It runs the same
-native Windows suites used by CI and the supplied production archive. The report
-identifies the source commit, runtime, artifact hashes and each check's exit code.
-Writing this guide does not mean Windows has passed.
+This is the manual check for David, or for anyone else confirming the published
+[v0.0.2](https://github.com/pedroknigge/pregate/releases/tag/v0.0.2) release on a
+Windows machine. The repository is public. The procedure uses that tag, the
+Windows archive from that release, and the committed verifier
+`scripts/verify-windows.ts`. A passing report is evidence for that commit and
+those files. It does not by itself change the platform status in the README.
 
-## Published 0.2.13 assets
+Do not run PowerShell as Administrator. The installer writes the current user's
+PATH under `HKCU`.
 
-The [0.2.13 release](https://github.com/pedroknigge/pregate/releases/tag/v0.2.13)
-is a Mac ARM64 pilot; its Windows archive remains experimental. For a current
-retry, use a clean checkout of tag commit
-`b2cec675c4abc2fb7b5ed11230c39d113d9fa743` and download its metadata and three
-Windows inputs into an empty candidate directory:
+## Prerequisites
 
-```powershell
-git clone -c core.longpaths=true https://github.com/pedroknigge/pregate.git pregate-0213
-if ($LASTEXITCODE -ne 0) { throw 'Clone failed' }
-Set-Location pregate-0213
-git checkout --detach b2cec675c4abc2fb7b5ed11230c39d113d9fa743
-if ($LASTEXITCODE -ne 0) { throw 'Checkout failed' }
-gh release download v0.2.13 --repo pedroknigge/pregate --pattern CANDIDATE.json --pattern pregate-0.2.13-windows-x64.zip --pattern install.ps1 --pattern SHA256SUMS --dir C:\pregate-candidate
-if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
-```
+- 64-bit Windows 10 or Windows 11 (x64). `install.ps1` stops on 32-bit Windows and on ARM64.
+- Windows PowerShell 5.1 or newer. PowerShell 7 can run the Git and Bun commands below.
+- [Git for Windows](https://git-scm.com/).
+- [Bun](https://bun.sh) **1.4.4**, the version in `.bun-version`. `bun --version` must print `1.4.4`. Bun 1.4.2 can segfault while leaving `bun test --isolate` after the tests have passed ([oven-sh/bun#43056](https://github.com/oven-sh/bun/issues/43056)); that crash is fixed in 1.4.3 and later, and the Windows suite runs with `--isolate`.
+- [GitHub CLI](https://cli.github.com/) (`gh`). The release is public, so a private-repository grant is not required. `gh auth login` is only needed if `gh` itself asks for it.
 
-For this route, HEAD must be the published `b2cec675` commit and status empty;
-use Bun 1.4.2 and the hash/verifier controls below, skipping the retained
-handoff's clone/checkout commands. Select a new report directory. `CANDIDATE.json` binds the
-release tag to the unchanged wave 27 runtime inputs. The tag differs from the
-retained `39ef4ebd` source binding only through documentation changes.
-Publication does not supply a Windows native or manual harness result.
+## Checkout the tag
 
-## Retained post-PR24 and PR30 handoff
-
-[PR #24](https://github.com/pedroknigge/pregate/pull/24) and
-[PR #30](https://github.com/pedroknigge/pregate/pull/30) are merged. Use the
-maintainer's `pregate-windows-post-pr24-39ef4ebd.zip` handoff bundle, SHA256
-`c04667fb5ee3f229fd4b6475e103af33ce050abb8d932c1bebdf51882831edca`.
-Extract its `WINDOWS-HANDOFF.md`, production Windows ZIP, `install.ps1` and
-`SHA256SUMS` together. This immutable earlier handoff remains valid for its exact
-source binding and is retained independently of the published-tag route above.
-Linux/Windows remain experimental; this retry does not depend on GitHub Actions.
-
-The required clean source commit is
-`39ef4ebd6556dc3961839cf6fc05fa4b1d851c05`. Its tree exactly matches the verified
-source: 6,790 passes, four Windows-only skips, zero failures and 92,740
-assertions in the complete Mac source suite. Human repository admission is
-complete and issues #19 and #25–#29 are closed; #10 remains open. These results
-do not certify Windows. Native Windows and manual harness checks remain pending.
-Older candidate hashes, author reports and hosted-job records retain their
-historical scope. See current integration.
-The bundle's instructions were prepared before wave 33 and retain an earlier
-failed latency result. The current complete budget capture
-passes; the bundle bytes, source binding and asset hashes remain unchanged.
-
-From a folder without an existing checkout, use PowerShell:
-
-```powershell
-git clone -c core.longpaths=true https://github.com/pedroknigge/pregate.git pregate-post-pr24
-if ($LASTEXITCODE -ne 0) { throw 'Clone failed' }
-Set-Location pregate-post-pr24
-git checkout --detach 39ef4ebd6556dc3961839cf6fc05fa4b1d851c05
-if ($LASTEXITCODE -ne 0) { throw 'Checkout failed' }
-git rev-parse HEAD
-git status --porcelain
-bun --version
-bun --revision
-```
-
-HEAD must match the exact commit, status must be empty and Bun must be 1.4.2.
-Retain the version and revision output. Set `$candidate` to the extracted asset
-folder and select a new report directory:
-
-```powershell
-$candidate = 'C:\pregate-candidate'
-$expected = @{
-  'pregate-0.2.13-windows-x64.zip' = '904cf6cbc4817f00a9557c8097400497e6b5e5ddb5cc5eadd1e29630271ee169'
-  'install.ps1' = '4ccedc9bd0f33ff383014bb6ed78b715b06fb25f409405bf03057334a45aa28f'
-  'SHA256SUMS' = 'd0389d18488bdc943ae5c6a18941432043bf86947cebf11bb1d3214de7c913cc'
-}
-foreach ($name in $expected.Keys) {
-  $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $candidate $name)).Hash.ToLowerInvariant()
-  if ($actual -ne $expected[$name]) { throw "Incorrect hash: $name" }
-}
-bun scripts/verify-windows.ts --artifacts $candidate --report C:\pregate-post-pr24-report
-```
-
-The immutable wave 27 runtime manifest SHA256 is
-`a991c3aa5102ef8aa4653be243a172ca7e57ff4a18ab0a2cbf34c0d8755815d6`;
-the Windows executable SHA256 is
-`a6ba71d3cde476c3c26956804c90f4ac16157aa33fcc715f445c5a960ac3b8a5`.
-The later test-fixture repair, plan changes and approved contract leave runtime
-inputs identical. Keep this source/archive binding even if main later receives
-documentation changes. A newer branch head or rebuilt binary needs its own
-verified mapping and native report.
-
-## Development follow-up
-
-Native feedback on intermediate heads of PRs
-[#13](https://github.com/pedroknigge/pregate/pull/13),
-[#14](https://github.com/pedroknigge/pregate/pull/14) and
-[#15](https://github.com/pedroknigge/pregate/pull/15) reports isolated suites
-passing. The complete report was still in progress when reviewed on 2026-10-06.
-Review then removed an unsafe inactive shortcut, added a final command-length
-guard, bounded decoding of foreign compressed registrations, and included hidden
-consent records in fallback discovery. Earlier results do not certify these edits.
-
-[PR #24](https://github.com/pedroknigge/pregate/pull/24), now merged, reports native Windows
-11 x64 results with Bun 1.4.2: the published 0.2.9 handoff passed 10 of 11 runner
-steps, while the complete suite exceeded its 20-minute deadline. At PR head
-`dc8eb434022b769920b0a45ba3c5d58992ea754d`, the author reports the affected suites,
-typecheck, generated references and self-gate passing separately. These are
-external results; no complete native report for the integrated candidate or
-manual guide checks is recorded here. The manual checks still include two
-disposable projects, cancellation, old-engine update, a custom pack and disabled
-consent. Preserve the final source/artifact identities with those results.
-
-The local review retains quoted launcher paths, bounded overlong path components
-and the separate Windows suite deadline. Focused local regressions are not a
-native Windows run. The PR's hosted test job did not start because of account
-billing/spending limits, so its status supplies no additional test result.
-
-For development validation, use a clean checkout of the final reviewed commit
-with the pinned Bun version, then run from the repository root:
-
-```powershell
-bun test test/windows.test.ts test/windows-distribution.e2e.test.ts
-bun run build
-bun scripts/verify-windows.ts --artifacts dist --report C:\pregate-reviewed-report
-```
-
-The report directory must be new. The first command includes the new hidden-consent
-regression for both a live and missing launcher. The complete runner isolates installs
-and records the commit and archive hashes. Locally built development archives are
-not substitutes for the current wave 27 handoff artifacts; retain their reports separately.
-Actual harness UI approvals still require independent evidence. See the
-reviewed command and latency limits.
-
-The procedure is committed in the repository. Use the source commit associated
-with the supplied candidate, not an older installed version or a moving branch.
-The maintainer supplies the exact commit and artifact checksums together. An
-intermediate candidate report does not automatically admit a later final build.
-
-## Before running
-
-Use Windows x64 with Git and the exact Bun version in `.bun-version`. Clone the
-private project with your own authorized GitHub account and check out the candidate
-commit supplied with the artifacts. Do not send credentials. Use a clean checkout.
-The dependency install and dcouplr source probe need internet access.
-
-Some fixture paths exceed Windows' 260-character limit, so a plain clone stops with
-"Filename too long". Clone with long paths enabled for that repository:
+Some fixture paths are longer than Windows' 260-character limit. A clone without
+long paths stops with "Filename too long".
 
 ```powershell
 git clone -c core.longpaths=true https://github.com/pedroknigge/pregate.git
+if ($LASTEXITCODE -ne 0) { throw 'Clone failed' }
+Set-Location pregate
+git checkout --detach v0.0.2
+if ($LASTEXITCODE -ne 0) { throw 'Checkout failed' }
+$head = (git rev-parse HEAD).Trim()
+if ($head -ne '92f60f0aa88cfc645d3aaea3181691065624fcbc') { throw "HEAD is $head, not the v0.0.2 commit" }
+git status --porcelain
+bun --version
 ```
 
-Put these files from the candidate build in a separate folder, for example
-`C:\pregate-candidate`:
+`v0.0.2` is an annotated tag. `git rev-parse HEAD` must print
+`92f60f0aa88cfc645d3aaea3181691065624fcbc`. `git rev-parse v0.0.2` prints the tag
+object, not that commit, so do not compare HEAD to that other hash. `git status
+--porcelain` must print nothing. `bun --version` must print `1.4.4`.
 
-- `pregate-<version>-windows-x64.zip`
-- `install.ps1`
-- `SHA256SUMS`
+Stay in this checkout for the verifier. Later manual install checks use a
+separate throwaway directory so this tree stays clean. The verifier refuses a
+dirty checkout.
 
-Use the exact supplied production artifacts, rather than rebuilding the Windows
-binary to substitute for them. Their checksums are verified before bootstrap.
-The release maintainer must compare the report hashes with the admitted build;
-a self-consistent checksum file alone does not establish its origin.
+## Download the release files
 
-## One command
-
-From the repository root in PowerShell:
+Create an empty directory and download three assets from the v0.0.2 release:
+`install.ps1`, `SHA256SUMS`, and `pregate-0.0.2-windows-x64.zip`. Use these
+downloaded files. Do not substitute `install.ps1` from a later commit, and do
+not rebuild the zip.
 
 ```powershell
-bun scripts/verify-windows.ts --artifacts C:\pregate-candidate
+$candidate = 'C:\pregate-0.0.2'
+New-Item -ItemType Directory -Path $candidate | Out-Null
+gh release download v0.0.2 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --pattern pregate-0.0.2-windows-x64.zip --dir $candidate
+if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 ```
 
-An optional `--report C:\pregate-report` selects a **new** output directory. Otherwise
-the command prints its report directory under the Windows temporary directory.
-Do not run as administrator. All PREGATE installs, updates, configuration and
-test projects use temporary homes; the tester's global PREGATE is not updated.
-Each subprocess has a 20-minute deadline, except the Windows suite, which gets 60
-minutes. PR #24 reports about 33 minutes for a file-by-file run on Windows 11 x64;
-that external timing does not certify the combined verifier or manual checks.
-A dependency-install failure stops
-dependent checks; other failures remain recorded and do not become a pass.
+## Check the hashes
 
-The run checks type analysis, generated documentation, native onboarding, Windows
-bootstrap/update/uninstall, the Windows-compatible test suite, the pinned dcouplr
-runtime, production-archive smoke flows and the repository's current self-gate.
-Four POSIX-fixture suites are excluded explicitly; native bootstrap and supervisor
-coverage run instead. Actual coding-harness UI approvals need separate evidence.
-The reference checks accept a normal CRLF checkout without rewriting it; semantic
-changes to generated output still fail. This behavior has a local regression test.
-Since 0.2.20 ([PR #59](https://github.com/pedroknigge/pregate/pull/59)),
-the verifier and isolated test suites set `PSModuleAnalysisCachePath` inside the
-temporary home so Windows PowerShell 5.1 never writes `ModuleAnalysisCache` into
-the repository checkout when `USERPROFILE` has no `AppData\Local`. When verifying a
-release, check out the commit where the reviewed contract pin in `.pregate/pregate.lock.json`
-matches `package.json` (or note that at a pre-contract tag commit `self-gate` records
-a lagging-lock diagnostic because the isolated home has no older engine installed).
+`SHA256SUMS` lists each file as 64 lowercase hex digits, two spaces, then the
+file name. The published v0.0.2 entries are:
 
-## Return the result
+| File | SHA-256 |
+| --- | --- |
+| `pregate-0.0.2-windows-x64.zip` | `63b5b0d6dd7d591e17a115f10cfff0c2dd831a4562909dcf0eccf9efc3ca4803` |
+| `install.ps1` | `94848899598939cf0b9c75472c95189a90eb3a2d69b4ad28e52bcc4885311944` |
 
-Send the report directory containing `report.json` and its stdout/stderr logs to
-the maintainer. Inspect the files first: do not include private application code,
-credentials or unrelated logs. The runner does not upload or create issues.
-The maintainer checks the commit and hashes, reads every failure and records the
-result in release verification. A different commit needs a new run. Cleanup
-failure also makes the report fail and must be resolved locally.
+The script below fails if a file's hash disagrees with `SHA256SUMS`, or if
+`SHA256SUMS` disagrees with the table.
 
-Standard GitHub-hosted runners are free for public repositories. Private projects
-have a plan-dependent free quota; availability is subject to account billing.
-See [GitHub's billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-This repository stays private; the manual run avoids depending on hosted billing.
+```powershell
+$expected = @{
+  'pregate-0.0.2-windows-x64.zip' = '63b5b0d6dd7d591e17a115f10cfff0c2dd831a4562909dcf0eccf9efc3ca4803'
+  'install.ps1' = '94848899598939cf0b9c75472c95189a90eb3a2d69b4ad28e52bcc4885311944'
+}
+$sums = Get-Content -LiteralPath (Join-Path $candidate 'SHA256SUMS')
+foreach ($name in $expected.Keys) {
+  $line = @($sums | Where-Object { $_ -cmatch ('^[0-9a-f]{64}  ' + [regex]::Escape($name) + '$') })
+  if ($line.Count -ne 1) { throw "SHA256SUMS has no unique entry for $name" }
+  $listed = $line[0].Substring(0, 64)
+  if ($listed -ne $expected[$name]) { throw "SHA256SUMS entry for $name is not the published v0.0.2 hash" }
+  $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $candidate $name)).Hash.ToLowerInvariant()
+  if ($actual -ne $listed) { throw "Incorrect hash: $name" }
+}
+```
+
+## Install dependencies and run the verifier
+
+From the repository root, still on the detached v0.0.2 commit:
+
+```powershell
+bun install --frozen-lockfile
+if ($LASTEXITCODE -ne 0) { throw 'Dependency install failed' }
+$report = 'C:\pregate-0.0.2-report'
+bun scripts/verify-windows.ts --artifacts $candidate --report $report
+```
+
+`--artifacts` is the directory that contains the zip, `install.ps1`, and
+`SHA256SUMS`. `--report` must be a directory that does not exist yet; the
+verifier creates it. Omit `--report` and the verifier chooses a new directory
+under the Windows temp folder and prints its path. The only other accepted
+form is `--help`, which prints usage and does not start a run.
+
+`bun scripts/verify-windows.ts --help` prints:
+
+```text
+bun scripts/verify-windows.ts --artifacts <candidate-directory> [--report <new-directory>]
+Requires native Windows x64, Git and the Bun version in .bun-version. Reports stay local.
+```
+
+The run refuses anything other than native Windows x64. It checks that HEAD is
+a clean commit and that `bun --version` matches `.bun-version`. It then hashes
+`pregate-0.0.2-windows-x64.zip`, `install.ps1`, and `SHA256SUMS`, and runs, in
+order: `bun install --frozen-lockfile`, `bun run typecheck`, the core,
+readiness, and documentation reference checks, the runtime and onboarding
+tests, the Windows distribution test, the Windows suite (`bun test --isolate`,
+excluding the four POSIX fixture suites), the pinned dcouplr source probe, the
+packaged-candidate smoke for `windows-x64`, and `bun src/main.ts check
+--ratchet --base <HEAD>`. A failed dependency install stops the later steps.
+Other failures stay in the report. Each step's limit is 20 minutes, except the
+Windows suite, which gets 60 minutes.
+
+The verifier sets `HOME`, `USERPROFILE`, `LOCALAPPDATA`, and the other runtime
+homes to a temporary directory, and sets `PSModuleAnalysisCachePath` there so
+Windows PowerShell 5.1 does not write `ModuleAnalysisCache` into the checkout.
+It does not install Pregate into your user profile, and it does not upload the
+report or open a GitHub issue. When it finishes it writes `report.json` and
+prints `PASS` or `FAIL` plus that file's path. Exit 0 means every step exited
+0 and the temporary home was removed.
+
+## Manual checks
+
+Do these after the verifier, in a normal user PowerShell window, not as
+Administrator. They use your real profile. The automated run does not.
+
+### Install as the current user
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\pregate-0.0.2\install.ps1 -Version 0.0.2
+```
+
+The script checks the zip against `SHA256SUMS`, runs `pregate setup`, and adds
+`%LOCALAPPDATA%\pregate\bin` to your user PATH. Open a new terminal so that
+PATH is visible. `pregate` from cmd or PowerShell is `pregate.cmd`.
+
+### Version, doctor, and demo
+
+```powershell
+pregate --version
+pregate doctor
+pregate demo
+```
+
+`--version` prints `pregate 0.0.2 (core 0.0.1)`. `doctor` takes no arguments.
+A harness whose program is not on `PATH` is reported as INFO. `demo` needs
+Git. It creates and deletes its own temporary projects and does not accept a
+project path. The default language is `all` (`python`, `go`, and `rust`). A
+missing `python`, `go`, or `rustc` is reported as not verified. A tool that is
+installed and fails the sample fails the demo. Real-time antivirus scanning of
+new binaries can make the Go sample slow; keep that output with the report.
+`pregate demo --language python` repeats only the Python sample.
+
+### Configure a throwaway repository and approve it
+
+Default `guide` starts in advisor mode, which explains findings and does not
+block. This check asks for enforce so a later edit can be denied. `--packs
+none` keeps the candidate on the core contract.
+
+```powershell
+$demo = Join-Path $env:TEMP ('pregate-throwaway-' + [guid]::NewGuid().ToString('n'))
+New-Item -ItemType Directory -Path $demo | Out-Null
+git -C $demo init
+git -C $demo config user.email "pregate-windows@example.com"
+git -C $demo config user.name "Pregate Windows"
+git -C $demo commit --allow-empty -m "init"
+Set-Location $demo
+pregate guide --preview --enforcement enforce --packs none
+```
+
+Run that preview in this window. Do not redirect it to a file: a preview that is
+not a terminal withholds the approval code. The preview prints
+`pregate approve` followed by the code (12 hex digits, or more). There is no
+`guide --approve` and no `guide --yes`. Mode must say enforce. You approve by
+typing the command the preview prints:
+
+```powershell
+pregate approve <code>
+```
+
+Replace `<code>` with the code from that preview. Type `y` when asked. Approval
+commits `.pregate/preset.json` and `.pregate/pregate.lock.json` in the throwaway
+repository. An agent must not run this command. `--yes` does not skip the
+question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set.
+
+### Show the gate blocking an edit
+
+Still in the throwaway repository, send a new file that adds an inline
+suppression. Core rule `core/EVA-SUP-001` denies that under enforce:
+
+```powershell
+$result = @'
+export const value = 1;
+// eslint-disable-next-line no-unused-vars
+'@ | pregate check --stdin --path src/sample.ts --format agent
+$result
+if ($LASTEXITCODE -eq 0 -or $result -notmatch 'PREGATE DENY core/EVA-SUP-001') { throw 'Expected core/EVA-SUP-001 to deny the new suppression' }
+```
+
+The command exits non-zero and prints `PREGATE DENY core/EVA-SUP-001`. That is the same decision
+the pre-edit hook applies to a proposed file. A coding agent that is actually
+installed (Claude Code, Cursor, Codex, Grok, or agy) is wired by `setup`; an
+agent write of that suppression is denied there too. `doctor` says when a
+harness was not found, in which case there is no agent UI to click.
+`check --stdin` still shows the engine's decision. Input must be UTF-8, at
+most 16 MiB, and stdin must close (a here-string does).
+
+### Disable, uninstall, and confirm the install is gone
+
+From the throwaway repository, revoke consent. Type `y`:
+
+```powershell
+pregate disable
+```
+
+From any directory, remove the machine install. Type `y`:
+
+```powershell
+pregate uninstall
+Test-Path "$env:LOCALAPPDATA\pregate"
+```
+
+`Test-Path` must print `False`. `uninstall` removes
+`%LOCALAPPDATA%\pregate` (the engine and `%LOCALAPPDATA%\pregate\bin`), the
+launcher, and the harness registrations Pregate owns. It leaves
+`%LOCALAPPDATA%\State\pregate` in place. `pregate uninstall --purge` also
+deletes that state directory. Repository `.pregate/` directories, including
+the throwaway one, stay on disk. You can delete the throwaway folder yourself.
+
+Open a new terminal and confirm `pregate` is no longer on `PATH`.
+
+## Return the report
+
+Send the report directory (`report.json` plus each step's stdout and stderr
+log) to the maintainer. Read it first. Do not include private application
+code, credentials, or unrelated logs. The verifier does not upload anything
+and does not open an issue. A `FAIL` report is still the result to return.
+Include `git rev-parse HEAD`, `bun --version`, and the manual command output
+with it. A different commit or a rebuilt zip needs a new run.

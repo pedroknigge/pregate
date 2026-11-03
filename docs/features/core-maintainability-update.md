@@ -1,7 +1,6 @@
 # Core maintainability requirements
 
-Requested on 2026-10-05 and included in the user's subsequent 0.2.6 delivery
-scope. **Shipped in the 0.2.6 pilot (core numbered 0.3.0)**, after the paired experiment
+Requested on 2026-10-05 and included in 0.0.2, after the paired experiment
 and the ordered optional packs. Exact macOS artifact verification passes;
 native Linux/Windows validation remains deferred. These are enforcing
 project-evidence obligations, not assertions that any product meets them.
@@ -19,7 +18,7 @@ for that review. They do not replace or defer the original
 [48 original requirements](../inputs/core-invariants-48.md). They do not
 create 48 duplicate IDs: 32 requests extend or reuse existing obligations and 16
 add distinct obligations. Core now has 64 project obligations and four general
-change guards, all 68 active by default. Older 0.2.5 engines have 52 defaults.
+change guards, all 68 active by default.
 
 An invariant is a condition the product must satisfy at all times. A false rule
 makes a future change costly or unsafe. The purpose is to keep the product

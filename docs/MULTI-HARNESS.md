@@ -12,10 +12,7 @@ distinct from current real harness interaction evidence.
 
 **Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
 
-0.2.4 update: Release 0.2.4 verifies multi-platform execution across macOS, Linux, and Windows,
-compiles Windows without bytecode to resolve runtime setup crashes, decouples Git/GitHub
-dependencies for standalone folder operation (O72), and incorporates 300+ invariant rules
-across 8 library packs and normative INVARIANTS catalogs (O73).
+0.0.2 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
 Under [D29/O60](ARCHITECTURE.md), human commands prompt on /dev/tty (or CONIN$ on Windows);
 interactive Claude Code and agy use enforced native permissions. Codex, Cursor,
 Grok and headless sessions deny contract edits and direct the human to
@@ -236,7 +233,7 @@ With the global install, the hook runs in **every** repo. Today that has three e
 **MH-18. Layout.**
 ```
 ${XDG_DATA_HOME:-~/.local/share}/pregate/      = <DATA>, resolved and written by setup
-├── 0.2.0/pregate            immutable engine (one per version; they coexist)
+├── <version>/pregate        immutable engine (one per version; they coexist)
 └── bin/pregate              GLOBAL LAUNCHER: launcher.sh with version=<x>, rewritten atomically
 ~/.local/bin/pregate  ->  <DATA>/bin/pregate     CLI on the PATH
 ${XDG_STATE_HOME:-~/.local/state}/pregate/
@@ -257,7 +254,7 @@ ${XDG_STATE_HOME:-~/.local/state}/pregate/
   - Stop and SessionStart use the root of the event cwd. If a session has another root pinned to another version, Stop yields `version-mismatch` (deny plus a warning), and pre-commit and CI cover the rest.
 - **CLI.** `check`, `explain`, and `preset show` apply the same rule, but from TS: if the root's lock asks for another engine, the engine spawns `<DATA>/<v>/pregate` with the same arguments and inherited stdio, **before reading stdin**, and exits with its code. If that engine is missing, it exits with 1 and "run `pregate update --engine <v>`". `preset compile` and `rules test` never redirect: `compile` is exactly how a repo moves to the new engine.
 
-**MH-20. Engine floor (`FLOOR`).** A constant in `main.ts`, today `FLOOR = "0.2.0"`. If the lock pins an engine older than `FLOOR`, there is no redirect and it denies with `lock-stale` ("this repo's lock pins engine <v>, below the safe floor: run `pregate preset compile`"). It covers two cases: 0.1.0 engines do not know the new harnesses (without this, they would yield a confusing `payload-unrecognized`), and an adapter fail-open fixed in a new version cannot stay alive in pinned repos. It is raised when an adapter fail-open is fixed.
+**MH-20. Engine floor (`FLOOR`).** The constant lives in `src/inertia.ts`, today `FLOOR = "0.0.1"`. If the lock pins an engine older than `FLOOR`, there is no redirect and it denies with `lock-stale` ("this repo's lock pins engine <v>, below the safe floor: run `pregate preset compile`"). It covers two cases: 0.1.0 engines do not know the new harnesses (without this, they would yield a confusing `payload-unrecognized`), and an adapter fail-open fixed in a new version cannot stay alive in pinned repos. It is raised when an adapter fail-open is fixed.
 
 **MH-21. State format.** Engines of different versions share `stateDir()`. The version that changes the `CallEvent` format, the snapshot, or the names moves to a new subdirectory (`v2/`), so an old engine does not read records it does not understand. `v1/` is not created ahead of time. The release checklist asks about it.
 
@@ -461,7 +458,7 @@ To migrate a repo to a new engine: `pregate update`, `pregate preset compile`, a
   - The output of the registered command under the user's real `zsh` (their dotfiles, read-only) is clean.
 - Estimated cost: < USD 3 per full run.
 
-**6.4 Real acceptance, 2026-10-02 (W12).** 0.2.0 was built and `PREGATE_REAL=1 bun run scripts/e2e-real.ts` was run, with reruns per harness and `--core-only`, `--extras-only`, or `--pty-only`. Every HOME, XDG, TMPDIR, CODEX_HOME, and GROK_HOME stayed under `/private/tmp/claude-501/`. Credentials were copied read-only, without refresh tokens; Cursor and agy used the surveys' Keychains symlink. There was no install into the real HOME and no push. Claude consumed **exactly two prompts**, grouping the four cases; its extras were not run.
+**6.4 Real acceptance, 2026-10-02 (W12).** A candidate was built and `PREGATE_REAL=1 bun run scripts/e2e-real.ts` was run, with reruns per harness and `--core-only`, `--extras-only`, or `--pty-only`. Every HOME, XDG, TMPDIR, CODEX_HOME, and GROK_HOME stayed under `/private/tmp/claude-501/`. Credentials were copied read-only, without refresh tokens; Cursor and agy used the surveys' Keychains symlink. There was no install into the real HOME and no push. Claude consumed **exactly two prompts**, grouping the four cases; its extras were not run.
 
 | Harness / real version | Deny and file absent | Allowed edit = reconstruction = disk | No preset, no objection | `9.9.9-hang`, fail-closed | Interactive deny |
 |---|---|---|---|---|---|
@@ -540,7 +537,7 @@ What the session gate does not see and is left for Stop (where it exists), pre-c
 - **§5.4:** layout (MH-18) and releases (MH-32).
 - **O11:** bounded by MH-13.
 - **O25:** `payload-unrecognized` names the harness and the tool.
-- **SPEC §14.6:** Codex, Cursor, and agy move from v1/v1.1 to version 0.2.0. `hashline_edit` stays in v2.
+- **SPEC §14.6:** Codex, Cursor, and agy are in the current public release (0.0.2). `hashline_edit` stays in v2.
 
 ---
 
@@ -621,7 +618,7 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 export function encode(kind: HookEvent["kind"], d: Decision, stop: StopState | null): Emission;
 
 // main.ts
-export const FLOOR = "0.2.0";
+export const FLOOR = "0.0.1";
 export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId;   // MH-03, pure
 
 // reconstruct.ts
@@ -658,7 +655,7 @@ export function uninstall(purge: boolean): Promise<{ code: 0 | 1; text: string }
 export function doctor(): Promise<{ code: 0 | 1; text: string }>;
 ```
 
-Launcher protocol (0.2.0, not yet published): exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
+Launcher protocol in 0.0.2: exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
 
 **W0 delta (built; this overrides the signatures above).**
 - `HARNESSES` and `profile` live in `src/harness/profile.ts`, not in `main.ts`: `main.ts` runs on import, so neither a test nor `doctor` could import it, and `machine.ts → main.ts → cli.ts → machine.ts` would be a cycle.
@@ -706,8 +703,8 @@ Launcher protocol (0.2.0, not yet published): exit 0 and 2 = the engine's output
 
 | # | Question | Recommendation |
 |---|---|---|
-| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with 0.2.0 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
-| U-2 | **Team access to the releases.** They are in the private repo `pedroknigge/pregate` and the download needs `gh auth` with read permission | Grant read on the private repo. A public binaries-only repo goes against D18 until the "clean public" |
+| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.2 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
+| U-2 | **Release downloads.** `pedroknigge/pregate` is public. Anonymous HTTPS downloads the release. `gh auth login` is only the fallback when that download fails | No extra repository grant. Use the installers in the [installation guide](guides/installation.md) |
 | U-3 | **Codex trust.** `setup` grants it through app-server **only to the PREGATE keys whose definition is exactly what it wrote**, which is the same as approving them in `/hooks`. I understand D20's "yes" covers it. If a foreign hook loses trust, setup restores and fails: it never touches foreign trust | Confirm. If not, `setup` leaves it pending and `doctor` fails until it is approved by hand |
 | U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all five harnesses. Never auto-update |
 | U-5 | **Machine protections always on (MH-17).** No agent, in any repo, can edit `~/.claude/settings*.json`, `~/.codex/{hooks.json,config.toml}`, `~/.grok/{config.toml,hooks/**}`, `~/.gemini/config/{hooks.json,config.json}`, or the PREGATE install, or run `pregate uninstall` or `agy plugin disable pregate`. That includes asking Claude to add a permission to `~/.claude/settings.json` (for example, with `/update-config`): the human does it | Yes. Without this, any session opened outside a repo with a preset can turn PREGATE off on the whole machine, and on Codex silently |

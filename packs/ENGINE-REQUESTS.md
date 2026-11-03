@@ -1,6 +1,6 @@
 # Engine requests
 
-Evaluation (updated through 0.2.19) of the gaps found while building this library. See
+Evaluation of the gaps found while building this library, current as of engine 0.0.2. See
 [architecture decisions O52–O56, O68–O73](../docs/ARCHITECTURE.md).
 
 ## 1. Per-rule shadow
@@ -24,7 +24,7 @@ presets now use shadow instead of the earlier warn/off workarounds.
 
 ## 2. Same dimension, different checks
 
-**Implemented (0.2.14).** Checks and packs declare explicit rule interactions
+**Implemented.** Checks and packs declare explicit rule interactions
 (`contradicts`, `complements`, `supersedes`). When a preset activates two checks
 that contradict each other on overlapping file globs, compilation fails until
 `resolve` selects a winner or an override (`paths` / `exclude`) separates their

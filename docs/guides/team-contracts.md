@@ -37,17 +37,17 @@ pregate pack enable <namespace>/<methodology> --preview
 ```
 
 The importer resolves a commit and the lock records a content hash. A source
-addition and methodology activation can be separate reviewed steps. In 0.2.6,
+addition and methodology activation can be separate reviewed steps.
 `pack apply` can combine them for several packs in one reviewed batch.
 Updates require review; upstream changes do not silently replace pinned rules.
 Private sources use the consumer's Git credentials. Follow the
 [pack publishing guide](docs-to-rule-pack.md) for fixtures, provenance and limits.
 
-## Restore a fresh machine in 0.2.6
+## Restore a fresh machine
 
 Committed local packs travel with the project. Bundled packs require a compatible
 installed engine. External Git packs reside in a local content-addressed cache:
-cloning the consuming project does not populate it. Version 0.2.6 provides
+cloning the consuming project does not populate it. 0.0.2 provides
 `pregate pack restore` to fetch exactly the committed pins and validate their
 recorded content hashes and fixtures. It preserves preset, lock and local consent.
 `pack update` is not equivalent: it selects upstream HEAD and prepares a contract
@@ -55,6 +55,6 @@ change. Do not describe it as reproducible restoration.
 
 Restore before reviewing/enabling a cloned contract. Missing access, mismatched
 hashes and corrupt existing objects fail explicitly. Private sources use the
-team member's existing Git access. An older engine such as 0.2.5 lacks this command.
+team member's existing Git access.
 [Combined adoption](../features/guided-pack-adoption.md) also adds a batch plan
 for multiple sources/methodologies in one review, preserving existing overrides.

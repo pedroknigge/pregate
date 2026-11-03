@@ -14,7 +14,7 @@ pregate audit --fresh --json
 pregate audit --incremental --jsonl > audit.jsonl
 ```
 
-In **0.2.11**, default text shows totals, live policy, analysis and
+Default text shows totals, live policy, analysis and
 coverage gaps first, followed by at most ten rule summaries and 25 finding
 locations with repair hints and explicit shown/total counts. Other detail categories
 show up to five entries,
@@ -23,8 +23,7 @@ Unbound fitness requirements retain their
 unverified total and grouped next step instead of repeating every missing
 assertion. Adopted assertions with failed or missing evidence remain visible.
 Use `pregate audit --full` for the complete human view, or `--json`/`--jsonl` for
-all machine evidence. These output formats are mutually exclusive. Published
-0.2.10 still prints every location by default and does not accept `--full`.
+all machine evidence. These output formats are mutually exclusive.
 The compact presentation does not reduce analysis, change verdicts or impose a
 total output-byte budget: an individual message can still be long. `--plan`
 explicitly appends the complete advisory plan even to the compact view.
@@ -34,8 +33,7 @@ exclusions, check versions, lock/content hashes, scanned-file hashes, analysis
 errors and elapsed time. Findings are independent of the live enforcement policy:
 a shadow or warning policy does not make existing debt disappear.
 
-All 68 core defaults were introduced in the 0.2.6 pilot (core numbered 0.3.0) and remain
-active in core 0.0.1.
+All 68 core defaults are active in core 0.0.1.
 The 64 software and maintainability obligations appear in
 the separate `fitness` array, evaluated once per project rather than once per
 file. Each entry includes its exact English `statement`, `fixHint`, status and
@@ -50,7 +48,7 @@ guards (`diff`, `placement`) need an attempted change and baseline; rules owned
 by ArkGate belong to its evaluator. Both appear in `skippedRules` with a reason.
 Auditing static rules does not establish compliance with those skipped rules.
 
-The audit covers the preset scope. JS/TS, Python, Go and (in the 0.2.12 candidate) Rust parsing and selected
+The audit covers the preset scope. JS/TS, Python, Go, and Rust parsing and selected
 static checks are supported (see
 [language boundaries](language-analysis.md)). `fileCoverage` lists the selected
 static rules applying to every parsed file. Parsed Python/Go/Rust files without an
@@ -102,7 +100,7 @@ audit after the verified change. `check --ratchet --base <sha>` continues to
 prevent new debt; `audit` shows existing debt left to repair. Use
 `pregate explain <rule>` to understand each selected rule.
 
-Version 0.2.6 implements content-based incremental reuse and
+0.0.2 implements content-based incremental reuse and
 checkpoint resume and streaming output described below. Parallel workers and model
 classification remain pending in the [bulk-audit plan](maintainability-and-bulk-audit.md).
 Timing is reported for the actual invocation; large-project speed claims need
@@ -205,8 +203,4 @@ a generated scale fixture, not a pilot on a real dependency graph, a universal
 latency promise or evidence for model-assisted classification. First-process
 startup and representative import-heavy projects still need separate evaluation.
 
-An earlier Bun 1.4.2 candidate measured the same workload in 750.6–775.0 ms of
-audit time across five fresh processes. Wall time was 766.1–775.6 ms after the
-first invocation, which took 1,767.3 ms. All runs found exactly 10,000 static
-violations and separately disclosed 48 unverified core requirements (exit 2).
-This verifies the synthetic count and disclosure, not semantic compliance.
+Timings from before Bun was pinned to 1.4.4 are not a v0.0.2 measurement. Run the benchmark above for a current figure. A passing count on this synthetic tree is not semantic compliance.

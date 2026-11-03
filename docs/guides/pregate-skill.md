@@ -21,7 +21,7 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 
 | Request | What the agent should do |
 | --- | --- |
-| “Show me what PREGATE protects” | With the 0.2.12 candidate or its released engine, suggest human `pregate demo` with owned Python/Go/Rust samples. Explain source and native-tool evidence separately; toy approval is not consumer consent. |
+| “Show me what PREGATE protects” | Suggest human `pregate demo` with owned Python, Go, and Rust samples. Explain source and native-tool evidence separately; toy approval is not consumer consent. |
 | “Set up PREGATE here” | Inspect `guide --json`, review documentation, stack and source layout, suggest useful official packs and a custom project pack together. |
 | “Update this project and review new packs” | Compare installed and project versions, inspect the entire catalog, prepare one engine/core/official-pack update with selected additions. Preserve local packs and decisions. |
 | “Audit this repo and freeze existing debt” | Run `audit --plan`, disclose coverage gaps and unverified requirements, propose no-new policy if needed. |
@@ -59,7 +59,7 @@ approval on your behalf. See [approval routes](../features/approval-in-harness.m
 
 Initial approval can activate this worktree. Updates preserve its consent,
 including a disabled project. A cloned contract still needs local consent.
-Global installation does not migrate every private project automatically.
+Global installation does not migrate every other project automatically.
 
 For a current cloned/disabled contract, plain `guide --preview` makes no activation
 proposal. Choose activation in the interactive guide, or run `pregate enable` in a
@@ -90,10 +90,9 @@ separates passing, failed, missing evidence and unbound requirements. See
 [project fitness](../features/project-fitness.md) and the
 [design contract](design-contract.md).
 
-In published 0.2.11, `audit` starts with a compact human summary. Read the shown/total
+`audit` starts with a compact human summary. Read the shown/total
 counts and coverage gaps; use `audit --full` or complete JSON/JSONL when choosing
-repairs. `--plan` still includes the complete advisory plan. Older 0.2.10
-prints all text findings and has no `audit --full` option.
+repairs. `--plan` still includes the complete advisory plan.
 
 The complete [command reference](../CLI.md), [daily workflow](daily-use.md) and
 [pack inventory](../packs.md) describe the underlying tool independently of the skill.
