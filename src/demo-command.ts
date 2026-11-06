@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { basename, delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { DEMO_LANGUAGES, demoSample, type DemoLanguage } from "./demo-samples.ts";
 import { demoCase, type DemoContext, type DemoReceipt } from "./demo-run.ts";
 import { removeReleased } from "./disk.ts";
+import { pathKey } from "./paths.ts";
 import { sha256 } from "./state.ts";
 import { VERSIONS } from "./versions.ts";
 
@@ -13,7 +14,7 @@ interface DemoReport {
   binarySha256?: string; samples?: ReturnType<typeof demoCase>[]; limits?: string[]; error?: string;
   attempts?: { language: DemoLanguage; receipts: DemoReceipt[] }[];
 }
-type DemoRun = Pick<DemoContext, "area" | "binary" | "git" | "native"> & { languages: DemoLanguage[]; attempts: NonNullable<DemoReport["attempts"]> };
+type DemoRun = Pick<DemoContext, "area" | "binary" | "git" | "native" | "nativeReason"> & { languages: DemoLanguage[]; attempts: NonNullable<DemoReport["attempts"]> };
 
 // Only generated samples receive automated consent. No inherited environment or project path
 // reaches setup/approval. The installed launcher runs the actual pre-write hook protocol.
@@ -22,9 +23,15 @@ export async function demo(args: string[], executable = process.execPath): Promi
   if (options === null) return { code: 1, text: USAGE };
   const binary = resolve(executable), git = Bun.which("git");
   if (git === null || !existsSync(binary)) return { code: 1, text: "Demo requires Git and a compiled PREGATE binary. Build the binary, then run pregate demo." };
-  const native = { python: nativeTool("python3"), go: nativeTool("go"), rust: nativeTool("rustc") };
+  const python = locateTool("python3"), go = locateTool("go"), rust = locateTool("rustc");
+  const native = { python: python.path, go: go.path, rust: rust.path };
+  const nativeReason = {
+    python: python.path === null && python.denied ? unresolved("python") : null,
+    go: go.path === null && go.denied ? unresolved("go") : null,
+    rust: rust.path === null && rust.denied ? unresolved("rust") : null,
+  };
   const area = mkdtempSync(join(tmpdir(), "pregate-owned-demo-"));
-  const result = demoRun({ languages: options.languages, area, binary, git, native, attempts: [] });
+  const result = demoRun({ languages: options.languages, area, binary, git, native, nativeReason, attempts: [] });
   return { code: result.code, text: options.json ? JSON.stringify(result.report, null, 2) : demoText(result.report) };
 }
 
@@ -38,7 +45,7 @@ function demoRun(run: DemoRun): { code: number; report: DemoReport } {
       mkdirSync(root); mkdirSync(join(machine, "home", ".claude"), { recursive: true });
       const env = demoEnvironment(machine, run.git);
       const launcher = join(env.XDG_DATA_HOME!, "pregate/bin", process.platform === "win32" ? "pregate.cmd" : "pregate");
-      const c: DemoContext = { area: run.area, root, env, binary: run.binary, launcher, git: run.git, native: run.native, receipts: [] };
+      const c: DemoContext = { area: run.area, root, env, binary: run.binary, launcher, git: run.git, native: run.native, nativeReason: run.nativeReason, receipts: [] };
       run.attempts.push({ language, receipts: c.receipts });
       return demoCase(c, demoSample(language));
     });
@@ -86,10 +93,58 @@ function demoEnvironment(machine: string, git: string): Record<string, string> {
     CARGO_HOME: join(machine, "cargo"), RUSTUP_HOME: join(machine, "rustup") };
 }
 
-function nativeTool(name: string): string | null {
-  const path = Bun.which(name);
-  if (path === null) return null;
-  const binary = realpathSync(path);
+function unresolved(language: DemoLanguage): string {
+  return `${language} native tool is on PATH but could not be resolved (permission denied).`;
+}
+
+// Bun.which returns a Microsoft Store App Execution Alias as an ordinary file. The alias is an
+// IO_REPARSE_TAG_APPEXECLINK reparse point: stat and realpath raise EACCES or EPERM. That candidate
+// is skipped and the next PATH entry is tried. When none resolves, the language is not verified
+// and the other languages still run.
+function locateTool(name: string): { path: string | null; denied: boolean } {
+  let pathEnv = process.env.PATH ?? process.env.Path ?? "";
+  const seen = new Set<string>();
+  let denied = false;
+  for (;;) {
+    const found = Bun.which(name, { PATH: pathEnv });
+    if (found === null) return { path: null, denied };
+    const id = pathKey(found);
+    if (seen.has(id)) return { path: null, denied };
+    seen.add(id);
+    let binary: string;
+    try {
+      statSync(found);
+      binary = realpathSync(found);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EACCES" && code !== "EPERM") throw error;
+      denied = true;
+      const next = omitPathDir(pathEnv, dirname(found));
+      if (next === null) return { path: null, denied };
+      pathEnv = next;
+      continue;
+    }
+    return { path: installedCompiler(name, binary), denied: false };
+  }
+}
+
+function omitPathDir(pathEnv: string, dir: string): string | null {
+  const target = dirKey(dir);
+  let removed = false;
+  const kept = pathEnv.split(delimiter).filter((entry) => {
+    if (entry === "" || dirKey(entry) !== target) return entry !== "";
+    removed = true;
+    return false;
+  });
+  return removed ? kept.join(delimiter) : null;
+}
+
+function dirKey(entry: string): string {
+  const abs = isAbsolute(entry) ? entry : resolve(entry);
+  return pathKey(abs).replace(/\/+$/, "");
+}
+
+function installedCompiler(name: string, binary: string): string | null {
   if (name !== "rustc") return binary;
   // A rustup proxy named rustc.exe still needs RUSTUP_HOME. The isolated demo points that
   // variable at an empty directory, so use an already installed compiler and never install one.

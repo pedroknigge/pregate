@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { delimiter, dirname, isAbsolute, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
@@ -114,6 +114,83 @@ test("all languages and a repeated independent demo preserve unknown core covera
   expect(again.text).toContain("cleaned up");
   expect(remaining()).toEqual(before);
 });
+
+test("an unresolvable PATH candidate is skipped and the other language demos still run", () => {
+  // stat/realpath on a Store App Execution Alias throw EACCES. The same denial is applied to a
+  // PATH candidate here, including that alias when this machine has one. A later Go entry must
+  // still run, and Python must be reported instead of failing the demo.
+  const root = join(area, "unresolvable-path");
+  const blocked = join(root, "blocked"), stubDir = join(root, "stub"), gitDir = join(root, "git");
+  const win = process.platform === "win32";
+  const place = (dir: string, name: string, text: string) => {
+    mkdirSync(dir, { recursive: true });
+    const path = join(dir, name);
+    writeFileSync(path, text);
+    chmodSync(path, 0o755);
+    return path;
+  };
+  const blockedPython = place(blocked, win ? "python3.exe" : "python3", "blocked\n");
+  const blockedGo = place(blocked, win ? "go.exe" : "go", "blocked\n");
+  place(stubDir, win ? "go.cmd" : "go", win ? "@echo off\r\necho stub-go\r\nexit /b 0\r\n" : "#!/bin/sh\nprintf '%s\\n' stub-go\nexit 0\n");
+  const git = Bun.which("git");
+  expect(git, "git is required to run the demo").not.toBeNull();
+  mkdirSync(gitDir);
+  let gitPath = gitDir;
+  try { symlinkSync(git!, join(gitDir, win ? "git.exe" : "git")); }
+  catch (error) {
+    // A file symlink can be refused without elevation. Git's own directory is safe to use when it
+    // does not also contain python3; otherwise the denial would be hidden by a later interpreter.
+    const code = (error as NodeJS.ErrnoException).code;
+    if ((code !== "EPERM" && code !== "EACCES") || Bun.which("python3", { PATH: dirname(git!) }) !== null) throw error;
+    gitPath = dirname(git!);
+  }
+  const alias = storePythonAlias();
+  const path = [blocked, ...(alias === null ? [] : [alias]), stubDir, gitPath].join(delimiter);
+  expect(Bun.which("python3", { PATH: blocked })).toBe(blockedPython);
+  expect(Bun.which("go", { PATH: stubDir })).not.toBeNull();
+  const before = remaining();
+  const out = Bun.spawnSync([process.execPath, join(import.meta.dir, "demo-path-run.ts")], {
+    cwd: join(import.meta.dir, ".."),
+    env: { ...process.env, PATH: path, Path: path, BLOCKED_PYTHON: blockedPython, BLOCKED_GO: blockedGo, DEMO_BINARY: binary },
+    stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 420_000,
+  });
+  expect(out.exitCode, out.stdout.toString() + out.stderr.toString()).toBe(0);
+  const report = JSON.parse(out.stdout.toString());
+  expect(report.samples.map((sample: { language: string }) => sample.language)).toEqual(["python", "go", "rust"]);
+  const [python, go, rust] = report.samples;
+  expectSample(python, "python");
+  expect(python.native.baseline).toMatchObject({ status: "not-verified" });
+  expect(python.native.baseline.reason).toContain("could not be resolved");
+  expect(python.native.baseline.reason).toContain("permission denied");
+  expect(python.native.repaired.status).toBe("not-verified");
+  expect(python.native.proposedInSeparateCopy.status).toBe("not-verified");
+  expect(python.receipts.some((receipt: { phase: string }) => receipt.phase.startsWith("native-"))).toBe(false);
+  expectSample(go, "go");
+  expect(go.native.baseline.status).toBe("passed");
+  expect(go.native.repaired.status).toBe("passed");
+  expect(go.native.repaired.version).toBe("stub-go");
+  expect(go.native.proposedInSeparateCopy.status).toBe("passed");
+  expectSample(rust, "rust");
+  expect(rust.native.baseline.status).toBe("not-verified");
+  expect(rust.native.baseline.reason).toContain("not available");
+  expect(remaining()).toEqual(before);
+});
+
+function storePythonAlias(): string | null {
+  if (process.platform !== "win32") return null;
+  const local = process.env.LOCALAPPDATA;
+  if (local === undefined || local === "") return null;
+  const alias = join(local, "Microsoft", "WindowsApps", "python3.exe");
+  if (!existsSync(alias)) return null;
+  try {
+    statSync(alias);
+    realpathSync(alias);
+    return null;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "EACCES" || code === "EPERM" ? join(local, "Microsoft", "WindowsApps") : null;
+  }
+}
 
 test("a failing compiled engine is surfaced and its temporary installation is removed", () => {
   // The public command has no executable override. Exercise the internal coordinator with a

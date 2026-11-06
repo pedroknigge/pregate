@@ -10,6 +10,7 @@ export interface DemoReceipt { phase: string; args: string[]; code: number | nul
 export interface DemoContext {
   area: string; root: string; env: Record<string, string>; binary: string; launcher: string;
   receipts: DemoReceipt[]; git: string; native: { python: string | null; go: string | null; rust: string | null };
+  nativeReason: { python: string | null; go: string | null; rust: string | null };
 }
 
 export function demoProcess(c: DemoContext, phase: string, executable: string, args: string[], input?: string, timeout = 30_000) {
@@ -137,7 +138,7 @@ function demoNativeProposal(c: DemoContext, sample: DemoSample) {
 
 function demoNative(c: DemoContext, sample: DemoSample, phase: string) {
   const tool = c.native[sample.language];
-  if (tool === null) return { status: "not-verified", reason: `${sample.language} native tool is not available on PATH.` };
+  if (tool === null) return { status: "not-verified", reason: c.nativeReason[sample.language] ?? `${sample.language} native tool is not available on PATH.` };
   const version = demoProcess(c, `native-${phase}-version`, tool, [sample.language === "go" ? "version" : "--version"]);
   let args = sample.language === "python" ? ["-B", "-m", "unittest", "discover", "-s", "tests"] : ["test", "./..."];
   c.env.PREGATE_DEMO_EXPECTED_TOTAL = phase === "baseline" ? "10" : "11";
