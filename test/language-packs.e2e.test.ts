@@ -88,7 +88,7 @@ test("the compiled library is discoverable and its fixtures run offline before i
   const listed = p.run(["pack", "list", "--library", "--json"]);
   expect(listed.code).toBe(0);
   const packs = JSON.parse(listed.text).packs;
-  expect(packs).toHaveLength(47);
+  expect(packs).toHaveLength(48);
   // The binary must embed every check authored under packs/, pack by pack.
   const authored: Record<string, number> = {};
   for (const path of new Bun.Glob("*/checks/*/*/check.json").scanSync(join(repo, "packs"))) {

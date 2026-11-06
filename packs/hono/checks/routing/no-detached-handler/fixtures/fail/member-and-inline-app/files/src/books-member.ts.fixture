@@ -1,0 +1,6 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.post("/books", books.create);
+new Hono().get("/inline", inlineShow);

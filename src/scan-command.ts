@@ -26,6 +26,7 @@ import { discoverDocumentation } from "./project-discovery.ts";
 // select it: the engine does not parse `.astro`.
 // TanStack Query framework adapters select that pack. `@tanstack/query-core`, devtools,
 // and a dependency that exists only under a docs, examples, or fixtures tree do not.
+// `hono` is only the package named `hono` in dependencies or peerDependencies.
 const CLIENT_SECURITY: [string, string[]] = ["security-audit", ["security-audit/client-and-agents"]];
 const SVELTE: [string, string[]] = ["svelte", ["svelte/runes", "svelte/stores"]];
 const ASTRO: [string, string[]] = ["astro", ["astro/config", "astro/content", "astro/routing"]];
@@ -40,6 +41,7 @@ const DEPENDENCIES: Record<string, [string, string[]]> = {
   "@supabase/supabase-js": ["supabase", ["supabase/client", "supabase/storage"]],
   "@nestjs/core": ["nestjs", ["nestjs/controllers", "nestjs/providers"]],
   express: ["express", ["express/middleware", "express/requests"]],
+  hono: ["hono", ["hono/routing", "hono/middleware"]],
   "@trpc/server": ["trpc", ["trpc/router"]],
   "@trpc/client": ["trpc", ["trpc/client"]],
   "@tanstack/react-query": TANSTACK_QUERY,
@@ -80,7 +82,7 @@ export function recommendPacks(files: Files, languages: string[], base: string[]
     return item;
   };
   // A caller-supplied language with no file evidence stays (Cargo.toml may be known outside this map).
-  // Evidence that exists only in a docs site, examples tree, website, CI workflow, or tiny scripts/ folder does not.
+  // Evidence that exists only in a docs site, examples tree, fixtures folder, website, CI workflow, or tiny scripts/ folder does not.
   const peripheral = peripheralPackPath(files);
   const primary = Object.fromEntries(Object.entries(files).filter(([path]) => !peripheral(path)));
   if (languages.includes("TypeScript") && !peripheralLanguageOnly("TypeScript", files, peripheral)) add("typescript", ["typescript/strict-types", "typescript/anti-evasion"], "TypeScript source or tsconfig detected");
@@ -131,7 +133,7 @@ function manifestRecommendations(add: Add, manifests: [string, string][], periph
 }
 
 // Docs sites, example trees, fixture trees, and website folders are not the product. The folder
-// name matches at any depth, so packages/docs, examples/, and fixtures/ are the same kind of signal.
+// name matches at any depth, so packages/docs, examples/, fixtures/, and fixture/ are the same kind of signal.
 // GitHub workflows and a scripts/ directory of at most three inventoried files are CI or tooling,
 // not a language project.
 const PERIPHERAL_DIR = /^(?:doc|docs|documentation|website|examples?|samples?|demos?|playground|fixtures?)$/;

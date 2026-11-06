@@ -1,0 +1,13 @@
+import { createMiddleware } from "hono/factory";
+
+export const logger = createMiddleware(async (c, next) => {
+  console.log(c.req.method, c.req.url);
+  await next();
+});
+
+const message = (text: string) => {
+  return createMiddleware(async (c, next) => {
+    await next();
+    c.res.headers.set("X-Message", text);
+  });
+};

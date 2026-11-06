@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/books-quote.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 5
+      }
+    ]
+  },
+  "trap": {
+    "family": "quote-variant",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "Single quotes do not make a named handler inline. The route still receives booksList instead of a function written on the call."
+  }
+}

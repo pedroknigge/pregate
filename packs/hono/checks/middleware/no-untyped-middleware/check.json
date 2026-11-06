@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "hono/middleware/no-untyped-middleware",
+  "version": "1.0.0",
+  "area": "middleware",
+  "cardinality": "singleton",
+  "dimension": "hono.shared-middleware",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "shared-middleware",
+          "rule": {
+            "any": [
+              {
+                "kind": "arrow_function"
+              },
+              {
+                "kind": "function_expression"
+              },
+              {
+                "kind": "function_declaration"
+              },
+              {
+                "kind": "method_definition"
+              }
+            ],
+            "has": {
+              "kind": "formal_parameters",
+              "stopBy": "neighbor",
+              "all": [
+                {
+                  "has": {
+                    "nthChild": {
+                      "position": 1
+                    },
+                    "regex": "^(_|c)\\b"
+                  }
+                },
+                {
+                  "has": {
+                    "nthChild": {
+                      "position": 2
+                    },
+                    "regex": "^next\\b"
+                  }
+                }
+              ]
+            },
+            "not": {
+              "inside": {
+                "kind": "call_expression",
+                "stopBy": "end",
+                "has": {
+                  "field": "function",
+                  "regex": "\\bcreateMiddleware\\b|\\bcreateHandlers\\b|\\.(?:use|get|post|put|patch|delete|options|all|on|route|query)$"
+                }
+              }
+            },
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "has": {
+                "stopBy": "end",
+                "any": [
+                  {
+                    "kind": "import_statement",
+                    "has": {
+                      "field": "source",
+                      "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                    }
+                  },
+                  {
+                    "kind": "export_statement",
+                    "has": {
+                      "field": "source",
+                      "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                    }
+                  },
+                  {
+                    "kind": "call_expression",
+                    "regex": "\\b(?:require|import)\\s*\\(\\s*['\"]hono(?:/[^'\"]*)?['\"]"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} declares middleware apart from the route without createMiddleware. Wrap it in createMiddleware or factory.createMiddleware so the context type is kept."
+  }
+}

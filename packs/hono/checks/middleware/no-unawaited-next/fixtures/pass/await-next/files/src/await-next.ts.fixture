@@ -1,0 +1,16 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.use(async (c, next) => {
+  console.log(c.req.path);
+  await next();
+});
+
+function paginate(items: string[], next: () => void) {
+  next();
+}
+
+function express(req: unknown, res: unknown, next: () => void) {
+  next();
+}

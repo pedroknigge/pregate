@@ -1,0 +1,12 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.use("/api/resource", async (c, next) => {
+  await next();
+  if (c.req.method === "HEAD") {
+    c.header("X-HEAD-Processed", "true");
+  }
+});
+
+app.get("/api/resource", (c) => c.json({ ok: true }));

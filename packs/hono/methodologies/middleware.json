@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "hono/middleware",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "HONO-NEXT-001",
+      "check": "hono/middleware/no-unawaited-next",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Hono documentation, Middleware",
+        "locator": "https://hono.dev/docs/guides/middleware",
+        "paraphrase": "Middleware continues the chain with await next() and then returns nothing, or it returns a Response and does not call next. The call is not thrown; do not wrap it in try/catch."
+      },
+      "why": "A bare next() lets the code after it run before the handler finishes, so response changes and logs land on the wrong side of the request.",
+      "fixHint": "Make the middleware async and write await next(). return await next() is allowed. Returning a Response without calling next ends the chain.",
+      "avoid": "return next() is still not awaited. A function whose first parameter is not c or _ is not read as Hono middleware, so (items, next) and Express (req, res, next) stay quiet. next?.() is a different call.",
+      "examples": {
+        "pass": "pass/await-next",
+        "fail": "fail/bare-next"
+      }
+    },
+    {
+      "id": "HONO-MW-001",
+      "check": "hono/middleware/no-untyped-middleware",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Hono documentation, Middleware and Factory Helper",
+        "locator": "https://hono.dev/docs/helpers/factory",
+        "paraphrase": "Inline middleware on app.use keeps its types. Middleware declared for reuse should be created with createMiddleware or factory.createMiddleware so Context and the variables set on it stay typed. createFactory<Env>() is how one Env type is shared with createApp()."
+      },
+      "why": "A bare (c, next) function used from several routes drops the Env type, so c.var and c.env are untyped at the boundary the handler trusts.",
+      "fixHint": "Wrap the function in createMiddleware or factory.createMiddleware. To share one Env, create the app with factory.createApp() and the middleware with factory.createMiddleware. Inline app.use(async (c, next) => ...) needs no wrapper.",
+      "avoid": "createMiddleware is the documented shortcut and is enough; a separate createFactory is not required when the middleware is already wrapped. A callback passed straight to app.use, a route verb, or createHandlers is inline. A first parameter other than c or _ is not matched.",
+      "examples": {
+        "pass": "pass/create-middleware",
+        "fail": "fail/exported-arrow"
+      }
+    }
+  ]
+}

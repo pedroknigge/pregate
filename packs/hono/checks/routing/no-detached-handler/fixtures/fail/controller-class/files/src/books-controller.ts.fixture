@@ -1,0 +1,7 @@
+import type { Context } from "hono";
+
+export class BooksController {
+  list(c: Context) {
+    return c.json("list books");
+  }
+}

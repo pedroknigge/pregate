@@ -1,0 +1,5 @@
+import { createFactory } from "hono/factory";
+
+const skip = async (_: unknown, next: () => Promise<void>) => {
+  next();
+};

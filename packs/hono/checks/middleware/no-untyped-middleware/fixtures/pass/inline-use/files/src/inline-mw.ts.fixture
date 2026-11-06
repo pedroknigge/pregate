@@ -1,0 +1,15 @@
+import { Hono } from "hono";
+import { createFactory } from "hono/factory";
+
+const factory = createFactory<Env>();
+const app = factory.createApp();
+
+app.use(async (c, next) => {
+  await next();
+});
+
+const handlers = factory.createHandlers(async (c, next) => {
+  await next();
+}, (c) => c.json(c.var.foo));
+
+app.get("/api", ...handlers);

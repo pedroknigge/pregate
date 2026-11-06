@@ -1,0 +1,5 @@
+import { Hono } from "hono";
+
+export function logger(c: unknown, next: () => Promise<void>) {
+  return next();
+}

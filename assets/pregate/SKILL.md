@@ -726,6 +726,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `express@1.2.0` — library: `express/middleware` (complete), `express/requests` (complete)
 - `firebase@1.2.0` — library: `firebase/auth` (complete), `firebase/firestore` (complete)
 - `go@1.2.0` — language: `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete)
+- `hono@1.0.0` — library: `hono/middleware` (complete), `hono/routing` (complete)
 - `javascript@1.2.1` — language: `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete)
 - `maintainability@1.2.0` — practice: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete)
 - `mattpocock@1.1.1` — practice: `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview)

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "hono/routing",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "HONO-CTRL-001",
+      "check": "hono/routing/no-detached-handler",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Hono documentation, Best Practices",
+        "locator": "https://hono.dev/docs/guides/best-practices",
+        "paraphrase": "Do not split a route into a Ruby-on-Rails-style controller. Write the handler on the route so path parameters infer, or build the separated handlers with factory.createHandlers() and spread them. Compose files with app.route()."
+      },
+      "why": "A handler declared away from the route loses the path-parameter type. Reviewers then see a controller that does not know which route called it.",
+      "fixHint": "Write the handler inline on app.get or the other verb. When the handlers must live elsewhere, use factory.createHandlers() and app.get('/api', ...handlers). Mount a sub-app with app.route('/books', books).",
+      "avoid": "Spreading createHandlers is the allowed split. app.route takes a Hono app, not a controller method. A class not named Controller, or a Controller method that is not typed Context, is not this rule. A Hono value built by a helper that does not textually contain new Hono or createApp is not seen.",
+      "examples": {
+        "pass": "pass/inline-handler",
+        "fail": "fail/named-handler"
+      }
+    },
+    {
+      "id": "HONO-HEAD-001",
+      "check": "hono/routing/no-dedicated-head",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Hono documentation, Best Practices",
+        "locator": "https://hono.dev/docs/guides/best-practices",
+        "paraphrase": "Hono answers HEAD by running the GET handler and dropping the body, before route matching. app.head and app.on('HEAD') are never called."
+      },
+      "why": "A dedicated HEAD handler looks registered and never runs, so its headers and status are not the ones the client receives.",
+      "fixHint": "Handle the request in app.get. When HEAD needs a different header, await next() in middleware and branch on c.req.method === 'HEAD'.",
+      "avoid": "Quote style does not matter. createApp() is still a Hono app. A string HEAD inside the GET handler is not a HEAD route. A .head call on a value that is not textually Hono is not this rule.",
+      "examples": {
+        "pass": "pass/get-covers-head",
+        "fail": "fail/app-head"
+      }
+    }
+  ]
+}

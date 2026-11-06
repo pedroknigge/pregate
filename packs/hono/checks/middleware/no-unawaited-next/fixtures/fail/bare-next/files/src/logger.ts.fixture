@@ -1,0 +1,8 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.use(async (c, next) => {
+  console.log(c.req.path);
+  next();
+});

@@ -1,0 +1,5 @@
+import type { Context } from "hono";
+
+export const logger = async (c: Context, next: () => Promise<void>) => {
+  await next();
+};

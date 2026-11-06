@@ -1,0 +1,13 @@
+import { Hono } from "hono";
+import { createFactory } from "hono/factory";
+import { logger } from "hono/logger";
+
+const factory = createFactory();
+const app = new Hono();
+const handlers = factory.createHandlers(logger(), (c) => {
+  return c.json(c.var.foo);
+});
+
+app.get("/api", ...handlers);
+app.route("/authors", authors);
+app.route("/books", books);

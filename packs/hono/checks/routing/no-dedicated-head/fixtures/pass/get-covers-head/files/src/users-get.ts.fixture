@@ -1,0 +1,9 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.get("/api/users", async (c) => {
+  const users = await getUsers();
+  c.header("X-Total-Count", String(users.length));
+  return c.json(users);
+});

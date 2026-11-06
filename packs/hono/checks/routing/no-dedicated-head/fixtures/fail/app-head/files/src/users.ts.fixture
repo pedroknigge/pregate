@@ -1,0 +1,8 @@
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.head("/api/users", (c) => {
+  c.header("X-Custom", "value");
+  return c.text("ignored");
+});

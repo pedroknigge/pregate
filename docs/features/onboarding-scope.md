@@ -98,6 +98,11 @@ not, on their own. A declaration that appears only under a docs site, examples
 tree, fixture tree, or website folder does not recommend TanStack Query. The
 same dependency in primary source still does.
 
+An exact `hono` dependency or peer dependency recommends `hono/routing` and
+`hono/middleware` in the package that declares it. A devDependency does not.
+A declaration that appears only under `docs/`, `examples/`, or `fixtures/`
+does not recommend Hono. The same dependency in the app still does.
+
 When nested related and unrelated owners cannot be represented by one include/
 exclude policy, scan reports `scopeProblems`; choose an explicit reviewed scope
 instead of silently applying an overbroad policy. Dependency ownership is

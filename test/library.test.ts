@@ -16,7 +16,7 @@ import type { Lock, Preset, Violation } from "../src/types.ts";
 beforeAll(grammars);
 
 const PACKS = [
-  "agent-practices", "angular", "architecture", "astro", "authjs", "clean-code", "dcouplr", "ddd", "drizzle", "express", "firebase", "javascript",
+  "agent-practices", "angular", "architecture", "astro", "authjs", "clean-code", "dcouplr", "ddd", "drizzle", "express", "firebase", "hono", "javascript",
   "maintainability", "mattpocock", "mongodb", "musk", "nestjs", "nextjs", "node", "nuxt",
   "postgres", "prisma", "pstack", "react-native", "react", "redis", "senior",
   "solana", "supabase", "svelte", "sveltekit", "tailwind", "tanstack-query", "trpc", "typescript",

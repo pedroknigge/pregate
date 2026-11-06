@@ -1,0 +1,7 @@
+import { createFactory } from "hono/factory";
+
+const factory = createFactory();
+const built = factory.createApp();
+
+built.on('HEAD', '/health', (c) => c.body(null));
+built.head('/health');

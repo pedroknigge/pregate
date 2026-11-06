@@ -1,0 +1,9 @@
+import { Hono, type Context } from "hono";
+
+const app = new Hono();
+
+const booksList = (c: Context) => {
+  return c.json("list books");
+};
+
+app.get("/books", booksList);

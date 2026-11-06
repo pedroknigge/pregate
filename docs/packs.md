@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-47 optional packs; 1082 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1086 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 577 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 488 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 492 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 17 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -57,6 +57,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [express](../packs/express/REFERENCE.md) | library | 1.2.0 | 12 | `express/middleware` (complete), `express/requests` (complete) |
 | [firebase](../packs/firebase/REFERENCE.md) | library | 1.2.0 | 11 | `firebase/auth` (complete), `firebase/firestore` (complete) |
 | [go](../packs/go/REFERENCE.md) | language | 1.2.0 | 10 | `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete) |
+| [hono](../packs/hono/REFERENCE.md) | library | 1.0.0 | 4 | `hono/middleware` (complete), `hono/routing` (complete) |
 | [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.1 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
 | [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.2.0 | 209 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete) |
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |

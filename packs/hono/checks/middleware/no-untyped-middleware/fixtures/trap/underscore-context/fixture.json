@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/skip.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 3
+      }
+    ]
+  },
+  "trap": {
+    "family": "underscore-context",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "The blank context name is still the middleware slot. A separate function with (_, next) is shared middleware and needs createMiddleware."
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "hono/middleware/no-unawaited-next",
+  "version": "1.0.0",
+  "area": "middleware",
+  "cardinality": "singleton",
+  "dimension": "hono.middleware-await",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "bare-next",
+          "rule": {
+            "kind": "call_expression",
+            "regex": "^next\\s*\\(\\s*\\)$",
+            "has": {
+              "field": "function",
+              "kind": "identifier",
+              "regex": "^next$"
+            },
+            "all": [
+              {
+                "inside": {
+                  "any": [
+                    {
+                      "kind": "arrow_function"
+                    },
+                    {
+                      "kind": "function_expression"
+                    },
+                    {
+                      "kind": "function_declaration"
+                    },
+                    {
+                      "kind": "method_definition"
+                    }
+                  ],
+                  "stopBy": "end",
+                  "has": {
+                    "kind": "formal_parameters",
+                    "stopBy": "neighbor",
+                    "all": [
+                      {
+                        "has": {
+                          "nthChild": {
+                            "position": 1
+                          },
+                          "regex": "^(_|c)\\b"
+                        }
+                      },
+                      {
+                        "has": {
+                          "nthChild": {
+                            "position": 2
+                          },
+                          "regex": "^next\\b"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "inside": {
+                  "kind": "program",
+                  "stopBy": "end",
+                  "has": {
+                    "stopBy": "end",
+                    "any": [
+                      {
+                        "kind": "import_statement",
+                        "has": {
+                          "field": "source",
+                          "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                        }
+                      },
+                      {
+                        "kind": "export_statement",
+                        "has": {
+                          "field": "source",
+                          "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                        }
+                      },
+                      {
+                        "kind": "call_expression",
+                        "regex": "\\b(?:require|import)\\s*\\(\\s*['\"]hono(?:/[^'\"]*)?['\"]"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "not": {
+              "inside": {
+                "kind": "await_expression",
+                "stopBy": {
+                  "any": [
+                    {
+                      "kind": "arrow_function"
+                    },
+                    {
+                      "kind": "function_expression"
+                    },
+                    {
+                      "kind": "function_declaration"
+                    },
+                    {
+                      "kind": "method_definition"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} calls next() without await. Middleware must await next() so later middleware and the handler finish before code after next runs."
+  }
+}

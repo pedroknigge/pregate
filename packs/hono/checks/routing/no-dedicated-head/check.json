@@ -1,0 +1,159 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "hono/routing/no-dedicated-head",
+  "version": "1.0.0",
+  "area": "routing",
+  "cardinality": "singleton",
+  "dimension": "hono.dedicated-head",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "head-method",
+          "rule": {
+            "pattern": "$RECV.head($$$)",
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "has": {
+                "kind": "variable_declarator",
+                "stopBy": "end",
+                "all": [
+                  {
+                    "has": {
+                      "field": "name",
+                      "pattern": "$RECV"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "\\bnew\\s+Hono\\b|\\bcreateApp\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "on-head",
+          "rule": {
+            "pattern": "$RECV.on($$$)",
+            "has": {
+              "kind": "string",
+              "stopBy": {
+                "any": [
+                  {
+                    "kind": "arrow_function"
+                  },
+                  {
+                    "kind": "function_expression"
+                  },
+                  {
+                    "kind": "function_declaration"
+                  },
+                  {
+                    "kind": "method_definition"
+                  }
+                ]
+              },
+              "regex": "^['\"]HEAD['\"]$"
+            },
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "has": {
+                "kind": "variable_declarator",
+                "stopBy": "end",
+                "all": [
+                  {
+                    "has": {
+                      "field": "name",
+                      "pattern": "$RECV"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "\\bnew\\s+Hono\\b|\\bcreateApp\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "inline-hono-head",
+          "rule": {
+            "kind": "call_expression",
+            "has": {
+              "field": "function",
+              "kind": "member_expression",
+              "all": [
+                {
+                  "has": {
+                    "field": "property",
+                    "regex": "^(head|on)$"
+                  }
+                },
+                {
+                  "has": {
+                    "field": "object",
+                    "regex": "\\bnew\\s+Hono\\b|\\bcreateApp\\b"
+                  }
+                }
+              ]
+            },
+            "any": [
+              {
+                "has": {
+                  "field": "function",
+                  "has": {
+                    "field": "property",
+                    "regex": "^head$"
+                  }
+                }
+              },
+              {
+                "has": {
+                  "kind": "string",
+                  "stopBy": {
+                    "any": [
+                      {
+                        "kind": "arrow_function"
+                      },
+                      {
+                        "kind": "function_expression"
+                      },
+                      {
+                        "kind": "function_declaration"
+                      },
+                      {
+                        "kind": "method_definition"
+                      }
+                    ]
+                  },
+                  "regex": "^['\"]HEAD['\"]$"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} registers a HEAD route. Hono serves HEAD from the GET handler and never calls app.head or app.on(\"HEAD\")."
+  }
+}

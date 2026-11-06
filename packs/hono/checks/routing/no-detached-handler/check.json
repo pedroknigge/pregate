@@ -1,0 +1,265 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "hono/routing/no-detached-handler",
+  "version": "1.0.0",
+  "area": "routing",
+  "cardinality": "singleton",
+  "dimension": "hono.detached-handler",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "named-route-handler",
+          "rule": {
+            "pattern": "$RECV.$METHOD($$$)",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "has": {
+                    "field": "property",
+                    "regex": "^(get|post|put|patch|delete|options|all|on|query)$"
+                  }
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "has": {
+                    "nthChild": {
+                      "position": 1,
+                      "reverse": true
+                    },
+                    "any": [
+                      {
+                        "kind": "identifier"
+                      },
+                      {
+                        "kind": "member_expression"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "has": {
+                  "kind": "string",
+                  "stopBy": {
+                    "any": [
+                      {
+                        "kind": "arrow_function"
+                      },
+                      {
+                        "kind": "function_expression"
+                      },
+                      {
+                        "kind": "function_declaration"
+                      },
+                      {
+                        "kind": "method_definition"
+                      }
+                    ]
+                  },
+                  "regex": "^['\"](?:/|\\*)"
+                }
+              }
+            ],
+            "not": {
+              "has": {
+                "kind": "string",
+                "stopBy": {
+                  "any": [
+                    {
+                      "kind": "arrow_function"
+                    },
+                    {
+                      "kind": "function_expression"
+                    },
+                    {
+                      "kind": "function_declaration"
+                    },
+                    {
+                      "kind": "method_definition"
+                    }
+                  ]
+                },
+                "regex": "^['\"]HEAD['\"]$"
+              }
+            },
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "has": {
+                "kind": "variable_declarator",
+                "stopBy": "end",
+                "all": [
+                  {
+                    "has": {
+                      "field": "name",
+                      "pattern": "$RECV"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "\\bnew\\s+Hono\\b|\\bcreateApp\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "inline-hono-named-handler",
+          "rule": {
+            "kind": "call_expression",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "kind": "member_expression",
+                  "all": [
+                    {
+                      "has": {
+                        "field": "property",
+                        "regex": "^(get|post|put|patch|delete|options|all|on|query)$"
+                      }
+                    },
+                    {
+                      "has": {
+                        "field": "object",
+                        "regex": "\\bnew\\s+Hono\\b|\\bcreateApp\\b"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "has": {
+                    "nthChild": {
+                      "position": 1,
+                      "reverse": true
+                    },
+                    "any": [
+                      {
+                        "kind": "identifier"
+                      },
+                      {
+                        "kind": "member_expression"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "has": {
+                  "kind": "string",
+                  "stopBy": {
+                    "any": [
+                      {
+                        "kind": "arrow_function"
+                      },
+                      {
+                        "kind": "function_expression"
+                      },
+                      {
+                        "kind": "function_declaration"
+                      },
+                      {
+                        "kind": "method_definition"
+                      }
+                    ]
+                  },
+                  "regex": "^['\"](?:/|\\*)"
+                }
+              }
+            ],
+            "not": {
+              "has": {
+                "kind": "string",
+                "stopBy": {
+                  "any": [
+                    {
+                      "kind": "arrow_function"
+                    },
+                    {
+                      "kind": "function_expression"
+                    },
+                    {
+                      "kind": "function_declaration"
+                    },
+                    {
+                      "kind": "method_definition"
+                    }
+                  ]
+                },
+                "regex": "^['\"]HEAD['\"]$"
+              }
+            }
+          }
+        },
+        {
+          "id": "controller-class",
+          "rule": {
+            "any": [
+              {
+                "kind": "class_declaration"
+              },
+              {
+                "kind": "abstract_class_declaration"
+              }
+            ],
+            "regex": "\\bclass\\s+\\w*Controller\\b",
+            "has": {
+              "kind": "formal_parameters",
+              "stopBy": "end",
+              "regex": ":\\s*Context\\b"
+            },
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "has": {
+                "stopBy": "end",
+                "any": [
+                  {
+                    "kind": "import_statement",
+                    "has": {
+                      "field": "source",
+                      "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                    }
+                  },
+                  {
+                    "kind": "export_statement",
+                    "has": {
+                      "field": "source",
+                      "regex": "^['\"]hono(?:/[^'\"]*)?['\"]$"
+                    }
+                  },
+                  {
+                    "kind": "call_expression",
+                    "regex": "\\b(?:require|import)\\s*\\(\\s*['\"]hono(?:/[^'\"]*)?['\"]"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} passes a handler that is not written on the route. Keep the handler inline, or build it with factory.createHandlers() and spread it."
+  }
+}

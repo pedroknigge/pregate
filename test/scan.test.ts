@@ -138,6 +138,10 @@ test("docs sites, examples, fixtures, websites, CI workflows, and tiny scripts d
   };
   expect(names(docs, ["TypeScript"])).toEqual(["clean-code", "typescript"]);
   expect(names({
+    "fixtures/app/package.json": '{"dependencies":{"hono":"^4.6.0","react":"19.0.0"}}',
+    "fixtures/app/index.ts": "export const page = 1;\n",
+  }, ["TypeScript"])).toEqual([]);
+  expect(names({
     "packages/docs/package.json": docs["packages/docs/package.json"]!,
     "packages/docs/app/page.tsx": docs["packages/docs/app/page.tsx"]!,
     "website/package.json": '{"dependencies":{"next":"15.0.0"}}',
@@ -248,6 +252,36 @@ test("scan recommends tanstack-query only from a real framework-adapter dependen
     reasons: ["apps/web/package.json declares @tanstack/react-query"],
     scope: { include: ["apps/web/**"], exclude: [] },
   });
+});
+
+test("scan recommends hono only when an app depends on hono", () => {
+  const root = recommendPacks({
+    "package.json": '{"dependencies":{"hono":"^4.6.0"}}',
+    "src/index.ts": "export const app = 1;\n",
+  }, ["TypeScript"]).find(item => item.ns === "hono")!;
+  expect(root.methodologies).toEqual(["hono/routing", "hono/middleware"]);
+  expect(root.reasons).toEqual(["package.json declares hono"]);
+  expect(recommendPacks({
+    "apps/api/package.json": '{"peerDependencies":{"hono":"^4.6.0"}}',
+    "apps/api/src/index.ts": "",
+  }, ["TypeScript"]).find(item => item.ns === "hono")).toMatchObject({
+    reasons: ["apps/api/package.json declares hono"],
+    scope: { include: ["apps/api/**"], exclude: [] },
+  });
+  expect(recommendPacks({ "package.json": '{"devDependencies":{"hono":"^4.6.0"}}' }, []).some(item => item.ns === "hono")).toBe(false);
+  expect(recommendPacks({ "package.json": '{"dependencies":{"@hono/node-server":"^1.0.0","hono-rate-limiter":"1.0.0"}}' }, []).some(item => item.ns === "hono")).toBe(false);
+  expect(recommendPacks({ "package.json": '{"name":"hono"}' }, []).some(item => item.ns === "hono")).toBe(false);
+  for (const path of ["docs/package.json", "examples/demo/package.json", "fixtures/app/package.json", "packages/docs/package.json"]) {
+    expect(recommendPacks({ [path]: '{"dependencies":{"hono":"^4.6.0"}}' }, []).some(item => item.ns === "hono")).toBe(false);
+  }
+  const kept = recommendPacks({
+    "package.json": '{"dependencies":{"hono":"^4.6.0"}}',
+    "docs/package.json": '{"dependencies":{"hono":"^4.6.0"}}',
+    "examples/package.json": '{"dependencies":{"hono":"^4.6.0"}}',
+    "fixtures/package.json": '{"dependencies":{"hono":"^4.6.0"}}',
+  }, []);
+  expect(kept.find(item => item.ns === "hono")!.reasons).toEqual(["package.json declares hono"]);
+  expect(kept.find(item => item.ns === "hono")!.scope).toEqual({ include: ["**"], exclude: ["docs/**", "examples/**", "fixtures/**"] });
 });
 
 test("clean-code and testing are suggested only where their checks read real source", () => {
