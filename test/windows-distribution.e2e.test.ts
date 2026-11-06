@@ -88,7 +88,7 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
     const bin = join(r.dir, "data", "pregate", "bin");
     expect(userPath(r.key)).toEqual({ type: "REG_EXPAND_SZ", value: "%SystemRoot%\\keep;" + bin });
     const again = Bun.spawnSync(r.args, { env: r.env, stdout: "pipe", stderr: "pipe", timeout: 90_000 });
-    expect(again.exitCode).toBe(0);
+    expect(again.exitCode, again.stdout.toString() + again.stderr.toString()).toBe(0);
     expect(again.stdout.toString()).toContain("already on your user PATH");
     expect(userPath(r.key)).toEqual({ type: "REG_EXPAND_SZ", value: "%SystemRoot%\\keep;" + bin });
     const off = install(hash, undefined, { PREGATE_NO_MODIFY_PATH: "1" });
