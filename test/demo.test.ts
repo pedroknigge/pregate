@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathKey } from "../src/paths.ts";
 import { tmpdir } from "node:os";
@@ -168,18 +168,11 @@ test("an unresolvable PATH candidate is skipped and the other language demos sti
   place(stubDir, win ? "go.cmd" : "go", win ? "@echo off\r\necho stub-go\r\nexit /b 0\r\n" : "#!/bin/sh\nprintf '%s\\n' stub-go\nexit 0\n");
   const git = Bun.which("git");
   expect(git, "git is required to run the demo").not.toBeNull();
-  mkdirSync(gitDir);
-  let gitPath = gitDir;
-  try { symlinkSync(git!, join(gitDir, win ? "git.exe" : "git")); }
-  catch (error) {
-    // A file symlink can be refused without elevation. Git's own directory is safe to use when it
-    // does not also contain python3; otherwise the denial would be hidden by a later interpreter.
-    const code = (error as NodeJS.ErrnoException).code;
-    if ((code !== "EPERM" && code !== "EACCES") || Bun.which("python3", { PATH: dirname(git!) }) !== null) throw error;
-    gitPath = dirname(git!);
-  }
+  // A private directory, so a later real python3 cannot hide the denied candidate. The wrapper
+  // runs the real git without putting git's own directory, which may also contain python3, on PATH.
+  place(gitDir, win ? "git.cmd" : "git", win ? `@echo off\r\n"${git}" %*\r\n` : `#!/bin/sh\nexec ${JSON.stringify(git)} "$@"\n`);
   const alias = storePythonAlias();
-  const path = [blocked, ...(alias === null ? [] : [alias]), stubDir, gitPath].join(delimiter);
+  const path = [blocked, ...(alias === null ? [] : [alias]), stubDir, gitDir].join(delimiter);
   expect(Bun.which("python3", { PATH: blocked })).toBe(blockedPython);
   expect(Bun.which("go", { PATH: stubDir })).not.toBeNull();
   const before = remaining();
