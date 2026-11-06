@@ -244,6 +244,8 @@ jobs:
             New-Item -ItemType Directory -Path $path -Force | Out-Null
             [Environment]::SetEnvironmentVariable($entry.Key, $path, 'Process')
           }
+          # setup exits 1 when it wires no harness. An empty Claude home is the one this bootstrap can wire.
+          New-Item -ItemType Directory -Path "$root/home/.claude" -Force | Out-Null
           # Without AppData\Local under USERPROFILE, PowerShell writes this cache into its working directory.
           [Environment]::SetEnvironmentVariable('PSModuleAnalysisCachePath', "$root/powershell-module-analysis-cache", 'Process')
           $download = "$root/download"

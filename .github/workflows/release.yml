@@ -146,9 +146,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      # The literal bootstrap of MH-32 in an empty HOME, except that gh names the tag: without one it
-      # takes the latest release, which a pre-release is not. cosign is installed so install.sh
-      # verifies the keyless bundles this workflow just published.
+      # The literal bootstrap of MH-32, except that gh names the tag: without one it
+      # takes the latest release, which a pre-release is not. The home has an empty Claude
+      # directory so setup can wire one harness; with none, setup exits 1 and the install stops.
+      # cosign is installed so install.sh verifies the keyless bundles this workflow just published.
       - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
       - name: Bootstrap on a clean machine
         env:
@@ -166,6 +167,7 @@ jobs:
             mkdir -p "$path"
             export "${entry%%:*}=$path"
           done
+          mkdir -p "$HOME/.claude"
           d=$(mktemp -d) && gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern install.sh --pattern SHA256SUMS --dir "$d" \
             && (cd "$d" && shasum -a 256 -c --ignore-missing SHA256SUMS) && sh "$d/install.sh"
           # --version prints the engine and the builtin core version: "pregate X.Y.Z (core A.B.C)".
@@ -191,6 +193,8 @@ jobs:
             New-Item -ItemType Directory -Path $path -Force | Out-Null
             [Environment]::SetEnvironmentVariable($entry.Key, $path, 'Process')
           }
+          # setup exits 1 when it wires no harness. An empty Claude home is the one this bootstrap can wire.
+          New-Item -ItemType Directory -Path "$root/home/.claude" -Force | Out-Null
           # Without AppData\Local under USERPROFILE, PowerShell writes this cache into its working directory.
           [Environment]::SetEnvironmentVariable('PSModuleAnalysisCachePath', "$root/powershell-module-analysis-cache", 'Process')
           $download = "$root/download"

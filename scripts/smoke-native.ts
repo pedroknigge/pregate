@@ -63,6 +63,8 @@ const env: Record<string, string | undefined> = { ...process.env, CI: "1", PREGA
 for (const [name, folder] of Object.entries({ HOME: "home", USERPROFILE: "home", LOCALAPPDATA: "data", APPDATA: "config", XDG_DATA_HOME: "data", XDG_STATE_HOME: "state", XDG_CONFIG_HOME: "config", TMPDIR: "tmp", TMP: "tmp", TEMP: "tmp", CODEX_HOME: "codex", GROK_HOME: "grok" })) {
   const path = join(area, folder); mkdirSync(path, { recursive: true }); env[name] = path;
 }
+// setup exits 1 when it wires no harness. This machine has no host CLI; an empty Claude home is the one it can wire.
+mkdirSync(join(area, "home", ".claude"), { recursive: true });
 // Windows PowerShell finds no AppData\Local under the isolated USERPROFILE and writes its module
 // analysis cache relative to its working directory: the checkout. Keep that cache in the isolated area.
 env.PSModuleAnalysisCachePath = join(area, "powershell-module-analysis-cache");
