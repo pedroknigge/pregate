@@ -65,6 +65,7 @@ test("report.json lists a completed step before the run ends", async () => {
   const releaseSecond = join(directory, "release-second");
   const report = createWindowsReport();
   let settled = false;
+  let runError: string | undefined;
   const pending = runRecordedSteps({
     directory,
     report,
@@ -97,9 +98,12 @@ test("report.json lists a completed step before the run ends", async () => {
   } finally {
     writeFileSync(releaseFirst, "go");
     writeFileSync(releaseSecond, "go");
-    await pending.catch(() => {});
+    await pending.catch((error: unknown) => {
+      runError = error instanceof Error ? error.message : String(error);
+    });
     rmSync(directory, { recursive: true, force: true });
   }
+  if (runError !== undefined) throw new Error(runError);
 }, 20_000);
 
 function alive(pid: number): boolean {
@@ -169,7 +173,12 @@ test("a timed-out step is killed with the child it spawned", async () => {
     if (pids) {
       for (const pid of [pids.child, pids.parent]) {
         if (pid > 0 && pid !== process.pid) {
-          try { process.kill(pid, "SIGKILL"); } catch { /* already stopped */ }
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code !== "ESRCH" && code !== "ENOENT") throw error;
+          }
         }
       }
     }

@@ -1,7 +1,7 @@
 // Manual Windows handoff: run the committed candidate without changing the tester's setup.
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { arch, freemem, release, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import pkg from "../package.json" with { type: "json" };
@@ -98,22 +98,27 @@ function killProcessTree(pid: number): void {
   }
 }
 
-function waitForStep(child: ChildProcess, timeoutMs: number): Promise<{ exitCode: number | null; timedOut: boolean }> {
+function waitForStep(child: ChildProcess, timeoutMs: number): Promise<{ exitCode: number | null; timedOut: boolean; killError?: string }> {
   return new Promise((resolve) => {
     let settled = false;
     let timedOut = false;
+    let killError: string | undefined;
     let grace: ReturnType<typeof setTimeout> | undefined;
     const finish = (exitCode: number | null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (grace) clearTimeout(grace);
-      resolve({ exitCode, timedOut });
+      resolve(killError === undefined ? { exitCode, timedOut } : { exitCode, timedOut, killError });
     };
     const timer = setTimeout(() => {
       timedOut = true;
       if (child.pid !== undefined) {
-        try { killProcessTree(child.pid); } catch { /* the step is still recorded as timed out */ }
+        try {
+          killProcessTree(child.pid);
+        } catch (error) {
+          killError = error instanceof Error ? error.message : String(error);
+        }
       }
       grace = setTimeout(() => finish(null), 5_000);
     }, timeoutMs);
@@ -161,6 +166,10 @@ export async function runBoundedStep(options: {
     stderr,
   };
   if (outcome.timedOut) step.timedOut = true;
+  if (outcome.killError) {
+    appendFileSync(join(options.directory, stderr), `Process tree kill failed: ${outcome.killError}\n`);
+    step.note = `Process tree kill failed: ${outcome.killError}`;
+  }
   return step;
 }
 
@@ -190,7 +199,9 @@ export async function runRecordedSteps(options: {
     const step = await runBoundedStep({
       name, command, cwd: options.cwd, env: options.env, directory: options.directory, timeoutMs,
     });
-    options.report.steps.push({ ...step, ...options.noteFor?.(step) });
+    const extra = options.noteFor?.(step);
+    const note = [step.note, extra?.note].filter((item) => item !== undefined).join(" ");
+    options.report.steps.push(note === "" ? { ...step, ...extra } : { ...step, ...extra, note });
     publishReport(options.directory, options.report);
     if (step.timedOut) console.error(`Windows verification: ${name} exceeded ${limitLabel(timeoutMs)}; the process tree was killed.`);
     if (name === "dependencies" && (step.exitCode !== 0 || step.timedOut)) throw new Error("Dependency install failed; dependent checks were not run.");
@@ -255,7 +266,12 @@ async function keepMachineAwake(): Promise<() => void> {
   const stop = () => {
     child.stdout?.destroy();
     child.stderr?.destroy();
-    try { child.kill(); } catch { /* the awake helper already exited */ }
+    try {
+      child.kill();
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ESRCH" && code !== "ENOENT") throw error;
+    }
   };
   const ready = await new Promise<boolean>((resolve) => {
     const timer = setTimeout(() => resolve(false), 15_000);
@@ -360,9 +376,15 @@ async function main(argv: string[]): Promise<void> {
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   } finally {
-    try { releaseAwake(); } catch { /* letting the machine sleep again is not a verification failure */ }
+    let awakeStop: string | undefined;
+    try {
+      releaseAwake();
+    } catch (error) {
+      awakeStop = error instanceof Error ? error.message : String(error);
+    }
     try { rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
     catch (error) { cleanupFailure = String(error); }
+    if (awakeStop) cleanupFailure = cleanupFailure ? `${awakeStop}\n${cleanupFailure}` : awakeStop;
     report.finished = new Date().toISOString();
     report.failure = failure;
     report.cleanupFailure = cleanupFailure;
