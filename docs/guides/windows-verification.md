@@ -10,12 +10,20 @@ those files. It does not by itself change the platform status in the README.
 Do not run PowerShell as Administrator. The installer writes the current user's
 PATH under `HKCU`.
 
+## Before you start
+
+> Close heavy applications and other coding-agent sessions. Expect about one hour.
+>
+> Disable sleep for the run (`powercfg /change standby-timeout-ac 0` and `powercfg /change standby-timeout-dc 0`), then restore the previous timeouts afterwards (30 minutes is a common default).
+>
+> Run the verifier in a plain PowerShell window. A coding agent's background job can be killed by the host when memory is short.
+
 ## Prerequisites
 
 - 64-bit Windows 10 or Windows 11 (x64). `install.ps1` stops on 32-bit Windows and on ARM64.
 - Windows PowerShell 5.1 or newer. PowerShell 7 can run the Git and Bun commands below.
 - [Git for Windows](https://git-scm.com/).
-- [Bun](https://bun.sh) **1.4.4**, the version in `.bun-version`. `bun --version` must print `1.4.4`. Bun 1.4.2 can segfault while leaving `bun test --isolate` after the tests have passed ([oven-sh/bun#43056](https://github.com/oven-sh/bun/issues/43056)); that crash is fixed in 1.4.3 and later, and the Windows suite runs with `--isolate`.
+- [Bun](https://bun.sh) **1.4.4**, the version in `.bun-version`. `bun --version` must print `1.4.4`. `bun upgrade` installs the latest Bun, not this pin. Install the pinned version with `powershell -c "& ([scriptblock]::Create((irm https://bun.sh/install.ps1))) -Version 1.4.4"`. Bun 1.4.2 can segfault while leaving `bun test --isolate` after the tests have passed ([oven-sh/bun#43056](https://github.com/oven-sh/bun/issues/43056)); that crash is fixed in 1.4.3 and later, and the Windows suite runs with `--isolate`.
 - [GitHub CLI](https://cli.github.com/) (`gh`). The release is public, so a private-repository grant is not required. `gh auth login` is only needed if `gh` itself asks for it.
 
 ## Checkout the tag
@@ -95,10 +103,13 @@ bun scripts/verify-windows.ts --artifacts $candidate --report $report
 ```
 
 `--artifacts` is the directory that contains the zip, `install.ps1`, and
-`SHA256SUMS`. `--report` must be a directory that does not exist yet; the
-verifier creates it. Omit `--report` and the verifier chooses a new directory
-under the Windows temp folder and prints its path. The only other accepted
-form is `--help`, which prints usage and does not start a run.
+`SHA256SUMS`. `--report` must be a new directory on every run. The verifier
+creates it and refuses a path that already exists. A rerun needs a new name,
+for example `C:\pregate-0.0.3-report-2`. Do not delete and reuse the old
+directory: a viewer or real-time antivirus can lock it, and then it cannot be
+deleted. Omit `--report` and the verifier chooses a new directory under the
+Windows temp folder and prints its path. The only other accepted form is
+`--help`, which prints usage and does not start a run.
 
 `bun scripts/verify-windows.ts --help` prints:
 
@@ -117,15 +128,25 @@ excluding the four POSIX fixture suites), the pinned dcouplr source probe, the
 packaged-candidate smoke for `windows-x64`, and `bun src/main.ts check
 --ratchet --base <HEAD>`. A failed dependency install stops the later steps.
 Other failures stay in the report. Each step's limit is 20 minutes, except the
-Windows suite, which gets 60 minutes.
+Windows suite, which gets 60 minutes. A step that reaches its limit is recorded
+with `timedOut: true`, and the verifier kills that step's process tree
+(`taskkill /T /F /PID` on Windows) so the limit still holds when the step has
+spawned children.
 
 The verifier sets `HOME`, `USERPROFILE`, `LOCALAPPDATA`, and the other runtime
 homes to a temporary directory, and sets `PSModuleAnalysisCachePath` there so
 Windows PowerShell 5.1 does not write `ModuleAnalysisCache` into the checkout.
 It does not install Pregate into your user profile, and it does not upload the
-report or open a GitHub issue. When it finishes it writes `report.json` and
-prints `PASS` or `FAIL` plus that file's path. Exit 0 means every step exited
-0 and the temporary home was removed.
+report or open a GitHub issue. It creates `report.json` as soon as the report
+directory exists and rewrites that file after each step. `finished` is null
+until the run ends. A killed run still leaves the steps that completed, plus
+each step's stdout and stderr log. It prints that the run takes about one hour,
+and warns, without stopping, when less than 2 GB of memory is free. On Windows
+it asks the system to stay awake until the process exits. If that request
+fails, it prints the `powercfg` commands from [Before you start](#before-you-start).
+Disable sleep yourself as well. When the run ends it sets `finished` and prints
+`PASS` or `FAIL` plus the report path. Exit 0 means every step exited 0, none
+timed out, and the temporary home was removed.
 
 ## Manual checks
 
@@ -245,5 +266,7 @@ Send the report directory (`report.json` plus each step's stdout and stderr
 log) to the maintainer. Read it first. Do not include private application
 code, credentials, or unrelated logs. The verifier does not upload anything
 and does not open an issue. A `FAIL` report is still the result to return.
+If the run was killed, send the report anyway: `finished` is null and `steps`
+lists only the steps that completed.
 Include `git rev-parse HEAD`, `bun --version`, and the manual command output
 with it. A different commit or a rebuilt zip needs a new run.
