@@ -1,10 +1,28 @@
 import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { nodeInspection, pythonInspection } from "../src/python-inspection.ts";
+import { pathWithoutWindowsApps, pythonCommand } from "./host-command.ts";
 
 const inspect = (source: string) => pythonInspection(["-I", "-c", source].map(text => ({ text, literal: true })));
+
+function windowsPython(name: string): string | null {
+  const path = pathWithoutWindowsApps(process.env.PATH ?? process.env.Path ?? "", delimiter);
+  try {
+    return Bun.which(name, { PATH: path });
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    // The Store alias stub raises EACCES from stat. It is not an interpreter.
+    if (code === "EACCES" || code === "EPERM") return null;
+    throw error;
+  }
+}
+
+const PYTHON = pythonCommand(process.platform, windowsPython);
+if (process.platform === "win32" && PYTHON === null) {
+  console.log("skip: Python execution check: no real interpreter from `py -3`, `python`, or `python3` (WindowsApps aliases are not used)");
+}
 
 test("closed JSON inspection permits standard imports, local selectors and stdout formatting", () => {
   for (const source of [
@@ -14,7 +32,8 @@ test("closed JSON inspection permits standard imports, local selectors and stdou
     "import json,sys; data=json.load(sys.stdin); print(data.get('.pregate/preset.json'))",
   ]) {
     expect(inspect(source)).toBe(true);
-    const result = Bun.spawnSync(["python3", "-I", "-c", source], { stdin: new TextEncoder().encode('{"groups":[]}'), stdout: "pipe", stderr: "pipe" });
+    if (PYTHON === null) continue;
+    const result = Bun.spawnSync([...PYTHON, "-I", "-c", source], { stdin: new TextEncoder().encode('{"groups":[]}'), stdout: "pipe", stderr: "pipe" });
     expect(result.exitCode).toBe(0);
   }
 });

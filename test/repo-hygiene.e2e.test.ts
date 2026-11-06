@@ -34,8 +34,10 @@ if (process.env[MARK] === "1") {
     const sha = run(["git", "rev-parse", "HEAD"], parent).trim();
     const dest = mkdtempSync(join(tmpdir(), "pregate-hygiene-"));
     try {
-      run(["git", "clone", "--local", "--no-checkout", parent, dest], tmpdir());
-      run(["git", "checkout", "--detach", sha], dest);
+      // The long fixture paths need the same flag the Windows guide uses to clone.
+      // Checkout is the command that creates those directories.
+      run(["git", "clone", "-c", "core.longpaths=true", "--local", "--no-checkout", parent, dest], tmpdir());
+      run(["git", "-c", "core.longpaths=true", "checkout", "--detach", sha], dest);
       const listed = run(["git", "ls-files", "-s", "-z"], dest).split("\0").filter(Boolean);
       const nodeModules: string[] = [];
       const outside: string[] = [];

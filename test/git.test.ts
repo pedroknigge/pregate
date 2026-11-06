@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { isolatedPathEnv } from "./host-command.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-git-deadline-"));
 const bin = join(area, "bin");
@@ -39,8 +40,15 @@ test.each(["source", "compiled"] as const)("%s Git calls terminate and reject pa
   for (const operation of ["git", "batch"]) {
     rmSync(marker, { force: true });
     const start = performance.now();
+    // Windows spells this variable `Path`. `{ ...process.env, PATH: bin }` keeps both,
+    // and which spelling the worker inherits depends on the other names in the block.
+    // On a stock machine the system `Path` wins, so the real Git runs. `git status`
+    // fails at once because this temp directory is not a repository, and the call
+    // returns null in a few hundred milliseconds. The slow git.exe is compiled, and
+    // Bun resolves `git` to `git.exe`; it starts only when a single PATH spelling
+    // points at the fixture. CI can pass while a stock machine does not, for that reason.
     const result = Bun.spawnSync(kind === "source" ? [process.execPath, worker, operation] : [compiled, operation], {
-      cwd: area, env: { ...process.env, PATH: bin, PREGATE_GIT_PID: marker },
+      cwd: area, env: { ...isolatedPathEnv(process.env, bin), PREGATE_GIT_PID: marker },
       stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 10_000, killSignal: "SIGKILL",
     });
     const elapsed = performance.now() - start;

@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { agyPlugin, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, type Sub, type Target, unmerge } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
+import { posixShell } from "./host-command.ts";
 
 // MULTI-HARNESS §6.1 "register", over the real configs in test/fixtures/configs/ (see its README).
 
@@ -14,6 +15,22 @@ const GROK_TOML = real("grok-config.toml");
 const GEMINI = real("gemini-config.json");
 const ARKGATE = { ".claude/settings.json": real("arkgate/.claude/settings.json"), ".codex/hooks.json": real("arkgate/.codex/hooks.json") };
 const EVENTS = ["PreToolUse", "Stop", "SessionStart"];
+
+// Git for Windows does not put sh on PATH. Prefer sh.exe beside `git --exec-path`.
+function quoteShell(): string | null {
+  if (process.platform !== "win32") return "sh";
+  const found = Bun.spawnSync(["git", "--exec-path"], { stdout: "pipe", stderr: "pipe", timeout: 10_000 });
+  const execPath = found.exitCode === 0 ? found.stdout.toString().trim() : "";
+  return posixShell({
+    platform: "win32",
+    execPath: execPath === "" ? null : execPath,
+    exists: existsSync,
+    onPath: () => Bun.which("sh"),
+  });
+}
+
+const QUOTE_SHELL = quoteShell();
+if (QUOTE_SHELL === null) console.log("skip: a quote in the data path cannot break out of the command: sh.exe was not found from `git --exec-path` or on PATH");
 
 type Json = Record<string, any>;
 const obj = (text: string | null): Json => JSON.parse(text!) as Json;
@@ -45,10 +62,12 @@ describe("hookCommand", () => {
     }
   });
 
-  test("a quote in the data path cannot break out of the command", () => {
+  test.skipIf(QUOTE_SHELL === null)("a quote in the data path cannot break out of the command", () => {
+    const shell = QUOTE_SHELL;
+    if (shell === null) throw new Error("sh.exe was not found from `git --exec-path` or on PATH");
     const cmd = hookCommand("/Users/o'neil/.local/share/pregate", "stop", "codex");
     expect(cmd.startsWith(`f='/Users/o'\\''neil/.local/share/pregate/bin/pregate'; `)).toBe(true);
-    const r = Bun.spawnSync(["sh", "-c", `${cmd.replace(/; \[ -x.*/, "")}; printf %s "$f"`]);
+    const r = Bun.spawnSync([shell, "-c", `${cmd.replace(/; \[ -x.*/, "")}; printf %s "$f"`]);
     expect(r.stdout.toString()).toBe("/Users/o'neil/.local/share/pregate/bin/pregate");
   });
 });
