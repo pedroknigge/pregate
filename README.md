@@ -94,6 +94,8 @@ What setup registers, for harnesses it finds:
 - The `pregate-global` plugin for Antigravity (`agy`)
 - The `/pregate` companion skill
 
+Setup exits 0 when at least one of those harnesses was wired. A harness that was found but could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: its `hooks.json` is left unchanged, and the next step is to approve the PREGATE hooks in Codex with `/hooks`, then rerun `pregate setup`. Setup exits 1 when no harness was wired, or on a real error. `install.sh` and `install.ps1` fail only on that non-zero exit, so a warning for one harness does not fail an install that wired another. `pregate guide` and `pregate update` still continue after a warning-only setup, and stop when setup prints an `ERROR:` line. The install guide states the same contract.
+
 `pregate install --git-hook --ci github` is a separate command. It adds a repository pre-commit hook and a GitHub Actions workflow. `pregate install --ci vercel` adds the Vercel build recipe instead, including on a repository with no Actions workflow. `pregate install --ci github,vercel` adds both, and both have to pass. Setup does not do that. The shell guard is the shell half of the same global Pre hook, not a separate switch.
 
 To stop it:

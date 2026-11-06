@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 
 // Default auto-detected contract budget.
 //
@@ -63,10 +64,13 @@ const root = mkdtempSync(join(tmpdir(), "pregate-budget-"));
 const home = join(root, "home");
 const data = join(root, "data");
 const binary = join(root, ENGINE_FILE);
+const isolatedPath = pathWithoutHarnesses();
 const env = {
   ...process.env,
   CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
   HOME: home,
+  PATH: isolatedPath,
+  ...(process.platform === "win32" ? { Path: isolatedPath } : {}),
   TMPDIR: join(root, "tmp"),
   XDG_DATA_HOME: data,
   XDG_STATE_HOME: join(root, "state"),
@@ -81,7 +85,7 @@ const env = {
 
 beforeAll(() => {
   if (!ENABLED) return;
-  mkdirSync(home, { recursive: true });
+  mkdirSync(join(home, ".claude"), { recursive: true });
   mkdirSync(env.TMPDIR, { recursive: true });
   compileBinary(hostTarget(), binary);
   const setup = run(binary, ["setup"], home);

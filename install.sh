@@ -1,6 +1,9 @@
 #!/bin/sh
 # Bootstrap PREGATE (MULTI-HARNESS MH-31): download one release archive, verify its SHA-256, extract
 # it and hand over to `pregate setup`, which does every write to the machine and is tested in TS.
+# setup exits 0 when at least one harness was wired. A detected harness that could not be wired
+# (Codex trust not confirmed) is a warning and does not fail setup. A non-zero exit means no
+# harness was wired, or setup hit a real error. That fails this install. install.ps1 uses the same rule.
 #
 #   sh install.sh [--version vX.Y.Z]
 #
@@ -212,4 +215,13 @@ tar -xzf "$archive" -C "$tmp/x"
 if [ "$os" = Darwin ]; then xattr -d com.apple.quarantine "$tmp/x/pregate" 2>/dev/null || :; fi
 
 # Not exec: the EXIT trap removes the ~66 MB binary once setup has copied it to <DATA>/<version>/.
+# Preserve setup's own status. A warning with exit 0 is a finished install.
+# `status` is read-only in zsh, so the exit code lives in setup_status.
+set +e
 "$tmp/x/pregate" setup
+setup_status=$?
+set -e
+if [ "$setup_status" -ne 0 ]; then
+  printf 'install.sh: PREGATE setup failed (exit %s)\n' "$setup_status" >&2
+  exit "$setup_status"
+fi

@@ -12,7 +12,7 @@ import { git } from "./git.ts";
 import { init, repoFiles } from "./init.ts";
 import { librarySource } from "./library.ts";
 import { describeCi } from "./ci/detect.ts";
-import { doctor, setup } from "./machine.ts";
+import { doctor, setup, setupBlocked } from "./machine.ts";
 import { detectedScope, detectStack, emptyLayerLines, scopeCoverage } from "./onboard.ts";
 import { composePackPlan, projectUpdate } from "./pack-command.ts";
 import { packCatalog } from "./compile.ts";
@@ -277,7 +277,9 @@ async function ensureInstallation(): Promise<Result> {
     say(`First installing this engine (${VERSIONS.engine}) and its launcher; project contracts and consent remain unchanged until review.`);
     const result = await setup();
     say(result.text);
-    if (result.code !== 0) return { code: 1, text: `${result.text}\nContract previews are retained and unapplied. Repair the named installation problem and retry guide.` };
+    // No harness wired is a warning and a degraded installation, which the next line already explains.
+    // A real setup error still keeps the reviewed contract unapplied.
+    if (setupBlocked(result.code, result.text)) return { code: 1, text: `${result.text}\nContract previews are retained and unapplied. Repair the named installation problem and retry guide.` };
   }
   const binary = join(dataHome(), VERSIONS.engine, ENGINE_FILE);
   const probe = Bun.spawnSync([binary, "--version"], { stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 5000 });

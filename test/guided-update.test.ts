@@ -7,6 +7,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { dataHome } from "../src/consent.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 
 setDefaultTimeout(120_000);
 const root = join(import.meta.dir, "..");
@@ -33,9 +34,11 @@ let serial = 0;
 function fixture(engine = binary) {
   const directory = join(area, String(++serial)), project = join(directory, "project"), tools = join(directory, "bin");
   mkdirSync(project, { recursive: true }); mkdirSync(tools);
+  const path = WINDOWS ? pathWithoutHarnesses([tools]) : `${tools}:/usr/bin:/bin`;
+  mkdirSync(join(directory, "home", ".claude"), { recursive: true });
   const env = { ...process.env, HOME: join(directory, "home"), CODEX_HOME: join(directory, "codex"), GROK_HOME: join(directory, "grok"),
     CLAUDE_CONFIG_DIR: join(directory, "claude"), XDG_DATA_HOME: join(directory, "data"), XDG_STATE_HOME: join(directory, "state"),
-    PATH: `${tools}:/usr/bin:/bin`, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", LOG: join(directory, "gh.log") };
+    PATH: path, ...(WINDOWS ? { Path: path } : {}), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", LOG: join(directory, "gh.log") };
   const run = (command: string[], cwd = project) => {
     const out = Bun.spawnSync(command, { cwd, env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
     return { code: out.exitCode, text: out.stdout.toString() + out.stderr.toString() };

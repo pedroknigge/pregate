@@ -134,6 +134,8 @@ pregate
 
 Global setup installs owned harness registrations and `/pregate` companion instructions.
 It remains inert until you approve a contract and consent in each worktree.
+
+`pregate setup` exits 0 when it wired at least one harness. A detected harness that could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: `hooks.json` is left unchanged, and the next step is to approve the PREGATE hooks in Codex with `/hooks`, then rerun `pregate setup`. The command exits 1 when it wired no harness, or when it hit a real error (a config it must not rewrite, a Codex trust rollback that would drop someone else's hooks, an app-server that does not answer, a failed engine install). `install.sh` and `install.ps1` both stop when setup exits non-zero, and both finish when setup exits 0, including when it printed a warning. `pregate guide` still applies a reviewed contract after a warning-only setup, and says agent-edit protection remains degraded until a harness is wired. `pregate update` still switches the launcher and prepares project reviews in that case. Either command stops when setup prints a line that starts with `ERROR:`.
 A committed preset does not grant consent. The guide offers setup, migration or
 activation from the actual project state. In a harness, enter human
 `! pregate guide`, or load `/pregate` and ask the agent to prepare one `guide --preview`

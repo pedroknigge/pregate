@@ -6,6 +6,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 // <file>:<event_snake>:<group>:<hook>, its hash depends only on its content, and its trust is
 // `[hooks.state."<key>"] trusted_hash` in config.toml, so a hook that changes or moves index stops
 // being trusted. `codex trust-all` (fake only) approves every listed hook, as the user does in /hooks.
+// CODEX_FAKE_REFUSE_TRUST=1 accepts the batchWrite and does not record it, so the next list still
+// says the PREGATE hooks are untrusted. Foreign trust that was already recorded stays.
 
 type Hook = { key: string; trustStatus: string; currentHash: string };
 
@@ -46,6 +48,7 @@ function list(): Hook[] {
 }
 
 function trust(value: Record<string, { trusted_hash: string }>): void {
+  if (process.env.CODEX_FAKE_REFUSE_TRUST === "1") return;
   let config = text(CONFIG).replace(STATE, (block, key: string) => (key in value ? "" : block));
   for (const [key, { trusted_hash }] of Object.entries(value)) config += `[hooks.state."${key}"]\ntrusted_hash = "${trusted_hash}"\n`;
   writeFileSync(CONFIG, config);

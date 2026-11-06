@@ -8,6 +8,7 @@ import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { windowsHook } from "../src/windows-command.ts";
 import type { HarnessId } from "../src/types.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 
 setDefaultTimeout(120_000);
@@ -17,11 +18,13 @@ const data = join(area, "data/pregate");
 const repo = join(area, "repo with spaces →");
 const binary = join(area, ENGINE_FILE);
 const engine = join(data, pkg.version, ENGINE_FILE);
+const isolatedPath = WINDOWS ? pathWithoutHarnesses() : "/usr/bin:/bin";
 const env = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: join(area, "data"), APPDATA: join(area, "config"),
   XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"), XDG_CONFIG_HOME: join(area, "config"),
   CODEX_HOME: join(home, ".codex"), GROK_HOME: join(home, ".grok"), TMPDIR: area, TMP: area, TEMP: area, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
-  PATH: WINDOWS ? process.env.PATH! : "/usr/bin:/bin", CLAUDE_CONFIG_DIR: "",
+  PATH: isolatedPath, CLAUDE_CONFIG_DIR: "",
   ...(WINDOWS ? {
+    Path: isolatedPath,
     PSModulePath: join(process.env.SystemRoot!, "System32/WindowsPowerShell/v1.0/Modules"),
     PSModuleAnalysisCachePath: join(area, "powershell-module-analysis-cache"),
   } : {}) };

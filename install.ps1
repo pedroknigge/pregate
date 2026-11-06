@@ -1,4 +1,8 @@
 # Windows bootstrap: verify the release ZIP, run setup, then put the pregate launcher on the user PATH.
+# setup exits 0 when at least one harness was wired. A detected harness that could not be wired
+# (Codex trust not confirmed) is a warning on stdout and does not fail setup. A non-zero exit
+# means no harness was wired, or setup hit a real error. That fails this install. install.sh
+# uses the same rule.
 # -NoModifyPath (or PREGATE_NO_MODIFY_PATH=1) leaves PATH alone; tests set it so they never write the
 # tester's registry; PREGATE_PATH_KEY (a subkey of HKCU, default Environment) lets them check it.
 param([string]$Version, [switch]$NoModifyPath)
@@ -133,7 +137,11 @@ try {
     $binary = Join-Path $extract 'pregate.exe'
     if (!(Test-Path -LiteralPath $binary -PathType Leaf)) { throw 'Archive has no pregate.exe' }
     & $binary setup
-    if ($LASTEXITCODE -ne 0) { throw "PREGATE setup failed (exit $LASTEXITCODE)" }
+    $setup = $LASTEXITCODE
+    if ($setup -ne 0) {
+        [Console]::Error.WriteLine("PREGATE setup failed (exit $setup)")
+        exit $setup
+    }
     # Same data home as the engine's storageDir("data"): XDG_DATA_HOME, else LOCALAPPDATA.
     $dataHome = if ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } elseif ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME 'AppData\Local' }
     $bin = [IO.Path]::GetFullPath((Join-Path $dataHome 'pregate\bin'))

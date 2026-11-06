@@ -17,6 +17,7 @@ import pkg from "../package.json" with { type: "json" };
 import { readProposal } from "../src/proposal.ts";
 import { sha256 } from "../src/state.ts";
 import { canonical } from "../src/disk.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 import { removeReleased, removeTree } from "./remove-tree.ts";
 
 // The scenarios isolate project/home state; they can share the unchanged executable.
@@ -406,9 +407,11 @@ function previewProject() {
     const git = Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: root, stderr: "pipe" });
     if (git.exitCode !== 0) throw new Error(git.stderr.toString());
   }
+  const path = process.platform === "win32" ? pathWithoutHarnesses() : "/usr/bin:/bin";
+  mkdirSync(join(dir, "home", ".claude"), { recursive: true });
   const env = { ...process.env, HOME: join(dir, "home"), XDG_DATA_HOME: join(dir, "data"), XDG_STATE_HOME: join(dir, "state"),
     TMPDIR: dir, CODEX_HOME: join(dir, "codex"), GROK_HOME: join(dir, "grok"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
-    PATH: process.platform === "win32" ? process.env.PATH : "/usr/bin:/bin", CLAUDE_CONFIG_DIR: "" };
+    PATH: path, ...(process.platform === "win32" ? { Path: path } : {}), CLAUDE_CONFIG_DIR: "" };
   const cli = (cwd: string, ...command: string[]) => Bun.spawnSync([binary, ...command], { cwd, env, stdout: "pipe", stderr: "pipe" });
   return { dir, root, cli, env };
 }

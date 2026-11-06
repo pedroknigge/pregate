@@ -317,10 +317,40 @@ describe("setup", () => {
 
   test("nothing found: the engine, the launcher and the link, and no registration", () => {
     const m = machine([]);
-    const out = ok(pregate(m, "setup"), "setup");
+    const out = pregate(m, "setup");
+    expect(out.code).toBe(1);
     expect(out.stdout).toContain("WARNING: No Claude Code, Codex, Cursor, Grok or agy found");
+    expect(out.stdout).not.toContain("ERROR:");
     expect(existsSync(join(m.data, pkg.version, "pregate"))).toBe(true);
+    expect(existsSync(m.launcher)).toBe(true);
+    expect(existsSync(m.link)).toBe(true);
     expect(existsSync(m.settings) || existsSync(m.hooks) || existsSync(m.plugin)).toBe(false);
+  });
+
+  test("Claude wired and Codex trust not confirmed: exit 0, Codex left unchanged, warning names /hooks", () => {
+    const m = machine(["claude-code", "codex"]);
+    m.env.CODEX_FAKE_REFUSE_TRUST = "1";
+    const hooks = read(m.hooks);
+    const out = pregate(m, "setup");
+    expect(out.code).toBe(0);
+    expect(out.stdout).toContain(`Hooks registered in ${m.settings}.`);
+    expect(out.stdout).toContain(`WARNING: Codex: Codex did not confirm trust for the PREGATE hooks. Left ${m.hooks} unchanged. Approve them in Codex with /hooks, then rerun pregate setup.`);
+    expect(out.stdout).not.toContain("ERROR:");
+    expect(read(m.hooks)).toBe(hooks);
+    expect(exact(json(m.settings).hooks.PreToolUse.at(-1), "shared", m.data)).toBe(true);
+    expect(existsSync(join(m.state, "codex-trust.json"))).toBe(false);
+  });
+
+  test("Codex trust not confirmed and no other harness: hooks.json stays, setup exits non-zero", () => {
+    const m = machine(["codex"]);
+    m.env.CODEX_FAKE_REFUSE_TRUST = "1";
+    const hooks = read(m.hooks);
+    const out = pregate(m, "setup");
+    expect(out.code).toBe(1);
+    expect(out.stdout).toContain(`WARNING: Codex: Codex did not confirm trust for the PREGATE hooks. Left ${m.hooks} unchanged. Approve them in Codex with /hooks, then rerun pregate setup.`);
+    expect(out.stdout).not.toContain("ERROR:");
+    expect(read(m.hooks)).toBe(hooks);
+    expect(existsSync(m.settings)).toBe(false);
   });
 });
 
@@ -487,6 +517,40 @@ describe("update", () => {
     expect(existsSync(join(m.data, NEXT, "pregate"))).toBe(true);
     expect(read(m.launcher)).toBe(launcher);
     expect(logOf(m).some((l) => l.startsWith("setup"))).toBe(false);
+  });
+
+  test("update keeps going when setup only warns that no harness was wired", () => {
+    const m = machine([]);
+    const first = pregate(m, "setup");
+    expect(first.code).toBe(1);
+    expect(first.stdout).toContain("WARNING: No Claude Code");
+    expect(first.stdout).not.toContain("ERROR:");
+    const root = join(m.root, "project");
+    mkdirSync(root);
+    ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
+    const lock = join(root, ".pregate/pregate.lock.json");
+    put(lock, JSON.stringify({ ...json(lock), engine: "0.0.0" }));
+    const out = ok(run([m.link, "update", "--version", pkg.version], m, root), "update");
+    expect(out.stdout).toContain("WARNING: No Claude Code");
+    expect(out.stdout).toContain("1 project reviews prepared");
+    expect(out.stdout).not.toContain("ERROR:");
+  });
+
+  test("update stops when setup reports a real error and does not prepare project reviews", () => {
+    const m = machine(["claude-code"]);
+    put(m.settings, "{");
+    const first = pregate(m, "setup");
+    expect(first.code).toBe(1);
+    expect(first.stdout).toContain("ERROR:");
+    const root = join(m.root, "project");
+    mkdirSync(root);
+    ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
+    const lock = join(root, ".pregate/pregate.lock.json");
+    put(lock, JSON.stringify({ ...json(lock), engine: "0.0.0" }));
+    const out = run([m.link, "update", "--version", pkg.version], m, root);
+    expect(out.code).toBe(1);
+    expect(out.stdout).toContain("ERROR:");
+    expect(out.stdout).not.toContain("project reviews prepared");
   });
 
   test("updating inside a project automatically prepares one review without applying the project contract", () => {

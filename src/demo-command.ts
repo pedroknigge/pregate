@@ -33,7 +33,9 @@ function demoRun(run: DemoRun): { code: number; report: DemoReport } {
     mkdirSync(join(run.area, "empty-template"));
     const samples = run.languages.map(language => {
       const root = join(run.area, language), machine = join(run.area, language + "-machine");
-      mkdirSync(root); mkdirSync(join(machine, "home"), { recursive: true });
+      // An empty Claude home is a detected harness, so isolated setup can wire it and exit 0.
+      // The demo machine has no host CLIs; with no home at all, setup exits 1 before the sample hook runs.
+      mkdirSync(root); mkdirSync(join(machine, "home", ".claude"), { recursive: true });
       const env = demoEnvironment(machine, run.git);
       const launcher = join(env.XDG_DATA_HOME!, "pregate/bin", process.platform === "win32" ? "pregate.cmd" : "pregate");
       const c: DemoContext = { area: run.area, root, env, binary: run.binary, launcher, git: run.git, native: run.native, receipts: [] };

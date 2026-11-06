@@ -7,6 +7,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { enable } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { hookCommand } from "../src/register.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 
 // The compiled pregate binary, against disposable git repositories. These cases are the
@@ -29,6 +30,9 @@ interface Repo { dir: string; env: Env }
 
 beforeAll(() => {
   mkdirSync(HOME, { recursive: true });
+  // An empty Claude home wires one harness. Host CLIs stay off PATH, so setup's exit
+  // does not depend on which agents this machine has installed.
+  mkdirSync(join(HOME, ".claude"), { recursive: true });
   mkdirSync(join(TMP, "tmp"), { recursive: true });
   compileBinary(hostTarget(), BIN, true);
   ok(run([BIN, "setup"], HOME, envOf()), "setup");
@@ -42,7 +46,7 @@ let states = 0;
 
 function envOf(): Env {
   return {
-    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: [join(HOME, ".local/bin"), join(DATA, "pregate", "bin"), process.env.PATH, process.env.Path].filter(Boolean).join(delimiter), HOME, TMPDIR: join(TMP, "tmp"),
+    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: pathWithoutHarnesses([join(HOME, ".local/bin"), join(DATA, "pregate", "bin")]), HOME, TMPDIR: join(TMP, "tmp"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
     GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",

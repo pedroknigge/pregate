@@ -142,6 +142,8 @@ The script checks the zip against `SHA256SUMS`, runs `pregate setup`, and adds
 `%LOCALAPPDATA%\pregate\bin` to your user PATH. Open a new terminal so that
 PATH is visible. `pregate` from cmd or PowerShell is `pregate.cmd`.
 
+Setup exits 0 when at least one installed harness was wired. A harness that could not be wired, such as Codex whose hook trust was not confirmed, is a warning with the next step and does not fail the install when another harness was wired. The install fails when setup exits non-zero: no harness was wired, or setup hit a real error. The same contract is in the [installation guide](installation.md).
+
 ### Version, doctor, and demo
 
 ```powershell

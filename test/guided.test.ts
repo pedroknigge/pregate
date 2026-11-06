@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { canonical } from "../src/disk.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { packTemplate } from "../src/pack-template.ts";
 import { VERSIONS } from "../src/versions.ts";
@@ -43,9 +44,10 @@ function project(name: string, files: Record<string, string> = {}, git = false) 
   }
   if (git) expect(Bun.spawnSync(["git", "init", "-q", root], { stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
   const machine = join(area, name + "-machine");
+  const path = process.platform === "win32" ? pathWithoutHarnesses() : "/usr/bin:/bin:/usr/sbin:/sbin";
   const env = { ...process.env, HOME: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
     CLAUDE_CONFIG_DIR: join(machine, "claude"), XDG_DATA_HOME: join(machine, "data"), XDG_STATE_HOME: join(machine, "state"), CI: "1", PREGATE_UNATTENDED_APPROVAL: "1",
-    ...(process.platform === "win32" ? {} : { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" }) };
+    PATH: path, ...(process.platform === "win32" ? { Path: path } : {}) };
   const cli = (args: string[], cwd = root) => {
     const out = Bun.spawnSync([binary, ...args], { cwd, env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
     return { code: out.exitCode, text: out.stdout.toString() + out.stderr.toString() };

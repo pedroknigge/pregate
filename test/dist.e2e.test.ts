@@ -67,6 +67,9 @@ interface Run { code: number; stderr: string; log: string[]; leftovers: string[]
 function machine(): { dir: string; env: Record<string, string> } {
   const dir = mkdtempSync(join(TMP, "m-"));
   for (const d of ["home", "tmp", "release"]) mkdirSync(join(dir, d));
+  // The real binary exits 1 when it wires nothing. An empty Claude home is one harness it can wire,
+  // so a verified archive still finishes. The stub archives do not read this directory.
+  mkdirSync(join(dir, "home", ".claude"));
   return {
     dir,
     env: {

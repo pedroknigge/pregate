@@ -25,10 +25,11 @@ import type { HarnessId } from "./types.ts";
 import { downloadRelease, latestRelease } from "./release-download.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
-// writes nothing; whatever cannot be done safely is left untouched and reported, and the exit is 1.
+// writes nothing; whatever cannot be done safely is left untouched and reported. setup exits 1 when no harness was wired or a real error occurred.
+// A detected harness that cannot be wired is a warning with the next step, and does not fail setup when another harness was wired.
 
 type Result = { code: 0 | 1; text: string };
-type Line = { level: "ok" | "info" | "warn" | "fail"; text: string };
+type Line = { level: "ok" | "info" | "warn" | "fail"; text: string; wired?: boolean };
 interface Paths {
   home: string; data: string; state: string; codexHome: string; grokHome: string;
   shared: string[];   // ~/.claude/settings.json, then $CLAUDE_CONFIG_DIR/settings.json when it is another file
@@ -43,8 +44,8 @@ const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex
 const SHARED: HarnessId[] = ["claude-code", "cursor", "grok"];
 // The event part of a Codex trust key (<file>:<event>:<group>:<hook>).
 const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
-const ok = (text: string): Line => ({ level: "ok", text });
-const info = (text: string): Line => ({ level: "info", text });
+const ok = (text: string, wired = false): Line => ({ level: "ok", text, ...(wired ? { wired: true } : {}) });
+const info = (text: string, wired = false): Line => ({ level: "info", text, ...(wired ? { wired: true } : {}) });
 const warn = (text: string): Line => ({ level: "warn", text });
 const fail = (text: string): Line => ({ level: "fail", text });
 
@@ -72,7 +73,24 @@ export async function setup(): Promise<Result> {
   else if (agyBin !== undefined) lines.push(agy(p, agyBin));
   installSkill();
   lines.push(ok("Installed /pregate skills. Global hooks remain inert until local worktree consent."));
-  return report(lines);
+  return finishSetup(lines);
+}
+
+// Exit 0 when at least one harness registration landed and nothing failed for real.
+// A warning (Codex trust not confirmed, no harness found) stays in the text either way.
+function finishSetup(lines: Line[]): Result {
+  const result = report(lines);
+  if (result.code !== 0 || lines.some((line) => line.wired)) return result;
+  return { code: 1, text: result.text };
+}
+
+// guide and update keep going when setup only warned that nothing was wired. An ERROR line,
+// a crash on stderr, or an exit that is not that warning still stops them.
+export function setupBlocked(exit: number | null, stdout: string, stderr = ""): boolean {
+  if (exit === 0) return false;
+  if (exit !== 1 || stderr.trim() !== "") return true;
+  const lines = stdout.split("\n");
+  return lines.some((line) => line.startsWith("ERROR:")) || !lines.some((line) => line.startsWith("WARNING:"));
 }
 
 // MH-23 and MH-24 for one file. The first change to a file keeps its original as <file>.pregate.bak.
@@ -81,7 +99,7 @@ function register(file: string, t: Target, data: string): Line {
   const before = read(target);
   const after = merge(before, t, data);
   if (after === null) return fail(`${file} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate setup.`);
-  return ok(rewrite(target, before, after) ? `Hooks registered in ${file}.` : `${file}: unchanged.`);
+  return ok(rewrite(target, before, after) ? `Hooks registered in ${file}.` : `${file}: unchanged.`, true);
 }
 
 // MH-24: Codex runs no user hook without trust, and a hook whose index moves loses it. setup trusts
@@ -95,7 +113,7 @@ async function codex(p: Paths, bin: string | null): Promise<Line> {
   if (after === null) return fail(`${file} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate setup.`);
   if (bin === null) {
     rewrite(target, before, after);
-    return info(`codex: binary not on PATH; hooks registered in ${file} but not trusted. Codex runs them only after approval in /hooks; put codex on PATH and rerun pregate setup to trust them.`);
+    return info(`codex: binary not on PATH; hooks registered in ${file} but not trusted. Codex runs them only after approval in /hooks; put codex on PATH and rerun pregate setup to trust them.`, true);
   }
   const ours = owner(file, target, slots(after, p.data));
   // The photo is taken before the write. A key is ours when its command names this installation,
@@ -126,11 +144,14 @@ async function trustCodexHooks(i: CodexInstall): Promise<Line> {
     const lost = photo.filter((k) => now.find((h) => h.key === k)?.trustStatus !== "trusted");
     if (trusted.length === Object.keys(SNAKE).length && lost.length === 0) {
       save(i.trust, `${JSON.stringify(Object.fromEntries(trusted.map((h) => [h.key, h.currentHash])), null, 2)}\n`);
-      return ok(`Codex: hooks registered in ${i.file} and trusted.`);
+      return ok(`Codex: hooks registered in ${i.file} and trusted.`, true);
     }
     if (i.wrote) save(i.target, i.before);
-    const why = lost.length > 0 ? `these third-party hooks lost trust: ${lost.join(", ")}` : "Codex did not confirm trust for the PREGATE hooks";
-    return fail(`Codex: ${why}. Left ${i.file} unchanged.`);
+    // A foreign hook that lost trust is a real error: the previous bytes are restored and setup fails.
+    // PREGATE's own trust not being confirmed leaves the file unchanged and is a warning. The caller
+    // exits 0 when some other harness was wired.
+    if (lost.length > 0) return fail(`Codex: these third-party hooks lost trust: ${lost.join(", ")}. Left ${i.file} unchanged.`);
+    return warn(`Codex: Codex did not confirm trust for the PREGATE hooks. Left ${i.file} unchanged. Approve them in Codex with /hooks, then rerun pregate setup.`);
   } catch (e) {
     if (i.wrote) save(i.target, i.before);
     return fail(`Codex: ${(e as Error).message}. Left ${i.file} unchanged; rerun pregate setup.`);
@@ -153,7 +174,7 @@ function agy(p: Paths, bin: string): Line {
     if (!current()) return fail(`agy plugin install did not install pregate-global (exit ${r.exit}): ${clip(r.stderr || r.stdout)}`);
     done = `pregate-global plugin installed at ${p.plugin}.`;
   }
-  return agyDisabled(p) ? fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.") : ok(done);
+  return agyDisabled(p) ? fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.") : ok(done, true);
 }
 
 // ~/.local/bin/pregate → the launcher. Anything else already there is not ours to replace.
@@ -195,15 +216,17 @@ export async function update(o: { version?: string; engine?: string }): Promise<
   const previous = launcherVersion(p.data);
   saveLauncher(p, v);
   const r = spawn([engine, "setup"], 600_000);
+  // A warning that no harness was wired still leaves a usable engine. A real setup error does not.
+  const blocked = setupBlocked(r.exit, r.stdout, r.stderr);
   // Loaded here, not at the top: hooks import this module and must not load the update path.
   const registry = await import("./project-updates.ts");
-  const review = r.exit === 0 ? projectReviews(p, registry, engine, v) : null;
-  const pruned = r.exit === 0 ? pruneEngines(p.data, retained(p, registry, [v, previous])) : [];
+  const review = blocked ? null : projectReviews(p, registry, engine, v);
+  const pruned = blocked ? [] : pruneEngines(p.data, retained(p, registry, [v, previous]));
   // The new engine's setup opens with its own install line; this one already says it.
   const setupLines = r.stdout.trim().split("\n").filter((line) => line !== `Engine ${v} installed at ${dirname(engine)}.`).join("\n");
   const text = [`Engine ${v} installed at ${dirname(engine)}; the launcher now uses it.`, setupLines, r.stderr.trim(), ...(review?.lines ?? []), ...pruned]
     .filter((s) => s !== "").join("\n");
-  return { code: r.exit === 0 && (review === null || review.exit === 0) ? 0 : 1, text };
+  return { code: !blocked && (review === null || review.exit === 0) ? 0 : 1, text };
 }
 
 // One batch preview, by the new engine, of every enabled registered project (with its worktrees)
@@ -319,7 +342,7 @@ export async function uninstall(purge: boolean): Promise<Result> {
   lines.push(unregister(join(p.codexHome, "hooks.json"), "codex", p));
   lines.push(unregister(join(p.home, ".cursor/hooks.json"), "cursor", p));
   if (existsSync(p.plugin)) {
-    const bin = Bun.which("agy");
+    const bin = which("agy");
     if (bin !== null) spawn([bin, "plugin", "uninstall", AGY_PLUGIN]);
     rmSync(p.plugin, { recursive: true, force: true });   // agy plugin uninstall is [E2E]
     lines.push(ok(`agy plugin removed from ${p.plugin}.`));
@@ -404,10 +427,10 @@ export async function doctor(): Promise<Result> {
   else if (found.has("codex")) lines.push(codexOffPath(p));
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
   if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
-  const cli = Bun.which(WINDOWS ? "pregate.cmd" : "pregate");
+  const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
   lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
     : warn(`pregate on PATH is not ${p.link} (${cli ?? "none"}); add ${dirname(p.link)} to PATH.`));
-  lines.push(Bun.which("gh") !== null && spawn(["gh", "auth", "status"]).exit === 0 ? ok("gh authenticated; private release fallback is available.")
+  lines.push(which("gh") !== null && spawn(["gh", "auth", "status"]).exit === 0 ? ok("gh authenticated; private release fallback is available.")
     : warn("Public releases use anonymous HTTPS. Private pilot releases require gh auth login and repository read access; no release access was tested."));
   for (const h of checked.keys()) lines.push(canary(p, h));
   return report(lines);
@@ -710,7 +733,7 @@ function detect(p: Paths): Map<HarnessId, string | null> {
   };
   const found = new Map<HarnessId, string | null>();
   for (const h of Object.keys(HARNESSES) as HarnessId[]) {
-    const bin = BINARIES[h].map((b) => Bun.which(b)).find((b) => b !== null) ?? null;
+    const bin = BINARIES[h].map((b) => which(b)).find((b) => b !== null) ?? null;
     const entries = existsSync(homes[h]) ? readdirSync(homes[h]) : null;
     if (bin !== null || (entries !== null && (entries.length === 0 || entries.some((name) => name !== "skills")))) found.set(h, bin);
   }
@@ -862,6 +885,11 @@ function spawn(cmd: string[], timeout = 120_000, o: { cwd?: string; env?: Record
 function clip(s: string): string {
   const line = s.trim().replace(/\s+/g, " ");
   return line.length > 300 ? `${line.slice(0, 300)}…` : line;
+}
+
+// Bun.which remembers PATH from process start unless the call passes the current value.
+function which(name: string): string | null {
+  return Bun.which(name, { PATH: process.env.PATH ?? process.env.Path ?? "" });
 }
 
 function report(lines: Line[]): Result {
