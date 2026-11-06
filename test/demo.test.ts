@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
+import { pathKey } from "../src/paths.ts";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
@@ -24,6 +25,39 @@ function cli(args: string[], env: Record<string, string | undefined> = {}) {
 }
 
 function remaining() { return readdirSync(tmpdir()).filter(name => name.startsWith("pregate-owned-demo-")).sort(); }
+
+// which can return a Store App Execution Alias that stat and realpath cannot read. Availability
+// follows the demo: skip that PATH entry, and use a later one when it resolves.
+function toolResolves(name: string, path = process.env.PATH ?? process.env.Path ?? ""): boolean {
+  const seen = new Set<string>();
+  let pathEnv = path;
+  for (;;) {
+    const found = Bun.which(name, { PATH: pathEnv });
+    if (found === null || seen.has(found)) return false;
+    seen.add(found);
+    try {
+      statSync(found);
+      realpathSync(found);
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EACCES" && code !== "EPERM") throw error;
+      const target = directoryKey(dirname(found));
+      let removed = false;
+      const kept = pathEnv.split(delimiter).filter((entry) => {
+        if (entry === "" || directoryKey(entry) !== target) return entry !== "";
+        removed = true;
+        return false;
+      });
+      if (!removed) return false;
+      pathEnv = kept.join(delimiter);
+    }
+  }
+}
+
+function directoryKey(entry: string): string {
+  return pathKey(isAbsolute(entry) ? entry : resolve(entry)).replace(/\/+$/, "");
+}
 
 function expectSample(sample: any, language: string) {
   expect(sample.language).toBe(language);
@@ -73,7 +107,7 @@ test("Python demo runs real launcher decisions and native behavior despite hosti
   expect(report).toMatchObject({ mode: "isolated-owned-sample-automation", engine: VERSIONS, cleanup: true, binarySha256: sha256(readFileSync(binary)) });
   expectSample(report.samples[0], "python");
   expect(report.samples).toHaveLength(1);
-  if (Bun.which("python3")) expect(report.samples[0].native.baseline.status).toBe("passed");
+  if (toolResolves("python3")) expect(report.samples[0].native.baseline.status).toBe("passed");
   else expect(report.samples[0].native.baseline.status).toBe("not-verified");
   expect(report.samples[0].native.repaired.status).toBe(report.samples[0].native.baseline.status);
   expect(report.samples[0].native.proposedInSeparateCopy.status).toBe(report.samples[0].native.baseline.status);
@@ -85,9 +119,9 @@ test("Go demo denies module imports before writes and reports the actual native-
   expect(remaining()).toEqual(before);
   expect(out.code, out.text + out.stderr).toBe(0);
   const report = JSON.parse(out.text); expectSample(report.samples[0], "go");
-  expect(report.samples[0].native.repaired.status).toBe(Bun.which("go") ? "passed" : "not-verified");
+  expect(report.samples[0].native.repaired.status).toBe(toolResolves("go") ? "passed" : "not-verified");
   expect(report.samples[0].native.proposedInSeparateCopy.status).toBe(report.samples[0].native.repaired.status);
-  if (!Bun.which("go")) expect(report.samples[0].native.repaired.reason).toContain("not available");
+  if (!toolResolves("go")) expect(report.samples[0].native.repaired.reason).toMatch(/not available|could not be resolved/);
   const withoutGo = "/usr/bin:/bin:/usr/sbin:/sbin";
   if (process.platform !== "win32" && !Bun.which("go", { PATH: withoutGo })) {
     const unavailable = cli(["--language", "go", "--json"], { PATH: withoutGo });
