@@ -137,6 +137,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [MULTI-HARNESS.md](MULTI-HARNESS.md) | Product/reference |
 | [packs.md](packs.md) | Product/reference |
 | [releases/0.0.1.md](releases/0.0.1.md) | Product/reference |
+| [releases/0.0.3-windows-report-2026-11-03.md](releases/0.0.3-windows-report-2026-11-03.md) | Product/reference |
 | [releases/0.0.3.md](releases/0.0.3.md) | Product/reference |
 | [ROADMAP.md](ROADMAP.md) | Product/reference |
 | [SPEC.md](SPEC.md) | Product/reference |
