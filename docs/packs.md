@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-46 optional packs; 1080 distinct check IDs. Counts do not measure semantic coverage or precision.
+47 optional packs; 1082 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 577 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 486 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 488 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 17 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -82,6 +82,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [svelte](../packs/svelte/REFERENCE.md) | library | 1.2.0 | 13 | `svelte/runes` (complete), `svelte/stores` (complete) |
 | [sveltekit](../packs/sveltekit/REFERENCE.md) | library | 1.2.0 | 12 | `sveltekit/data` (complete), `sveltekit/routing` (complete) |
 | [tailwind](../packs/tailwind/REFERENCE.md) | library | 1.2.0 | 9 | `tailwind/classes` (complete) |
+| [tanstack-query](../packs/tanstack-query/REFERENCE.md) | library | 1.0.0 | 2 | `tanstack-query/client` (complete), `tanstack-query/keys` (complete) |
 | [testing](../packs/testing/REFERENCE.md) | practice | 1.2.1 | 4 | `testing/tdd` (complete) |
 | [trpc](../packs/trpc/REFERENCE.md) | library | 1.2.0 | 12 | `trpc/client` (complete), `trpc/router` (complete) |
 | [typescript](../packs/typescript/REFERENCE.md) | language | 1.3.0 | 26 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |

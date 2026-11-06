@@ -1,0 +1,5 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+
+export function Todos() {
+  return useSuspenseQuery({ queryKey: ("todos"), queryFn: fetchTodos });
+}

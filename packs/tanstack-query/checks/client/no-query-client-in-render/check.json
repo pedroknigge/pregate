@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "tanstack-query/client/no-query-client-in-render",
+  "version": "1.0.0",
+  "area": "client",
+  "cardinality": "singleton",
+  "dimension": "tanstack-query.query-client-in-render",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "query-client-in-render",
+          "rule": {
+            "kind": "new_expression",
+            "has": { "field": "constructor", "regex": "^QueryClient$" },
+            "inside": {
+              "stopBy": { "kind": "@fn" },
+              "any": [
+                {
+                  "kind": "function_declaration",
+                  "not": { "regex": "^async\\b" },
+                  "has": { "field": "name", "regex": "^(?:[A-Z]|use[A-Z])" }
+                },
+                {
+                  "kind": "method_definition",
+                  "has": { "field": "name", "regex": "^render$" }
+                },
+                {
+                  "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }],
+                  "not": { "regex": "^async\\b" },
+                  "inside": {
+                    "stopBy": "neighbor",
+                    "kind": "variable_declarator",
+                    "has": { "field": "name", "regex": "^(?:[A-Z]|use[A-Z])" }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} constructs a QueryClient during render. Create one client for the application, outside the component, or keep one in useState."
+  }
+}

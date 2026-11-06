@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/main.tsx",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 4
+      }
+    ]
+  },
+  "trap": {
+    "family": "query-client-in-jsx",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "The constructor sits in the JSX prop, not on its own statement. It still runs on every render of App."
+  }
+}

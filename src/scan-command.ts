@@ -24,9 +24,12 @@ import { discoverDocumentation } from "./project-discovery.ts";
 // named `svelte`, a `.svelte` file, or `svelte.config.*` also select the Svelte pack.
 // `astro` is only that shipped dependency. `astro.config.*` and `.astro` files do not
 // select it: the engine does not parse `.astro`.
+// TanStack Query framework adapters select that pack. `@tanstack/query-core`, devtools,
+// and a dependency that exists only under a docs, examples, or fixtures tree do not.
 const CLIENT_SECURITY: [string, string[]] = ["security-audit", ["security-audit/client-and-agents"]];
 const SVELTE: [string, string[]] = ["svelte", ["svelte/runes", "svelte/stores"]];
 const ASTRO: [string, string[]] = ["astro", ["astro/config", "astro/content", "astro/routing"]];
+const TANSTACK_QUERY: [string, string[]] = ["tanstack-query", ["tanstack-query/keys", "tanstack-query/client"]];
 const DEPENDENCIES: Record<string, [string, string[]]> = {
   next: ["nextjs", ["nextjs/rendering", "nextjs/routing"]],
   react: ["react", ["react/components", "react/hooks"]],
@@ -39,6 +42,12 @@ const DEPENDENCIES: Record<string, [string, string[]]> = {
   express: ["express", ["express/middleware", "express/requests"]],
   "@trpc/server": ["trpc", ["trpc/router"]],
   "@trpc/client": ["trpc", ["trpc/client"]],
+  "@tanstack/react-query": TANSTACK_QUERY,
+  "@tanstack/vue-query": TANSTACK_QUERY,
+  "@tanstack/solid-query": TANSTACK_QUERY,
+  "@tanstack/svelte-query": TANSTACK_QUERY,
+  "@tanstack/angular-query": TANSTACK_QUERY,
+  "@tanstack/angular-query-experimental": TANSTACK_QUERY,
   "@prisma/client": ["prisma", ["prisma/client", "prisma/writes"]],
   "next-auth": ["authjs", ["authjs/config", "authjs/session"]],
   dcouplr: ["dcouplr", ["dcouplr/factories", "dcouplr/managed-components"]],

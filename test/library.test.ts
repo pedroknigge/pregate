@@ -19,7 +19,7 @@ const PACKS = [
   "agent-practices", "angular", "architecture", "astro", "authjs", "clean-code", "dcouplr", "ddd", "drizzle", "express", "firebase", "javascript",
   "maintainability", "mattpocock", "mongodb", "musk", "nestjs", "nextjs", "node", "nuxt",
   "postgres", "prisma", "pstack", "react-native", "react", "redis", "senior",
-  "solana", "supabase", "svelte", "sveltekit", "tailwind", "trpc", "typescript",
+  "solana", "supabase", "svelte", "sveltekit", "tailwind", "tanstack-query", "trpc", "typescript",
   "vibe-proof", "vue", "python", "go", "testing", "enterprise-ready", "consumer-saas", "next-website", "vercel",
   "design-invariants", "security-audit",
 ];

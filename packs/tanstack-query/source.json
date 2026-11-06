@@ -1,0 +1,6 @@
+{
+  "$schema": "../../schema/source.v1.json",
+  "ns": "tanstack-query",
+  "category": "library",
+  "version": "1.0.0"
+}

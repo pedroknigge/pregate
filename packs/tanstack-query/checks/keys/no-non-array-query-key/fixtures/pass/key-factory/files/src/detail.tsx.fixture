@@ -1,0 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+
+export function Detail({ id }: { id: string }) {
+  return useQuery({
+    queryKey: todoKeys.detail(id),
+    queryFn: () => fetchTodo(id),
+  });
+}

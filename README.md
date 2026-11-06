@@ -215,17 +215,17 @@ The warning column is uneven on purpose. A harness that does not show advisory t
 
 <!-- BEGIN readme catalog -->
 
-Static checks: **507** (4 in core, 503 in optional packs). These can run from syntax or a diff.
+Static checks: **509** (4 in core, 505 in optional packs). These can run from syntax or a diff.
 Fitness obligations: **641** (64 in core, 577 in optional packs). A fitness obligation stays unverified, and does not block, until a project binds a command.
-Pattern checks by language: typescript 432, python 17, go 8, rust 6. A check with two languages is counted in each. These are pattern checks only, not a claim that every grammar has the same coverage.
+Pattern checks by language: typescript 434, python 17, go 8, rust 6. A check with two languages is counted in each. These are pattern checks only, not a claim that every grammar has the same coverage.
 
-46 optional packs, grouped by the category in each `source.json`. Names that are not in this table are not packs in this tree.
+47 optional packs, grouped by the category in each `source.json`. Names that are not in this table are not packs in this tree.
 
 | Category | Packs |
 | --- | --- |
 | **invariants** | `consumer-saas`, `design-invariants`, `enterprise-ready` |
 | **language** | `go`, `javascript`, `python`, `rust`, `typescript` |
-| **library** | `angular`, `astro`, `authjs`, `dcouplr`, `drizzle`, `express`, `firebase`, `mongodb`, `nestjs`, `next-website`, `nextjs`, `node`, `nuxt`, `postgres`, `prisma`, `react`, `react-native`, `redis`, `solana`, `supabase`, `svelte`, `sveltekit`, `tailwind`, `trpc`, `vercel`, `vue` |
+| **library** | `angular`, `astro`, `authjs`, `dcouplr`, `drizzle`, `express`, `firebase`, `mongodb`, `nestjs`, `next-website`, `nextjs`, `node`, `nuxt`, `postgres`, `prisma`, `react`, `react-native`, `redis`, `solana`, `supabase`, `svelte`, `sveltekit`, `tailwind`, `tanstack-query`, `trpc`, `vercel`, `vue` |
 | **pattern** | `architecture`, `ddd` |
 | **practice** | `agent-practices`, `clean-code`, `maintainability`, `mattpocock`, `security-audit`, `senior`, `testing`, `vibe-proof` |
 | **process** | `musk`, `pstack` |

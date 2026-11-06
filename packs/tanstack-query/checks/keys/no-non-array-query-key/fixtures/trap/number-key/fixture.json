@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/todo.tsx",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 4
+      }
+    ]
+  },
+  "trap": {
+    "family": "number-query-key",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "The docs put 5 inside the array as ['todo', 5]. A bare number is still not an array key."
+  }
+}

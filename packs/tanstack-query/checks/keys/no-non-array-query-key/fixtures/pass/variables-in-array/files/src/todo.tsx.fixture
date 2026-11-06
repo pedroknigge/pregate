@@ -1,0 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+
+export function Todo({ id, preview }: { id: number; preview: boolean }) {
+  return useQuery({
+    queryKey: ["todo", id, { preview }],
+    queryFn: () => fetchTodo(id),
+  });
+}

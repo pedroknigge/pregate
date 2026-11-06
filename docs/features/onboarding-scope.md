@@ -89,6 +89,15 @@ and `.astro` files do not either: the engine does not parse `.astro` templates.
 An `astro` dependency that appears only under `docs/`, `examples/`, or `fixtures/`
 does not recommend Astro. The same dependency in primary source still does.
 
+Exact `@tanstack/react-query`, `@tanstack/vue-query`, `@tanstack/solid-query`,
+`@tanstack/svelte-query`, `@tanstack/angular-query`, and
+`@tanstack/angular-query-experimental` dependencies and peer dependencies
+recommend the TanStack Query methodologies in their owning package. A
+devDependency does not. `@tanstack/query-core` and the devtools packages do
+not, on their own. A declaration that appears only under a docs site, examples
+tree, fixture tree, or website folder does not recommend TanStack Query. The
+same dependency in primary source still does.
+
 When nested related and unrelated owners cannot be represented by one include/
 exclude policy, scan reports `scopeProblems`; choose an explicit reviewed scope
 instead of silently applying an overbroad policy. Dependency ownership is

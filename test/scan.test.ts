@@ -142,7 +142,7 @@ test("docs sites, examples, fixtures, websites, CI workflows, and tiny scripts d
     "packages/docs/app/page.tsx": docs["packages/docs/app/page.tsx"]!,
     "website/package.json": '{"dependencies":{"next":"15.0.0"}}',
     "examples/demo/package.json": '{"dependencies":{"react":"19.0.0"}}',
-    "fixtures/app/package.json": '{"dependencies":{"astro":"^5.0.0","react":"19.0.0"}}',
+    "fixtures/app/package.json": '{"dependencies":{"astro":"^5.0.0","react":"19.0.0","@tanstack/react-query":"5.0.0"}}',
     "docs/app/page.tsx": "export const page = 1;\n",
   }, ["TypeScript"])).toEqual([]);
   expect(names({ "fixtures/App.svelte": "<h1>Hi</h1>\n", "fixtures/svelte.config.js": "export default {};\n" })).toEqual([]);
@@ -215,6 +215,39 @@ test("scan recommends astro only for a real dependency outside docs, examples, a
   }, []).find(item => item.ns === "astro")!;
   expect(selected.reasons).toEqual(["package.json declares astro"]);
   expect(selected.scope).toEqual({ include: ["**"], exclude: ["docs/**", "examples/starter/**", "fixtures/app/**"] });
+});
+
+test("scan recommends tanstack-query only from a real framework-adapter dependency", () => {
+  const selected = recommendPacks({
+    "package.json": '{"dependencies":{"@tanstack/react-query":"5.59.0"}}',
+    "src/main.tsx": "export const page = 1;\n",
+  }, ["TypeScript"]);
+  expect(selected.find(item => item.ns === "tanstack-query")).toEqual({
+    ns: "tanstack-query",
+    methodologies: ["tanstack-query/keys", "tanstack-query/client"],
+    reasons: ["package.json declares @tanstack/react-query"],
+    scope: { include: ["**"], exclude: [] },
+  });
+  for (const dep of ["@tanstack/vue-query", "@tanstack/solid-query", "@tanstack/svelte-query", "@tanstack/angular-query", "@tanstack/angular-query-experimental"]) {
+    const hit = recommendPacks({ "packages/web/package.json": JSON.stringify({ peerDependencies: { [dep]: "5.0.0" } }) }, []);
+    expect(hit.find(item => item.ns === "tanstack-query")?.reasons, dep).toEqual([`packages/web/package.json declares ${dep}`]);
+  }
+  expect(recommendPacks({ "package.json": '{"devDependencies":{"@tanstack/react-query":"5.0.0"}}' }, []).some(item => item.ns === "tanstack-query")).toBe(false);
+  expect(recommendPacks({ "package.json": '{"dependencies":{"@tanstack/query-core":"5.0.0","@tanstack/react-query-devtools":"5.0.0"}}' }, []).some(item => item.ns === "tanstack-query")).toBe(false);
+  expect(recommendPacks({ "src/main.tsx": 'import { useQuery } from "@tanstack/react-query";\n' }, ["TypeScript"]).some(item => item.ns === "tanstack-query")).toBe(false);
+  for (const path of ["docs/package.json", "examples/demo/package.json", "fixtures/query/package.json", "packages/docs/package.json"]) {
+    expect(recommendPacks({ [path]: '{"dependencies":{"@tanstack/react-query":"5.0.0"}}' }, []).some(item => item.ns === "tanstack-query"), path).toBe(false);
+  }
+  const kept = recommendPacks({
+    "apps/web/package.json": '{"dependencies":{"@tanstack/react-query":"5.0.0"}}',
+    "docs/package.json": '{"dependencies":{"@tanstack/react-query":"5.0.0"}}',
+    "examples/package.json": '{"dependencies":{"@tanstack/vue-query":"5.0.0"}}',
+    "fixtures/package.json": '{"dependencies":{"@tanstack/svelte-query":"5.0.0"}}',
+  }, []);
+  expect(kept.find(item => item.ns === "tanstack-query")).toMatchObject({
+    reasons: ["apps/web/package.json declares @tanstack/react-query"],
+    scope: { include: ["apps/web/**"], exclude: [] },
+  });
 });
 
 test("clean-code and testing are suggested only where their checks read real source", () => {

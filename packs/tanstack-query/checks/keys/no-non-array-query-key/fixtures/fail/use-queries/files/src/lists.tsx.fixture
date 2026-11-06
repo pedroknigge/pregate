@@ -1,0 +1,5 @@
+import { useQueries } from "@tanstack/react-query";
+
+export function Lists() {
+  return useQueries({ queries: [{ queryKey: "todos", queryFn: fetchTodos }] });
+}

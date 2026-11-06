@@ -1,0 +1,3 @@
+const label = { queryKey: "todos" };
+
+export const name = label.queryKey;

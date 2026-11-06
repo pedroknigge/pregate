@@ -35,7 +35,7 @@ console.log(JSON.stringify({ observed, sources: sources.length, fixtures: Object
     const run = Bun.spawnSync([process.execPath, executable], { stdout: "pipe", stderr: "pipe" });
     expect(run.exitCode, run.stderr.toString()).toBe(0);
     expect(JSON.parse(run.stdout.toString())).toEqual({
-      observed: [[0, 0], [1, 0], [1, 0], [1, 1], [1, 1]], sources: 46, fixtures: true,
+      observed: [[0, 0], [1, 0], [1, 0], [1, 1], [1, 1]], sources: 47, fixtures: true,
     });
   });
 }, 60_000); // Bun.build of the whole library alone takes ~5 s on a Windows runner.

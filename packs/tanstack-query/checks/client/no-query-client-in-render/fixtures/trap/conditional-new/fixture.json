@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/main.tsx",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 4
+      }
+    ]
+  },
+  "trap": {
+    "family": "conditional-query-client",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "The constructor is inside a conditional expression. It is still evaluated in the component function when fresh is true, and it is not a stable client."
+  }
+}

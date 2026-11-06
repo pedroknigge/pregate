@@ -1,0 +1,3 @@
+export class TodosComponent {
+  readonly todos = injectQuery(() => ({ queryKey: "todos", queryFn: fetchTodos }));
+}

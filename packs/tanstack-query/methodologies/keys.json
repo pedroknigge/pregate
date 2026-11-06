@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "tanstack-query/keys",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "TQ-KEY-001",
+      "check": "tanstack-query/keys/no-non-array-query-key",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "TanStack Query documentation, Query Keys",
+        "locator": "Query keys have to be an Array at the top level",
+        "paraphrase": "A query key is an array so the cache can hash it. Strings, numbers, and objects belong inside that array, not in its place."
+      },
+      "why": "A query key that is not an array is not a cache identity. The same data is then stored under a key the rest of the app cannot invalidate.",
+      "fixHint": "Write an array: queryKey: ['todos', id]. Nested objects stay inside the array, as in queryKey: ['todos', { status, page }]. https://tanstack.com/query/latest/docs/framework/react/guides/query-keys",
+      "avoid": "A variable, call, or key factory is not inspected, and neither is a computed property name. An array, including one asserted with as const, is allowed. The check reads a queryKey value inside useQuery, useSuspenseQuery, useInfiniteQuery, useSuspenseInfiniteQuery, useQueries, useSuspenseQueries, queryOptions, infiniteQueryOptions, createQuery, createInfiniteQuery, createQueries, injectQuery, injectInfiniteQuery, injectQueries, useIsFetching, and the QueryClient methods fetchQuery, prefetchQuery, prefetchInfiniteQuery, ensureQueryData, ensureInfiniteQueryData, invalidateQueries, refetchQueries, resetQueries, cancelQueries, removeQueries, getQueriesData, setQueriesData, and isFetching.",
+      "examples": {
+        "pass": "pass/array-key",
+        "fail": "fail/string-key"
+      }
+    }
+  ]
+}

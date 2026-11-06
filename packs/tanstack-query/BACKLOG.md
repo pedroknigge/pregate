@@ -1,0 +1,11 @@
+# tanstack-query backlog
+
+Judgment, or checks the syntax tree cannot decide. TanStack Start and TanStack Router are separate products and are not this pack.
+
+- **TanStack Start.** Server functions, loaders, and the Start router are a different package. This pack does not detect `@tanstack/start` or `@tanstack/react-start`, and it has no Start rules.
+- **TanStack Router.** Search params, route loaders, and route context belong to Router. This pack does not detect `@tanstack/react-router` and has no Router rules.
+- **Variables the query function closes over.** The [query keys guide](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys) says to put every variable the query function uses into the query key. The [exhaustive-deps rule](https://tanstack.com/query/latest/docs/eslint/exhaustive-deps) does that with types: a callee such as `fetchTodo` is not a dependency, and a client or config is ignored only when its type is allowlisted. A name in the syntax tree can be any of those, and a key factory can hide the array. This pack does not guess.
+- **Mutations that should invalidate or update queries.** The [quick start](https://tanstack.com/query/latest/docs/framework/react/quick-start) and the [invalidations guide](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations) show `invalidateQueries` in `onSuccess`. The same update can live in `mutate`'s options, a shared callback, or `setQueryData`. Not every mutation changes cached server data. A `useMutation` with no `invalidateQueries` in the same object is not proof of a bug.
+- **Renamed QueryClient.** `new Client()` and `new lib.QueryClient()` are not `new QueryClient()`. TQ-CLIENT-001 does not resolve imports.
+- **Components whose name is hidden.** `memo(() => new QueryClient())` and `forwardRef` wrap the component function, so the name is not the function's parent. A lowercase function that returns JSX is not treated as a component. Both are outside TQ-CLIENT-001.
+- **Async Server Components.** The stable-query-client guide allows `new QueryClient()` inside an async function because that function runs once. TQ-CLIENT-001 does not report a function whose text starts with `async`.

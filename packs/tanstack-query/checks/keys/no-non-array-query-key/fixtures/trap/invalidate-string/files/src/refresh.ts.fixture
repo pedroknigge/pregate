@@ -1,0 +1,3 @@
+export function refresh(queryClient: { invalidateQueries: (filters: object) => Promise<void> }) {
+  return queryClient.invalidateQueries({ queryKey: "todos" });
+}

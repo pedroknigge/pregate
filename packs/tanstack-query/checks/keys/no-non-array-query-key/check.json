@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "tanstack-query/keys/no-non-array-query-key",
+  "version": "1.0.0",
+  "area": "keys",
+  "cardinality": "singleton",
+  "dimension": "tanstack-query.non-array-query-key",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "non-array-query-key",
+          "rule": {
+            "kind": "pair",
+            "all": [
+              { "has": { "field": "key", "regex": "^queryKey$" } },
+              {
+                "has": {
+                  "field": "value",
+                  "any": [
+                    { "matches": "non-array-literal" },
+                    { "kind": "as_expression", "has": { "matches": "non-array-literal" } },
+                    { "kind": "satisfies_expression", "has": { "matches": "non-array-literal" } },
+                    {
+                      "kind": "parenthesized_expression",
+                      "has": {
+                        "any": [
+                          { "matches": "non-array-literal" },
+                          { "kind": "as_expression", "has": { "matches": "non-array-literal" } },
+                          { "kind": "satisfies_expression", "has": { "matches": "non-array-literal" } }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "call_expression",
+              "has": {
+                "field": "function",
+                "regex": "^(?:useQuery|useSuspenseQuery|useInfiniteQuery|useSuspenseInfiniteQuery|useQueries|useSuspenseQueries|queryOptions|infiniteQueryOptions|createQuery|createInfiniteQuery|createQueries|injectQuery|injectInfiniteQuery|injectQueries|useIsFetching)$|\\.(?:fetchQuery|prefetchQuery|prefetchInfiniteQuery|ensureQueryData|ensureInfiniteQueryData|invalidateQueries|refetchQueries|resetQueries|cancelQueries|removeQueries|getQueriesData|setQueriesData|isFetching)$"
+              }
+            }
+          },
+          "utils": {
+            "non-array-literal": {
+              "any": [
+                { "kind": "string" },
+                { "kind": "template_string" },
+                { "kind": "number" },
+                { "kind": "object" },
+                { "kind": "true" },
+                { "kind": "false" },
+                { "kind": "null" },
+                { "kind": "undefined" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} sets queryKey to a value that is not an array. TanStack Query hashes an array key; put variables inside the array."
+  }
+}

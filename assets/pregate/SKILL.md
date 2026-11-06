@@ -751,6 +751,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `svelte@1.2.0` — library: `svelte/runes` (complete), `svelte/stores` (complete)
 - `sveltekit@1.2.0` — library: `sveltekit/data` (complete), `sveltekit/routing` (complete)
 - `tailwind@1.2.0` — library: `tailwind/classes` (complete)
+- `tanstack-query@1.0.0` — library: `tanstack-query/client` (complete), `tanstack-query/keys` (complete)
 - `testing@1.2.1` — practice: `testing/tdd` (complete)
 - `trpc@1.2.0` — library: `trpc/client` (complete), `trpc/router` (complete)
 - `typescript@1.3.0` — language: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete)

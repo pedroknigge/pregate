@@ -1,0 +1,7 @@
+import { QueryClient } from "@tanstack/react-query";
+
+export async function Page() {
+  const queryClient = new QueryClient();
+  await queryClient.prefetchQuery({ queryKey: ["todos"] });
+  return <div />;
+}

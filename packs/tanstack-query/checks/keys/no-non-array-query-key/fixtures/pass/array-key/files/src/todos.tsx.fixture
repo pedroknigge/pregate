@@ -1,0 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+
+export function Todos() {
+  return useQuery({ queryKey: ["todos"], queryFn: fetchTodos });
+}

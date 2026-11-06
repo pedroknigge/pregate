@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/refresh.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "member-invalidate-string-key",
+    "origin": "forge",
+    "discovered": "2026-11-06",
+    "note": "invalidateQueries takes the same queryKey filter. A string there is not an array, even though the call is a method."
+  }
+}

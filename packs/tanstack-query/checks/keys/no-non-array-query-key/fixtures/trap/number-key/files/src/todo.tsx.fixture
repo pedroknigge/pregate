@@ -1,0 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+
+export function Todo() {
+  return useQuery({ queryKey: 5, queryFn: fetchTodo });
+}
