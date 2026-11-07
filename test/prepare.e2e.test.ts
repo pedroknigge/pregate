@@ -85,7 +85,9 @@ function put(path: string, text: string, mode = 0o644): void {
 
 function release(i: Isolated, sums?: string): string {
   const dir = join(i.root, "release");
-  put(join(dir, `x/${WINDOWS ? "pregate.exe" : "pregate"}`), readFileSync(BIN), 0o755);
+  const enginePath = join(dir, `x/${WINDOWS ? "pregate.exe" : "pregate"}`);
+  mkdirSync(dirname(enginePath), { recursive: true });
+  writeFileSync(enginePath, readFileSync(BIN), { mode: 0o755 });
   const archivePath = join(dir, ASSET);
   const inner = join(dir, "x", WINDOWS ? "pregate.exe" : "pregate");
   const pack = WINDOWS
