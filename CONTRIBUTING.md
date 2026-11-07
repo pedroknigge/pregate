@@ -73,5 +73,5 @@ bun src/main.ts audit
 
 - [ ] `bun run typecheck` passes with zero errors.
 - [ ] `bun test` and `bun src/main.ts rules test catalog` pass.
-- [ ] If CLI flags, checks, or methodologies changed, run `bun scripts/docs-reference.ts` and `bun src/main.ts preset compile`.
+- [ ] If CLI flags, checks, methodologies, harnesses, or languages changed, run `bun scripts/docs-reference.ts` and `bun src/main.ts preset compile`. That command also refreshes the README facts block.
 - [ ] `bun src/main.ts check --all` and `bun src/main.ts audit` exit `0`.

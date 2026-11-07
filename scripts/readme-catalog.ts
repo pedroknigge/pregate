@@ -17,9 +17,8 @@ function compareName(a: string, b: string): number {
   if (a > b) return 1;
   return 0;
 }
-const begin = "<!-- BEGIN readme catalog -->";
-const end = "<!-- END readme catalog -->";
-const checking = process.argv.includes("--check");
+export const readmeCatalogBegin = "<!-- BEGIN readme catalog -->";
+export const readmeCatalogEnd = "<!-- END readme catalog -->";
 
 type Check = { impl?: { kind?: string; primitive?: string; patterns?: Record<string, unknown> } };
 
@@ -36,62 +35,67 @@ function load(path: string): Check {
   return JSON.parse(readFileSync(path, "utf8")) as Check;
 }
 
-const coreFiles = walk(join(root, "catalog"));
-const packFiles = walk(join(root, "packs"));
-const fitness = (check: Check): boolean => check.impl?.kind === "primitive" && check.impl.primitive === "fitness";
-const coreFitness = coreFiles.filter((path) => fitness(load(path))).length;
-const coreStatic = coreFiles.length - coreFitness;
-const packFitness = packFiles.filter((path) => fitness(load(path))).length;
-const packStatic = packFiles.length - packFitness;
-const languages = new Map<string, number>();
-for (const path of packFiles) {
-  const check = load(path);
-  if (check.impl?.kind !== "pattern" || !check.impl.patterns) continue;
-  for (const language of Object.keys(check.impl.patterns)) languages.set(language, (languages.get(language) ?? 0) + 1);
+export function readmeCatalogBlock(): string {
+  const coreFiles = walk(join(root, "catalog"));
+  const packFiles = walk(join(root, "packs"));
+  const fitness = (check: Check): boolean => check.impl?.kind === "primitive" && check.impl.primitive === "fitness";
+  const coreFitness = coreFiles.filter((path) => fitness(load(path))).length;
+  const coreStatic = coreFiles.length - coreFitness;
+  const packFitness = packFiles.filter((path) => fitness(load(path))).length;
+  const packStatic = packFiles.length - packFitness;
+  const languages = new Map<string, number>();
+  for (const path of packFiles) {
+    const check = load(path);
+    if (check.impl?.kind !== "pattern" || !check.impl.patterns) continue;
+    for (const language of Object.keys(check.impl.patterns)) languages.set(language, (languages.get(language) ?? 0) + 1);
+  }
+
+  const packs = readdirSync(join(root, "packs"))
+    .filter((name) => existsSync(join(root, "packs", name, "source.json")))
+    .map((name) => JSON.parse(readFileSync(join(root, "packs", name, "source.json"), "utf8")) as { ns: string; category?: string })
+    .sort((a, b) => compareName(a.ns, b.ns));
+  const byCategory = new Map<string, string[]>();
+  for (const pack of packs) {
+    const category = pack.category ?? "unclassified";
+    byCategory.set(category, [...(byCategory.get(category) ?? []), pack.ns]);
+  }
+
+  const languageLine = [...languages.entries()].sort((a, b) => b[1] - a[1] || compareName(a[0], b[0]))
+    .map(([language, count]) => `${language} ${count}`).join(", ");
+  const rows = [...byCategory.entries()].sort((a, b) => compareName(a[0], b[0]))
+    .map(([category, names]) => `| **${category}** | ${names.sort(compareName).map((name) => `\`${name}\``).join(", ")} |`);
+
+  return [
+    readmeCatalogBegin,
+    "",
+    `Static checks: **${coreStatic + packStatic}** (${coreStatic} in core, ${packStatic} in optional packs). These can run from syntax or a diff.`,
+    `Fitness obligations: **${coreFitness + packFitness}** (${coreFitness} in core, ${packFitness} in optional packs). A fitness obligation stays unverified, and does not block, until a project binds a command.`,
+    `Pattern checks by language: ${languageLine}. A check with two languages is counted in each. These are pattern checks only, not a claim that every grammar has the same coverage.`,
+    "",
+    `${packs.length} optional packs, grouped by the category in each \`source.json\`. Names that are not in this table are not packs in this tree.`,
+    "",
+    "| Category | Packs |",
+    "| --- | --- |",
+    ...rows,
+    "",
+    readmeCatalogEnd,
+  ].join("\n");
 }
 
-const packs = readdirSync(join(root, "packs"))
-  .filter((name) => existsSync(join(root, "packs", name, "source.json")))
-  .map((name) => JSON.parse(readFileSync(join(root, "packs", name, "source.json"), "utf8")) as { ns: string; category?: string })
-  .sort((a, b) => compareName(a.ns, b.ns));
-const byCategory = new Map<string, string[]>();
-for (const pack of packs) {
-  const category = pack.category ?? "unclassified";
-  byCategory.set(category, [...(byCategory.get(category) ?? []), pack.ns]);
-}
-
-const languageLine = [...languages.entries()].sort((a, b) => b[1] - a[1] || compareName(a[0], b[0]))
-  .map(([language, count]) => `${language} ${count}`).join(", ");
-const rows = [...byCategory.entries()].sort((a, b) => compareName(a[0], b[0]))
-  .map(([category, names]) => `| **${category}** | ${names.sort(compareName).map((name) => `\`${name}\``).join(", ")} |`);
-
-const block = [
-  begin,
-  "",
-  `Static checks: **${coreStatic + packStatic}** (${coreStatic} in core, ${packStatic} in optional packs). These can run from syntax or a diff.`,
-  `Fitness obligations: **${coreFitness + packFitness}** (${coreFitness} in core, ${packFitness} in optional packs). A fitness obligation stays unverified, and does not block, until a project binds a command.`,
-  `Pattern checks by language: ${languageLine}. A check with two languages is counted in each. These are pattern checks only, not a claim that every grammar has the same coverage.`,
-  "",
-  `${packs.length} optional packs, grouped by the category in each \`source.json\`. Names that are not in this table are not packs in this tree.`,
-  "",
-  "| Category | Packs |",
-  "| --- | --- |",
-  ...rows,
-  "",
-  end,
-].join("\n");
-
-const readmePath = join(root, "README.md");
-const readme = readFileSync(readmePath, "utf8");
-const start = readme.indexOf(begin);
-const finish = readme.indexOf(end);
-if (start < 0 || finish < 0 || finish < start) throw new Error("README.md is missing the readme catalog markers");
-const updated = readme.slice(0, start) + block + readme.slice(finish + end.length);
-if (updated === readme) console.log("README catalog matches the tree.");
-else if (checking) {
-  console.error("README catalog is stale. Run bun scripts/readme-catalog.ts.");
-  process.exitCode = 1;
-} else {
-  writeFileSync(readmePath, updated);
-  console.log("Updated README catalog from catalog/ and packs/.");
+if (import.meta.main) {
+  const checking = process.argv.includes("--check");
+  const readmePath = join(root, "README.md");
+  const readme = readFileSync(readmePath, "utf8").replaceAll("\r\n", "\n");
+  const start = readme.indexOf(readmeCatalogBegin);
+  const finish = readme.indexOf(readmeCatalogEnd);
+  if (start < 0 || finish < 0 || finish < start) throw new Error("README.md is missing the readme catalog markers");
+  const updated = readme.slice(0, start) + readmeCatalogBlock() + readme.slice(finish + readmeCatalogEnd.length);
+  if (updated === readme) console.log("README catalog matches the tree.");
+  else if (checking) {
+    console.error("README catalog is stale. Run bun scripts/readme-catalog.ts.");
+    process.exitCode = 1;
+  } else {
+    writeFileSync(readmePath, updated);
+    console.log("Updated README catalog from catalog/ and packs/.");
+  }
 }

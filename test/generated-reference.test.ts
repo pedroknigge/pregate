@@ -9,8 +9,14 @@ const source = join(import.meta.dir, "..");
 for (const directory of ["catalog", "packs", "docs", "schema", "assets", "skills"]) cpSync(join(source, directory), join(root, directory), { recursive: true });
 mkdirSync(join(root, "scripts")); mkdirSync(join(root, "src"));
 const scripts = ["core-invariants.ts", "readiness-packs.ts", "source-invariants.ts", "invariant-coverage.ts", "dcouplr-delivery-rules.ts", "docs-reference.ts"];
-for (const script of scripts) cpSync(join(source, "scripts", script), join(root, "scripts", script));
+for (const script of [...scripts, "readme-catalog.ts", "latency-gate.ts"]) cpSync(join(source, "scripts", script), join(root, "scripts", script));
 cpSync(join(source, "src/cli.ts"), join(root, "src/cli.ts"));
+cpSync(join(source, "src/capabilities.ts"), join(root, "src/capabilities.ts"));
+mkdirSync(join(root, "src/harness"));
+cpSync(join(source, "src/harness/codex.ts"), join(root, "src/harness/codex.ts"));
+mkdirSync(join(root, "bench"));
+cpSync(join(source, "bench/latency-baseline.json"), join(root, "bench/latency-baseline.json"));
+cpSync(join(source, "README.md"), join(root, "README.md"));
 cpSync(join(source, "package.json"), join(root, "package.json"));
 function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => entry.isDirectory()

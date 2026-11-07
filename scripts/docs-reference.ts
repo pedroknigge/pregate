@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { CAPABILITIES, LANGUAGE_COVERAGE } from "../src/capabilities.ts";
 import type { Check, RuleRelation } from "../src/types.ts";
+import { REGRESSION } from "./latency-gate.ts";
+import { readmeCatalogBegin, readmeCatalogBlock, readmeCatalogEnd } from "./readme-catalog.ts";
 
 const root = resolve(import.meta.dir, "..");
 
@@ -184,6 +187,91 @@ const skillTemplate = section("assets/pregate/SKILL.md", ["## All public command
   ...packs.map((p) => `- \`${p.source.ns}@${p.source.version}\` — ${p.source.category}: ${methods(p)}`), "",
   "Inspect live defaults and scope with `pack show --library <ns> --json`; effective policy comes from `preset show`/`explain`. Check availability on the installed version before proposing a command."].join("\n"));
 emit("skills/pregate/SKILL.md", skillTemplate.replaceAll("@ENGINE_VERSION@", engine));
+
+const readmeFactsBegin = "<!-- BEGIN generated reference -->";
+const readmeFactsEnd = "<!-- END generated reference -->";
+const HARNESS_LABEL = {
+  "claude-code": "Claude Code",
+  codex: "Codex CLI",
+  cursor: "Cursor",
+  grok: "Grok Build",
+  agy: "Antigravity (agy)",
+} as const satisfies Record<keyof typeof CAPABILITIES, string>;
+// Named in the README because newcomers ask. Drop one when LANGUAGE_COVERAGE grows that extension.
+const UNPARSED_EXTENSIONS = [".astro", ".java", ".kt", ".kts", ".swift", ".dart"];
+
+function spliceMarkers(text: string, begin: string, end: string, block: string): string {
+  const start = text.indexOf(begin), finish = text.indexOf(end);
+  if (start < 0 || finish < start) throw new Error(`README.md is missing ${begin}`);
+  return text.slice(0, start) + block + text.slice(finish + end.length);
+}
+function lack(names: string[], what: string): string {
+  if (names.length === 0) return "";
+  return `${names.join(", ")} ${names.length === 1 ? "has" : "have"} no ${what}.`;
+}
+function codexMinimum(): string {
+  const found = readFileSync(join(root, "src/harness/codex.ts"), "utf8").match(/export const VERIFIED = "(\d+\.\d+\.\d+)"/);
+  if (!found?.[1]) throw new Error("src/harness/codex.ts is missing export const VERIFIED");
+  return found[1];
+}
+function readmeFacts(): string {
+  const ids = Object.keys(CAPABILITIES) as (keyof typeof CAPABILITIES)[];
+  const labeled = Object.keys(HARNESS_LABEL);
+  if (ids.length !== labeled.length || ids.some((id) => !labeled.includes(id))) {
+    throw new Error(`Harness labels do not match src/capabilities.ts (${ids.join(", ")})`);
+  }
+  const rows = ids.map((id) => {
+    const caps = CAPABILITIES[id];
+    return `| ${HARNESS_LABEL[id]} | \`${id}\` | ${caps.sessionContext ? "yes" : "no"} | ${caps.warnings ? "yes" : "no"} |`;
+  });
+  const languages = LANGUAGE_COVERAGE.map((row) => {
+    const extensions = row.extensions.map((ext) => `\`${ext}\``).join(", ");
+    const limits = "limits" in row && row.limits ? ` ${row.limits}` : "";
+    return `- \`${row.language}\` — ${extensions}. ${row.parser}.${limits}`;
+  });
+  const absent = UNPARSED_EXTENSIONS.filter((ext) => !LANGUAGE_COVERAGE.some((row) => row.extensions.includes(ext)));
+  const gaps = [
+    lack(ids.filter((id) => !CAPABILITIES[id].sessionContext).map((id) => HARNESS_LABEL[id]), "session-start context"),
+    lack(ids.filter((id) => !CAPABILITIES[id].warnings).map((id) => HARNESS_LABEL[id]), "advisory warnings"),
+  ].filter(Boolean).join(" ");
+  const lines = [
+    `This page describes engine ${engine}.`,
+    "",
+    `[Release v${engine}](https://github.com/pedroknigge/pregate/releases/tag/v${engine})`,
+    "",
+    "Supported harnesses, from `src/capabilities.ts`. A harness that is not in this table is not supported.",
+    "",
+    "| Harness | Id | Session-start context | Advisory warnings |",
+    "| --- | --- | --- | --- |",
+    ...rows,
+    "",
+    ...(gaps ? [gaps, ""] : []),
+    `Codex CLI ${codexMinimum()} is the minimum supported version (\`src/harness/codex.ts\`).`,
+    "",
+    "Parsed languages, from `src/capabilities.ts`. This is the whole parser list.",
+    "",
+    ...languages,
+  ];
+  if (absent.length) lines.push("", `Not in that list: ${absent.map((ext) => `\`${ext}\``).join(", ")}.`);
+  return lines.join("\n");
+}
+function readmePage(): string {
+  const before = readFileSync(join(root, "README.md"), "utf8").replaceAll("\r\n", "\n");
+  const facts = `${readmeFactsBegin}\n\n${generated}\n\n${readmeFacts()}\n\n${readmeFactsEnd}`;
+  return spliceMarkers(spliceMarkers(before, readmeFactsBegin, readmeFactsEnd, facts), readmeCatalogBegin, readmeCatalogEnd, readmeCatalogBlock());
+}
+function latencyBaselines(): string {
+  const baseline = json("bench/latency-baseline.json") as { os: Record<string, { arch: string; runner: string; p95Ms: Record<string, number> }> };
+  const rows = Object.entries(baseline.os).sort((a, b) => compareName(a[0], b[0])).flatMap(([platform, os]) =>
+    Object.entries(os.p95Ms).map(([route, ms]) => `| \`${platform}\` | \`${os.arch}\` | \`${os.runner}\` | ${route} | ${ms.toFixed(1)} |`));
+  return ["## Committed baselines", "",
+    `These p95 milliseconds are the gate in \`bench/latency-baseline.json\`. CI fails a route when the new median p95 is above ${REGRESSION} times that platform's baseline.`, "",
+    "| Platform | Architecture | Runner | Route | Baseline p95 ms |", "| --- | --- | --- | --- | ---: |",
+    ...rows, ""].join("\n");
+}
+
+emit("README.md", readmePage());
+section("docs/benchmarks/hook-latency.md", latencyBaselines());
 if (dirty.length) {
   console.error(`Documentation is stale:\n${dirty.join("\n")}\nRun bun scripts/docs-reference.ts.`);
   process.exitCode = 1;

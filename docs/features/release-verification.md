@@ -15,6 +15,18 @@ remain separate evidence.
 
 [v0.0.3](https://github.com/pedroknigge/pregate/releases/tag/v0.0.3) is the release this tree prepares. The commit to verify is the v0.0.3 tag. macOS ARM64 is the stable platform. Linux and Windows archives remain experimental until native validation is recorded. The manual Windows procedure is [windows verification](../guides/windows-verification.md). Cross-compilation and checksums do not by themselves prove a platform. The previously published release is [v0.0.2](https://github.com/pedroknigge/pregate/releases/tag/v0.0.2), tag commit `92f60f0aa88cfc645d3aaea3181691065624fcbc`. See the [changelog](../../CHANGELOG.md), [v0.0.3 release notes](../releases/0.0.3.md) and [v0.0.1 release notes](../releases/0.0.1.md).
 
+## README on every release
+
+The README describes the release named by `package.json`. It has no section for
+capabilities that are not in that release. `bun scripts/docs-reference.ts` rewrites
+the generated README block: engine version, supported harnesses, parsed languages,
+and the optional pack inventory and counts. It also rewrites the committed latency
+baselines in [hook latency](../benchmarks/hook-latency.md).
+`bun scripts/docs-reference.ts --check` fails when either block drifts.
+Run it in the same change that sets the release version, and commit the README.
+The 0.0.4 release change does this after it sets the version. Until `package.json`
+says that version, the generated line stays on the version the file actually contains.
+
 ## Standard release workflow
 
 The release workflow now builds once and uploads its archives, installers and
