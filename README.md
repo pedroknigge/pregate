@@ -1,12 +1,12 @@
 # PREGATE
 
-Check an AI agent's proposed code against your team's engineering contract before the edit lands.
+Check an AI agent's proposed code against your engineering contract before the edit lands.
 
-Agents write code fast, but can miss architecture boundaries and team invariants.
-Prompt rules depend on the agent and do not give CI an executable contract.
-Pregate gives supported agents and CI the same reviewed policy, with feedback before a supported edit tool writes the file.
+Agents write code fast, but can miss architecture boundaries and project invariants.
+A rule in AGENTS.md or in a prompt depends on the agent. The agent can ignore it, and CI cannot run it as a contract.
+Pregate enforces the reviewed policy for supported agents and for CI, before a supported edit tool writes the file.
 
-Built for teams using several coding agents or languages. If your linter, tests, and PR review already cover the problem, you may not need another tool.
+It fits any repository where an AI agent writes code, small or large, solo or team. It complements linters, tests, CI, and review. It does not replace them.
 
 [MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md)
 
