@@ -16,7 +16,7 @@ setDefaultTimeout(120_000);
 
 const WINDOWS = process.platform === "win32";
 const TMP = realpathSync(mkdtempSync(join(tmpdir(), "pregate-prepare-")));
-const BIN = join(TMP, "dist/pregate");
+const BIN = join(TMP, "dist", WINDOWS ? "pregate.exe" : "pregate");
 const DEMO = join(import.meta.dir, "demo-repo");
 const PRESETS = join(import.meta.dir, "../catalog/presets");
 const INVOICE_REL = "src/domain/invoice.ts";
