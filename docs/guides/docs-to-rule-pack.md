@@ -156,7 +156,7 @@ grouped sentence to inflate the number of rules.
 For every language promised, provide its own passing, failing and trap cases;
 a TypeScript fixture does not validate a Python, Go or Rust implementation. Consult
 [language analysis limits](../features/language-analysis.md) before promising
-import or pattern coverage. JS/TS, Python, Go, and Rust parsing ship in 0.0.3. The selected
+import or pattern coverage. JS/TS, Python, Go, and Rust parsing ship in 0.0.4. The selected
 language pack and exact installed version still determine rule coverage. Schema
 support alone does not prove availability or semantic completeness.
 

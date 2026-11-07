@@ -1,6 +1,6 @@
 # Adopt product readiness requirements
 
-0.0.3 includes these optional preview packs. They use the
+0.0.4 includes these optional preview packs. They use the
 language-independent fitness gate; they do not claim that syntax proves product
 readiness. Requirements stay individually identifiable in audit and rule references.
 

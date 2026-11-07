@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Source inventory for engine `0.0.3`. Check [release notes](releases/0.0.1.md) and `pack list --library` on the installed engine before adoption.
+Source inventory for engine `0.0.4`. Check [release notes](releases/0.0.1.md) and `pack list --library` on the installed engine before adoption.
 
 ## Categories
 
