@@ -3,7 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, wri
 import { cpus, tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { ensureCompiledEngine } from "../scripts/compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { sha256 } from "../src/state.ts";
 import { slash } from "../src/paths.ts";
@@ -83,7 +83,7 @@ test("Pre hook reuses the compiled lock and reports cold versus warm latency", (
 function install(): void {
   mkdirSync(dirname(bin), { recursive: true });
   mkdirSync(env.TMPDIR!, { recursive: true });
-  compileBinary(hostTarget(), bin);
+  ensureCompiledEngine({ outfile: bin, testApproval: true });
   cpSync(join(import.meta.dir, "demo-repo"), repo, { recursive: true });
   mkdirSync(join(repo, ".pregate"), { recursive: true });
   const preset = JSON.parse(readFileSync(join(import.meta.dir, "../catalog/presets/backend-clean-ddd.json"), "utf8")) as { sources: unknown[] };

@@ -327,6 +327,9 @@ jobs:
           git config --global user.name "Pregate CI"
           git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
+      - name: Compile bench engine once
+        shell: bash
+        run: bun scripts/compiled-engine.ts
       - name: Compiled Pre hook latency
         shell: bash
         run: |

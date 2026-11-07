@@ -30,6 +30,10 @@ let embedded: EmbeddedIdentity | null = null;
 
 export function loadCompiledLock(root: string, presetText: string, lockText: string): { lock: Lock; hash: string } | null {
   const normalized = lockText.replaceAll("\r\n", "\n");
+  if (!presetHasPathSource(presetText)) {
+    const quick = quickHit(root, presetText, lockText, normalized);
+    if (quick !== null) return quick;
+  }
   const key = compiledLockKey(root, presetText, normalized);
   if (key === null) return null;
   const hit: Hit = { root, key, preset: presetText, lock: normalized };
@@ -38,6 +42,18 @@ export function loadCompiledLock(root: string, presetText: string, lockText: str
   if (text === null || text !== normalized) return null;
   const lock = parseLock(text);
   if (lock === null) return null;
+  admitted.set(lock, hit);
+  return { lock, hash: sha256(lockText) };
+}
+
+// Warm hook admission reads the cache entry before hashing every pack on disk for the key.
+function quickHit(root: string, presetText: string, lockText: string, normalized: string): { lock: Lock; hash: string } | null {
+  const entry = readRawEntry(root);
+  if (entry === null || entry.text !== normalized) return null;
+  const lock = parseLock(entry.text);
+  if (lock === null) return null;
+  const hit: Hit = { root, key: entry.key, preset: presetText, lock: normalized };
+  lastKey.set(root, hit);
   admitted.set(lock, hit);
   return { lock, hash: sha256(lockText) };
 }
@@ -88,6 +104,11 @@ function compiledLockKey(root: string, presetText: string, normalizedLock: strin
   ]));
 }
 
+function presetHasPathSource(presetText: string): boolean {
+  const sources = presetSources(presetText);
+  return sources?.some((source) => source.kind === "path") ?? false;
+}
+
 function presetSources(presetText: string): Preset["sources"] | null {
   try {
     const value: unknown = JSON.parse(presetText);
@@ -134,12 +155,18 @@ function cacheFile(root: string): string {
 }
 
 function readEntry(root: string, key: string): string | null {
+  const entry = readRawEntry(root);
+  if (entry === null || entry.key !== key) return null;
+  return entry.text;
+}
+
+function readRawEntry(root: string): Entry | null {
   try {
     const bytes = readFileSync(cacheFile(root));
     if (bytes.byteLength > MAX_BYTES) return null;
     const parsed: unknown = JSON.parse(bytes.toString("utf8"));
-    if (!isEntry(parsed) || parsed.key !== key || digestOf(parsed) !== parsed.digest) return null;
-    return parsed.text;
+    if (!isEntry(parsed) || digestOf(parsed) !== parsed.digest) return null;
+    return parsed;
   } catch {
     return null;
   }

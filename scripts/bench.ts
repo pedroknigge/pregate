@@ -6,10 +6,10 @@
 // --inform reports that miss without failing. --gate fails when the median p95 of K repeats
 // regresses more than 55% against the committed per-OS baseline. With GITHUB_STEP_SUMMARY set,
 // the table goes there too.
-import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "./build";
+import { ensureCompiledEngine } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "./confirm-terminal.ts";
 import { decideGate, formatGate, median, parseBaseline, parseBenchArgs, type BenchOptions } from "./latency-gate.ts";
 
@@ -104,9 +104,11 @@ function setUp(work: string): Repo {
     CODEX_HOME: join(work, "home/.codex"), GROK_HOME: join(work, "home/.grok"),
     GIT_AUTHOR_NAME: "bench", GIT_AUTHOR_EMAIL: "bench@localhost", GIT_COMMITTER_NAME: "bench", GIT_COMMITTER_EMAIL: "bench@localhost",
   };
-  // Compiled with the release flags, so the bench times what ships.
+  // One release build per bench run; CI may precompile and set PREGATE_COMPILED_ENGINE.
   const engine = join(work, process.platform === "win32" ? "pregate.exe" : "pregate");
-  compileBinary(hostTarget(), engine);
+  const shared = process.env.PREGATE_COMPILED_ENGINE;
+  if (shared !== undefined && existsSync(shared)) cpSync(shared, engine);
+  else ensureCompiledEngine({ outfile: engine, testApproval: false });
   seed(dir);
   mkdirSync(join(work, "no-preset"));
   mkdirSync(join(env.HOME!, ".claude"), { recursive: true });
