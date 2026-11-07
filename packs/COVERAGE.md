@@ -63,13 +63,13 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Current manifest inventory
 
-48 packs, 1086 distinct checks and 1089 aliases.
+48 packs, 1087 distinct checks and 1090 aliases.
 
 | Default severity | Aliases |
 | --- | ---: |
 | deny | 948 |
 | ask | 5 |
-| warn | 109 |
+| warn | 110 |
 | off | 27 |
 
 These are declarations, not effective project policy or verification of complete semantic requirements. [All defaults, scope, phases and rule limits](../docs/packs.md).

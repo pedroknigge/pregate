@@ -2,5 +2,5 @@
   "$schema": "../../schema/source.v1.json",
   "ns": "python",
   "category": "language",
-  "version": "1.3.0"
+  "version": "1.4.0"
 }

@@ -42,7 +42,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **language**. Version: `1.3.0`. 24 distinct check IDs.
+Category: **language**. Version: `1.4.0`. 25 distinct check IDs.
 
 Methodologies: `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete).
 

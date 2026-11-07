@@ -740,7 +740,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `postgres@1.2.0` — library: `postgres/client` (complete), `postgres/safety` (complete)
 - `prisma@1.3.0` — library: `prisma/client` (complete), `prisma/writes` (complete)
 - `pstack@1.1.1` — process: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview)
-- `python@1.3.0` — language: `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete)
+- `python@1.4.0` — language: `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete)
 - `react@1.2.0` — library: `react/components` (complete), `react/hooks` (complete)
 - `react-native@1.2.0` — library: `react-native/platform` (complete), `react-native/security` (complete)
 - `redis@1.2.0` — library: `redis/client` (complete), `redis/keys` (complete)

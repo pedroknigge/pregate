@@ -394,6 +394,44 @@ test("TypeScript 7 hook and CLI catch module-keyword namespaces and import asser
   expect(olderModule.text).toContain("typescript/TS-MODKW-001");
 });
 
+test("python quality warns on swallowed broad except and stays quiet on handled or narrow handlers", () => {
+  const swallowed = "def fetch():\n    try:\n        work()\n    except Exception:\n        pass\n";
+  const handled = "def fetch():\n    try:\n        work()\n    except Exception as err:\n        log(err)\n        raise\n";
+  const narrow = "def fetch():\n    try:\n        work()\n    except ValueError:\n        pass\n";
+  const p = project({ "src/client.py": "def work(): pass\n", "pyproject.toml": "[project]\nname = \"app\"\n" });
+  p.git("init", "-q");
+  p.approve(["init", "--preview"]);
+  p.approve(["pack", "disable", "core/software-invariants", "--preview"]);
+  p.request([{ op: "add", path: "/enforcement", value: "enforce" }]);
+  p.git("add", "-A");
+  p.git("commit", "-qm", "baseline");
+  p.put("src/client.py", "def work(): pass\n\n" + swallowed);
+  const audit = JSON.parse(p.run(["audit", "--json", "--strict"]).text);
+  const rules = audit.findings.map((f: { rule: string }) => f.rule);
+  expect(rules).toContain("python/PY-EXCEPT-002");
+  expect(rules).not.toContain("python/PY-EXCEPT-001");
+  const stdinSwallowed = p.run(["check", "--stdin", "--path", "src/client.py"], "def work(): pass\n\n" + swallowed);
+  expect(stdinSwallowed.code).toBe(0);
+  expect(stdinSwallowed.text).toContain("PY-EXCEPT-002");
+  const stdinHandled = p.run(["check", "--stdin", "--path", "src/client.py"], "def work(): pass\n\ndef log(_): pass\n\n" + handled);
+  expect(stdinHandled.code).toBe(0);
+  expect(stdinHandled.text).not.toContain("PY-EXCEPT-002");
+  const stdinNarrow = p.run(["check", "--stdin", "--path", "src/client.py"], "def work(): pass\n\n" + narrow);
+  expect(stdinNarrow.code).toBe(0);
+  expect(stdinNarrow.text).not.toContain("PY-EXCEPT-002");
+  p.put("src/client.py", "def work(): pass\n");
+  const sid = randomUUID();
+  expect(p.hook("SessionStart", sid, { source: "startup" }).code).toBe(0);
+  const hook = p.hook("PreToolUse", sid, {
+    tool_name: "Write",
+    tool_use_id: "swallowed",
+    tool_input: { file_path: join(p.root, "src/client.py"), content: "def work(): pass\n\n" + swallowed },
+  });
+  expect(hook.code).toBe(0);
+  expect(hook.text).toContain("PY-EXCEPT-002");
+  expect(hook.text).not.toContain("\"permissionDecision\": \"deny\"");
+});
+
 test("python legacy denies a 3.15 removal only for that target and warns on a 3.16 removal", () => {
   const named = "from typing import NamedTuple\n\nPoint = NamedTuple(\"Point\", x=int, y=int)\n";
   const later = "import asyncio\n\ndef run(fn):\n    return asyncio.iscoroutinefunction(fn)\n";

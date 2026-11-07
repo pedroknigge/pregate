@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-48 optional packs; 1086 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1087 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 577 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 492 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 493 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 17 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -71,7 +71,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |
 | [prisma](../packs/prisma/REFERENCE.md) | library | 1.3.0 | 14 | `prisma/client` (complete), `prisma/writes` (complete) |
 | [pstack](../packs/pstack/REFERENCE.md) | process | 1.1.1 | 97 | `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview) |
-| [python](../packs/python/REFERENCE.md) | language | 1.3.0 | 24 | `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete) |
+| [python](../packs/python/REFERENCE.md) | language | 1.4.0 | 25 | `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete) |
 | [react](../packs/react/REFERENCE.md) | library | 1.2.0 | 14 | `react/components` (complete), `react/hooks` (complete) |
 | [react-native](../packs/react-native/REFERENCE.md) | library | 1.2.0 | 10 | `react-native/platform` (complete), `react-native/security` (complete) |
 | [redis](../packs/redis/REFERENCE.md) | library | 1.2.0 | 11 | `redis/client` (complete), `redis/keys` (complete) |

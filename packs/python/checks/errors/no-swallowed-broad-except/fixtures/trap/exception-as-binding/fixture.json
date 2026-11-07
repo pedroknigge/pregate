@@ -1,0 +1,20 @@
+{
+  "language": "python",
+  "params": {},
+  "target": "src/a.py",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 3
+      }
+    ]
+  },
+  "trap": {
+    "family": "as-pattern",
+    "origin": "forge",
+    "discovered": "2026-11-07",
+    "note": "Binding the caught value does not make a pass-only handler less broad."
+  }
+}

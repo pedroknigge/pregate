@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.3.0`. Category: **language**.
+Version: `1.4.0`. Category: **language**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -559,7 +559,7 @@ Source metadata:
 
 ## python/quality
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **complete**.
 
 ### python/PY-FN-001
 
@@ -738,6 +738,38 @@ Source metadata:
   "work": "PREGATE language starter policies",
   "locator": "python errors.bare-except, revision 1",
   "paraphrase": "A bare except also catches process-control exceptions."
+}
+```
+
+### python/PY-EXCEPT-002
+
+Check: [`python/errors/no-swallowed-broad-except@1.0.0`](checks/errors/no-swallowed-broad-except/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `python`. Cardinality: `singleton`. Dimension: `python.errors.swallowed-broad-except`. Minimum severity: `none`.
+
+Catching Exception or BaseException and doing nothing hides failures that a narrower handler or a deliberate boundary would surface.
+
+Default parameters: `{}`.
+
+**Repair:** Handle the error with a fallback, logging plus re-raise, or translation into a domain error; catch a specific type when the failure mode is known.
+
+**Scope and limits:** Do not replace the body with a comment or treat binding the exception as handling. Log-only and continue is a separate smell.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Code (R. C. Martin, 2008)",
+  "locator": "ch. 7, Error Handling",
+  "paraphrase": "Error handling is part of what a function does: a caught error is dealt with, or passed on with enough context to act on it, never silently dropped."
 }
 ```
 

@@ -1,6 +1,6 @@
 {
   "id": "python/quality",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -100,6 +100,24 @@
       "examples": {
         "pass": "pass/named",
         "fail": "fail/bare"
+      }
+    },
+    {
+      "id": "PY-EXCEPT-002",
+      "check": "python/errors/no-swallowed-broad-except",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Clean Code (R. C. Martin, 2008)",
+        "locator": "ch. 7, Error Handling",
+        "paraphrase": "Error handling is part of what a function does: a caught error is dealt with, or passed on with enough context to act on it, never silently dropped."
+      },
+      "why": "Catching Exception or BaseException and doing nothing hides failures that a narrower handler or a deliberate boundary would surface.",
+      "fixHint": "Handle the error with a fallback, logging plus re-raise, or translation into a domain error; catch a specific type when the failure mode is known.",
+      "avoid": "Do not replace the body with a comment or treat binding the exception as handling. Log-only and continue is a separate smell.",
+      "examples": {
+        "pass": "pass/rethrow-with-context",
+        "fail": "fail/exception-pass"
       }
     },
     {

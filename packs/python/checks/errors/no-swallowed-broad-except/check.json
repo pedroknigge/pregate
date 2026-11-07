@@ -1,0 +1,88 @@
+{
+  "id": "python/errors/no-swallowed-broad-except",
+  "version": "1.0.0",
+  "area": "errors",
+  "cardinality": "singleton",
+  "dimension": "python.errors.swallowed-broad-except",
+  "minSeverity": null,
+  "languages": [
+    "python"
+  ],
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "python": [
+        {
+          "id": "swallowed-broad-except",
+          "utils": {
+            "swallowed-body": {
+              "kind": "block",
+              "not": {
+                "has": {
+                  "not": {
+                    "any": [
+                      {
+                        "kind": "comment"
+                      },
+                      {
+                        "kind": "pass_statement"
+                      },
+                      {
+                        "kind": "expression_statement",
+                        "has": {
+                          "kind": "ellipsis"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "broad-type": {
+              "any": [
+                {
+                  "kind": "identifier",
+                  "regex": "^(Exception|BaseException)$"
+                },
+                {
+                  "kind": "as_pattern",
+                  "has": {
+                    "kind": "identifier",
+                    "regex": "^(Exception|BaseException)$"
+                  }
+                }
+              ]
+            }
+          },
+          "rule": {
+            "kind": "except_clause",
+            "all": [
+              {
+                "has": {
+                  "field": "value",
+                  "matches": "broad-type"
+                }
+              },
+              {
+                "has": {
+                  "matches": "swallowed-body"
+                }
+              }
+            ]
+          },
+          "x-note": "except Exception or BaseException whose body is only pass, ... or comments swallows every ordinary failure. Logging, re-raising, or catching a narrower type pass. Tuple types and qualified names are not matched."
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol}: A broad except handler swallows the error with pass or an ellipsis."
+  }
+}
