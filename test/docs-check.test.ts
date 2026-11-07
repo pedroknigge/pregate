@@ -19,7 +19,9 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function historical(rel: string): boolean {
-  return rel === "CHANGELOG.md" || rel.startsWith("docs/releases/");
+  // readdir walks with the platform separator. On Windows the same note is docs\releases\...
+  const path = rel.replaceAll("\\", "/");
+  return path === "CHANGELOG.md" || path.startsWith("docs/releases/");
 }
 
 function outsideFences(text: string): string {
