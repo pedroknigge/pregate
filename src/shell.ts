@@ -8,7 +8,7 @@ import { inlineSink } from "./inline-sinks.ts";
 // Help must exit before any command can inspect or change installation/project state.
 const HELP_COMMANDS = new Set([
   "check", "audit", "promote", "fitness", "init", "scan", "demo", "report", "feedback", "storage", "dispute", "issue", "pack", "explain",
-  "preset", "rules", "rules test", "rules draft", "rules add", "status", "approve", "enable", "disable", "install", "setup", "update", "uninstall", "doctor", "guide", "session", "session rebase",
+  "preset", "rules", "rules test", "rules draft", "rules add", "status", "approve", "enable", "disable", "install", "prepare", "setup", "update", "uninstall", "doctor", "guide", "session", "session rebase",
   "ci", "ci detect", "ci status", "ci wait",
   "preset apply", "preset compile", "preset diagnose", "preset show", "preset schema", "preset request-schema",
   "pack list", "pack show", "pack init", "pack add", "pack apply", "pack restore", "pack update", "pack enable", "pack disable", "pack remove",
@@ -107,7 +107,7 @@ const HOOK_SWITCH = /^(HOME|USERPROFILE|LOCALAPPDATA|APPDATA|XDG_\w+|PREGATE_\w+
 // not inside a prompt: `agy plugin disable pregate`, `codex -c hooks.state=…`, `--no-hooks`.
 const HOOK_ARG = /^\S*(?<![a-z])(hooks|pregate)(?![a-z])\S*$/i;
 // pregate subcommands that change what every harness runs.
-const MACHINE = /^(setup|update|uninstall)$/;
+const MACHINE = /^(prepare|setup|update|uninstall)$/;
 // Variables that name a protected folder whatever their value: read as the folder they default to,
 // the spelling machineGlobs protects at any depth.
 const SPELLED: Record<string, string> = {

@@ -52,6 +52,7 @@ usage:
   pregate ci detect [--json]
   pregate ci status [--sha <sha>] [--require github-actions|vercel] [--json]
   pregate ci wait [--sha <sha>] [--timeout <seconds>] [--interval <seconds>] [--require github-actions|vercel] [--json]
+  pregate prepare [--version <v> | --engine <v>]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]

@@ -11,8 +11,12 @@ type Answer = string | { error: string };
 type Failure = { error: string; fatal: boolean };
 function detail(text: string): string { return text.trim().replace(/\s+/g, " ").slice(0, 1024); }
 
+function onPath(name: string): string | null {
+  return Bun.which(name, { PATH: process.env.PATH ?? process.env.Path ?? "" });
+}
+
 function publicFile(url: string, file: string, limit: number): Failure | null {
-  const curl = Bun.which(curlName);
+  const curl = onPath(curlName);
   if (curl === null) return { error: `${curlName} is not installed`, fatal: false };
   const result = Bun.spawnSync([curl, "-q", "--fail", "--silent", "--show-error", "--location", "--proto", "=https", "--proto-redir", "=https",
     "--tlsv1.2", "--max-redirs", "5", "--connect-timeout", "10", "--max-time", "120", "--max-filesize", String(limit),
@@ -23,8 +27,9 @@ function publicFile(url: string, file: string, limit: number): Failure | null {
 }
 
 function authenticated(args: string[], publicError: string): Answer {
-  if (Bun.which("gh") === null) return { error: `Public release access is unavailable (${publicError}). Install gh (https://cli.github.com), run gh auth login, and confirm it can read ${REPO}. Or use the verified local archive installer.` };
-  const result = Bun.spawnSync(["gh", ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 300_000 });
+  const gh = onPath("gh");
+  if (gh === null) return { error: `Public release access is unavailable (${publicError}). Install gh (https://cli.github.com), run gh auth login, and confirm it can read ${REPO}. Or use the verified local archive installer.` };
+  const result = Bun.spawnSync([gh, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 300_000, env: process.env });
   return result.exitCode === 0 ? result.stdout.toString() : { error: `Public release access failed (${publicError}); authenticated gh failed: ${detail(result.stderr.toString()) || `exit ${result.exitCode}`}. Check the network, gh auth status and read access to ${REPO}.` };
 }
 

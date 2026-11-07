@@ -24,7 +24,7 @@ import { readFixture } from "./fixture-replay.ts";
 import { check, clock, delegate, grammars, launcher, LOCK, lockOf, PRESET, readText, sourceDirs, sourcesOf, VERSIONS } from "./gate.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { install } from "./install.ts";
-import { doctor, setup, uninstall, update } from "./machine.ts";
+import { doctor, prepare, setup, uninstall, update } from "./machine.ts";
 import { contract, formText, POLICY_ADAPTATION } from "./message.ts";
 import { inScope, layerOf, matches } from "./paths.ts";
 import type { Lock, LockRule } from "./types.ts";
@@ -91,6 +91,7 @@ const USAGE = `usage:
   pregate ci detect [--json]
   pregate ci status [--sha <sha>] [--require github-actions|vercel] [--json]
   pregate ci wait [--sha <sha>] [--timeout <seconds>] [--interval <seconds>] [--require github-actions|vercel] [--json]
+  pregate prepare [--version <v> | --engine <v>]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
@@ -139,6 +140,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "install": return installCommand(args);
     case "ci": return (await import("./ci/command.ts")).ciCommand(args);
     case "setup": return args.length === 0 ? setup() : BAD;
+    case "prepare": return prepareCommand(args);
     case "update": return updateCommand(args);
     case "uninstall": {
       // Removing the hooks ends protection for every project: the same human confirmation as disable.
@@ -377,6 +379,12 @@ function ciProviders(value: string | undefined): Array<"github-actions" | "verce
     if (!providers.includes(id)) providers.push(id);
   }
   return providers.length === 0 ? null : providers;
+}
+
+function prepareCommand(args: string[]): Promise<Result> | Result {
+  const o = options(args, ["--version", "--engine"], []);
+  if (o === null || o.operands.length > 0 || o.opts.size > 1) return BAD;
+  return prepare({ version: o.opts.get("--version"), engine: o.opts.get("--engine") });
 }
 
 function updateCommand(args: string[]): Promise<Result> | Result {
