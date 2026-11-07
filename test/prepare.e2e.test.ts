@@ -50,7 +50,9 @@ function isolated(): Isolated {
     TMPDIR: join(root, "tmp"),
     CODEX_HOME: join(home, ".codex"),
     GROK_HOME: join(home, ".grok"),
-    PATH: `${join(root, "bin")}:/usr/bin:/bin:${home}/.local/bin`,
+    PATH: WINDOWS
+      ? `${join(root, "bin")};${join(home, ".local/bin")};${process.env.Path ?? process.env.PATH ?? ""}`
+      : `${join(root, "bin")}:/usr/bin:/bin:${home}/.local/bin`,
     CI: "1",
     PREGATE_UNATTENDED_APPROVAL: "1",
     LOG: join(root, "log"),
@@ -90,10 +92,12 @@ function release(i: Isolated, sums?: string): string {
   writeFileSync(enginePath, readFileSync(BIN), { mode: 0o755 });
   const archivePath = join(dir, ASSET);
   const inner = join(dir, "x", WINDOWS ? "pregate.exe" : "pregate");
+  const ps = WINDOWS ? Bun.which("powershell.exe") : null;
+  if (WINDOWS && ps === null) throw new Error("powershell.exe is required to build the prepare E2E archive on Windows");
   const pack = WINDOWS
-    ? ["powershell.exe", "-NoProfile", "-Command", `Compress-Archive -Path '${inner.replaceAll("'", "''")}' -DestinationPath '${archivePath.replaceAll("'", "''")}' -Force`]
+    ? [ps!, "-NoProfile", "-Command", `Compress-Archive -Path '${inner.replaceAll("'", "''")}' -DestinationPath '${archivePath.replaceAll("'", "''")}' -Force`]
     : ["tar", "-czf", archivePath, "-C", join(dir, "x"), "pregate"];
-  const packed = Bun.spawnSync(pack, { stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
+  const packed = Bun.spawnSync(pack, { cwd: i.root, env: i.env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
   if (packed.exitCode !== 0) throw new Error(`release archive failed: ${packed.stderr.toString()}`);
   put(join(dir, "SHA256SUMS"), sums ?? `${createHash("sha256").update(readFileSync(archivePath)).digest("hex")}  ${ASSET}\n`);
   return dir;
