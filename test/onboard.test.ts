@@ -607,8 +607,9 @@ test("language metadata recommends starters and mixed projects select only their
   const stack = detectStack({ "app.py": "pass\n", "index.ts": "export const a = 1;", "old.rb": "" });
   expect(stack.recommended).toBe("mixed-starter");
   const preset = onboardingPreset(stack.recommended, BUILTIN, VERSIONS, stack, librarySources())!;
+  const bundled = Object.fromEntries(librarySources().map((source) => [source.ns, source]));
   expect(preset.sources.filter((s) => s.kind === "library")).toEqual([
-    { ns: "python", kind: "library", version: "1.3.0" }, { ns: "clean-code", kind: "library", version: "1.2.0" },
+    bundled.python!, bundled["clean-code"]!,
   ]);
   expect(preset.methodologies).toEqual(["core/pregate-integrity", "python/quality", "clean-code/clean-code"]);
   expect(preset.enforcement).toBe("shadow");
