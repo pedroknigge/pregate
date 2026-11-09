@@ -25,6 +25,7 @@ import { check, clock, delegate, grammars, launcher, LOCK, lockOf, PRESET, readT
 import { tsconfigNotice } from "./resolve.ts";
 import { install } from "./install.ts";
 import { doctor, prepare, setup, uninstall, update } from "./machine.ts";
+import { projectLauncher } from "./project-launcher-command.ts";
 import { contract, formText, POLICY_ADAPTATION } from "./message.ts";
 import { inScope, layerOf, matches } from "./paths.ts";
 import type { Lock, LockRule } from "./types.ts";
@@ -92,6 +93,7 @@ const USAGE = `usage:
   pregate ci status [--sha <sha>] [--require github-actions|vercel] [--json]
   pregate ci wait [--sha <sha>] [--timeout <seconds>] [--interval <seconds>] [--require github-actions|vercel] [--json]
   pregate prepare [--version <v> | --engine <v>]
+  pregate project launcher [--preview|--yes]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
@@ -141,6 +143,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "ci": return (await import("./ci/command.ts")).ciCommand(args);
     case "setup": return args.length === 0 ? setup() : BAD;
     case "prepare": return prepareCommand(args);
+    case "project": return args[0] === "launcher" && args.length <= 3 ? projectLauncher(args.slice(1)) : BAD;
     case "update": return updateCommand(args);
     case "uninstall": {
       // Removing the hooks ends protection for every project: the same human confirmation as disable.
