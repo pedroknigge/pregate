@@ -3,10 +3,12 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 
 // The Grok Build adapter (MULTI-HARNESS MH-05, MH-12, MH-14). Grok runs the shared registration in
 // ~/.claude/settings.json with its own payload: camelCase keys (the snake twins are ignored), native
-// tool names, no turn id in Pre. Grok honours only an explicit deny: every failure, timeout or odd
-// output lets the tool run (docs/research/harness-grok-live.md §6).
+// tool names, no turn id in Pre. On Pre, exit 2 or JSON deny blocks; other non-zero exits, timeouts,
+// and malformed output let the tool run unless the handler has failClosed (Grok Build >= 1.0.71).
 
 export const VERIFIED = "1.0.49";
+// failClosed on PreToolUse handlers: Grok Build 1.0.71+ (https://x.ai/changelog/build, weekly 2026-w44).
+export const FAIL_CLOSED_SINCE = "1.0.71";
 
 const BAD: Cause = "payload-unrecognized";
 const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", session_start: "session-start" };

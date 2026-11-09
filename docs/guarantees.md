@@ -95,6 +95,15 @@ are the same.
 | Non-literal script, or a script found on PATH | Sound | Inside an enabled root, `bash "$SCRIPT"`, `sh "$X"`, `bash < "$S"`, `python3 "$P"`, `node "$P"`, `make -f "$F"` and `powershell -File $P` are `shell-write`. A bare command name is resolved on PATH and scanned when that file is a script. A literal script path and a read-only one-liner stay allowed. |
 | Unreadable or malformed status or lock JSON | Sound | A lock or preset that is not JSON is `lock-stale`. One the process cannot read (`EACCES`, or a path that is not a file) is denied. It is not treated as permission to edit. |
 
+### Grok Build hook supervision
+
+On Grok Build **1.0.71+**, PREGATE registers `failClosed: true` on the shared `PreToolUse` handler in
+`~/.claude/settings.json`. Grok denies the tool when that hook process crashes or times out at the
+harness, instead of failing open. Claude Code and Cursor read the same file and ignore the extra
+handler key; Cursor also forces `failClosed` off on imported hooks. PREGATE's launcher still converts
+engine failures into exit 2 + stderr on every harness. Below 1.0.71, Grok ignores unknown handler
+fields, so the registration stays compatible.
+
 ### Known gaps
 
 These tests stay skipped unless `PREGATE_RUN_KNOWN_GAPS` is set. They record a limit rather than a passing attack.

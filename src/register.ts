@@ -189,7 +189,13 @@ export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, tru
 // What setup registers, by event: a group; agy's Stop takes a bare handler.
 function ours(t: Target, data: string): Record<string, object> {
   const h: HarnessId = t === "shared" ? "claude-code" : t;
-  const run = (sub: Sub, timeout: number) => ({ type: "command", command: hookCommand(data, sub, h), timeout });
+  const run = (sub: Sub, timeout: number) => {
+    const handler: Record<string, unknown> = { type: "command", command: hookCommand(data, sub, h), timeout };
+    // Shared ~/.claude/settings.json: failClosed is a Grok Build >= 1.0.71 handler field; Claude Code
+    // and Cursor ignore unknown handler keys (Cursor forces failClosed false on imported hooks).
+    if (t === "shared" && sub === "pre") handler.failClosed = true;
+    return handler;
+  };
   if (t === "cursor") return { stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
   if (t === "agy") return { PreToolUse: pre, Stop: run("stop", 60), PreInvocation: run("session-start", 15) };

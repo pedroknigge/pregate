@@ -14,6 +14,7 @@ import { readProposal } from "./proposal.ts";
 import { ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
+import { FAIL_CLOSED_SINCE } from "./harness/grok.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
 import { AGY_PLUGIN, agyPlugin, drift, exact, gated, hookCommand, type MachineFiles, merge, ownedCommand, registered, type Target, unmerge } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
@@ -441,6 +442,10 @@ export async function doctor(): Promise<Result> {
   else if (found.has("codex")) lines.push(codexOffPath(p));
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
   if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
+  if (checked.has("grok") && m.claude.length > 0) {
+    if (preFailClosed(m.claude[0] ?? null, p.data)) lines.push(ok(`Grok PreToolUse: failClosed is set (Grok Build >= ${FAIL_CLOSED_SINCE} hook failures deny).`));
+    else lines.push(warn(`Grok PreToolUse: failClosed is missing; on Grok Build >= ${FAIL_CLOSED_SINCE} a hook crash or timeout fails open. Run pregate setup.`));
+  }
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
   lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
     : warn(`pregate on PATH is not ${p.link} (${cli ?? "none"}); add ${dirname(p.link)} to PATH.`));
@@ -707,6 +712,19 @@ function sameJson(a: string, b: string): boolean {
   const x = parse(a);
   const y = parse(b);
   return x !== null && y !== null && Bun.deepEquals(x, y, true);
+}
+
+function preFailClosed(settings: string | null | undefined, data: string): boolean {
+  const root = parse(settings ?? "");
+  if (root === null || !isObject(root.hooks)) return false;
+  const list = root.hooks.PreToolUse;
+  if (!Array.isArray(list)) return false;
+  for (const group of list) {
+    if (!exact(group, "shared", data)) continue;
+    const hs = isObject(group) && Array.isArray(group.hooks) ? group.hooks : [];
+    return hs.some((h) => isObject(h) && h.failClosed === true);
+  }
+  return false;
 }
 
 // ── The machine ──────────────────────────────────────────────────────────────────────

@@ -67,6 +67,7 @@ Grok and headless sessions deny contract edits and direct the human to
 
 - **What is lost and why it is accepted** (U-6):
   - On Cursor, `failClosed:true`: imported entries force it to `false` [C]. What `failClosed` covered beyond the launcher is that the inline `sh` itself cannot run (exit 126/127) or that the launcher does not respond within the harness's 30 s. The launcher already turns an engine crash and hang into exit 2 + stderr, which Cursor respects [V]. It is the same residue Claude Code has had since the MVP.
+  - On Grok before 1.0.71, a hook crash or harness timeout outside the launcher's 5 s watchdog failed open. From 1.0.71, PREGATE sets `failClosed: true` on the shared PreToolUse handler so Grok denies in that case ([Grok Build weekly 2026-w44](https://www.vibecoding.cz/en/grok-build-weekly-2026-w44/), [Skillsaw `grok-hooks-valid`](https://skillsaw.org/rules/grok-hooks-valid/)). Older Grok builds ignore the field.
   - On Grok, independence from the Claude compatibility switch (`GROK_CLAUDE_HOOKS_ENABLED=0`, `[compat.claude] hooks=false`, the `/hooks` toggle). The agent cannot touch them (MH-17, MH-29). `doctor` and the pre-commit warn if they are off (MH-27).
 - **What is gained:** nothing is written to `~/.cursor/hooks.json`. That file belongs to Orca, and a schema error invalidates it entirely [C], also turning off the user's hooks. The "native registration present" probe, the imported-call concept, deduplication by `callId`, and two of five merges disappear.
 

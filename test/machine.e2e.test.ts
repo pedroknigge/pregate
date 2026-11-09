@@ -364,6 +364,7 @@ describe("doctor", () => {
     expect(out.stdout).toContain("Codex runs the PREGATE hooks (trusted).");
     expect(out.stdout).toContain(`pregate on PATH: ${m.link}.`);
     expect(out.stdout).toContain("Hook supervision: required launcher commands are registered.");
+    expect(out.stdout).toContain("Grok PreToolUse: failClosed is set");
     for (const h of ALL) expect(out.stdout).toContain(`${h}: canary denied in its native dialect.`);
     expect(out.stdout.split("\n").filter((l) => l.startsWith("ERROR"))).toEqual([]);
     expect(out.code).toBe(0);

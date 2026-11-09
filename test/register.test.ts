@@ -191,6 +191,13 @@ describe("agy", () => {
   });
 });
 
+test("shared PreToolUse carries failClosed; codex Pre does not", () => {
+  const shared = obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].hooks[0];
+  expect(shared.failClosed).toBe(true);
+  const codex = obj(merge(null, "codex", DATA)).hooks.PreToolUse[0].hooks[0];
+  expect(codex.failClosed).toBeUndefined();
+});
+
 test("exact: an extra key, another timeout or another matcher is not ours", () => {
   const g = obj(merge(null, "codex", DATA)).hooks.PreToolUse[0];
   expect(exact(g, "codex", DATA)).toBe(true);
