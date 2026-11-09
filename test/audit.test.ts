@@ -121,7 +121,8 @@ test("compact human audit bounds every detail category while full and machine ou
     expect(data.fitness).toHaveLength(64); expect(data.fitness.every((f: { status: string }) => f.status === "unverified")).toBe(true);
     for (const output of [compact, full]) {
       expect(output.text).toContain("30 violations in 30 files");
-      expect(output.text).toContain("0 verified; 0 failed; 64 unverified requirements");
+      // The compact audit says verification is not adopted; --full keeps every requirement.
+      expect(output.text).toContain(output === compact ? "Project verification: not adopted (64 optional requirements have no verifier and check nothing; pregate fitness plan)." : "0 verified; 0 failed; 64 unverified requirements");
       expect(output.text).toContain("Existing debt is included");
       if (HOSTILE !== "") { expect(output.text).not.toContain(HOSTILE); expect(output.text).toContain("debt00\\u001b.ts:1"); }
     }

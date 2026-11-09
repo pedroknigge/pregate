@@ -123,7 +123,7 @@ function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolea
 
 function dispatch(e: HookEvent, gate: Gate): Decision | Promise<Decision> {
   switch (e.kind) {
-    case "session-start": return gate.onSessionStart(e);
+    case "session-start": return gate.sessionStart(e);
     case "pre-edit": return gate.onPreEdit(e.changes);
     case "pre-command": return gate.onPreCommand(e.command);
     case "stop": return gate.onStop(e);

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { BUILTIN } from "../src/assets.ts";
 import { compile } from "../src/compile.ts";
 import { clock, grammars, VERSIONS } from "../src/gate.ts";
-import { deadGlobLines, deriveLayers, detectedScope, detectLayers, detectStack, emptyLayerLines, initialScope, onboardingCard, onboardingPreset, scopeCoverage } from "../src/onboard.ts";
+import { deadGlobLines, deriveLayers, layerEvidence, layerEvidenceLines, detectedScope, detectLayers, detectStack, emptyLayerLines, initialScope, onboardingCard, onboardingPreset, scopeCoverage } from "../src/onboard.ts";
 import type { Files } from "../src/types.ts";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -614,4 +614,29 @@ test("language metadata recommends starters and mixed projects select only their
   expect(preset.methodologies).toEqual(["core/pregate-integrity", "python/quality", "clean-code/clean-code"]);
   expect(preset.enforcement).toBe("shadow");
   expect(onboardingPreset("go-starter", BUILTIN, VERSIONS, stack, [])).toBeNull();
+});
+
+test("layer evidence names the imports that already break a map and the sibling folders it leaves unrestricted", async () => {
+  await grammars();
+  const files: Files = { "src/domain/order.ts": 'import { db } from "../infra/db.ts";\nexport const order = db;\n', "src/domain/price.ts": "export const price = 1;\n",
+    "src/infra/db.ts": 'import type { Order } from "../domain/order.ts";\nexport const db = 1;\n',
+    "src/services/checkout.ts": 'import { order } from "../domain/order.ts";\nexport const checkout = order;\n',
+    "src/ui/cart.ts": 'import { checkout } from "../services/checkout.ts";\nimport { db } from "../infra/db.ts";\nexport const cart = [checkout, db];\n',
+    "src/main.ts": 'import { cart } from "./ui/cart.ts";\nexport default cart;\n', "src/domain/order.test.ts": 'import { db } from "../infra/db.ts";\n' };
+  const layers = deriveLayers(files).layers;
+  const evidence = layerEvidence(files, layers);
+  expect(evidence.layers).toEqual([
+    { name: "domain", files: 2, broken: [{ to: "infra", count: 1, example: "src/domain/order.ts imports src/infra/db.ts" }] },
+    { name: "infra", files: 1, broken: [] }]);
+  expect(evidence.unplaced).toEqual([{ dir: "src/*", files: 1, imports: ["src/ui"] }, { dir: "src/services", files: 1, imports: ["domain"] },
+    { dir: "src/ui", files: 1, imports: ["infra", "src/services"] }]);
+  const lines = layerEvidenceLines(evidence, "no-new", "blocked before the file is written");
+  expect(lines[0]).toBe("Layer domain (2 files): 1 existing import of infra, which it may not import. Example: src/domain/order.ts imports src/infra/db.ts.");
+  expect(lines).toContain("Layers with no existing break: infra (1 file).");
+  expect(lines).toContain("The 1 existing break stays as known debt under no-new. A new break is blocked before the file is written.");
+  expect(lines.at(-1)).toContain("pregate layers apply <layers.json> --preview");
+  const placed = { ...layers, ui: { paths: ["src/ui/**"], mayImport: ["domain"], kind: "adapter" as const } };
+  expect(layerEvidence(files, placed).layers.find(layer => layer.name === "ui")!.broken.map(edge => [edge.to, edge.count])).toEqual([["code outside every layer", 1], ["infra", 1]]);
+  expect(layerEvidenceLines(layerEvidence({ "src/domain/a.ts": "", "src/infra/b.ts": "" }, deriveLayers({ "src/domain/a.ts": "", "src/infra/b.ts": "" }).layers), "strict", "recorded only (shadow)"))
+    .toEqual(["Layers with no existing break: domain (1 file), infra (1 file).", "No production import breaks this map today. A new break is recorded only (shadow)."]);
 });

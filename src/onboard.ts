@@ -167,10 +167,103 @@ type LayerEdge = [from: string, to: string];   // `to` is a repo path or "unreso
 
 // Each in-layer production file's in-repo import targets, resolved once as the engine resolves them.
 function layerImports(files: Files, layers: Record<string, Layer>): LayerEdge[] {
+  const lock = { layers } as Lock;
+  return importsOf(files, productionPaths(files).filter(path => layerIn(lock, path) !== null));
+}
+
+function productionPaths(files: Files): string[] {
+  return Object.keys(files).sort().filter(path => grammarOf(path) !== null && sourceRole(path) === "production-candidate");
+}
+
+function importsOf(files: Files, paths: string[]): LayerEdge[] {
   const read = (p: string) => files[p] ?? null;
-  const ts = loadTsPaths(read), lock = { layers } as Lock;
-  return Object.keys(files).sort().filter(path => grammarOf(path) !== null && layerIn(lock, path) !== null && sourceRole(path) === "production-candidate")
-    .flatMap(path => targetsOf(parse(path, files[path]!), ts, read).map((to): LayerEdge => [path, to]));
+  const ts = loadTsPaths(read);
+  return paths.flatMap(path => targetsOf(parse(path, files[path]!), ts, read).map((to): LayerEdge => [path, to]));
+}
+
+// What a layer map reports on the code as it is, before anyone approves it: per layer, the
+// production imports that already break its direction, and the sibling folders the map leaves
+// unrestricted. It is evidence for the review, not a verdict; the engine checks tests as well.
+export interface LayerEvidence {
+  layers: { name: string; files: number; broken: { to: string; count: number; example: string }[] }[];
+  unplaced: { dir: string; files: number; imports: string[] }[];
+}
+
+const UNRESOLVED = "a module that cannot be resolved", OUTSIDE = "code outside every layer";
+
+export function layerEvidence(files: Files, layers: Record<string, Layer>): LayerEvidence {
+  const lock = { layers } as Lock, paths = productionPaths(files);
+  const edges = importsOf(files, paths);
+  return { layers: Object.keys(layers).sort().map(name => ({ name, files: paths.filter(path => layerIn(lock, path) === name).length, broken: brokenEdges(lock, name, edges) })),
+    unplaced: unplacedFolders(lock, paths, edges) };
+}
+
+function brokenEdges(lock: Lock, name: string, edges: LayerEdge[]): LayerEvidence["layers"][number]["broken"] {
+  const layer = lock.layers[name]!, broken = new Map<string, { to: string; count: number; example: string }>();
+  if (layer.mayImport.includes("*")) return [];
+  for (const [from, to] of edges) {
+    if (layerIn(lock, from) !== name) continue;
+    const target = to === "unresolved" ? null : layerIn(lock, to);
+    if (to !== "unresolved" && target !== null && (target === name || layer.mayImport.includes(target))) continue;
+    const label = to === "unresolved" ? UNRESOLVED : target ?? OUTSIDE;
+    const entry = broken.get(label) ?? { to: label, count: 0, example: `${from} imports ${to === "unresolved" ? UNRESOLVED : to}` };
+    entry.count++;
+    broken.set(label, entry);
+  }
+  return [...broken.values()].sort((a, b) => b.count - a.count || a.to.localeCompare(b.to));
+}
+
+// A production folder beside a layer folder that no layer glob covers. Its imports are unrestricted,
+// so the reviewer sees which code the map says nothing about and what that code reaches.
+function unplacedFolders(lock: Lock, paths: string[], edges: LayerEdge[]): LayerEvidence["unplaced"] {
+  const parents = [...new Set(Object.values(lock.layers).flatMap(layer => layer.paths.map(layerParent)))].sort((a, b) => b.length - a.length);
+  const folderOf = (path: string): string | null => {
+    if (layerIn(lock, path) !== null) return null;
+    const parent = parents.find(dir => dir === "" || path.startsWith(`${dir}/`));
+    if (parent === undefined) return null;
+    const rest = path.slice(parent === "" ? 0 : parent.length + 1).split("/");
+    return rest.length === 1 ? `${parent || "."}/*` : `${parent === "" ? "" : `${parent}/`}${rest[0]}`;
+  };
+  const found = new Map<string, { files: number; imports: Set<string> }>();
+  for (const path of paths) {
+    const dir = folderOf(path);
+    if (dir !== null) found.set(dir, { files: (found.get(dir)?.files ?? 0) + 1, imports: found.get(dir)?.imports ?? new Set() });
+  }
+  for (const [from, to] of edges) {
+    const dir = folderOf(from), target = to === "unresolved" ? null : layerIn(lock, to) ?? folderOf(to);
+    if (dir !== null && target !== null && target !== dir) found.get(dir)!.imports.add(target);
+  }
+  return [...found].map(([dir, entry]) => ({ dir, files: entry.files, imports: [...entry.imports].sort() })).sort((a, b) => a.dir.localeCompare(b.dir));
+}
+
+// `src/domain/**` sits in `src`; a single-file layer path sits in its own folder.
+function layerParent(glob: string): string {
+  const dir = glob.replace(/\/\*\*$/, "").replace(/\/?[^/]*[*?[{][^/]*(\/.*)?$/, "");
+  return dir.includes("/") ? dir.slice(0, dir.lastIndexOf("/")) : "";
+}
+
+// What the next forbidden import meets under this candidate: the mode of its layer rule.
+export function newBreak(lock: Lock): string {
+  const rule = lock.rules.find(r => r.impl.kind === "primitive" && r.impl.primitive === "layer-edge");
+  if (rule === undefined) return "not checked, because no layer rule is selected";
+  const mode = enforcementOf(lock, rule);
+  return mode === "enforce" ? "blocked before the file is written" : mode === "advisor" ? "reported to the agent with the repair, and not blocked" : "recorded only (shadow)";
+}
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
+// The review lines for that evidence. `consequence` says what a new break meets under the
+// proposed mode, so the reader sees what approval changes for the next edit.
+export function layerEvidenceLines(evidence: LayerEvidence, ratchet: string, consequence: string): string[] {
+  const broken = evidence.layers.filter(layer => layer.broken.length > 0), clean = evidence.layers.filter(layer => layer.broken.length === 0);
+  const total = broken.reduce((sum, layer) => sum + layer.broken.reduce((n, edge) => n + edge.count, 0), 0);
+  return [
+    ...broken.flatMap(layer => layer.broken.map(edge => `Layer ${layer.name} (${count(layer.files, "file")}): ${count(edge.count, "existing import")} of ${edge.to}, which it may not import. Example: ${edge.example}.`)),
+    ...(clean.length ? [`Layers with no existing break: ${clean.map(layer => `${layer.name} (${count(layer.files, "file")})`).join(", ")}.`] : []),
+    ...(evidence.layers.length ? [`${total === 0 ? "No production import breaks this map today." : ratchet === "no-new" ? `The ${count(total, "existing break")} stay${total === 1 ? "s" : ""} as known debt under no-new.` : `The ${count(total, "existing break")} ${total === 1 ? "is a finding" : "are findings"} from the first check.`} A new break is ${consequence}.`] : []),
+    ...(evidence.unplaced.length ? [`Not in any layer, so imports there are unrestricted: ${evidence.unplaced.slice(0, 8).map(folder => `${folder.dir} (${count(folder.files, "file")}${folder.imports.length ? `; imports ${folder.imports.slice(0, 6).join(", ")}` : ""})`).join("; ")}${evidence.unplaced.length > 8 ? `; +${evidence.unplaced.length - 8} more` : ""}.`,
+      "To place them, the agent inspects pregate layers --json and proposes a map with pregate layers apply <layers.json> --preview."] : []),
+  ];
 }
 
 function targetsOf(parsed: Parsed, ts: ReturnType<typeof loadTsPaths>, read: Read): string[] {
@@ -310,7 +403,7 @@ function acceptedPolicy(lock: Lock): string[] {
   const packs = [...new Set(lock.rules.map((r) => r.id.split("/")[0]!))].map((ns) => {
     const rules = lock.rules.filter((r) => r.id.startsWith(`${ns}/`));
     const evidence = rules.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "fitness").length;
-    return `${ns} ${rules.length} rules${evidence ? ` (${evidence} evidence requirements)` : ""}`;
+    return `${ns} ${rules.length - evidence} rules`;   // unbound requirements check nothing yet; fitness status lists them
   });
   const overrides = lock.rules.filter((r) => !r.integrity && enforcementOf(lock, r) !== lock.enforcement);
   return [`If you accept: ${packs.join(", ")}. Ordinary rules run in ${lock.enforcement} mode.`,
@@ -330,7 +423,7 @@ export function onboardingCard(stack: Stack, lock: Lock, files: Files, now: Cloc
     ...acceptedPolicy(lock),
     ...(matches.length ? matches.slice(0, 5).map((m) => `Example from your repo: ${m}`) : ["No existing matches found in the analyzed files."]),
     `Optional-pack enforcement: ${lock.enforcement}; per-rule overrides take precedence. All core requirements activate and enforce by default; a human can explicitly disable them.`,
-    "Adopt project fitness functions one requirement at a time. Unbound requirements remain active and UNVERIFIED without blocking work. A reviewed binding requires fresh passing evidence. Inspect pregate fitness status --json, propose a bounded project assertion, then run pregate fitness run <verifier>.",
+    "Optional later: bind project checks of your own with pregate fitness plan.",
     "Parsers cover JS/TS, Python, Go and Rust source AST. Language-specific starters select bundled quality policies. Architecture/effects require declared layers and explicit selection; Rust macros and compiler/type resolution need separate evidence.",
   ].join("\n");
 }

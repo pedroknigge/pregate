@@ -31,7 +31,7 @@ export function discoverDocumentation(root: string) {
 
 // Keep wrapped paragraphs and list items together. A keyword on one line can be
 // a fragment of an API explanation; reviewers need the whole bounded statement.
-function documentationStatements(text: string): { line: number; statement: string }[] {
+export function documentationStatements(text: string): { line: number; statement: string }[] {
   const statements: { line: number; statement: string }[] = [];
   let fenced = false, start = 0, parts: string[] = [];
   const flush = () => {

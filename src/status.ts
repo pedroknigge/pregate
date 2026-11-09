@@ -182,7 +182,7 @@ export function protectionStatus(root: string | null) {
   const fitness = root !== null && contract.lock !== null ? projectFitness(root, contract.lock, "ci") : [];
   const fitnessCoverage = { active: fitness.length, pass: fitness.filter(r => r.status === "pass").length,
     fail: fitness.filter(r => r.status === "fail").length, unverified: fitness.filter(r => r.status === "unverified").length,
-    complete: contract.valid && fitness.every(r => r.status === "pass") };
+    complete: contract.valid && fitness.every(r => r.status === "pass"), adopted: Object.keys(contract.lock?.fitness ?? {}).length > 0 };
   const diagnosis = root === null ? null : contractDiagnosis(root);
   const globWarnings = root === null || typeof diagnosis?.preset !== "object" || diagnosis.preset === null ? [] : deadGlobLines(diagnosis.preset, () => listedPaths(root));
   const consentLostIn = consent || root === null ? 0 : sessionsOf(root);
@@ -293,8 +293,12 @@ function verboseStatus(s: Status): string {
     `Installation: launcher ${s.installation.launcherPresent ? "present" : "missing"}, engine ${s.engine} ${s.installation.enginePresent ? "present" : "missing"}.`,
     ...(s.project === null ? [] : [`Project versions: preset engine ${s.project.engine ?? "unreadable"}; lock engine ${s.project.lockEngine ?? "missing/unreadable"}; lock core ${s.project.core ?? "missing/unreadable"}. A global update does not activate this project's migration; review pregate update --project --preview.`]),
     `Rules: ${enforced} static enforcing, ${advisor} advisor, ${shadow} shadow, ${warns} warning; ${s.rules.filter((r) => r.ownedByArkgate).length} owned by ArkGate.`,
-    `Project requirements: ${s.fitnessCoverage.active} active; ${s.fitnessCoverage.pass} current assertions passed, ${s.fitnessCoverage.fail} failed, ${s.fitnessCoverage.unverified} unverified. Coverage: ${s.fitnessCoverage.complete ? "complete for the reviewed assertions" : "incomplete"}.`,
-    "Unbound fitness requirements remain active and unverified without blocking work. Adopted assertions require fresh passing evidence. Inspect pregate fitness status --json for coverage; a passing check is not certification.",
+    ...(!s.fitnessCoverage.adopted
+      ? [`Project verification: not adopted (${s.fitnessCoverage.unverified} optional requirements have no verifier and check nothing). pregate fitness plan shows how to bind one.`]
+      : [
+      `Project requirements: ${s.fitnessCoverage.active} active; ${s.fitnessCoverage.pass} current assertions passed, ${s.fitnessCoverage.fail} failed, ${s.fitnessCoverage.unverified} unverified. Coverage: ${s.fitnessCoverage.complete ? "complete for the reviewed assertions" : "incomplete"}.`,
+      "Unbound fitness requirements remain active and unverified without blocking work. Adopted assertions require fresh passing evidence. Inspect pregate fitness status --json for coverage; a passing check is not certification.",
+      ]),
     `Parsers: ${s.languages.map((l) => `${l.language} (${l.extensions.join(", ")})`).join("; ")}.`,
     ...(s.unsupportedInScope.length === 0 ? [] : [`Unsupported source files in scope: ${s.unsupportedInScope.join(", ")}`]),
     ...(s.uncoveredInScope.length === 0 ? [] : [`Parsed files without an applicable language policy: ${s.uncoveredInScope.join(", ")}. Add and select a language pack.`]),

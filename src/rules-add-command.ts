@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { applyPreset } from "./approval-command.ts";
 import { packCatalog } from "./compile.ts";
@@ -10,7 +10,8 @@ import { grammarOf, ruleLanguages } from "./languages.ts";
 import { librarySource, librarySources } from "./library.ts";
 import { addInvariant } from "./pack-compose.ts";
 import { type CatalogEntry, catalogMatches, draftCase, draftCheckDir, draftExamples, draftRule, type DraftSample, fixtureTarget, intentDraft,
-  ruleIntent, ruleSlug, ruleTokens, snippetCases } from "./pack-template.ts";
+  ruleIntent, ruleSlug, ruleTokens, snippetCases, statementKind } from "./pack-template.ts";
+import { documentationStatements } from "./project-discovery.ts";
 import { languageOf, sampleLines, stagePack, synthesize } from "./rules-draft-command.ts";
 import type { Check, Files, Lock, Manifest, PatternConfig, Preset, RuleLanguage } from "./types.ts";
 import { workspacePaths } from "./workspace.ts";
@@ -153,7 +154,7 @@ function draftShape(root: string, request: Request, languages: Set<RuleLanguage>
     return `No catalog rule or recognizable ${language === "typescript" ? "" : `${language} `}shape in "${request.sentence}"; add --fail "<bad code>" and --pass "<good code>". Nothing staged.`;
   }
   const draft = intentDraft(intent);
-  const folder = intent.kind === "import-edge" ? intent.from : intent.subject?.toLowerCase().split(/\s+/).at(-1);
+  const folder = intent.kind === "import-edge" ? intent.from : intent.kind === "call-ban" ? intent.subject?.toLowerCase().split(/\s+/).at(-1) : undefined;
   const exists = folder !== undefined && workspacePaths(root, (rel) => rel.split("/").slice(0, -1).includes(folder)).length > 0;
   const files = request.files ?? (exists ? `**/${folder}/**` : undefined);
   const notes = request.files !== undefined || folder === undefined || exists ? [] : [`No folder named ${folder} here, so the rule covers every file in scope; narrow it with --files <glob>.`];
@@ -195,4 +196,127 @@ function draftFiles(before: Files, sentence: string, shape: Shape): { files: Fil
   const tested = testCheck(files, id, clock);
   if (!tested.lines.every((line) => line.startsWith("ok"))) return [...tested.lines, "The drafted rule does not pass its own cases. Nothing staged; give clearer --fail and --pass code."].join("\n");
   return { files, id };
+}
+
+// `pregate compile <rules.md>`: read an instruction file (AGENTS.md, CLAUDE.md) as a list of
+// statements and say what each can become. A statement with a known shape or a bundled rule that
+// says the same compiles now; one that names code needs an example; guidance stays in the file.
+// With --preview every compilable statement goes into one digest-bound review. The file is never
+// edited: after approval the report names the lines a person may delete.
+
+export const COMPILE_USAGE = "usage: pregate compile <rules.md> [--json|--preview]";
+const MD_MAX = 128 * 1024, STATEMENTS_MAX = 200;
+type Statement = { line: number; statement: string };
+type Compiled = Statement & { kind: "catalog" | "draft" | "active" | "example" | "prose"; sentence: string; rule?: string; note: string;
+  entry?: Entry; shape?: Shape };
+type Sources = { root: string | null; home: string; lock: Lock | null; entries: Entry[]; languages: Set<RuleLanguage>; project: Files };
+
+export async function rulesCompile(args: string[], root: string | null, cwd = process.cwd()): Promise<Result> {
+  const flags = args.filter((a) => a.startsWith("--")), operands = args.filter((a) => !a.startsWith("--"));
+  if (operands.length !== 1 || flags.length > 1 || flags.some((f) => f !== "--json" && f !== "--preview")) return { code: 1, text: COMPILE_USAGE };
+  const file = resolve(cwd, operands[0]!);
+  if (!existsSync(file) || !statSync(file).isFile()) return { code: 1, text: `No file ${operands[0]}. ${COMPILE_USAGE}` };
+  if (statSync(file).size > MD_MAX) return { code: 1, text: `${operands[0]} is larger than ${MD_MAX / 1024} KB; compile one instruction file at a time.` };
+  const text = readFileSync(file, "utf8");
+  const sources = compileSources(root, cwd);
+  const items = documentationStatements(text).filter((s) => s.statement.length >= 8 && !s.statement.startsWith("|")).slice(0, STATEMENTS_MAX).map((s) => compiled(s, sources));
+  const preview = flags[0] === "--preview";
+  if (preview && root === null) return { code: 1, text: [compileText(operands[0]!, text, items), "Set up PREGATE first: pregate guide --preview --enforcement advisor. Then run this preview again."].join("\n") };
+  const review = preview ? await stageCompiled(root!, items) : null;
+  if (flags[0] === "--json") return { code: 0, text: JSON.stringify(compileJson(operands[0]!, text, items), null, 2) };
+  return { code: review?.code ?? 0, text: [compileText(operands[0]!, text, items), ...(review === null ? [] : [review.text])].join("\n") };
+}
+
+function compileSources(root: string | null, cwd: string): Sources {
+  const home = root ?? canonical(cwd);
+  const languages = new Set(workspacePaths(home, (rel) => grammarOf(rel) !== null).map(languageOf).filter((l) => l !== null));
+  const dir = join(home, PROJECT_DIR);
+  return { root, home, languages, entries: catalogEntries(languages), project: existsSync(dir) ? readTree(canonical(dir), true) : {},
+    lock: root === null ? null : JSON.parse(readText(join(root, LOCK)) ?? "null") as Lock | null };
+}
+
+// Markdown emphasis and code marks are not part of the sentence. The whole statement is tried
+// first, then its first clause: "Never use moment; use date-fns." states its rule before the `;`.
+function sentencesOf(statement: string): string[] {
+  const clean = statement.replace(/[`*_]/g, "").replace(/\s+/g, " ").trim();
+  const first = clean.split(/[.;:]\s+|\s+[\u2014\u2013-]\s+|\s+\(/)[0]!.trim();
+  return first === clean || first.length < 8 ? [clean] : [clean, first];
+}
+
+function compiled(s: Statement, sources: Sources): Compiled {
+  for (const sentence of sentencesOf(s.statement)) {
+    // A sentence typed for `rules add` is one reviewed match. Here many lines match unattended, so a
+    // bundled rule needs three content words in common, and the review quotes what that rule says.
+    const match = ruleTokens(sentence, true).length >= 3 ? catalogMatches(sentence, sources.entries)[0] : undefined;
+    if (match !== undefined) {
+      const active = sources.lock?.rules.find((r) => r.id === match.fqn);
+      return active !== undefined && sources.lock !== null ? { ...s, sentence, kind: "active", rule: match.fqn, note: `already in the contract (${enforcementOf(sources.lock, active)})` }
+        : { ...s, sentence, kind: "catalog", rule: match.fqn, entry: match, note: `bundled rule ${match.fqn}: ${JSON.stringify(clipped(match.alias.source.paraphrase))}` };
+    }
+    const shape = draftShape(sources.home, { sentence, fails: [], passes: [], draft: true }, sources.languages);
+    if (typeof shape === "string") continue;
+    const id = `project/${shape.area}/${ruleSlug(sentence)}`;
+    return sources.project[`${draftCheckDir(shape.area, ruleSlug(sentence))}/check.json`] !== undefined ? { ...s, sentence, kind: "active", rule: id, note: "already a project rule" }
+      : { ...s, sentence, kind: "draft", rule: id, shape, note: `project rule: ${checked(sentence)}${shape.files ? ` in ${shape.files}` : ""}; cases generated` };
+  }
+  const kind = statementKind(s.statement) === "prose" ? "prose" : "example";
+  return { ...s, sentence: sentencesOf(s.statement)[0]!, kind, note: kind === "example" ? "names code; add one failing and one passing snippet" : "guidance or an agent action; no check on a file decides it" };
+}
+
+// What the drafted pattern looks for, in the reader's words.
+function checked(sentence: string): string {
+  const intent = ruleIntent(sentence);
+  return intent === null ? "the given code" : intent.kind === "import-edge" ? `no import of ${intent.to} from ${intent.from}`
+    : intent.kind === "package-ban" ? `no import of the package ${intent.name}` : `no call to ${intent.callee}`;
+}
+
+const TOKEN_CHARS = 4;   // a common rough estimate for English prose; the report says so
+
+function compileJson(file: string, text: string, items: Compiled[]) {
+  const executable = items.filter((i) => ["catalog", "draft", "active"].includes(i.kind));
+  const tokens = (chars: number) => Math.round(chars / TOKEN_CHARS);
+  return { schemaVersion: 1, file, statements: items.map((i) => ({ line: i.line, statement: i.statement, kind: i.kind, sentence: i.sentence, ...(i.rule ? { rule: i.rule } : {}), note: i.note })),
+    counts: { statements: items.length, rules: executable.length, needExample: items.filter((i) => i.kind === "example").length, stay: items.filter((i) => i.kind === "prose").length },
+    tokens: { file: tokens(text.length), compilable: tokens(executable.reduce((n, i) => n + i.statement.length, 0)), estimate: `${TOKEN_CHARS} characters per token` },
+    removableLines: executable.map((i) => i.line) };
+}
+
+function compileText(file: string, text: string, items: Compiled[]): string {
+  const json = compileJson(file, text, items);
+  const rows = (kinds: Compiled["kind"][], render: (i: Compiled) => string) => items.filter((i) => kinds.includes(i.kind)).map((i) => `  L${i.line} ${JSON.stringify(clipped(i.statement))} -> ${render(i)}`);
+  const share = json.tokens.file === 0 ? 0 : Math.round(100 * json.tokens.compilable / json.tokens.file);
+  return [`Compile ${file}: ${items.length} statement${items.length === 1 ? "" : "s"}. The classification is a text heuristic; review each line.`,
+    `Rules (${json.counts.rules}):`, ...rows(["catalog", "draft", "active"], (i) => i.note),
+    `Need one example each (${json.counts.needExample}):`, ...rows(["example"], (i) => `pregate rules add ${JSON.stringify(i.sentence)} --fail "<bad code>" --pass "<good code>"`),
+    `Stay in ${file} (${json.counts.stay}):`, ...rows(["prose"], (i) => i.note),
+    json.counts.rules === 0 ? "No statement compiles yet." : `${json.counts.rules} of ${items.length} statements run as rules. ${items.some((i) => i.kind === "catalog" || i.kind === "draft") ? "Once they are approved," : "They are in the contract, so"} lines ${json.removableLines.join(", ")} can leave ${file}: about ${json.tokens.compilable} of its ${json.tokens.file} tokens (${share}%) stop loading in every session. Estimate: ${TOKEN_CHARS} characters per token.`,
+    ...(items.some((i) => i.kind === "catalog" || i.kind === "draft") ? [`One review for the new rules: pregate compile ${file} --preview`] : []),
+  ].join("\n");
+}
+
+function clipped(text: string): string { return text.length > 90 ? `${text.slice(0, 87)}...` : text; }
+
+// Every compilable statement in one proposal: bundled rules switched on in the preset, drafted
+// rules added to the project pack. A statement that cannot be staged is named, and the rest proceed.
+async function stageCompiled(root: string, items: Compiled[]): Promise<Result> {
+  const presetText = readFileSync(join(root, PRESET), "utf8"), skipped: string[] = [];
+  let preset = JSON.parse(presetText) as Preset;
+  for (const item of items.filter((i) => i.kind === "catalog")) {
+    const candidate = catalogCandidate(preset, item.entry!);
+    if ("errors" in candidate) skipped.push(`L${item.line}: ${candidate.errors.join(" ")}`); else preset = candidate.preset;
+  }
+  const drafts = items.filter((i) => i.kind === "draft"), dir = canonical(join(root, PROJECT_DIR));
+  const registered = drafts.length === 0 ? false : projectSource(root, presetText, dir);
+  if (typeof registered === "string") return { code: 1, text: `${registered} Nothing staged.` };
+  const before = registered ? readTree(dir, true) : {};
+  let files = before;
+  for (const item of drafts) {
+    const draft = draftFiles(files, item.sentence, item.shape!);
+    if (typeof draft === "string") skipped.push(`L${item.line}: ${draft.split("\n").at(-1)}`); else files = draft.files;
+  }
+  const next = JSON.stringify(preset, null, 2) + "\n";
+  if (files === before && next === JSON.stringify(JSON.parse(presetText), null, 2) + "\n") return { code: 0, text: ["Nothing new to stage.", ...skipped].join("\n") };
+  const review = files === before ? await applyPreset(root, next, { preview: true, stable: true })
+    : stagePack(root, { dir, before, after: files, preset: withProjectPack(next) });
+  return { code: review.code, text: [...skipped.map((line) => `Not staged, ${line}`), review.text].join("\n") };
 }
