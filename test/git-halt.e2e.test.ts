@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { WINDOWS } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled binary, on a real project: no .git, .git removed after a session started, and git
 // missing from PATH. Each denies, and the text names that failure.
@@ -25,7 +26,7 @@ beforeAll(() => {
   compileBinary(hostTarget(), BIN, true);
 });
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 let states = 0;
 function envOf(path = process.env.PATH ?? ""): Env {

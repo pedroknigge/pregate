@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -10,6 +10,7 @@ import { cachedPack, fetchPack, testPack } from "../src/packs.ts";
 import { clock, grammars } from "../src/gate.ts";
 import { sha256 } from "../src/state.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 test("a data-only scaffold has real pass, fail and trap coverage", async () => {
   await grammars();
@@ -133,24 +134,7 @@ async function restoredAfter(area: string, saved: string | undefined, work: () =
     await work();
   } finally {
     if (saved === undefined) delete process.env.XDG_DATA_HOME; else process.env.XDG_DATA_HOME = saved;
-    // git and the compiled CLI are spawnSync, so both have exited and their pipes are closed.
-    // Bun's rmSync ignores maxRetries and throws EBUSY at once while Windows still maps the engine.
-    await removeBusy(area);
-  }
-}
-
-// Retry only a sharing lock. Any other error, or a lock that outlasts the retries, still fails the test.
-async function removeBusy(path: string): Promise<void> {
-  const locked = new Set(["EBUSY", "EPERM"]);
-  for (let attempt = 0; ; attempt++) {
-    try {
-      rmSync(path, { recursive: true, force: true });
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === undefined || !locked.has(code) || attempt >= 10) throw error;
-      await Bun.sleep(100);
-    }
+    removeTree(area);
   }
 }
 

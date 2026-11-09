@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Windows suite cleanup waits out the brief lock Windows keeps on a compiled engine after that process has exited. Git-halt and audit scratch directories use the shared `removeTree` helper. A lock that lasts is still an error. Test timeouts and assertions are unchanged.
 - The shell guard denies `rsync`, archive extraction (`tar`/`unzip`), in-place formatters (`prettier --write`, `eslint --fix`, and similar), and literal interpreter or shell scripts whose text reaches the same write-sink list as inline `-c`/`-e` code. Unreadable script files fail closed. `docs/guarantees.md` documents residual bypasses; `test/adversarial.e2e.test.ts` covers the former GLM Pre bypasses.
 
 ### Changed
