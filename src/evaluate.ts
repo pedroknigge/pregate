@@ -2,7 +2,7 @@
 // and the counts the diff rules compare; placement() parses only a possible generated marker.
 import { compilePattern, type Compiled, findAll } from "./match.ts";
 import { declaredNodeMajor } from "./node-target.ts";
-import { inScope, layerOf, matches, REQUESTS, ruleApplies as applies } from "./paths.ts";
+import { inGovernedRoot, inScope, layerOf, matches, REQUESTS, ruleApplies as applies } from "./paths.ts";
 import { type Edge, loadTsPaths, reexportTargets, resolve } from "./resolve.ts";
 import { astHash, classes, functions, grammarOf, imports, nestings, type Node, type Parsed, parse, suggestFunctionSplit, suggestNestingFix, symbolBodies, symbolOf, symbols } from "./ts.ts";
 import type { Analysis, Form, Grammar, Host, Impl, Lock, LockRule, PatternConfig, Phase, Placement, Read, Severity, Violation } from "./types.ts";
@@ -35,7 +35,7 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   });
   const p = typeof state !== "string" ? state : grammarOf(rel) !== null ? parse(rel, state) : null;
   const text = typeof state === "string" ? state : state?.text ?? null;
-  const found: Violation[] = [];
+  const found: Violation[] = unlayeredViolations(lock, phase, rel, host);
   const counts: Record<string, number> = {};
   const markerSites: NonNullable<Analysis["markerSites"]> = {};
   const report = (r: LockRule, line: number, symbol: string, measured: number | null = null, limit: number | null = null): Violation => {
@@ -71,6 +71,22 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   // a "before" with none frees nothing, and an "after" with none claims nothing.
   return { symbols: p ? (named ? symbols(p) : [MODULE]) : [], violations: found, counts, markerSites,
     symbolBodies: p?.root && found.length > 0 ? symbolBodies(p) : {}, astHash: p && host.hash !== false ? astHash(p) : null };
+}
+
+// A file under the governed source root that layerOf does not place never enters a restricted
+// layer, so its imports are not judged. Name it on each active layer-edge rule. Path filters
+// on those rules are what hid the file; they do not apply here.
+function unlayeredViolations(lock: Lock, phase: Phase, rel: string, host: Host): Violation[] {
+  if (grammarOf(rel) === null || !inScope(lock, rel) || layerOf(lock, rel) !== null || !inGovernedRoot(lock, rel)) return [];
+  const found: Violation[] = [];
+  for (const r of lock.rules) {
+    if (!r.phases.includes(phase) || lock.ownedByArkgate.includes(r.id)) continue;
+    if (r.impl.kind !== "primitive" || r.impl.primitive !== "layer-edge" || !languageApplies(r, rel)) continue;
+    const severity = ruleSeverity(r, rel, host);
+    if (severity === null) continue;
+    found.push({ rule: r.id, path: rel, line: 1, symbol: MODULE, measured: null, limit: null, atSessionStart: null, severity, edge: { from: "", to: null, spec: "" } });
+  }
+  return found;
 }
 
 interface Measurements { report: Report; functions?: ReturnType<typeof functions> }

@@ -3,7 +3,7 @@
 The library cannot infer which project modules must use dcouplr. Declare that
 boundary once. This example makes `app/features/**` managed code, admits only
 port imports there, and keeps concrete construction at `app/bootstrap/**`.
-Pure values outside that boundary can use local constructors. The selected
+`app/values/**` is its own layer, so a value module is named and is not managed code. Pure values there can use local constructors. The selected
 strict construction rule is a project policy, not a claim that every `new`
 expression violates dcouplr.
 

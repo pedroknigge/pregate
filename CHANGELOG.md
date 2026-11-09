@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- A source file under a governed source root that matches no declared layer is reported on each active layer-direction rule. `check` and `audit` name the file. The same import from a file that already sits in a declared layer is unchanged. Place the file in a layer in the preset; excluding it or turning the rule off hides the gap.
 - The shell guard denies `rsync`, archive extraction (`tar`/`unzip`), in-place formatters (`prettier --write`, `eslint --fix`, and similar), and literal interpreter or shell scripts whose text reaches the same write-sink list as inline `-c`/`-e` code. Unreadable script files fail closed. `docs/guarantees.md` documents residual bypasses; `test/adversarial.e2e.test.ts` covers the former GLM Pre bypasses.
 
 ### Changed

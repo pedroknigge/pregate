@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { canonical, findRoot } from "../src/disk.ts";
-import { REQUESTS, inScope, layerOf, machineGlobs, matches, pathKey, protectedGlobs, protects, ruleApplies, scopeUnder } from "../src/paths.ts";
+import { REQUESTS, inGovernedRoot, inScope, layerOf, machineGlobs, matches, pathKey, protectedGlobs, protects, ruleApplies, scopeUnder } from "../src/paths.ts";
 import type { Layer, Lock } from "../src/types.ts";
 
 function lock(scope: Lock["scope"], layers: Record<string, Layer> = {}): Lock {
@@ -186,6 +186,31 @@ describe("layerOf", () => {
     ["docs/a.md", null],
   ];
   for (const [rel, expected] of cases) test(rel, () => expect(layerOf(l, rel)).toBe(expected));
+});
+
+describe("inGovernedRoot", () => {
+  const layer = (paths: string[]): Layer => ({ paths, mayImport: [], kind: "core" });
+  const roots = lock({ include: ["src/**", "test/**"], exclude: [] }, {
+    domain: layer(["src/domain/**"]),
+    application: layer(["src/application/**"]),
+    ports: layer(["src/application/ports/**"]),
+    infra: layer(["src/infra/**"]),
+    main: { paths: ["src/main.ts"], mayImport: ["*"], kind: "main" },
+    schema: layer(["schema/*.v1.json"]),
+  });
+  const cases: [string, boolean][] = [
+    ["src/utils/helper.ts", true],
+    ["src/domain/order.ts", true],
+    ["src/main.ts", true],
+    ["schema/preset.v1.json", true],
+    ["test/helper.ts", false],
+    ["scripts/build.ts", false],
+  ];
+  for (const [rel, expected] of cases) test(rel, () => expect(inGovernedRoot(roots, rel)).toBe(expected));
+  test("a glob with no directory does not govern the repository", () => {
+    const tests = lock({ include: ["**"], exclude: [] }, { tests: layer(["**/*.test.ts"]) });
+    expect(inGovernedRoot(tests, "src/utils/helper.ts")).toBe(false);
+  });
 });
 
 describe("disk.canonical and findRoot", () => {

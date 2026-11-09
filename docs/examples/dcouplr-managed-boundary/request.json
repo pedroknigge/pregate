@@ -8,7 +8,8 @@
       "managed": { "paths": ["app/features/**"], "kind": "core", "mayImport": ["ports"] },
       "ports": { "paths": ["app/contracts/**"], "kind": "port", "mayImport": [] },
       "adapters": { "paths": ["app/adapters/**"], "kind": "adapter", "mayImport": ["ports"] },
-      "bootstrap": { "paths": ["app/bootstrap/**"], "kind": "main", "mayImport": ["managed", "ports", "adapters"] }
+      "values": { "paths": ["app/values/**"], "kind": "core", "mayImport": [] },
+      "bootstrap": { "paths": ["app/bootstrap/**"], "kind": "main", "mayImport": ["managed", "ports", "adapters", "values"] }
     } },
     { "op": "add", "path": "/overrides/dcouplr~1DCP-AMBIENT-001", "value": { "params": { "paths": ["app/features/**"] } } },
     { "op": "add", "path": "/overrides/dcouplr~1DCP-NEW-001", "value": { "params": { "paths": ["app/features/**"] } } },

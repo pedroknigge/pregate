@@ -52,7 +52,9 @@ export function demoPrepare(c: DemoContext, sample: DemoSample) {
     { op: "add", path: "/layers", value: {
       domain: { paths: [`${sample.folder}/domain/**`], mayImport: [], kind: "core" },
       infra: { paths: [`${sample.folder}/infra/**`], mayImport: ["domain"], kind: "adapter" },
-      main: { paths: ["src/lib.rs"], mayImport: ["*"], kind: "main" },
+      // The package marker sits in the same tree as the declared folders. Naming it keeps the
+      // sample's architecture debt equal to the forbidden import, which the demo then repairs.
+      main: { paths: ["src/lib.rs", `${sample.folder}/__init__.py`], mayImport: ["*"], kind: "main" },
     } },
   ] };
   writeFileSync(join(c.root, "demo-request.json"), JSON.stringify(request));

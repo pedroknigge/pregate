@@ -500,4 +500,8 @@ test("advisor text: layer edges are named, a repeated why is dropped, the preset
   expect(preset).toMatch(/ \+ \d+ more\) · lock 3f9a1c$/);
   expect(all.full.endsWith("only the DENY above does. Revise the code for each advisory rule, or keep it and tell the user why.")).toBe(true);
   expect(adviseText([{ ...edge, edge: { ...edge.edge, to: null } }], lock, CTX).full).toContain("imports code outside every layer via");
+  const unlayered = denyText([{ ...edge, path: "src/utils/helper.ts", edge: { from: "", to: null, spec: "" } }], lock, 1, "retry", CTX);
+  expect(unlayered.full).toContain("architecture/CA-DEP-001 src/utils/helper.ts:1");
+  expect(unlayered.full).toContain("matches no declared layer");
+  expect(unlayered.full).not.toContain("imports code outside every layer");
 });

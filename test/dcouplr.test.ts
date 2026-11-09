@@ -914,7 +914,9 @@ test.each([
 test.each(["registerForce", "registerSingletonForce"])("dcouplr reserves %s for test modules", (method) => {
   const code = `stage.${method}({ id: 'order' });`;
   expect(denied("src/bootstrap/register.ts", code)).toContain("dcouplr/DCP-FORCE-001");
-  expect(denied("src/orders/order.test.ts", code)).toEqual([]);
+  const colocated = denied("src/orders/order.test.ts", code);
+  expect(colocated).not.toContain("dcouplr/DCP-FORCE-001");
+  expect(colocated).toEqual(["dcouplr/DCP-EDGE-001"]);
   expect(denied("tests/order.ts", code)).toEqual([]);
 });
 

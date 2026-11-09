@@ -52,6 +52,7 @@
     "core": {
       "paths": [
         "src/types.ts",
+        "src/wasm.d.ts",
         "src/harness/**",
         "src/capabilities.ts",
         "src/register.ts",

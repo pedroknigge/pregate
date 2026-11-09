@@ -202,3 +202,45 @@ export function layerOf(lock: Lock, rel: string): string | null {
   }
   return best;
 }
+
+// The directory a layer path governs, so a sibling of a declared folder is still in the tree
+// the declaration covers. `src/domain/**` and `src/main.ts` both govern `src`. A star beside
+// the files (`schema/*.json`) governs that directory. A glob with no directory (`**/*.test.ts`)
+// governs nothing and does not pull the rest of the repository in. This is not a second layer
+// assignment: `layerOf` is still the only match.
+function governedRoot(glob: string): string | null {
+  const meta = glob.search(/[*?[{]/);
+  if (meta < 0) {
+    const slash = glob.lastIndexOf("/");
+    return slash < 0 ? null : glob.slice(0, slash);
+  }
+  const prefix = glob.slice(0, meta).replace(/\/$/, "");
+  const rest = glob.slice(meta);
+  if (rest === "**" || rest.startsWith("**/")) {
+    const slash = prefix.lastIndexOf("/");
+    if (slash > 0) return prefix.slice(0, slash);
+    return prefix === "" ? null : prefix;
+  }
+  return prefix === "" ? null : prefix;
+}
+
+// True when `rel` sits in a directory some declared layer path governs. A file there that
+// `layerOf` does not name is outside every layer.
+export function inGovernedRoot(lock: Lock, rel: string): boolean {
+  const path = rel.toLowerCase();
+  for (const layer of Object.values(lock.layers)) {
+    for (const glob of layer.paths) {
+      const root = governedRoot(glob);
+      if (root === null) continue;
+      const dir = root.toLowerCase();
+      if (path === dir || path.startsWith(`${dir}/`)) return true;
+    }
+  }
+  return false;
+}
+
+// An empty edge is the layer-edge finding for a file `layerOf` did not place. `message.ts`
+// renders that case as its own sentence; a real import edge always names a layer and a specifier.
+export function unlayeredEdge(edge: { from: string; to: string | null; spec: string } | undefined): boolean {
+  return edge !== undefined && edge.from === "" && edge.to === null && edge.spec === "";
+}

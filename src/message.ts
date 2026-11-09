@@ -1,5 +1,6 @@
-import { FIXABLE_BY } from "./types.ts";
 import { enforcementOf } from "./enforcement.ts";
+import { unlayeredEdge } from "./paths.ts";
+import { FIXABLE_BY } from "./types.ts";
 import type { Cause, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
@@ -419,6 +420,7 @@ function brief(v: Violation): string {
 // Fills the check's feedback template. Placeholders come from the violation or the rule's scalar
 // params; anything else (`{match}`, `{capture}`) would quote code, so it renders as "?".
 function message(v: Violation, r: LockRule | undefined): string {
+  if (unlayeredEdge(v.edge)) return "This file is under a governed source root and matches no declared layer.";
   return template(v, r) + edgeText(v);
 }
 
