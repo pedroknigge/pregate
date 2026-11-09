@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The shell guard denies `rsync`, archive extraction (`tar`/`unzip`), in-place formatters (`prettier --write`, `eslint --fix`, and similar), and literal interpreter or shell scripts whose text reaches the same write-sink list as inline `-c`/`-e` code. Unreadable script files fail closed. `docs/guarantees.md` documents residual bypasses; `test/adversarial.e2e.test.ts` covers the former GLM Pre bypasses.
+
 ### Changed
 - Codex CLI **0.167.0** is the minimum supported version (`src/harness/codex.ts`). On Codex 0.166.x and older, direct Guardian review evaluated approval policy on recorded `exec_command` calls without running PreToolUse hooks first ([openai/codex#58368](https://github.com/openai/codex/pull/58368)), so a PREGATE deny could be bypassed when policy would otherwise skip review. `pregate doctor` warns on Codex versions below 0.167.0 with that explanation.
 

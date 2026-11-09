@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { controlInFile } from "../src/control-file.ts";
+import { controlInFile, readScriptFile } from "../src/control-file.ts";
 import { guard } from "../src/shell.ts";
 
 // Windows PowerShell 5.1 saves scripts as UTF-16LE with a BOM by default, and every ASCII character
@@ -11,7 +11,7 @@ import { guard } from "../src/shell.ts";
 
 const ctx = {
   machineOnly: false, harness: "claude-code" as const, touched: () => true, launcher: "C:/pregate/bin/pregate",
-  isProtected: () => false, inScope: () => false, under: () => false, readControlFile: controlInFile,
+  isProtected: () => false, inScope: () => false, under: () => false, readControlFile: controlInFile, readScriptFile,
 };
 
 test.skipIf(process.platform !== "win32")("Windows PowerShell runs a UTF-16LE script that disables PREGATE, and the guard denies running it", () => {

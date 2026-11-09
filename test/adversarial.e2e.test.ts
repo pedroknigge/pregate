@@ -572,3 +572,45 @@ test("malformed or unreadable status and lock JSON is denied", () => {
   }
   silent(a.write(note, "export const note = 4;\n"));
 });
+
+test("shell Pre denies archive copies, formatters that write, and literal script writers", () => {
+  const r = fresh();
+  const target = "src/application/shell-guard-probe.ts";
+  const good = "export const probe = 1;\n";
+  put(r, target, good);
+  commit(r, "shell probe");
+  const a = claude(r);
+  ok(a.start(), "session");
+  const attack = join(r.dir, ".attack");
+  mkdirSync(attack, { recursive: true });
+  const absTarget = join(r.dir, target);
+  writeFileSync(join(attack, "writer.js"), `require('fs').writeFileSync('${absTarget}', 'export const probe = 2;\\n');`);
+  writeFileSync(join(attack, "writer2.cjs"), `require('fs').writeFileSync('${absTarget}', 'export const probe = 2;\\n');`);
+  writeFileSync(join(attack, "w.sh"), `#!/bin/sh\necho 'export const probe = 2;' > '${absTarget}'\n`);
+  chmodSync(join(attack, "w.sh"), 0o755);
+  writeFileSync(join(attack, "viol.ts"), "export const viol = 1;\n");
+  const stage = join(attack, "stage");
+  mkdirSync(join(stage, "src/application"), { recursive: true });
+  writeFileSync(join(stage, "src/application/viol-from-tar.ts"), "export const viol = 1;\n");
+  ok(run(["tar", "-czf", join(attack, "viol.tar.gz"), "-C", stage, "src/application/viol-from-tar.ts"], r.dir, { ...r.env, COPYFILE_DISABLE: "1" }), "tar pack");
+  const unchanged = () => expect(readFileSync(absTarget, "utf8")).toBe(good);
+  for (const command of [
+    `rsync -a ${join(attack, "viol.ts")} src/application/`,
+    `tar xzf ${join(attack, "viol.tar.gz")} -C src/application`,
+    `node ${join(attack, "writer.js")}`,
+    `node ${join(attack, "writer2.cjs")}`,
+    `sh ${join(attack, "w.sh")}`,
+  ]) {
+    denied(a.bash(command), "shell-write");
+    unchanged();
+  }
+  put(r, "src/application/fmt.ts", "const   x=1\n");
+  commit(r, "fmt");
+  const fmtPath = join(r.dir, "src/application/fmt.ts");
+  const fmtBefore = readFileSync(fmtPath, "utf8");
+  denied(a.bash("npx --yes prettier --write src/application/fmt.ts"), "shell-write");
+  expect(readFileSync(fmtPath, "utf8")).toBe(fmtBefore);
+  silent(a.bash(`tar tzf ${join(attack, "viol.tar.gz")}`));
+  silent(a.bash("npx --yes prettier --check src/application/fmt.ts"));
+  silent(a.bash('node -e "console.log(1)"'));
+});

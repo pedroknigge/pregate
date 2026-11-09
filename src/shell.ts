@@ -36,6 +36,8 @@ export interface GuardContext {
   configurationRead?: (abs: string) => boolean;
   // Reads one literal script for pregate control commands. The shell layer supplies it; the core does not open files.
   readControlFile?: (path: string) => Cause | null;
+  // Reads script bytes for sink and control scanning without the lexer importing the filesystem.
+  readScriptFile?: (path: string) => { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
   // Resolves a bare command name on PATH. The shell layer supplies it; the core does not read the environment.
   commandPath?: (name: string) => string | null;
   // The files a git command that moves history or the worktree would change (`args` from the
@@ -58,16 +60,70 @@ function controlFile(ctx: Ctx, path: string | null): Cause | null {
   return path === null || path === "" ? null : ctx.readControlFile?.(path) ?? null;
 }
 
+const SHELL_INTERPRETERS = new Set(["sh", "bash", "zsh", "dash", "ksh", "mksh", "fish", "powershell", "pwsh"]);
+const SCRIPT_EXT: [RegExp, string][] = [
+  [/\.(?:cjs|mjs|jsx|js|ts|tsx|mts|cts)$/i, "node"],
+  [/\.pyw?$/i, "python"],
+  [/\.(?:rb|ru)$/i, "ruby"],
+  [/\.(?:pl|pm)$/i, "perl"],
+  [/\.php$/i, "php"],
+  [/\.(?:sh|bash|zsh|ksh)$/i, "sh"],
+  [/\.ps1$/i, "powershell"],
+];
+const ARCHIVES = new Set(["tar", "gtar", "bsdtar"]);
+const FIXERS = new Set(["prettier", "eslint", "ruff", "biome", "gofmt", "rustfmt", "clang-format"]);
+
+function inferScriptInterpreter(path: string, text: string): string {
+  const file = basename(path).toLowerCase();
+  for (const [re, name] of SCRIPT_EXT) if (re.test(file)) return name;
+  const shebang = /^#![^\n]*/.exec(text)?.[0]?.toLowerCase() ?? "";
+  if (/\b(node|nodejs|bun|deno)\b/.test(shebang)) return "node";
+  if (/\bpython/.test(shebang)) return "python";
+  if (/\bperl\b/.test(shebang)) return "perl";
+  if (/\b(ruby|php)\b/.test(shebang)) return shebang.includes("php") ? "php" : "ruby";
+  if (/\b(bash|sh|zsh|dash|ksh|fish)\b/.test(shebang)) return "sh";
+  if (/\b(pwsh|powershell)\b/.test(shebang)) return "powershell";
+  return "sh";
+}
+
+// A literal script file an interpreter or shell runs: control text, then write sinks like inline code.
+function scriptFile(ctx: Ctx, path: string, interpreter: string, cwd: string | null, options: string[] = []): Cause | null {
+  const control = controlFile(ctx, path);
+  if (control !== null) return control;
+  const read = ctx.readScriptFile?.(path) ?? { kind: "missing" as const };
+  if (read.kind === "native" || read.kind === "missing") return null;
+  if (read.kind === "admin") return "shell-admin";
+  if (read.kind === "unreadable") return "shell-write";
+  const lang = interpreter.replace(/^python[\d.]*$/, "python").replace(/^nodejs$/, "node");
+  if (SHELL_INTERPRETERS.has(lang)) {
+    const src = lang === "powershell" && read.text.includes("\\") ? read.text.replace(/\\(?=[\w.-])/g, "/") : read.text;
+    return script(src, cwd, ctx);
+  }
+  if (inlineSink(lang, read.text, options)) return "shell-write";
+  return code({ text: read.text, literal: true, subs: [] }, cwd, ctx);
+}
+
 // A path command (`./run`, `scripts/deploy.sh`) is read where it is spelled. A bare name is resolved
 // on PATH and, when that file is a script, scanned the same way. A native executable is not a script.
 function namedScript(head: Word, name: string, cwd: string | null, ctx: Ctx): Cause | null {
-  if (/[\\/]/.test(head.text) || /\.(?:sh|bash|zsh|ksh)$/i.test(name)) {
-    const cause = controlFile(ctx, resolve(cwd, head.text));
-    if (cause !== null) return cause;
+  const scripted = /\.(?:sh|bash|zsh|ksh|cjs|mjs|jsx|js|ts|tsx|mts|cts|pyw?|rb|pl|pm|php|ps1)$/i.test(name) || /[\\/]/.test(head.text);
+  if (scripted) {
+    if (/[\\/]/.test(head.text)) {
+      const resolved = resolve(cwd, head.text);
+      if (resolved === null) return "shell-write";
+      const peek = ctx.readScriptFile?.(resolved) ?? { kind: "missing" as const };
+      if (peek.kind === "native") return null;
+      const interp = peek.kind === "text" ? inferScriptInterpreter(resolved, peek.text) : inferScriptInterpreter(resolved, "");
+      return scriptFile(ctx, resolved, interp, cwd);
+    }
   }
   if (/[\\/]/.test(head.text) || ctx.commandPath === undefined || head.text === "" || head.text.includes("\0")) return null;
   const found = ctx.commandPath(head.text);
-  return found === null || found === "" ? null : controlFile(ctx, found);
+  if (found === null || found === "") return null;
+  const peek = ctx.readScriptFile?.(found) ?? { kind: "missing" as const };
+  if (peek.kind === "native") return null;
+  const interp = peek.kind === "text" ? inferScriptInterpreter(found, peek.text) : "sh";
+  return scriptFile(ctx, found, interp, cwd);
 }
 
 // `literal`: no expansion happens, so `text` is the exact argument. `subs`: nested scripts
@@ -966,6 +1022,10 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (WRAPPERS.has(name) || runner) return wrapped(runner ? "npx" : name, runner ? args.slice(1) : args, cwd, ctx, stdin);
   if (name === "find") return find(args, cwd, ctx);
   if (name === "git") return git(args, cwd, ctx);
+  if (name === "rsync") return rsync(args, cwd, ctx);
+  if (ARCHIVES.has(name)) return archiveTar(args, cwd, ctx);
+  if (name === "unzip") return unzip(args, cwd, ctx);
+  if (FIXERS.has(name)) return fixer(name, args, cwd, ctx);
   if (SHELLS.has(name)) return shell(args, cwd, ctx, stdin);
   if (name === "pwsh" || name === "powershell") return powershell(args, cwd, ctx, stdin);
   if (name === "cmd" || name === "cmd.exe") {
@@ -1166,6 +1226,97 @@ function wget(args: Word[]): Word[] {
   return [...logs, ...saved];
 }
 
+function rsync(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  if (args.some((w) => w.literal && (w.text === "--dry-run" || w.text === "-n" || w.text === "--list-only"))) return null;
+  const operands = args.filter((w) => !/^-./.test(w.text));
+  if (operands.length < 2) return null;
+  const dest = operands.at(-1)!;
+  return writes([dest], cwd, ctx.inScope) ?? (dest.literal && dest.text.endsWith("/") ? writes([{ ...dest, text: posix.join(dest.text, ".") }], cwd, ctx.under) : null);
+}
+
+// tar lists with -t; create writes an archive; extract writes into -C or the cwd.
+function archiveTar(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  let extract = false, list = false, create = false;
+  for (const w of args) {
+    if (!w.literal) return "shell-write";
+    if (w.text === "-x" || w.text === "--extract") extract = true;
+    else if (w.text === "-t" || w.text === "--list") list = true;
+    else if (w.text === "-c" || w.text === "--create") create = true;
+    else if (/^--(?:extract|list|create)=/.test(w.text)) {
+      const mode = w.text.split("=")[0]!.slice(2);
+      if (mode.startsWith("extract")) extract = true;
+      else if (mode.startsWith("list")) list = true;
+      else if (mode.startsWith("create")) create = true;
+    }     else if (/^-[^-]+$/.test(w.text) && !w.text.startsWith("--")) {
+      if (w.text.includes("x")) extract = true;
+      if (w.text.includes("t")) list = true;
+      if (w.text.includes("c")) create = true;
+    } else if (/^[A-Za-z0-9]*[ctx][A-Za-z0-9]*$/.test(w.text)) {
+      if (w.text.includes("x")) extract = true;
+      if (w.text.includes("t")) list = true;
+      if (w.text.includes("c")) create = true;
+    }
+  }
+  if (list && !extract && !create) return null;
+  let dest: Word = { text: ".", literal: true, subs: [] };
+  for (let i = 0; i < args.length; i++) {
+    const w = args[i]!;
+    if (w.text === "-C" || w.text === "--directory") {
+      const value = args[i + 1];
+      if (value !== undefined) dest = value;
+    } else if (w.text.startsWith("-C") && w.text.length > 2) {
+      dest = { ...w, text: w.text.slice(2) };
+    } else if (w.text.startsWith("--directory=")) {
+      dest = { ...w, text: w.text.slice("--directory=".length) };
+    }
+  }
+  if (extract) {
+    if (dest.text === ".") {
+      const here = cwd !== null ? resolve(cwd, ".") : null;
+      if (here !== null && (ctx.inScope(here) || ctx.under(here))) return "shell-write";
+      return null;
+    }
+    return writes([dest], cwd, ctx.inScope) ?? (dest.literal && dest.text.endsWith("/") ? writes([{ ...dest, text: posix.join(dest.text, ".") }], cwd, ctx.under) : null);
+  }
+  if (create && !extract) {
+    for (let i = 0; i < args.length; i++) {
+      const w = args[i]!;
+      if (w.text === "-f" || w.text === "--file") {
+        const archive = args[i + 1];
+        return archive === undefined ? null : writes([archive], cwd, ctx.inScope);
+      }
+    }
+    return null;
+  }
+  return null;
+}
+
+function unzip(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  if (args.some((w) => w.literal && (w.text === "-l" || w.text === "-t" || w.text === "--list" || w.text === "--test"))) return null;
+  const { flags, operands } = getopt(args, ["-d", "-o", "-x"]);
+  const dest = flags.find(([flag]) => flag === "-d")?.[1];
+  const targets = dest !== undefined ? [dest] : operands.length > 0 ? [{ text: ".", literal: true, subs: [] }] : [];
+  return targets.length === 0 ? null : writes(targets, cwd, ctx.inScope);
+}
+
+function fixer(name: string, args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  const writesInPlace = (() => {
+    if (name === "prettier") return args.some((w) => w.literal && (w.text === "--write" || w.text === "-w" || /^--write=/.test(w.text) || /^-[^-]*w/.test(w.text)));
+    if (name === "eslint") return args.some((w) => w.literal && (w.text === "--fix" || /^--fix(?:=|$)/.test(w.text)));
+    if (name === "ruff") return args.some((w) => w.literal && (w.text === "--fix" || /^--fix(?:=|$)/.test(w.text)));
+    if (name === "biome") return args.some((w) => w.literal && (w.text === "--write" || /^--write(?:=|$)/.test(w.text) || (w.text === "format" && args.some((x) => x.literal && x.text === "--write"))));
+    if (name === "gofmt") return args.some((w) => w.literal && (w.text === "-w" || w.text === "-write"));
+    if (name === "rustfmt") return !args.some((w) => w.literal && (w.text === "--check" || w.text === "--emit=stdout"));
+    if (name === "clang-format") return args.some((w) => w.literal && (w.text === "-i" || w.text === "--inplace"));
+    return false;
+  })();
+  if (!writesInPlace) return null;
+  const paths = args.filter((w) => !/^-./.test(w.text) && !["format", "check", "lint"].includes(w.text));
+  if (paths.length === 0) return "shell-write";
+  return writes(paths, cwd, ctx.inScope)
+    ?? writes(paths.filter((w) => w.literal && !w.text.endsWith("/")).map((w) => ({ ...w, text: posix.join(w.text, ".") })), cwd, ctx.under);
+}
+
 function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   const { flags, operands } = getopt(args, ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"], true);
   const base = flags.reduce((dir, [flag, v]) => (flag !== "-C" ? dir : v?.literal ? resolve(dir, v.text) : null), cwd);
@@ -1243,12 +1394,13 @@ function shell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): 
   const script = operands[0];
   if (!fromStdin && script !== undefined && script.text !== "-" && !script.literal) return "shell-write";
   if (!fromStdin && script?.literal && script.text !== "-") {
-    const cause = controlFile(ctx, resolve(cwd, script.text));
+    const abs = resolve(cwd, script.text);
+    const cause = abs === null ? "shell-write" : scriptFile(ctx, abs, "sh", cwd);
     if (cause !== null) return cause;
   }
   // `bash < run.sh`, `sh -s < run.sh`: the script arrives on stdin from a literal file.
   if (fromStdin && stdin?.file !== undefined) {
-    const cause = controlFile(ctx, stdin.file);
+    const cause = scriptFile(ctx, stdin.file, "sh", cwd);
     if (cause !== null) return cause;
   }
   // A script file is not otherwise executed here, but it is named like a command: `sh "$(which pregate)" approve`.
@@ -1283,7 +1435,9 @@ function powershell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | nu
     if (param === "file" || param === "f") {
       const target = args[i + 1];
       if (target !== undefined && !target.literal) return "shell-write";
-      return target?.literal ? controlFile(ctx, resolve(cwd, target.text)) : null;
+      if (!target?.literal) return null;
+      const abs = resolve(cwd, target.text);
+      return abs === null ? "shell-write" : scriptFile(ctx, abs, "powershell", cwd);
     }
     if ("command".startsWith(param)) {
       const rest = args.slice(i + 1);
@@ -1334,11 +1488,13 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   if (repl && stdin === null) return "shell-write";
   const inlined = program.length > 0;
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
+  const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);
   // Inline code and a literal script file: `python3 -c "subprocess.run(['pregate','approve'...])"`,
   // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
+  const interp = name.replace(/^python[\d.]*$/, "python");
   const control = first(program, (w) => w.literal ? (w.file === undefined ? pregateControlCause(w.text) : controlFile(ctx, w.file)) : null)
     ?? (!inlined && operands[0] !== undefined && !["-", "repl"].includes(operands[0].text)
-      ? (operands[0].literal ? controlFile(ctx, resolve(cwd, operands[0].text)) : "shell-write") : null);
+      ? (operands[0].literal ? ((abs) => abs === null ? "shell-write" : scriptFile(ctx, abs, interp, cwd, options))(resolve(cwd, operands[0].text)) : "shell-write") : null);
   if (control !== null) return control;
   // Code that reads its arguments (`sys.argv[1]`, `process.argv`, `@ARGV`) may write the files they
   // name; other code only reads them (`perl -ne 'print' src/a.ts`).
@@ -1346,7 +1502,6 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // perl and ruby edit files in place with -i, checked on every option: in `perl -pie`, -i takes
   // "e" as its backup suffix.
   const inPlace = (name === "perl" || name === "ruby") && args.some((w) => /^-[A-Za-z0-9]*i/.test(w.text));
-  const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);
   return first(argv ? [...program, ...operands] : program, (w) => code(w, cwd, ctx))
     ?? first(program, (w) => (w.literal && w.file === undefined && inlineSink(name, w.text, options) ? "shell-write" : null))
     ?? (inPlace ? writes(inlined ? operands : operands.slice(1), cwd, ctx.inScope) : null);
