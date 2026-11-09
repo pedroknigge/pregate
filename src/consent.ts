@@ -132,8 +132,8 @@ function consentRecord(path: string): { root?: unknown; disabled?: unknown; repo
 }
 
 export function status(root: string | null): string {
-  if (root === null) return "PREGATE is inactive: this directory has no preset. Run `pregate init`.";
+  if (root === null) return "This directory has no preset. Run `pregate init`.";
   return enabled(root)
-    ? `PREGATE is active in ${canonical(root)}: local human consent for this worktree or its repository.`
-    : `PREGATE is inactive in ${canonical(root)}: no local human consent. Run \`pregate enable\`. A committed preset is not consent.`;
+    ? `Local consent is active in ${canonical(root)} for this worktree or its repository. Consent is not enforced coverage.`
+    : `Local consent is inactive in ${canonical(root)}. Run \`pregate enable\`. A committed preset is not consent.`;
 }
