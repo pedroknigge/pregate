@@ -17,18 +17,19 @@ export function commandOnPath(name: string): string | null {
   return Bun.which(name, { PATH: process.env.PATH ?? process.env.Path ?? "" });
 }
 
-export function controlInFile(path: string | null): Cause | null {
-  if (path === null || path === "") return null;
+export type ScriptRead = { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
+
+export function readScriptFile(path: string): ScriptRead {
   let fd: number | null = null;
   try {
-    if (!statSync(path).isFile()) return null;
+    if (!statSync(path).isFile()) return { kind: "unreadable" };
     fd = openSync(path, "r");
     const size = fstatSync(fd).size;
     const head = Buffer.alloc(Math.min(size, SNIFF));
     const n = readSync(fd, head, 0, head.length, 0);
-    if (n === 0) return null;
-    if (native(head.subarray(0, n))) return null;
-    if (size > MAX_FILE) return "shell-admin";
+    if (n === 0) return { kind: "unreadable" };
+    if (native(head.subarray(0, n))) return { kind: "native" };
+    if (size > MAX_FILE) return { kind: "admin" };
     const buf = Buffer.alloc(size);
     let read = 0;
     while (read < size) {
@@ -37,12 +38,21 @@ export function controlInFile(path: string | null): Cause | null {
       read += got;
     }
     const text = decode(buf.subarray(0, read));
-    return text === null ? "shell-admin" : pregateControlCause(text);
-  } catch {
-    return null;
+    return text === null ? { kind: "unreadable" } : { kind: "text", text };
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { kind: "missing" } : { kind: "unreadable" };
   } finally {
     if (fd !== null) closeSync(fd);
   }
+}
+
+export function controlInFile(path: string | null): Cause | null {
+  if (path === null || path === "") return null;
+  const read = readScriptFile(path);
+  if (read.kind === "native" || read.kind === "missing") return null;
+  if (read.kind === "unreadable") return "shell-admin";
+  if (read.kind === "admin") return "shell-admin";
+  return pregateControlCause(read.text);
 }
 
 function native(head: Buffer): boolean {

@@ -12,7 +12,7 @@ src/compile.ts	catch { errors.push(`${label}: invalid JSON`); return undefined; 
 src/consent.ts	catch { return null; // a damaged record is not a registered project; its consent is checked on use }
 src/contract.ts	catch { const diff = contractDiff(null, after, bundled); return { warning: true, lines: [UNREADABLE, ...diff.lines], summary: [UNREADABLE, ...diff.summary] }; }
 src/contract.ts	catch { return CORE_ONLY(); /* An unreadable preset proves no bundled source. */ }
-src/control-file.ts	catch { return null; }
+src/control-file.ts	catch (error) { return (error as NodeJS.ErrnoException).code === "ENOENT" ? { kind: "missing" } : { kind: "unreadable" }; }
 src/demo-command.ts	catch (e) { return { code: 1, report: { schemaVersion: 1, mode: "isolated-owned-sample-automation", engine: VERSIONS, cleanup: true, attempts: run.attempts, error: String((e as Error).message).replaceAll(run.area, "<owned-demo>") } }; }
 src/dependency-cache.ts	catch { cache.stats.error = "Dependency cache checkpoint unavailable; resolution remains valid."; }
 src/dependency-cache.ts	catch { cache.stats.error = "Dependency cache temporary-file cleanup unavailable."; }
