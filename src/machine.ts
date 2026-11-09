@@ -11,7 +11,8 @@ import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, st
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./inertia.ts";
 import { readProposal } from "./proposal.ts";
-import { ENGINE_VERSION, REPO } from "./product.ts";
+import { cliVersion } from "./harness/codex.ts";
+import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
@@ -474,6 +475,16 @@ function versionOf(h: HarnessId, bin: string | null): Line {
   const r = spawn([bin, "--version"], 15_000);
   const v = r.stdout.trim().split("\n")[0] ?? "";
   const verified = HARNESSES[h].VERIFIED;
+  if (h === "codex") {
+    const cli = cliVersion(r.stdout);
+    const unknown = v || `unknown (exit ${r.exit})`;
+    if (cli !== null && compareVersions(cli, verified) < 0) {
+      return warn(
+        `codex: version ${unknown}; ${verified} or newer is required. Direct Guardian review before ${verified} did not run PreToolUse hooks, so a PREGATE deny can be bypassed on that path (openai/codex#58368).`,
+      );
+    }
+    if (cli !== null && compareVersions(cli, verified) >= 0 && cli === verified) return ok(`codex ${verified}.`);
+  }
   return v.includes(verified) ? ok(`${h} ${verified}.`)
     : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed contract may cause payload-unrecognized denials.`);
 }

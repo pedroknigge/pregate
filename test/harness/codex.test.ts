@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
-import { decode, encode } from "../../src/harness/codex.ts";
+import { cliVersion, decode, encode, VERIFIED } from "../../src/harness/codex.ts";
 import type { Decision, DecideInput, Edit, Emission, HookEvent, HookKind, Lock, ProposedChange, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -28,6 +28,11 @@ const turn = (n: string): string => `00000000-0000-4000-8000-a00000000${n}`;
 const exec = (n: string): string => `exec-00000000-0000-4000-8000-c00000000${n}`;
 const session = (n: number, t: string | null) => ({ id: sid(n), harness: "codex" as const, agentId: null, turnId: t === null ? null : turn(t), interactive: false });
 const causeOf = (e: HookEvent | Rejected | null): string | null => (e !== null && "cause" in e ? e.cause : null);
+
+test("VERIFIED minimum is 0.167.0", () => {
+  expect(VERIFIED).toBe("0.167.0");
+  expect(cliVersion("codex-cli 0.166.0")).toBe("0.166.0");
+});
 const hunk = (old: string[], neu: string[], anchor: string | null = null, eof = false) => ({ anchor, old, neu, eof });
 
 const UNREGISTERED = "an event PREGATE does not register in ~/.codex/hooks.json (MH-22)";

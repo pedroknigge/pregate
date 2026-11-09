@@ -369,6 +369,18 @@ describe("doctor", () => {
     expect(out.code).toBe(0);
   });
 
+  test("Codex below 0.167.0 warns that Guardian review could skip PreToolUse hooks", () => {
+    const m = machine(["codex"], {
+      codex: `#!/bin/sh\n[ "$1" = --version ] && { echo 'codex-cli 0.166.0'; exit 0; }\nexec '${process.execPath}' '${APP_SERVER}' "$@"\n`,
+    });
+    ok(pregate(m, "setup"), "setup");
+    const out = pregate(m, "doctor");
+    const text = `${out.stdout}${out.stderr}`;
+    expect(text).toContain("WARNING: codex: version codex-cli 0.166.0; 0.167.0 or newer is required.");
+    expect(text).toContain("Direct Guardian review before 0.167.0 did not run PreToolUse hooks");
+    expect(text).toContain("openai/codex#58368");
+  });
+
   test("drift, a disabled plugin, lost trust and a CLI version that changed are reported", () => {
     const m = machine(ALL, { grok: version("grok", "grok 9.9.9") });
     ok(pregate(m, "setup"), "setup");
