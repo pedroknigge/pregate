@@ -11,9 +11,9 @@ import { exact } from "../src/register.ts";
 import { grokPreToolUseGate } from "./fixtures/grok-pretooluse-gate.ts";
 import type { HarnessId } from "../src/types.ts";
 
-// Grok Build >= 1.0.71 failClosed on the shared PreToolUse handler: setup writes the key, Claude and
-// Cursor keep loading the file, and the Grok Pre gate denies hook crash and timeout when failClosed is
-// true (exercised through the documented Grok PreToolUse contract).
+// Compiled-binary E2E for failClosed registration and shared-settings merge. Grok denial semantics are
+// exercised through test/fixtures/grok-pretooluse-gate.ts (contract), not the real Grok CLI; see
+// test/grok-failclosed-real.e2e.test.ts and docs/guarantees.md.
 
 setDefaultTimeout(120_000);
 
@@ -141,8 +141,8 @@ describe("Grok failClosed registration", () => {
   });
 });
 
-describe("Grok PreToolUse gate", () => {
-  test("failClosed denies hook crash and timeout; without it Grok fails open", () => {
+describe("Grok PreToolUse gate (contract fixture)", () => {
+  test("failClosed denies hook crash and timeout in the contract model; without it the gate fails open", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");
     const registered = pregateHandler(m);

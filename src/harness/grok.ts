@@ -7,7 +7,9 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 // and malformed output let the tool run unless the handler has failClosed (Grok Build >= 1.0.71).
 
 export const VERIFIED = "1.0.49";
-// failClosed on PreToolUse handlers: Grok Build 1.0.71+ (https://x.ai/changelog/build, weekly 2026-w44).
+// PreToolUse handler failClosed: intended on Grok Build >= FAIL_CLOSED_SINCE. Official docs.x.ai and the
+// public grok-build 10-hooks.md mirror still document fail-open only; 1.0.71+ field documented in
+// third-party release notes (vibecoding.cz weekly 2026-w44) and Skillsaw grok-hooks-valid. See guarantees.md.
 export const FAIL_CLOSED_SINCE = "1.0.71";
 
 const BAD: Cause = "payload-unrecognized";

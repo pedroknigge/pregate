@@ -191,8 +191,8 @@ function ours(t: Target, data: string): Record<string, object> {
   const h: HarnessId = t === "shared" ? "claude-code" : t;
   const run = (sub: Sub, timeout: number) => {
     const handler: Record<string, unknown> = { type: "command", command: hookCommand(data, sub, h), timeout };
-    // Shared ~/.claude/settings.json: failClosed is a Grok Build >= 1.0.71 handler field; Claude Code
-    // and Cursor ignore unknown handler keys (Cursor forces failClosed false on imported hooks).
+    // Shared ~/.claude/settings.json: failClosed for Grok Build >= 1.0.71 (third-party docs; see guarantees.md).
+    // Merge keeps foreign group/handler keys on Claude settings; Cursor native failClosed is [V] in deny-matrix.
     if (t === "shared" && sub === "pre") handler.failClosed = true;
     return handler;
   };

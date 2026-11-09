@@ -1,7 +1,9 @@
-// Grok Build >= 1.0.71 PreToolUse gate for one command handler. Matches the public contract:
-// exit 0 allows unless stdout JSON denies; exit 2 denies; any other exit or a timeout fails open
-// unless failClosed is true (then the tool call is denied). Sources: Grok Build weekly 2026-w44,
-// https://skillsaw.org/rules/grok-hooks-valid/ (handler.failClosed boolean).
+// Contract model of Grok PreToolUse supervision for tests — NOT the real Grok binary.
+// Baseline fail-open semantics match the official docs:
+// https://docs.x.ai/build/features/hooks and xai-org/grok-build 10-hooks.md (main mirror, 2026-11).
+// failClosed-on-crash/timeout for >= 1.0.71 is unverified in that public mirror; this fixture follows
+// the expected semantics described in third-party release notes (vibecoding.cz weekly 2026-w44) and
+// the Skillsaw hook linter (handler failClosed / fail_closed boolean).
 
 export interface PreHandler {
   type: string;

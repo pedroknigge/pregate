@@ -95,14 +95,45 @@ are the same.
 | Non-literal script, or a script found on PATH | Sound | Inside an enabled root, `bash "$SCRIPT"`, `sh "$X"`, `bash < "$S"`, `python3 "$P"`, `node "$P"`, `make -f "$F"` and `powershell -File $P` are `shell-write`. A bare command name is resolved on PATH and scanned when that file is a script. A literal script path and a read-only one-liner stay allowed. |
 | Unreadable or malformed status or lock JSON | Sound | A lock or preset that is not JSON is `lock-stale`. One the process cannot read (`EACCES`, or a path that is not a file) is denied. It is not treated as permission to edit. |
 
-### Grok Build hook supervision
+### Grok Build hook supervision (`failClosed`)
 
-On Grok Build **1.0.71+**, PREGATE registers `failClosed: true` on the shared `PreToolUse` handler in
-`~/.claude/settings.json`. Grok denies the tool when that hook process crashes or times out at the
-harness, instead of failing open. Claude Code and Cursor read the same file and ignore the extra
-handler key; Cursor also forces `failClosed` off on imported hooks. PREGATE's launcher still converts
-engine failures into exit 2 + stderr on every harness. Below 1.0.71, Grok ignores unknown handler
-fields, so the registration stays compatible.
+**What PREGATE does.** `pregate setup` sets `failClosed: true` on the **command handler object** it
+owns in the shared `PreToolUse` group in `~/.claude/settings.json` (sibling of `type`, `command`,
+`timeout`). Codex's separate `hooks.json` Pre handler does not get the key.
+
+**Official vendor docs (checked 2026-11).** [Grok hooks on docs.x.ai](https://docs.x.ai/build/features/hooks)
+and the public [`10-hooks.md` user guide](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md)
+mirror describe **fail-open** PreToolUse supervision (timeouts, crashes, malformed output do not block).
+They do **not** yet document a per-handler `failClosed` / `fail_closed` field on the public `main`
+mirror of [xai-org/grok-build](https://github.com/xai-org/grok-build) (`xai-grok-hooks` config has no
+such field in that snapshot). `https://x.ai/changelog/build` was not readable from CI (HTTP 403). There
+are no GitHub release artifacts for Grok Build on that mirror.
+
+**Why we still write the key.** Release **1.0.71** is described in third-party notes as adding
+handler-level fail-closed PreToolUse behaviour
+([Vibecoding.cz weekly 2026-w44](https://www.vibecoding.cz/en/grok-build-weekly-2026-w44/) — *not*
+vendor-primary). The [Skillsaw `grok-hooks-valid`](https://skillsaw.org/rules/grok-hooks-valid/) linter
+documents `failClosed` / `fail_closed` as a boolean on command handlers (*third-party*). PREGATE treats
+that as the intended placement until official docs catch up.
+
+**What is verified in this repo (not the real Grok binary).**
+
+| Check | Evidence |
+| --- | --- |
+| Setup writes `failClosed` only on shared Pre | `test/grok-failclosed.e2e.test.ts`, `test/register.test.ts` |
+| Expected Grok Pre fail-open vs fail-closed semantics | `test/fixtures/grok-pretooluse-gate.ts` (**contract**, cites official fail-open + third-party 1.0.71) |
+| Foreign Claude settings unchanged | `test/shared-settings-failclosed.test.ts`, `test/register.test.ts` merge on `claude-settings.json` |
+| Cursor **native** `failClosed` on `.cursor/hooks.json` | **Verified [V]** `test/payloads/cursor/deny-matrix.observed.json` (`cursor-agent` 2026.09.26 capture) |
+
+**What is not verified here.** A **real** Grok Build ≥ 1.0.71 CLI denying a tool when the registered hook
+crashes or times out: no headless Linux install or auth in CI (`test/grok-failclosed-real.e2e.test.ts`
+skips; full harness runs use `PREGATE_REAL=1` per `scripts/e2e-real.ts`). Whether Cursor **imports**
+`failClosed` from `~/.claude/settings.json` is **[C]** in MULTI-HARNESS U-6 (community); native Cursor
+hooks are verified above. PREGATE's launcher still converts engine failures into exit 2 + stderr on every
+harness regardless.
+
+**Older Grok.** Unknown handler fields are tolerated in shared settings merges; builds that ignore
+`failClosed` keep working.
 
 ### Known gaps
 
