@@ -30,7 +30,7 @@ Supported harnesses, from `src/capabilities.ts`. A harness that is not in this t
 
 Grok Build has no session-start context. Antigravity (agy) has no advisory warnings.
 
-Codex CLI 0.166.0 is the minimum supported version (`src/harness/codex.ts`).
+Codex CLI 0.167.0 is the minimum supported version (`src/harness/codex.ts`).
 
 Parsed languages, from `src/capabilities.ts`. This is the whole parser list.
 

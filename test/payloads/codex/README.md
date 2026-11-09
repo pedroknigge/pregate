@@ -56,7 +56,7 @@ Notes:
 
 Captured 2026-11-02 from Codex CLI **0.166.0** (`codex-cli 0.166.0`, `codex-x86_64-unknown-linux-musl`, release `rust-v0.166.0` published 2026-10-29) on Linux x64. The model was a local Responses API stand-in addressed as `gpt-5.5` (a catalog slug whose `apply_patch` tool is freeform and whose shell tool is `exec_command`). `code_mode_host` was disabled so the tools were called directly. Hooks were user-level `$CODEX_HOME/hooks.json` with `--dangerously-bypass-hook-trust` and `--dangerously-bypass-approvals-and-sandbox`. No account credentials were used.
 
-openai/codex#57198 (and #57203 for permission and post-tool hooks) puts the command's resolved workdir in `cwd`. The hook process itself still starts in the session directory. There is still no `workdir` key on `tool_input`, and no version field, so a 0.159.2 payload has the same shape. **0.166.0 is the minimum supported release** for this adapter: an older CLI reports the session directory in `cwd` and cannot be detected.
+openai/codex#57198 (and #57203 for permission and post-tool hooks) puts the command's resolved workdir in `cwd`. The hook process itself still starts in the session directory. There is still no `workdir` key on `tool_input`, and no version field, so a 0.159.2 payload has the same shape. Payloads here were captured on 0.166.0; **0.167.0 is the minimum supported release** (`src/harness/codex.ts`): 0.166.x and older report the session directory in `cwd` on some paths and direct Guardian review skipped PreToolUse hooks (openai/codex#58368).
 
 | File | Event | What the real process did |
 |---|---|---|

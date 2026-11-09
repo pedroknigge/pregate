@@ -95,6 +95,17 @@ are the same.
 | Non-literal script, or a script found on PATH | Sound | Inside an enabled root, `bash "$SCRIPT"`, `sh "$X"`, `bash < "$S"`, `python3 "$P"`, `node "$P"`, `make -f "$F"` and `powershell -File $P` are `shell-write`. A bare command name is resolved on PATH and scanned when that file is a script. A literal script path and a read-only one-liner stay allowed. |
 | Unreadable or malformed status or lock JSON | Sound | A lock or preset that is not JSON is `lock-stale`. One the process cannot read (`EACCES`, or a path that is not a file) is denied. It is not treated as permission to edit. |
 
+### Codex CLI version
+
+PREGATE requires Codex CLI **0.167.0** or newer. Codex **0.166.x** and older are
+unsupported: direct Guardian review on those releases did not run PreToolUse hooks
+before approval policy, so a deny could be lost on that path
+([openai/codex#58368](https://github.com/openai/codex/pull/58368)). Normal
+PreToolUse hook execution and the `pregate doctor` canary still exercise the
+direct hook route; they do not prove Guardian-path behavior on an old Codex.
+`pregate doctor` prints an explicit warning when the Codex binary on `PATH` is
+below 0.167.0.
+
 ### Known gaps
 
 These tests stay skipped unless `PREGATE_RUN_KNOWN_GAPS` is set. They record a limit rather than a passing attack.

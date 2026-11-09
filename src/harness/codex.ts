@@ -8,9 +8,19 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 // read exactly, and encode never relies on stdout before a tool runs.
 
 // Minimum supported Codex CLI. 0.166.0 is the first stable release whose PreToolUse `cwd` is the
-// command workdir (openai/codex#57198). The payload has no version field and the same shape as
-// 0.159.2, so an older CLI cannot be told apart and is not supported.
-export const VERIFIED = "0.166.0";
+// command workdir (openai/codex#57198). 0.167.0 is required because direct Guardian review ran
+// without PreToolUse hooks before that release, so a deny could be bypassed (openai/codex#58368).
+// The payload has no version field and the same shape as 0.159.2, so an older CLI cannot be told
+// apart and is not supported.
+export const VERIFIED = "0.167.0";
+
+const CLI_VERSION = /^codex(?:-cli)?\s+(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\b/;
+
+// The first line of `codex --version` is `codex-cli <semver>`.
+export function cliVersion(versionText: string): string | null {
+  const line = versionText.trim().split("\n")[0] ?? "";
+  return CLI_VERSION.exec(line)?.[1] ?? null;
+}
 
 const BAD: Cause = "payload-unrecognized";
 const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SessionStart: "session-start" };

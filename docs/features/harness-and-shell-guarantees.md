@@ -94,6 +94,12 @@ relative path resolves there; a non-literal `cd` still makes the next directory
 unknown. Passing shell inspection is not a sandbox or a guarantee that a command
 cannot modify source or protected state.
 
+Codex CLI **0.167.0** is the minimum supported version. Before 0.167.0, Codex's
+direct Guardian review path evaluated approval policy on recorded `exec_command`
+calls without running PreToolUse hooks first ([openai/codex#58368](https://github.com/openai/codex/pull/58368)),
+so a PREGATE deny could be bypassed when policy would otherwise skip review.
+`pregate doctor` warns on Codex versions below 0.167.0.
+
 Stop checks the resulting tree against the retained session baseline, including
 changes committed during the session. `report --json` exposes that snapshot's
 HEAD, current HEAD, origin, saved dirty-file count and recorded time, or explicitly
