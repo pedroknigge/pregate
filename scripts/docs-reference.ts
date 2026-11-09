@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "../src/capabilities.ts";
+import { INIT_PRESET_NAMES } from "../src/init-presets.ts";
 import type { Check, RuleRelation } from "../src/types.ts";
 import { REGRESSION } from "./latency-gate.ts";
 import { readmeCatalogBegin, readmeCatalogBlock, readmeCatalogEnd } from "./readme-catalog.ts";
@@ -107,11 +108,13 @@ function catalog(p: Pack): string {
     ...p.methodologies.flatMap((m) => [`## ${m.id}`, "", `Manifest version: \`${m.version}\`. Status: **${m.status}**.`, "", ...m.invariants.map((r) => rule(r, p))])].join("\n");
 }
 function presets(): string {
+  const init = new Set<string>(INIT_PRESET_NAMES);
   const entries = ["catalog/presets", "packs/presets"].flatMap((path) => readdirSync(join(root, path))
     .filter((p) => p.endsWith(".json")).sort().map((p) => ({ path: `${path}/${p}`, data: json(`${path}/${p}`) })));
-  return ["## Preset recipes", "", `\`guide\` starts new projects in advisor mode (the agent sees findings; nothing blocks); \`--enforcement enforce\` blocks and \`--enforcement shadow\` observes silently. Existing projects keep their recorded mode. Legacy \`init\` starts optional rules in shadow, including an explicitly selected recipe. All ${core.checks} core requirements enforce by default. Use \`fitness plan\` to group missing evidence and \`fitness bind <id[,id]> ... --preview\` for requirements genuinely covered by one assertion. Unbound requirements stay active and unverified without blocking work, while adopted assertions require current passing evidence. Review effective scope and policy after approval.`, "",
-    "| Recipe | Recipe enforcement | Methodologies |", "| --- | --- | --- |",
-    ...entries.map(({ path, data }) => `| [${data.name}](../${path}) | ${data.enforcement ?? "enforce"} | ${data.methodologies.map((m: string) => `\`${m}\``).join(", ")} |`)].join("\n");
+  return ["## Preset recipes", "",
+    `\`init\` and \`guide --preset\` accept only: ${INIT_PRESET_NAMES.map((n) => `\`${n}\``).join(", ")}. Other JSON files are example contracts (copy or \`preset apply\`; see [preset recipes](../packs/presets/README.md)). \`guide\` starts new projects in advisor mode (the agent sees findings; nothing blocks); \`--enforcement enforce\` blocks and \`--enforcement shadow\` observes silently. Existing projects keep their recorded mode. Legacy \`init\` starts optional rules in shadow when a starter recipe is selected. All ${core.checks} core requirements enforce by default. Use \`fitness plan\` to group missing evidence and \`fitness bind <id[,id]> ... --preview\` for requirements genuinely covered by one assertion. Unbound requirements stay active and unverified without blocking work, while adopted assertions require current passing evidence. Review effective scope and policy after approval.`, "",
+    "| Recipe | `init` / `guide --preset` | Recipe enforcement | Methodologies |", "| --- | --- | --- | --- |",
+    ...entries.map(({ path, data }) => `| [${data.name}](../${path}) | ${init.has(data.name) ? "yes" : "manual"} | ${data.enforcement ?? "enforce"} | ${data.methodologies.map((m: string) => `\`${m}\``).join(", ")} |`)].join("\n");
 }
 function documents(path: string, suffix = ".md"): string[] {
   return readdirSync(join(root, path), { withFileTypes: true }).sort((a, b) => compareName(a.name, b.name))

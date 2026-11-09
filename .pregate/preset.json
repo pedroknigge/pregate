@@ -149,6 +149,7 @@
         "src/proposal.ts",
         "src/pending-review.ts",
         "src/init.ts",
+        "src/init-presets.ts",
         "src/scan-command.ts",
         "src/skill.ts",
         "src/report-command.ts",

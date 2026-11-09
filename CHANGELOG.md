@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pregate prepare [--version <v> | --engine <v>]` downloads and verifies a release archive (SHA256SUMS checksum and Sigstore bundles when `cosign` is available), then atomically installs that engine version into the user cache under `<DATA>/<version>/`. It does not register harness hooks, install companion skills, change PATH, or rewrite the launcher. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. `pregate setup` and `pregate update --engine` reuse the same download and verification path; their registration behavior is unchanged.
 - The python pack (1.4.0) adds `PY-EXCEPT-002`, an advisory warning when an `except Exception` or `except BaseException` handler body is only `pass`, `...`, or comments, matching the intent of core `CC-ER-002` for Python. `PY-EXCEPT-001` (bare except) is unchanged.
 
+### Changed
+- Living installation docs document the npm launcher (`npm i -g pregate`, `npx pregate`). The `0.0.4` release notes record the 2026-11-09 npm publish; historical notes for 0.0.1–0.0.3 still describe GitHub-only install.
+- `init` / `guide --preset` names are documented separately from example preset recipes in `packs/presets/`. The generated pack inventory marks which recipes `init` accepts.
+
 ## [0.0.4] - 2026-11-07
 
 What changed for people installing or gating a repository. The library has 48 optional packs, including new Astro, TanStack Query, and Hono packs. On Windows, setup warns when Codex has not confirmed hook trust, the demo skips a PATH entry it cannot read, and the verifier keeps a report if the run is killed. Notes: [0.0.4](docs/releases/0.0.4.md). The previous public tag is [v0.0.3](https://github.com/pedroknigge/pregate/releases/tag/v0.0.3).
