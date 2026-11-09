@@ -321,6 +321,52 @@ test("a barrel or a path alias cannot hide a forbidden import", () => {
   expect(said(deep)).toMatch(/architecture\/CA-DEP-001|unresolvable-import/);
 });
 
+test("promote moves dirty CA-DEP-001 to enforce; the ratchet keeps the old finding and denies a new one", () => {
+  const r = fresh();
+  const presetPath = join(r.dir, ".pregate/preset.json");
+  const preset = JSON.parse(readFileSync(presetPath, "utf8")) as { enforcement?: string };
+  preset.enforcement = "advisor";
+  writeFileSync(presetPath, JSON.stringify(preset));
+  ok(cli(r, "preset", "compile", "--yes"), "compile advisor");
+  put(r, "src/infra/clock.ts", "export const clock = 1;\n");
+  put(r, "src/application/dirty.ts", 'import { clock } from "../infra/clock";\nexport const used = clock;\n');
+  commit(r, "existing layer debt");
+
+  const audited = cli(r, "audit", "--json");
+  expect(audited.code, said(audited)).toBe(0);
+  const report = JSON.parse(audited.stdout) as {
+    enforceCandidates: string[]; ratchetCandidates: string[];
+    summary: { rules: { rule: string; count: number; files: number; check: string }[] };
+  };
+  const debt = report.summary.rules.find((rule) => rule.rule === "architecture/CA-DEP-001");
+  expect(debt).toEqual({ rule: "architecture/CA-DEP-001", count: 1, files: 1, check: expect.any(String) });
+  expect(report.enforceCandidates).not.toContain("architecture/CA-DEP-001");
+  expect(report.ratchetCandidates).toContain("architecture/CA-DEP-001");
+  expect(report.enforceCandidates).toContain("clean-code/CC-ER-002");
+  const cleanPreview = cli(r, "promote", "--rule", "CC-ER-002", "--preview");
+  expect(cleanPreview.code, said(cleanPreview)).toBe(0);
+  expect(said(cleanPreview)).toContain("clean-code/CC-ER-002 (");
+  expect(said(cleanPreview)).not.toContain("grandfathered");
+
+  const preview = cli(r, "promote", "--rule", "CA-DEP-001", "--preview");
+  expect(preview.code, said(preview)).toBe(0);
+  expect(said(preview)).toContain("Would promote to enforce (1, pending approval): architecture/CA-DEP-001 (1 existing finding in 1 file grandfathered by the no-new ratchet; new findings are denied).");
+  const applied = cli(r, "promote", "--rule", "CA-DEP-001", "--yes");
+  expect(applied.code, said(applied)).toBe(0);
+  const lock = JSON.parse(readFileSync(join(r.dir, ".pregate/pregate.lock.json"), "utf8")) as { rules: { id: string; enforcement?: string }[] };
+  expect(lock.rules.find((rule) => rule.id === "architecture/CA-DEP-001")?.enforcement).toBe("enforce");
+
+  allows(r);
+  put(r, "src/application/dirty.ts", 'import { clock } from "../infra/clock";\n// kept\nexport const used = clock;\n');
+  allows(r);
+  put(r, "src/application/newer.ts", 'import { clock } from "../infra/clock";\nexport const again = clock;\n');
+  const denied = ratchet(r);
+  expect(denied.code, said(denied)).toBe(1);
+  expect(said(denied)).toContain("architecture/CA-DEP-001");
+  expect(said(denied)).toContain("src/application/newer.ts");
+  expect(said(denied)).not.toContain("src/application/dirty.ts");
+});
+
 // ── Trust boundaries ─────────────────────────────────────────────────────────────────────
 
 test("a lock that does not match its preset is rejected, and the hook cannot rewrite the contract", () => {

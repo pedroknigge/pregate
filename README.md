@@ -49,7 +49,7 @@ Not in that list: `.astro`, `.java`, `.kt`, `.kts`, `.swift`, `.dart`.
 - Checks the proposed file content. Hooks reconstruct supported edits before evaluation. `pregate check --stdin --path <file>` accepts the complete proposed file without writing it.
 - Shares one `.pregate/preset.json` and compiled `.pregate/pregate.lock.json` across the harnesses in the table above. Git pre-commit and CI evaluate that contract too.
 - Lets you introduce rules gradually. Advisor rules explain without blocking. Enforce rules can block. The no-new ratchet blocks new or growing violations while allowing existing debt that did not grow.
-- Lists existing findings with `audit`, then proposes clean advisor rules for enforcement with `promote`. A human reviews the change before it applies.
+- Lists existing findings with `audit`, then proposes advisor rules for enforcement with `promote`. Clean rules block every match. Under the no-new ratchet, rules that already have findings can move to enforce too: existing findings stay grandfathered and new ones are denied. A human reviews the change before it applies.
 - Gives agents `Why`, `Fix`, and `Avoid` guidance, including known ways a superficial repair would miss the rule.
 - Binds contract approval to a SHA-256 digest. A human approves the exact preview through a terminal, not through the agent's permission prompt.
 
@@ -148,7 +148,7 @@ A committed contract is not local consent. For an existing cloned or disabled co
 pregate promote --preview
 ```
 
-`audit` and `report` list clean advisor rules as `enforceCandidates`. Review and approve the promotion's new digest. Zero findings is a candidate for enforcement, not proof that a rule covers every case.
+`audit` and `report` list clean advisor rules as `enforceCandidates`. When the ratchet is `no-new`, `audit` also lists advisor rules that already have findings as `ratchetCandidates`. `pregate promote --preview` can move either set to enforce. A clean rule blocks every match. A rule with existing findings keeps those matches grandfathered by the no-new ratchet and denies new ones. A strict ratchet does not grandfather, so dirty rules stay out. Review and approve the promotion's new digest. Zero findings is a candidate for enforcement, not proof that a rule covers every case.
 
 For a wrong finding, record feedback separately:
 
@@ -246,7 +246,7 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 | Check the full tree or staged files | `pregate check --all` / `pregate check --staged` |
 | Check new debt against a base | `pregate check --ratchet --base <sha>` |
 | Inventory debt and plan repairs | `pregate audit --plan` |
-| Propose clean rules for enforcement | `pregate promote --preview` |
+| Propose advisor rules for enforcement | `pregate promote --preview` |
 | Explain a rule | `pregate explain <rule>` |
 | Summarize recorded decisions | `pregate report --json` |
 | Run an isolated example | `pregate demo` |

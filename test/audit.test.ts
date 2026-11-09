@@ -277,7 +277,7 @@ test("promote prepares a digest review for clean advisor rules and refuses viola
   process.env.XDG_DATA_HOME = join(area, "data");
   await inScratch(area, async () => {
     try {
-      for (const dir of [".pregate", "src/domain"]) mkdirSync(join(root, dir), { recursive: true });
+      for (const dir of [".pregate", "src/domain", "src/application", "src/infra"]) mkdirSync(join(root, dir), { recursive: true });
       const preset = JSON.parse(policyFixture(readFileSync("catalog/presets/backend-clean-ddd.json", "utf8")));
       preset.enforcement = "advisor";
       preset.scope = { include: ["src/**"], exclude: [] };
@@ -286,12 +286,17 @@ test("promote prepares a digest review for clean advisor rules and refuses viola
       if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
       writeFileSync(join(root, PRESET), text); writeFileSync(join(root, LOCK), compiled.text);
       writeFileSync(join(root, "src/domain/debt.ts"), "export function oldDebt(a: number, b: number, c: number) { return a + b + c; }\n");
-      expect((await promote(["--repo", root, "--rule", "CC-FN-002", "--preview"])).code).toBe(1);
+      writeFileSync(join(root, "src/infra/clock.ts"), "export const clock = 1;\n");
+      writeFileSync(join(root, "src/application/dirty.ts"), 'import { clock } from "../infra/clock";\nexport const used = clock;\n');
       expect((await promote(["--repo", root, "--rule", "unknown-rule", "--preview"])).code).toBe(1);
       expect((await promote(["--repo", root, "--preview", "--yes"])).code).toBe(1);
+      const warned = await promote(["--repo", root, "--rule", "CC-FN-002", "--preview"]);
+      expect(warned.code, warned.text).toBe(1);
+      expect(warned.text).toContain("Rule clean-code/CC-FN-002 is not eligible to promote (must be an active static advisor rule; warn rules never block).");
       const single = await promote(["--repo", root, "--rule", "CC-ER-002", "--preview"]);
       expect(single.code, single.text).toBe(0);
-      expect(single.text).toContain("Would promote to enforce (1, pending approval): clean-code/CC-ER-002 (1 file).");
+      expect(single.text).toContain("Would promote to enforce (1, pending approval): clean-code/CC-ER-002 (3 files).");
+      expect(single.text).not.toContain("grandfathered");
       expect(single.text).toContain("Mode: advisor — the agent sees findings, except 1 rule set to enforce, which blocks.");
       const unflagged = await promote(["--repo", root, "--rule", "CC-ER-002"]);
       expect(unflagged.code).toBe(1);
@@ -300,18 +305,40 @@ test("promote prepares a digest review for clean advisor rules and refuses viola
       const idle = await promote(["--repo", root, "--rule", "TDD-FOCUS-001", "--preview"]);
       expect(idle.code).toBe(1);
       expect(idle.text).toContain("testing/TDD-FOCUS-001 matches no files in the audited scope");
-      const report = JSON.parse((await audit(["--repo", root, "--json"])).text) as { auditedRules: { rule: string; files: number }[]; enforceCandidates: string[] };
+      const report = JSON.parse((await audit(["--repo", root, "--json"])).text) as {
+        auditedRules: { rule: string; files: number }[]; enforceCandidates: string[]; ratchetCandidates: string[];
+        summary: { rules: { rule: string; count: number; files: number; check: string }[] };
+      };
       expect(report.auditedRules.find(rule => rule.rule === "testing/TDD-FOCUS-001")!.files).toBe(0);
-      expect(report.auditedRules.find(rule => rule.rule === "clean-code/CC-FN-001")!.files).toBe(1);
+      expect(report.auditedRules.find(rule => rule.rule === "clean-code/CC-FN-001")!.files).toBe(3);
       expect(report.enforceCandidates).not.toContain("testing/TDD-FOCUS-001");
+      expect(report.enforceCandidates).not.toContain("clean-code/CC-FN-002");
+      expect(report.enforceCandidates).not.toContain("architecture/CA-DEP-001");
+      const debt = report.summary.rules.find(rule => rule.rule === "architecture/CA-DEP-001");
+      expect(debt).toEqual({ rule: "architecture/CA-DEP-001", count: 1, files: 1, check: expect.any(String) });
+      expect(report.ratchetCandidates).toContain("architecture/CA-DEP-001");
+      const dirty = await promote(["--repo", root, "--rule", "CA-DEP-001", "--preview"]);
+      expect(dirty.code, dirty.text).toBe(0);
+      expect(dirty.text).toContain("Would promote to enforce (1, pending approval): architecture/CA-DEP-001 (1 existing finding in 1 file grandfathered by the no-new ratchet; new findings are denied).");
       const allClean = await promote(["--repo", root, "--preview"]);
       expect(allClean.code, allClean.text).toBe(0);
+      expect(allClean.text).toContain("clean-code/CC-ER-002 (3 files)");
+      expect(allClean.text).toContain("architecture/CA-DEP-001 (1 existing finding in 1 file grandfathered by the no-new ratchet; new findings are denied)");
+      expect(allClean.text).not.toContain("CC-FN-002 (");
       expect(allClean.text).toContain("Not proposed:");
       expect(allClean.text).toContain("clean advisor rules match no files in scope");
       const proposed = JSON.parse(readProposal(root)!.writes[0]!.after!) as { overrides: Record<string, unknown> };
       expect(proposed.overrides["clean-code/CC-ER-002"]).toMatchObject({ enforcement: "enforce" });
       expect(proposed.overrides["testing/TDD-FOCUS-001"]).toBeUndefined();
       expect(proposed.overrides["CC-FN-002"]).toEqual({ params: { max: 2 } });
+      expect(proposed.overrides["architecture/CA-DEP-001"]).toEqual({ enforcement: "enforce" });
+      preset.ratchet = { mode: "strict" };
+      const strictText = JSON.stringify(preset, null, 2) + "\n", strictCompiled = compile(strictText, sourcesOf(root), VERSIONS);
+      if ("errors" in strictCompiled) throw new Error(strictCompiled.errors.join("\n"));
+      writeFileSync(join(root, PRESET), strictText); writeFileSync(join(root, LOCK), strictCompiled.text);
+      const strict = await promote(["--repo", root, "--rule", "CA-DEP-001", "--preview"]);
+      expect(strict.code, strict.text).toBe(1);
+      expect(strict.text).toContain("Rule architecture/CA-DEP-001 is not eligible to promote under a strict ratchet: 1 existing finding would block, and strict does not grandfather them.");
       writeFileSync(join(root, "src/domain/syntax.ts"), "export const = ;\n");
       expect((await promote(["--repo", root, "--preview"])).code).toBe(1);
     } finally {

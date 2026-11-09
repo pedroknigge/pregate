@@ -99,10 +99,13 @@ overrides can change it. Advisor mode (`"enforcement": "advisor"`) never blocks
 edits or Stop (even for `core/*` rules when top-level or per-rule enforcement is
 `advisor`), but surfaces non-blocking `PREGATE ADVISOR` guidance to the agent via
 the harness warning channel so the agent decides how to proceed. Use
-`pregate promote [--rule <id,id>] --preview` to promote clean `advisor` rules
-(`enforceCandidates` with 0 violations in audited scope, core rules first) to
-`enforce`. A rule that matches no audited file is never proposed; `auditedRules`
-gives each rule's `files` count. Shadow records deny/ask findings silently without blocking.
+`pregate promote [--rule <id,id>] --preview` to promote `advisor` rules to
+`enforce`. Clean rules are `enforceCandidates` (0 violations in audited scope,
+core rules first). With ratchet `no-new`, rules that already have findings are
+`ratchetCandidates`: the preview names each rule and its finding count, existing
+findings stay grandfathered, and new findings are denied. A strict ratchet does
+not grandfather, so those rules stay out. A rule that matches no audited file is
+never proposed; `auditedRules` gives each rule's `files` count. Shadow records deny/ask findings silently without blocking.
 Warn gives feedback; off removes a rule through a reviewed override. All 68 core
 rules activate automatically and enforce by default unless `enforcement` is set
 to `advisor` or a human explicitly overrides individual core rules. Optional packs remain selected.
