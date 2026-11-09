@@ -122,7 +122,7 @@ export function draftExamples(files: Files, checkId: string, dir: string): Files
 
 // `rules add`: one sentence becomes a catalog rule, or a drafted check with generated fixtures.
 export type CatalogEntry = { fqn: string; methodology: string; alias: Alias; check: Check };
-export type RuleIntent = { kind: "import-edge"; from: string; to: string } | { kind: "call-ban"; callee: string; subject?: string };
+export type RuleIntent = { kind: "import-edge"; from: string; to: string } | { kind: "call-ban"; callee: string; subject?: string } | { kind: "package-ban"; name: string };
 export interface DraftSample { kind: DraftKind; name: string; text: string; note: string }
 export interface IntentDraft { area: string; files?: string; fix: string; patterns: PatternConfig[]; cases: DraftSample[] }
 
@@ -163,10 +163,15 @@ export function catalogMatches<T extends CatalogEntry>(sentence: string, entries
     .sort((a, b) => b.shape - a.shape || b.id - a.id || a.entry.fqn.localeCompare(b.entry.fqn)).map((s) => s.entry);
 }
 
-// The two sentence shapes a rule can be drafted from without code: an import edge between folders
-// and a banned call.
+// The sentence shapes a rule can be drafted from without code: an import edge between folders, a
+// banned package import and a banned call.
+const PACKAGE = "(@?[a-z0-9][\\w.-]*(?:/[\\w.-]+)?)";
+
 export function ruleIntent(sentence: string): RuleIntent | null {
   const s = sentence.trim().replace(/\.$/, "");
+  const banned = new RegExp(`^(?:never|do\\s+not|don't)\\s+import\\s+(?:from\\s+)?(?:the\\s+)?${PACKAGE}(?:\\s+(?:package|library|module))?$`, "i").exec(s)
+    ?? new RegExp(`^no\\s+${PACKAGE}\\s+imports?$`, "i").exec(s);
+  if (banned) return { kind: "package-ban", name: banned[1]!.toLowerCase() };
   const part = "(?:\\s+(?:layer|code|modules?|files?|folder))?";
   const edge = new RegExp(`^(?:the\\s+)?([a-z][\\w-]*)${part}\\s+(?:must|should|may)\\s+not\\s+(?:import|depend\\s+on)\\s+(?:from\\s+)?(?:the\\s+)?([a-z][\\w-]*)${part}$`, "i").exec(s);
   if (edge) return { kind: "import-edge", from: edge[1]!.toLowerCase(), to: edge[2]!.toLowerCase() };
@@ -190,6 +195,7 @@ export function intentDraft(intent: RuleIntent): IntentDraft {
         { kind: "pass", name: "mentions-folder", text: `export const path = "../${to}/db";\n`, note: "" },
       ] };
   }
+  if (intent.kind === "package-ban") return packageBanDraft(intent.name);
   const callee = intent.callee;
   return { area: "calls", fix: `Call the project's own wrapper instead of ${callee}.`,
     patterns: [{ id: "call", rule: { kind: "call_expression", has: { field: "function", regex: `(^|\\.)${regexLiteral(callee)}$` } } }],
@@ -200,6 +206,32 @@ export function intentDraft(intent: RuleIntent): IntentDraft {
       { kind: "pass", name: "wrapper", text: `export const load = () => api.get("/orders");\n`, note: "" },
       { kind: "pass", name: "mentions-call", text: `export const note = "${callee}(url)";\n`, note: "" },
     ] };
+}
+
+function packageBanDraft(name: string): IntentDraft {
+  return { area: "imports", fix: `Remove the ${name} import and use the replacement this project chose.`,
+    patterns: [{ id: "package", rule: specifierRule(`^${regexLiteral(name)}(/|$)`) }],
+    cases: [
+      { kind: "fail", name: "default-import", text: `import lib from "${name}";\nexport const value = lib;\n`, note: "" },
+      { kind: "fail", name: "subpath-re-export", text: `export * from "${name}/sub";\n`, note: "" },
+      { kind: "trap", name: "dynamic-import", text: `export async function load() {\n  return import("${name}");\n}\n`, note: `A dynamic import loads ${name} the same way.` },
+      { kind: "pass", name: "other-package", text: `import other from "${name}-extra";\nexport const value = other;\n`, note: "" },
+      { kind: "pass", name: "mentions-name", text: `export const name = "${name}";\n`, note: "" },
+    ] };
+}
+
+// How a written instruction can be carried out. `rule`: a shape the drafter knows, so it compiles
+// with generated cases. `example`: it names something in code and forbids or requires it, so one
+// failing and one passing snippet make it a rule. `prose`: guidance about judgment or about what the
+// agent does, which no check on a file can decide. A text heuristic; the review shows every choice.
+export type StatementKind = "rule" | "example" | "prose";
+const MODAL = /\b(never|must|do\s+not|don't|no|avoid|always|only|forbidden|prohibited|required?|should|shall)\b/i;
+const CODE_NOUN = /`[^`]+`|[A-Za-z_$][\w$]*\(\)|\.[cm]?[jt]sx?\b|\b(imports?|exports?|calls?|functions?|class(?:es)?|components?|modules?|packages?|librar(?:y|ies)|hooks?|types?|interfaces?|enums?|any|async|await|catch|throw|console|fetch|quer(?:y|ies)|sql|endpoints?|folders?|layers?|mocks?|default export)\b/i;
+const AGENT_ACTION = /^(?:always\s+|never\s+|please\s+|you\s+(?:must|should)\s+)?(?:run|commit|push|ask|tell|explain|read|review|plan|think|confirm|check|update|document|summari[sz]e|report)\b/i;
+
+export function statementKind(statement: string): StatementKind {
+  if (ruleIntent(statement) !== null) return "rule";
+  return MODAL.test(statement) && CODE_NOUN.test(statement) && !AGENT_ACTION.test(statement.trim()) ? "example" : "prose";
 }
 
 // Cases from the user's own code: as given, plus variants until a check has two fails, a trap and

@@ -263,7 +263,9 @@ function auditText(r: AuditReport, full: boolean) {
     ...humanRows("Unsupported source", r.unsupported, path => `  UNSUPPORTED ${path}`),
     ...humanRows("Missing language policy", r.uncovered, path => `  NOT COVERED ${path}: parser available, but no applicable language policy selected.`),
     ...humanRows("Other rules not audited", skipped, rule => `  NOT AUDITED ${rule.rule}: ${rule.reason}`),
-    `Project fitness: ${r.fitness.filter(f => f.status === "pass").length} verified; ${r.fitness.filter(f => f.status === "fail").length} failed; ${r.fitness.filter(f => f.status === "unverified").length} unverified requirements.${r.fitness.some(f => f.status === "unverified") ? " Optional: pregate fitness plan groups project assertions; unverified is not compliance." : ""}`,
+    r.fitness.every(f => f.status === "unverified" && f.rationale === null)
+      ? `Project verification: not adopted (${r.fitness.length} optional requirements have no verifier and check nothing; pregate fitness plan).`
+      : `Project fitness: ${r.fitness.filter(f => f.status === "pass").length} verified; ${r.fitness.filter(f => f.status === "fail").length} failed; ${r.fitness.filter(f => f.status === "unverified").length} unverified requirements.${r.fitness.some(f => f.status === "unverified") ? " Optional: pregate fitness plan groups project assertions; unverified is not compliance." : ""}`,
     ...humanRows("Adopted assertions needing evidence", adopted, f => `  ${f.rule}: ${f.status.toUpperCase()} — ${f.reason}`),
     ...humanRows("By rule", r.summary.rules, rule => `  ${rule.rule}: ${rule.count} in ${rule.files} files (${rule.check})`, HUMAN_RULE_LIMIT),
     ...humanRows("Ready to promote to enforce (0 violations in audited scope; run pregate promote --preview)", r.enforceCandidates, id => `  ${promotableRow(r, id)}`, HUMAN_RULE_LIMIT),

@@ -35,7 +35,7 @@ export function report(args: string[]): { code: number; text: string } {
 // The audit's idle filter: a rule that reads no file in scope (an evidence obligation, a language the
 // project lacks) has 0 findings without proving anything, so it is not ready to promote. Without a
 // current lock the list stays as recorded.
-function applicable(root: string, ids: string[]): string[] {
+export function applicable(root: string, ids: string[]): string[] {
   const lock = ids.length === 0 ? null : contractState(root).lock;
   if (lock === null) return ids;
   const applied = new Set(workspacePaths(root, (rel) => inScope(lock, rel)).flatMap((rel) => staticRulesFor(lock, rel).map((rule) => rule.id)));

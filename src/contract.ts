@@ -250,7 +250,9 @@ function packLine(created: boolean, after: Lock, ns: string, entries: Entry[]): 
     return n ? [`${n} ${policy}`] : [];
   });
   const parts = [changes.join(", "), mix.length ? `static checks ${mix.join(", ")}` : ""].filter((part) => part !== "");
-  return `${ns}: ${rules.length} rule${rules.length === 1 ? "" : "s"}${evidence.length ? ` (${evidence.length} evidence requirements)` : ""}${parts.map((part) => `; ${part}`).join("")}.`;
+  // Requirements nobody bound a verifier to check nothing; they are counted once the project adopts one.
+  const adopted = Object.keys(after.fitness ?? {}).length > 0, shown = adopted ? rules.length : rules.length - evidence.length;
+  return `${ns}: ${shown} rule${shown === 1 ? "" : "s"}${adopted && evidence.length ? ` (${evidence.length} evidence requirements)` : ""}${parts.map((part) => `; ${part}`).join("")}.`;
 }
 
 function ruleChanges(before: LockRule, after: LockRule, oldPolicy: string, policy: string): string {

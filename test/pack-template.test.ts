@@ -68,3 +68,17 @@ test("a fixture moves under a rule's files scope", () => {
     expect(matches(glob, fixtureTarget(glob, rel))).toBe(true);
   }
 });
+
+test("a banned package import is a third shape that drafts without code, and statements sort by what could check them", async () => {
+  const { statementKind } = await import("../src/pack-template.ts");
+  expect(ruleIntent("Never import moment")).toEqual({ kind: "package-ban", name: "moment" });
+  expect(ruleIntent("Do not import from the lodash library.")).toEqual({ kind: "package-ban", name: "lodash" });
+  expect(ruleIntent("No @prisma/client imports")).toEqual({ kind: "package-ban", name: "@prisma/client" });
+  const draft = intentDraft(ruleIntent("never import moment")!);
+  expect(draft.files).toBeUndefined();
+  expect(draft.cases.map((c) => c.kind)).toEqual(["fail", "fail", "trap", "pass", "pass"]);
+  expect(JSON.stringify(draft.patterns[0]!.rule)).toContain("^moment(/|$)");
+  expect(["Never import moment", "Domain must not import infra.", "never use console.log()"].map(statementKind)).toEqual(["rule", "rule", "rule"]);
+  expect(["Never use `any` in exported types.", "Avoid default exports.", "Components must not own queries."].map(statementKind)).toEqual(["example", "example", "example"]);
+  expect(["Write clear code and prefer small functions.", "Always run the tests before you finish.", "Be concise.", "Ask before you push."].map(statementKind)).toEqual(["prose", "prose", "prose", "prose"]);
+});

@@ -24,6 +24,56 @@ this skill and the lock's engine. Warn the human about mismatches. `doctor`
 diagnoses missing/stale registrations and companion instructions. Do not repair
 global settings without explicit authorization.
 
+## Start here: the simple path
+
+Most people who invoke `/pregate` want one thing: the agent stops breaking the
+rules of their project. They do not need the vocabulary of this page. Do the
+work below yourself, answer in the user's language, and show a short summary
+with one action. The rest of this guide is reference for the cases this path
+does not cover.
+
+How to speak. Say "rule", "warns", "blocks" and "kept as it is". Do not say
+digest, lock, ratchet, shadow, fitness, methodology or pack unless the user asks
+how it works. Do not list rule counts per pack. Name real files and real
+imports from this project instead of concepts. Keep a summary under eight lines.
+
+1. Look first, without changing anything: `pregate guide --json`,
+   `pregate layers --json`, and `pregate compile <file>` for each instruction
+   file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
+2. The project has no contract: prepare `pregate guide --preview --enforcement
+   advisor`. Tell the user what will be watched in their own terms, for example
+   "code in `src/domain` may not import `src/infra`; 3 files already do and
+   are kept as they are; a new one gets a warning with the repair". Say that
+   nothing blocks yet.
+3. The project has a contract. Prepare one review at a time, because a newer
+   review replaces the pending one:
+   - Folders that no layer covers: read which folders they import in
+     `layers --json`, write a layer map to a temporary file outside the
+     repository, and run `pregate layers apply <file> --preview`. Give a
+     one-sentence reason a reviewer can check against the code. Explain each
+     existing import the map would flag.
+   - Instruction-file statements that compile: `pregate compile <file>
+     --preview`. For a statement that needs an example, write one failing and
+     one passing snippet from this project's own code, show both, and use
+     `pregate rules add "<sentence>" --fail ... --pass ...`.
+   - After the human approves, offer to delete the compiled lines from the
+     instruction file, and delete them only when the user agrees. The rules
+     carry their own reason and repair, so the text no longer has to load in
+     every session.
+4. Approval is the only step the user performs. Give exactly two lines to type:
+   `! pregate approve --preview` to read the change and see its code, then
+   `! pregate approve <code>`. Never run either command yourself. In Cursor the
+   user types them in a separate terminal.
+5. A session starts with a `Promotion ready` line: tell the user once, in one
+   sentence, that those rules warned about nothing for a week and can start to
+   block. If the user agrees, run `pregate promote --preview` and give the two
+   approval lines.
+6. The user asks whether it works: read the `Agent loop` line of
+   `pregate report` and repeat it in one sentence.
+
+Statements that `compile` leaves in the file are guidance or agent actions. Say
+so plainly; do not invent a rule for them.
+
 ## Read the active contract
 
 When inspection is permitted and `--help` lists `guide`, first use `guide --json`.
@@ -672,12 +722,14 @@ usage:
   pregate preset diagnose [--json] | schema
   pregate rules test [<dir> | --library <ns> | --fixture <dir|repro.json>]
   pregate rules add "<sentence>" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]
+  pregate compile <rules.md> [--json|--preview]
   pregate rules draft <pack-dir> <area>/<name> [--pattern <rule.json|auto> --message <text> --why <text> --fix <text>] [--files <glob>] [--fail <file>]... [--pass <file>]... [--trap <file> --trap-note <text>]...
   pregate storage inspect [--json] | prune --older-than <days> [--preview] | recover [--preview] | show <digest> | apply <digest> [--yes]
   pregate enable | disable [--yes] | status [--json|--verbose]
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
+  pregate layers [--json] | layers apply <layers.json> --preview
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

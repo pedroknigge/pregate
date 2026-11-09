@@ -99,7 +99,9 @@ test("session briefing lists executable checks only, caps them, and counts evide
   expect(text).not.toContain("preset request-schema");
   const onlyOwed = briefing({ ...LOCK, rules: owed, layers: {} }, LAUNCHER);
   expect(onlyOwed).not.toContain("Checks:");
-  expect(onlyOwed).toContain("\nEvidence obligations: 25 requirements");
+  // Until one verifier is bound the project has not adopted verification: the briefing stays quiet.
+  expect(onlyOwed).not.toContain("Evidence obligations");
+  expect(briefing({ ...LOCK, rules: owed, layers: {}, fitness: { other: binding } }, LAUNCHER)).toContain("\nEvidence obligations: 25 requirements");
 });
 test("inspection helpers do not block permitted edits or waive actual hook decisions", () => {
   for (const text of [briefing(LOCK, LAUNCHER), contract(LOCK, LAUNCHER)]) {

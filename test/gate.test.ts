@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
 import { enable, disable, enabled } from "../src/consent.ts";
-import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPreCommand, onPreEdit, onSessionStart, onStop, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
+import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { decode as claude } from "../src/harness/claude.ts";
 import { decode as codex } from "../src/harness/codex.ts";
 import * as state from "../src/state.ts";
@@ -1570,4 +1570,29 @@ describe("engine selection", () => {
     expect(context.exitCode).toBe(0);
     expect(JSON.parse(context.stdout).hookSpecificOutput.additionalContext).toContain(join(data, WINDOWS ? "bin/pregate.cmd" : "bin/pregate"));
   }, 30_000);
+});
+
+test("SessionStart raises a promotion once a day when advisor rules stayed clean over a week of edits", async () => {
+  const root = repo(), s = session("claude-code", "promotion");
+  const text = JSON.stringify({ ...JSON.parse(readFileSync(join(root, PRESET), "utf8")), enforcement: "advisor" });
+  const compiled = compile(text, sourcesOf(root), VERSIONS);
+  if ("errors" in compiled) throw new Error(compiled.errors.join("\n"));
+  put(join(root, PRESET), text); put(join(root, LOCK), compiled.text);
+  git(root, "add", "."); git(root, "commit", "-qm", "advisor");
+  const start = { kind: "session-start" as const, session: s, cwd: root };
+  expect((await sessionStart(start)).full).not.toContain("Promotion ready");
+  const base = (JSON.parse(readFileSync(join(import.meta.dir, "fixtures/report-events.json"), "utf8")) as { event: Parameters<typeof state.record>[1] }[])[0]!.event;
+  const enforcement = Object.fromEntries(compiled.lock.rules.map((rule) => [rule.id, "advisor" as const]));
+  const day = 86_400_000, now = Date.now();
+  for (const [i, at] of [now - 9 * day, ...Array.from({ length: 20 }, (_, n) => now - day - n * 1000)].entries()) {
+    state.record("history", { ...base, callId: `call-${i}`, root, path: join(root, "src/domain/a.ts"), at, kind: "pre-edit", verdict: "none", form: null, shadowed: false, afterSha: null, violations: [], warnings: [], enforcement }, null);
+  }
+  expect((await sessionStart(start)).full).not.toContain("Promotion ready");   // already asked today
+  rmSync(join(state.stateDir(), "promotion-nudge"), { recursive: true });
+  const nudged = (await sessionStart(start)).full;
+  expect(nudged).toContain("PREGATE is active:");
+  expect(nudged).toMatch(/Promotion ready: \d+ advisor rules? reported no finding in the last 7 days over 20 checked edits \(/);
+  expect(nudged).toContain("`pregate promote --preview`");
+  expect((await sessionStart(start)).full).not.toContain("Promotion ready");
+  expect(onSessionStart(start).full).not.toContain("Promotion ready");
 });
