@@ -136,6 +136,8 @@
         "src/install.ts",
         "src/machine.ts",
         "src/release-download.ts",
+        "src/release-install.ts",
+        "src/release-verify.ts",
         "src/demo-command.ts",
         "src/demo-run.ts",
         "src/demo-samples.ts",

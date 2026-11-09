@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `pregate prepare [--version <v> | --engine <v>]` downloads and verifies a release archive (SHA256SUMS checksum and Sigstore bundles when `cosign` is available), then atomically installs that engine version into the user cache under `<DATA>/<version>/`. It does not register harness hooks, install companion skills, change PATH, or rewrite the launcher. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. `pregate setup` and `pregate update --engine` reuse the same download and verification path; their registration behavior is unchanged.
 - The python pack (1.4.0) adds `PY-EXCEPT-002`, an advisory warning when an `except Exception` or `except BaseException` handler body is only `pass`, `...`, or comments, matching the intent of core `CC-ER-002` for Python. `PY-EXCEPT-001` (bare except) is unchanged.
 
 ## [0.0.4] - 2026-11-07

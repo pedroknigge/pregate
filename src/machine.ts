@@ -22,7 +22,9 @@ import { slash } from "./paths.ts";
 import { stateDir } from "./state.ts";
 import { installSkill, removeSkill, skillProblems } from "./skill.ts";
 import type { HarnessId } from "./types.ts";
-import { downloadRelease, latestRelease } from "./release-download.ts";
+import { latestRelease } from "./release-download.ts";
+import { verifiedEngineExtract } from "./release-install.ts";
+import { pinnedEngine } from "./project-updates.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
 // writes nothing; whatever cannot be done safely is left untouched and reported. setup exits 1 when no harness was wired or a real error occurred.
@@ -38,7 +40,6 @@ interface Paths {
 // A hook process as the canary sees it.
 interface Out { exit: number | null; stdout: string; stderr: string }
 
-const TARGETS = ["darwin-arm64", "darwin-x64", "linux-x64", "linux-arm64", "windows-x64"];
 // MH-26: a harness is present when its home exists or its binary is on the PATH.
 const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"] };
 const SHARED: HarnessId[] = ["claude-code", "cursor", "grok"];
@@ -303,29 +304,42 @@ function removeEngine(dir: string): string | null {
   }
 }
 
-// The release tar of this platform, checked against the release's SHA256SUMS, then installed.
+// The release archive of this platform, checked against SHA256SUMS and optional signatures, then installed.
 function download(p: Paths, v: string): string | null {
-  const target = `${WINDOWS ? "windows" : process.platform}-${process.arch}`;
-  if (!TARGETS.includes(target)) return `No PREGATE release for ${target}; available: ${TARGETS.join(", ")}.`;
-  const tar = `pregate-${v}-${target}.${WINDOWS ? "zip" : "tar.gz"}`;
-  return installRelease(p, v, tar, mkdtempSync(join(tmpdir(), "pregate-update-")));
+  const dir = mkdtempSync(join(tmpdir(), "pregate-update-"));
+  try {
+    const extracted = verifiedEngineExtract(v, dir);
+    if ("error" in extracted) return extracted.error;
+    return installEngine(p, extracted.binary, v);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
-function installRelease(p: Paths, v: string, tar: string, dir: string): string | null {
+// Downloads and verifies a release engine into the cache only. No harness registration, launcher, link or skills.
+export async function prepare(o: { version?: string; engine?: string }): Promise<Result> {
+  let asked = o.engine ?? o.version;
+  if (asked === undefined) {
+    const root = findRoot(canonical(process.cwd()), () => true);
+    if (root === null) return { code: 1, text: "No engine version given and this directory is not in a Git project. Use pregate prepare --engine <v> or run from a project root with .pregate/pregate.lock.json." };
+    const pin = pinnedEngine(root);
+    if (pin === null) return { code: 1, text: "No engine version given and this project has no lock. Use pregate prepare --engine <v>." };
+    if (pin === "" || !ENGINE_VERSION.test(pin)) return { code: 1, text: "This project's lock has no valid engine pin. Inspect pregate preset diagnose --json and use pregate prepare --engine <v>." };
+    asked = pin;
+  }
+  const v = asked.trim().replace(/^v/, "");
+  if (!ENGINE_VERSION.test(v)) return { code: 1, text: `Invalid version: ${asked.trim()} (expected X.Y.Z or X.Y.Z-pre).` };
+  const p = paths();
+  const engine = join(p.data, v, ENGINE_FILE);
+  if (ready(engine)) return { code: 0, text: `Engine ${v} is already installed at ${dirname(engine)}.` };
+  const dir = mkdtempSync(join(tmpdir(), "pregate-prepare-"));
   try {
-    const unavailable = downloadRelease(v, tar, dir);
-    if (unavailable !== null) return `Could not download v${v} from ${REPO}: ${unavailable}`;
-    const sums = (read(join(dir, "SHA256SUMS")) ?? "").split("\n").map((l) => /^([0-9a-f]{64}) [ *](.+)$/.exec(l));
-    const expected = sums.find((m) => m?.[2] === tar)?.[1];
-    if (expected === undefined || !existsSync(join(dir, tar))) return `Release v${v} has no ${tar}, or SHA256SUMS does not list it; nothing installed.`;
-    if (new Bun.CryptoHasher("sha256").update(readFileSync(join(dir, tar))).digest("hex") !== expected) return `SHA-256 of ${tar} differs from SHA256SUMS; nothing installed.`;
-    const extract = WINDOWS ? ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-      PS_MODULES + `Expand-Archive -LiteralPath ${psQuote(join(dir, tar))} -DestinationPath ${psQuote(join(dir, "x"))}`]
-      : ["tar", "-xzf", join(dir, tar), "-C", dir, ENGINE_FILE];
-    if (spawn(extract).exit !== 0) return `${tar} could not be extracted; nothing installed.`;
-    // Notices are optional for an archive that predates them. A current archive has both.
-    if (!WINDOWS) spawn(["tar", "-xzf", join(dir, tar), "-C", dir, "LICENSE", "THIRD_PARTY_NOTICES"]);
-    return installEngine(p, join(dir, WINDOWS ? "x" : "", ENGINE_FILE), v);
+    const extracted = verifiedEngineExtract(v, dir);
+    if ("error" in extracted) return { code: 1, text: extracted.error };
+    const failed = installEngine(p, extracted.binary, v);
+    if (failed !== null) return { code: 1, text: failed };
+    const extra = extracted.notices.length === 0 ? "" : `\n${extracted.notices.join("\n")}`;
+    return { code: 0, text: `Engine ${v} installed at ${dirname(engine)}.${extra}` };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

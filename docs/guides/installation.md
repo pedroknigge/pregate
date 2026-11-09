@@ -169,6 +169,10 @@ pregate install --ci vercel
 
 `pregate install --ci github,vercel` writes both. A repository that has both configured must see a passing Actions check and a passing Vercel deployment status. The [Vercel guide](vercel-ci.md) covers the build command, the linux-x64 install, the build cache, and preview versus production.
 
+## Prepare an engine without global registration
+
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to warm the cache for a pinned engine before project-local hook setup lands; `pregate setup` still performs full machine registration today.
+
 ## Updates and removal
 
 `pregate update` selects the latest published release. `update --version <v>` selects
