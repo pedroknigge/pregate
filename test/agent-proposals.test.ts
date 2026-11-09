@@ -135,3 +135,36 @@ test("compile reports without a contract and needs one only to stage", () => {
   expect(p.cli("compile", "MISSING.md")).toMatchObject({ code: 1, text: expect.stringContaining("No file MISSING.md") });
   expect(p.cli("compile")).toMatchObject({ code: 1, text: expect.stringContaining("usage: pregate compile") });
 });
+
+test("compile --template hands the agent the statements that did not compile, with the steps to complete them", () => {
+  const p = repo("template", false);
+  const template = JSON.parse(p.cli("compile", "AGENTS.md", "--template").text);
+  expect(template.file).toBe("AGENTS.md");
+  expect(template.steps.length).toBeGreaterThan(5);
+  expect(template.rules.map((rule: { line: number; hint: string }) => [rule.line, rule.hint])).toEqual([[7, "names code"], [8, "reads as guidance"], [9, "reads as guidance"]]);
+  expect(template.rules[0]).toMatchObject({ statement: "Never use `any` in exported types.", sentence: "", fail: [], pass: [] });
+});
+
+test("compile apply stages only the agent's rules that the cases prove, refuses a pattern that is the example's own text, and skips blank entries", () => {
+  const p = repo("apply");
+  const propose = (rules: unknown[]) => { writeFileSync(join(p.root, "proposals.json"), JSON.stringify({ file: "CLAUDE.md", rules })); return p.cli("compile", "apply", "proposals.json", "--preview"); };
+  const sdk = { line: 12, sentence: "Never import the vendor sdk; call the ai client", fail: ['import Vendor from "@vendor/sdk";\nexport const client = new Vendor();'], pass: ['import { ask } from "./ai-client";\nexport const answer = ask;'] };
+  const round = { line: 20, sentence: "Never round money with Math.round by hand", fail: ["export const total = Math.round(amount * 100) / 100;"], pass: ["export const total = roundMoney(amount);", "export const pages = Math.round(count);"] };
+  const blank = { line: 30, statement: "Write clear code.", hint: "reads as guidance", sentence: "", fail: [], pass: [] };
+  const first = propose([sdk, round, blank, { line: 40, rule: "architecture/HEX-EDGE-001" }]);
+  expect(first.code, first.text).toBe(0);
+  expect(first.text).toContain("Proposed rules for CLAUDE.md: 3; 2 verified and staged, 0 already in the contract, 1 refused.");
+  expect(first.text).toContain("Not staged, L20: the engine could only match the literal text of the example");
+  expect(first.text).toContain("Once approved, lines 12, 40 can leave CLAUDE.md.");
+  const withPattern = propose([sdk, { ...round, pattern: { kind: "binary_expression", regex: "^Math\\.round\\(.*\\* 100\\) / 100$" } }, { line: 40, rule: "architecture/HEX-EDGE-001" }]);
+  expect(withPattern.text, withPattern.text).toContain("Proposed rules for CLAUDE.md: 3; 3 verified and staged, 0 already in the contract, 0 refused.");
+  expect(p.approve(withPattern.text).code).toBe(0);
+  expect(p.check("src/services/pay.ts", "export const cents = Math.round(price * 100) / 100;\n")).toEqual(["project/PROJECT-ROUND-MONEY-MATH-HAND"]);
+  expect(p.check("src/services/pay.ts", "export const pages = Math.round(count);\n")).toEqual([]);
+  expect(p.check("src/services/ai.ts", 'import Vendor from "@vendor/sdk";\nexport const v = Vendor;\n')).toHaveLength(1);
+  expect(propose([sdk]).text).toContain("Proposed rules for CLAUDE.md: 1; 0 verified and staged, 1 already in the contract, 0 refused.");
+  expect(propose([{ ...round, sentence: "Never round percentages by hand", pattern: { kind: "call_expression", has: { field: "function", regex: "^nothingLikeThis$" } } }]).text).toContain("Not staged, L20:");
+  expect(propose([blank])).toMatchObject({ code: 1, text: expect.stringContaining("at least one completed rule") });
+  expect(propose([{ line: 1, sentence: "Never do the bad thing", fail: [], pass: ["x"] }])).toMatchObject({ code: 1, text: expect.stringContaining("needs fail") });
+  expect(p.cli("compile", "apply", "proposals.json")).toMatchObject({ code: 1, text: expect.stringContaining("only prepares a review") });
+});

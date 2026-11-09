@@ -84,6 +84,49 @@ The sorting is a text heuristic. A statement in the wrong group costs a review l
 a wrong rule: every drafted rule must pass its own cases before it is staged, and the
 human reads the review.
 
+### When the file is prose: the agent proposes
+
+Sentence shapes cover short bullets. A real instruction file is mostly paragraphs and
+tables: on one production repository, 0 of about 500 statements had a known shape. An
+agent can read that text. So the agent proposes and the engine proves:
+
+```sh
+pregate compile CLAUDE.md --template > proposals.json   # statements plus the steps to complete them
+pregate compile apply proposals.json --preview
+```
+
+Each proposal names the statement's line and gives a short sentence, code that must
+fail, and code that must pass:
+
+```json
+{"file": "CLAUDE.md", "rules": [
+  {"line": 536, "sentence": "Never import @anthropic-ai/sdk; call the ai client",
+   "fail": ["import Anthropic from \"@anthropic-ai/sdk\";"],
+   "pass": ["import { aiComplete } from \"@/lib/ai/ai-client\";"]},
+  {"line": 493, "sentence": "Never round money with Math.round by hand",
+   "fail": ["export const total = Math.round(amount * 100) / 100;"],
+   "pass": ["export const total = roundPostedMoney(amount);", "export const pages = Math.round(count);"],
+   "pattern": {"kind": "binary_expression", "regex": "^Math\\.round\\(.*\\* 100\\) / 100$"}},
+  {"line": 30, "rule": "architecture/HEX-EDGE-001"}]}
+```
+
+The engine synthesizes a pattern from the cases, or uses the agent's `pattern`. It adds
+its own cases (the code after other declarations, nested in a callback, mentioned in a
+string) and stages only the rules that pass all of them, in one review. It refuses, by
+name and with the reason:
+
+- a pattern that does not separate the failing code from the passing code;
+- a synthesized pattern that is the example's own text, because it would miss the same
+  mistake written another way;
+- a bundled rule id that does not exist for the project's languages.
+
+A blank template entry is a statement the agent judged not checkable; it is skipped.
+
+Cases prove that a rule separates the examples it was given. They do not prove that it
+matches every form of the mistake or nothing else. A similar allowed snippet in `pass`
+is the main defence against a rule that matches too much, and `pregate audit` after
+approval shows what the rule finds in the real code.
+
 ## Promotion raised by Pregate
 
 Advisor rules inform and do not block. `pregate promote --preview` proposes the clean ones
