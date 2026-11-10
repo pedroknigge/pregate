@@ -21,6 +21,19 @@ Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS`, and
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
 ```
 
+### npm (global or one-shot)
+
+`pregate@0.0.4` is published on npm (2026-11-09). Install globally or invoke without a global install:
+
+```sh
+npm i -g pregate
+npx pregate doctor
+```
+
+The npm tarball ships only the launcher (`bin/pregate.mjs`) plus `install.sh` / `install.ps1`. The first successful command for a version downloads the matching GitHub release archive (about 55 MB for 0.0.4), verifies it against `SHA256SUMS`, verifies Sigstore bundles when `cosign` is on `PATH` and bundles exist, and fails when `PREGATE_REQUIRE_SIGNATURE=1` and a bundle is missing or invalid. It then runs the same setup path as the shell installers: engine under the user data directory, launcher on `PATH`, harness hook registration, and the `/pregate` companion skill. Later invocations call the cached engine directly.
+
+Older public tags (0.0.1 through 0.0.3) were never published to npm; use the GitHub release installers for those versions.
+
 You can also install or sync the `/pregate` companion skill via [`npx skills`](https://github.com/vercel-labs/skills):
 
 ```sh

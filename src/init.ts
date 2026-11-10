@@ -11,6 +11,7 @@ import { clock, grammars, LOCK, PRESET, readText, sourcesOf, VERSIONS } from "./
 import { librarySource, librarySources } from "./library.ts";
 import { git } from "./git.ts";
 import { detectLayers, detectStack, initialScope, layersMatchAny, onboardingCard, onboardingFile, onboardingPreset } from "./onboard.ts";
+import { INIT_PRESET_NAMES } from "./init-presets.ts";
 import { pendingReview } from "./pending-review.ts";
 import { composePackPlan } from "./pack-command.ts";
 import { sha256 } from "./state.ts";
@@ -30,6 +31,8 @@ export interface InitSelection {
   customDraft?: { ns: string; files: Files };
 }
 const USAGE = "usage: pregate init [--preview|--yes] [--preset <name>]";
+
+export { INIT_PRESET_NAMES } from "./init-presets.ts";
 
 // Git controls ignored files; standalone projects use the same explicit traversal exclusions.
 // Unsupported language names are evidence, but their bodies and binary assets need not be read.
@@ -89,7 +92,7 @@ async function initialize(args: string[], selection: InitSelection, directory: s
 
 function initialPreset(root: string, choice: string, stack: ReturnType<typeof detectStack>, files: Files, selection: InitSelection): Preset | Result {
   const preset = onboardingPreset(choice, BUILTIN, VERSIONS, stack, choice.endsWith("-starter") ? librarySources() : []);
-  if (preset === null) return { code: 1, text: "Unknown preset. Choose backend-clean-ddd, functional-ts, legacy-safe, python-starter, go-starter, rust-starter, mixed-starter or integrity-only." };
+  if (preset === null) return { code: 1, text: `Unknown preset. Choose ${INIT_PRESET_NAMES.join(", ")}.` };
   preset.scope = selection.scope ?? initialScope(files, preset.scope);
   if (selection.enforcement !== undefined) preset.enforcement = selection.enforcement;
   const layers = selection.layers ?? recipeLayers(preset, files);

@@ -116,7 +116,14 @@ Windows PowerShell, experimental:
 irm https://github.com/pedroknigge/pregate/releases/latest/download/install.ps1 | iex
 ```
 
-There is no npm package. Bun is needed only for development or builds, not to run the standalone binary. The installers verify archive SHA-256 checksums and verify signature bundles when `cosign` and the bundles are available. See [installation and signature requirements](docs/guides/installation.md).
+You can also install from npm:
+
+```sh
+npm i -g pregate
+npx pregate --version
+```
+
+The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the GitHub release archive for that package version (about 55 MB), verifies `SHA256SUMS`, optionally verifies Sigstore bundles when `PREGATE_REQUIRE_SIGNATURE=1` and `cosign` is available, then runs the same installer as `install.sh` / `install.ps1`, which registers harness hooks and the companion skill. Later runs use the cached engine. Bun is needed only for development or builds from source, not to run the standalone binary. See [installation and signature requirements](docs/guides/installation.md).
 
 ### 2. Preview an advisor contract in your Git repository
 
