@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.0.6] - 2026-11-10
-
-What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The shell guard no longer refuses `cd`, `bun test`, `npm` or Pregate's own `layers` and `compile` commands in an enabled project. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
-
 ### Added
 
 - **Maintenance, reproducible build and rollback are documented and tested.** [Maintenance, reproducible build and rollback](docs/guides/maintenance.md) says who releases Pregate, how to build a tag from a clean checkout, how a published archive is verified, and how a pinned project is upgraded and rolled back. An end-to-end test runs the upgrade and the rollback on every CI run with two real engines that differ only in version: the upgrade changes the pin and no rule, both engines deny the same edit for the same rule, and reverting the upgrade commit restores the first committed contract. The page states what a rebuild does not prove: two local builds were identical, and a local build of `v0.0.5` did not match the published archive.
