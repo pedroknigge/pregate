@@ -2,7 +2,7 @@
   "$schema": "../../schema/preset.v1.json",
   "name": "node-api",
   "version": "1.0.0",
-  "engine": "0.0.4",
+  "engine": "0.0.5",
   "sources": [
     {
       "ns": "core",
