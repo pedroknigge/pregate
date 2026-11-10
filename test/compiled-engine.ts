@@ -1,4 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -18,19 +19,23 @@ function built(testApproval: boolean): string {
   const key = `PREGATE_TEST_ENGINE_${flavour.toUpperCase()}`;
   const known = process.env[key];
   if (known !== undefined && existsSync(known)) return known;
-  const area = join(tmpdir(), `pregate-test-engine-${process.pid}`);
-  const outfile = join(area, "engine", flavour, ENGINE_FILE);
+  // One folder per checkout, rebuilt by each test process and never left to pile up: `bun test`
+  // does not run an exit handler, so a folder per process would stay behind on every run.
+  const checkout = createHash("sha256").update(join(import.meta.dir, "..")).digest("hex").slice(0, 12);
+  const outfile = join(tmpdir(), `pregate-test-engine-${checkout}`, "engine", flavour, ENGINE_FILE);
   mkdirSync(dirname(outfile), { recursive: true });
   compileBinary(hostTarget(), outfile, testApproval);
   process.env[key] = outfile;
-  process.on("exit", () => { try { rmSync(area, { recursive: true, force: true }); } catch { /* cleanup: best effort at exit; the folder is in the temporary directory */ } });
   return outfile;
 }
 
-// The engine at `outfile`, for a suite that used to compile its own.
+// The engine at `outfile`, for a suite that used to compile its own. On Windows `bun build
+// --compile` adds `.exe` to an output name that lacks it, and suites name the engine without it;
+// the copy lands where that build would have put it.
 export function engineAt(outfile: string, testApproval = false): void {
-  mkdirSync(dirname(outfile), { recursive: true });
-  copyFileSync(built(testApproval), outfile);
+  const target = process.platform === "win32" && !outfile.toLowerCase().endsWith(".exe") ? `${outfile}.exe` : outfile;
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(built(testApproval), target);
 }
 
 // The shared test-approval engine, for a suite that only needs to run one.
