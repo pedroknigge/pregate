@@ -216,6 +216,8 @@ pregate status
 pregate audit --plan
 ```
 
+`audit` ends with a line that states its exit code. `Exit 0` and `Exit 1` are complete results: nothing blocks, or findings block. `Exit 2` is an incomplete audit, for example a file with a syntax error. It still prints a report, and it is not a count of violations.
+
 A committed contract is not local consent. For an existing cloned or disabled contract, review `status`, then use `pregate enable` in a human terminal and confirm. Advisor rules do not block edits, but explicit enforcing overrides, contract integrity failures, and bound fitness requirements can still block. Review the preview rather than assuming every rule became advisory.
 
 ### 3. Calibrate, then promote

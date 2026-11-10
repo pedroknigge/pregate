@@ -122,6 +122,8 @@ test("compact human audit bounds every detail category while full and machine ou
     expect(data.fitness).toHaveLength(64); expect(data.fitness.every((f: { status: string }) => f.status === "unverified")).toBe(true);
     for (const output of [compact, full]) {
       expect(output.text).toContain("30 violations in 30 files");
+      // Exit 2 prints a full report; its last line says it is incomplete and why.
+      expect(output.text.trimEnd().split("\n").at(-1)).toMatch(/^Exit 2: incomplete, not a count of violations: 6 files could not be analyzed \(first: src\/domain\/syntax\d\.ts: [a-z-]+\)\. The findings above hold for the files that were read\./);
       // The compact audit says verification is not adopted; --full keeps every requirement.
       expect(output.text).toContain(output === compact ? "Project verification: not adopted (64 optional requirements have no verifier and check nothing; pregate fitness plan)." : "0 verified; 0 failed; 64 unverified requirements");
       expect(output.text).toContain("Existing debt is included");
@@ -179,6 +181,9 @@ test("default audit fails only on debt that blocks under live policy; advisor de
       writeFileSync(join(root, PRESET), text); writeFileSync(join(root, LOCK), compiled.text);
       expect((await audit(["--repo", root, "--json"])).code).toBe(code);
       expect((await audit(["--repo", root, "--json", "--strict"])).code).toBe(1);
+      expect((await audit(["--repo", root])).text.trimEnd().split("\n").at(-1)).toBe("Exit 0: complete; nothing blocks under the live policy.");
+      expect((await audit(["--repo", root, "--strict"])).text.trimEnd().split("\n").at(-1)).toBe("Exit 1: complete; findings or a failed project assertion exist (--strict counts every finding).");
+      expect((await audit(["--repo", root, "--json"])).text).not.toContain("Exit 0:");
     }
   });
 });
