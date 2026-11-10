@@ -15,12 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Deadline tests bound the mechanism, not the machine.** Three tests proved a deadline with an upper bound on the whole command, engine start included: 3.5 s for a fitness verifier with a 500 ms deadline or an output budget, and 19 s for an issue transport with a 15 s deadline. On a memory-constrained Windows machine the engine start alone can exceed the margin. The bound is now on the life of the process the deadline ends, from its first line to the return of the command, and it is tighter (3 s, and 3 s past the 15 s deadline). Each such process also leaves a file only when it reaches its own exit, and the tests assert that the file is absent, which holds at any machine speed. No timeout was raised. Not validated on a low-memory Windows machine: none was available.
-- **Real re-verification against the installed CLIs** (Claude Code 2.1.322, Codex 0.167.0, Cursor 2026.11.05, Grok 1.0.80, agy 1.5.3) is recorded in `docs/MULTI-HARNESS.md` §6.5. The real runner uses the bundled `architecture` pack version, states the unattended approval its last step requires, and no longer counts the SessionStart notice as output in a project with no contract.
-
-### Fixed
-
-- **Antigravity 1.5.3 edits are gated again.** agy 1.5.3 renamed its edit tools to `write_file` and `edit_file`, with new argument names. The registered matcher named only the 1.2.14 tools, so no Pre hook ran and a forbidden edit was written; only Stop still blocked it. The matcher and the adapter cover both generations, the 1.5.3 payloads are recorded in `test/payloads/agy`, and four write tools the 1.5.3 binary names without a captured shape are refused inside a project instead of passing unread. The machine setup must run again to register the new matcher. Found by the real end-to-end run against the installed CLI.
-- **A hung pinned engine no longer fails open for a project below the session's folder.** The launcher denied an engine failure only when the session's own folder had consent. With the session started in a parent folder and the edit in a nested enabled project, a pinned engine that hung let the write through. A redirect to a pinned engine now counts as evidence of a project, in the shell launcher and in the supervisor. Found by the real end-to-end run against Claude Code 2.1.322.
 
 ## [0.0.6] - 2026-11-10
 
