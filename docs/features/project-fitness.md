@@ -15,6 +15,12 @@ functions in bounded groups. One assertion can support several requirements only
 when it actually tests all their relevant conditions. Unbound requirements remain active and
 explicitly unverified; they do not block edits, check or Stop. Once a binding is
 adopted, missing, stale, failed or incomplete evidence blocks check and Stop.
+Before the first binding, the project has not adopted verification: the guide
+review, the per-pack summary lines and the SessionStart briefing do not count
+unbound requirements, and `status --verbose` and the compact `audit` print one
+line, `Project verification: not adopted`. `fitness status`, `audit --full` and
+every JSON output still list them. After the first binding, every surface
+reports unbound and unverified requirements.
 A current
 passing command proves what that particular verifier asserts. It does not prove
 the full semantic requirement just because its exit code is zero.

@@ -21,7 +21,10 @@ show up to five entries,
 and an identical rule repair hint appears only once among the shown locations.
 Unbound fitness requirements retain their
 unverified total and grouped next step instead of repeating every missing
-assertion. Adopted assertions with failed or missing evidence remain visible.
+assertion. When the project has bound no verifier at all, the compact view
+prints one line in their place, `Project verification: not adopted`, with the
+count; `--full` and the machine outputs still list every requirement. Adopted
+assertions with failed or missing evidence remain visible.
 Use `pregate audit --full` for the complete human view, or `--json`/`--jsonl` for
 all machine evidence. These output formats are mutually exclusive.
 The compact presentation does not reduce analysis, change verdicts or impose a

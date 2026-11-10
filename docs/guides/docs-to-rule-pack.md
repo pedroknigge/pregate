@@ -6,6 +6,11 @@ required. A skill explains a workflow; a pack evaluates explicit constraints on
 code. A provider such as Vercel could publish both alongside its documentation.
 That is a distribution proposal, not a claim that an official Vercel pack exists.
 
+This guide is for a pack other projects will select. For one project's own
+instruction file, `pregate compile` and `compile apply` are the shorter route:
+they draft rules into the project's own pack from failing and passing code. See
+[instruction files to rules](../features/agent-proposed-contract.md#compile-an-instruction-file).
+
 The result is a versioned **data pack**, not a renamed skill. Anyone can follow
 the worksheet below using a text editor and PREGATE's CLI. An agent can help draft
 the files, but every executable claim must survive fixtures and review.

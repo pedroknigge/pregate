@@ -59,7 +59,10 @@ pregate init --preview --preset functional-ts
 and `mixed-starter`. The [complete recipe inventory](../packs.md) lists every
 packaged preset JSON file; other recipes are examples to copy or apply through a
 reviewed preset change, not names for `--preset`.
-Recommendations use the detected layout. Ordinary rules
+Recommendations use the detected layout. The review shows what the derived
+layers find in the code today, and a recommended methodology that needs a core
+layer is left out, and named, when the project has none
+([layers with evidence](agent-proposed-contract.md#layers-with-evidence)). Ordinary rules
 start in shadow; per-rule overrides take precedence. All 68 core rules activate
 and enforce by default, including the 48 software requirements. Missing project
 verification keeps audit incomplete. Use `fitness plan` to group missing evidence.
