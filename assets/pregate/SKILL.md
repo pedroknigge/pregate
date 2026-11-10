@@ -52,10 +52,19 @@ imports from this project instead of concepts. Keep a summary under eight lines.
      repository, and run `pregate layers apply <file> --preview`. Give a
      one-sentence reason a reviewer can check against the code. Explain each
      existing import the map would flag.
-   - Instruction-file statements that compile: `pregate compile <file>
-     --preview`. For a statement that needs an example, write one failing and
-     one passing snippet from this project's own code, show both, and use
-     `pregate rules add "<sentence>" --fail ... --pass ...`.
+   - Instruction files. Real ones are paragraphs, so reading them is your
+     part and proving each rule is the engine's. Run `pregate compile <file>
+     --template`, save the JSON to a temporary file outside the repository, and
+     follow its `steps`: keep only the statements a check on one source file can
+     decide (a forbidden import, call, syntax or name), and give each a short
+     sentence, code from this project that must fail, the correct code, and one
+     similar snippet that is allowed. Read the instruction file itself as well:
+     rules also sit in tables and long paragraphs. Then run `pregate compile
+     apply <proposals.json> --preview`. A refused proposal names its reason;
+     correct it and run again, and add a `pattern` when the engine says it could
+     only match the example's own text. Tell the user which statements became
+     rules and which stay as guidance. Do not force guidance or agent actions
+     (run the tests, use pnpm) into a rule.
    - After the human approves, offer to delete the compiled lines from the
      instruction file, and delete them only when the user agrees. The rules
      carry their own reason and repair, so the text no longer has to load in
@@ -722,7 +731,7 @@ usage:
   pregate preset diagnose [--json] | schema
   pregate rules test [<dir> | --library <ns> | --fixture <dir|repro.json>]
   pregate rules add "<sentence>" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]
-  pregate compile <rules.md> [--json|--preview]
+  pregate compile <rules.md> [--json|--template|--preview] | compile apply <proposals.json> --preview
   pregate rules draft <pack-dir> <area>/<name> [--pattern <rule.json|auto> --message <text> --why <text> --fix <text>] [--files <glob>] [--fail <file>]... [--pass <file>]... [--trap <file> --trap-note <text>]...
   pregate storage inspect [--json] | prune --older-than <days> [--preview] | recover [--preview] | show <digest> | apply <digest> [--yes]
   pregate enable | disable [--yes] | status [--json|--verbose]
