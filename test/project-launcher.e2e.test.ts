@@ -6,7 +6,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { projectLauncherFiles } from "../src/install.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -39,7 +40,7 @@ interface Out { code: number | null; stdout: string; stderr: string }
 interface Isolated { root: string; home: string; data: string; env: Record<string, string>; decoy: string }
 
 beforeAll(async () => {
-  compileBinary(hostTarget(), BIN);
+  engineAt(BIN);
   mkdirSync(join(TMP, "engines"), { recursive: true });
   await buildEngine(PIN_A, join(TMP, "engines", PIN_A, ENGINE_FILE));
   await buildEngine(PIN_B, join(TMP, "engines", PIN_B, ENGINE_FILE));
