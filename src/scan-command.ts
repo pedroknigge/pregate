@@ -18,7 +18,7 @@ import { librarySources } from "./library.ts";
 import { librarySource } from "./library.ts";
 import { packCatalog, patternsOf } from "./compile.ts";
 import { grammarOf, languageApplies } from "./languages.ts";
-import { matches } from "./paths.ts";
+import { inScope, layerOf, matches } from "./paths.ts";
 import type { Files, Layer, Lock, Preset } from "./types.ts";
 import { discoverDocumentation } from "./project-discovery.ts";
 
@@ -396,20 +396,21 @@ async function scanReport(args: string[], directory: string) {
 // `pregate layers`: the layer map as evidence, and the route for an agent to propose one. The
 // agent reads the folders and their imports, writes a map, and the engine reports what that map
 // finds in the code today before the human reviews one digest. Nothing here changes the contract.
-const LAYERS_USAGE = "usage: pregate layers [--json] | layers apply <layers.json> --preview";
+const LAYERS_USAGE = "usage: pregate layers [--json] | layers apply <layers.json> --preview [--complete]";
 const LAYERS_FORMAT = '{"why": "<one sentence>", "layers": {"domain": {"paths": ["src/domain/**"], "mayImport": [], "kind": "core"}, "ui": {"paths": ["src/ui/**"], "mayImport": ["domain"], "kind": "adapter"}}}';
 type LayerMap = Record<string, Layer>;
 
 export async function layers(args: string[], directory = process.cwd()): Promise<{ code: number; text: string }> {
-  const apply = args[0] === "apply";
-  if (apply ? args.length !== 3 || args[2] !== "--preview" || args[1]!.startsWith("-") : args.length > 1 || (args.length === 1 && args[0] !== "--json")) {
+  const apply = args[0] === "apply", flags = args.slice(2);
+  const applyOk = args.length >= 3 && !args[1]!.startsWith("-") && flags.includes("--preview") && flags.every((flag, i) => ["--preview", "--complete"].includes(flag) && flags.indexOf(flag) === i);
+  if (apply ? !applyOk : args.length > 1 || (args.length === 1 && args[0] !== "--json")) {
     return { code: 1, text: apply && !args.includes("--preview") ? `layers apply only prepares a review; add --preview. The human approves it with pregate approve <code>.\n${LAYERS_USAGE}` : LAYERS_USAGE };
   }
   try {
     const root = findRoot(canonical(directory), () => true);
     if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview. Its review proposes layers from the folder names." };
     await grammars();
-    return apply ? await layersApply(root, resolvePath(directory, args[1]!)) : layersShow(root, args[0] === "--json");
+    return apply ? await layersApply(root, resolvePath(directory, args[1]!), flags.includes("--complete")) : layersShow(root, args[0] === "--json");
   } catch (e) { return { code: 1, text: visible(`Layers failed: ${(e as Error).message}. Contract unchanged.`) }; }   // fail-closed: exit 1, nothing staged
 }
 
@@ -432,18 +433,44 @@ function currentLock(root: string): Lock | null {
   catch (e) { if (e instanceof SyntaxError) return null; throw e; }   // a malformed lock shows the derived map; status names the lock
 }
 
-async function layersApply(root: string, file: string): Promise<{ code: number; text: string }> {
+// `--complete`: the map must place every source file in scope, and a folder created later. A file
+// in no layer is unrestricted, so a map with gaps lets code move to an uncovered folder and import
+// anything. Partial maps stay valid without the flag; this is the opt-in for a project that wants
+// no such folder. The check is the map's own: a catch-all layer (for example `src/**`) closes every
+// gap, because the most specific layer path still wins for the files other layers name.
+const NEW_FOLDER = "pregate-new-folder";
+
+function incompleteMap(preset: Preset, layerMap: LayerMap, paths: string[]): string | null {
+  const lock = { scope: { include: preset.scope?.include ?? ["**"], exclude: preset.scope?.exclude ?? [] }, layers: layerMap } as Lock;
+  const sources = paths.filter(path => grammarOf(path) !== null && inScope(lock, path));
+  const unplaced = sources.filter(path => layerOf(lock, path) === null);
+  const folder = (path: string) => path.includes("/") ? path.split("/").slice(0, 2).join("/").replace(/\/[^/]*\.[^/]*$/, "") : ".";
+  if (unplaced.length) {
+    const folders = [...new Set(unplaced.map(folder))].sort();
+    return `--complete: ${unplaced.length} source file${unplaced.length === 1 ? " is" : "s are"} in no layer (${folders.slice(0, 8).join(", ")}${folders.length > 8 ? `, +${folders.length - 8} more` : ""}). Place them, or add a catch-all layer whose path covers them.`;
+  }
+  const roots = [...new Set(sources.filter(path => path.includes("/")).map(path => path.split("/")[0]!))].sort();
+  const open = roots.filter(dir => { const sample = sources.find(path => path.startsWith(`${dir}/`))!; return layerOf(lock, `${dir}/${NEW_FOLDER}/file.${sample.split(".").pop()}`) === null; });
+  return open.length === 0 ? null
+    : `--complete: a new folder under ${open.join(", ")} would be in no layer, and code there would be unrestricted. Add a catch-all layer whose path covers it, such as ${open[0]}/**.`;
+}
+
+async function layersApply(root: string, file: string, complete = false): Promise<{ code: number; text: string }> {
   if (!existsSync(file)) return { code: 1, text: `No file ${file}. Format: ${LAYERS_FORMAT}` };
   const proposed = proposedLayers(readFileSync(file, "utf8"));
   if (typeof proposed === "string") return { code: 1, text: `${proposed} Nothing staged. Format: ${LAYERS_FORMAT}` };
   const files = repoFiles(root), paths = Object.keys(files);
   const empty = Object.entries(proposed.layers).flatMap(([name, layer]) => layer.paths.filter(glob => !paths.some(path => matches(glob, path))).map(glob => `${name} (${glob})`));
   if (empty.length) return { code: 1, text: `Layer paths matching no file: ${empty.join(", ")}. A layer that matches nothing checks nothing; correct the paths. Nothing staged.` };
-  const candidate = withLayerPolicy(root, { ...JSON.parse(readFileSync(join(root, PRESET), "utf8")) as Preset, layers: proposed.layers }, files);
+  const current = JSON.parse(readFileSync(join(root, PRESET), "utf8")) as Preset;
+  const gap = complete ? incompleteMap(current, proposed.layers, paths) : null;
+  if (gap !== null) return { code: 1, text: `${gap} Nothing staged.` };
+  const candidate = withLayerPolicy(root, { ...current, layers: proposed.layers }, files);
   if ("errors" in candidate) return { code: 1, text: [...candidate.errors, "Nothing staged."].join("\n") };
   const review = await applyPreset(root, JSON.stringify(candidate.preset, null, 2) + "\n", { preview: true, stable: true });
   if (review.code !== 0) return review;
   return { code: 0, text: visible([`Proposed layer map: ${proposed.why}`, ...candidate.notes,
+    ...(complete ? ["Complete map: every source file in scope is in a layer, and so is a folder created later."] : []),
     ...layerEvidenceLines(layerEvidence(files, proposed.layers), candidate.lock.ratchet, newBreak(candidate.lock)), review.text].join("\n")) };
 }
 
