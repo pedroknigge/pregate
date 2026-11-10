@@ -75,5 +75,4 @@ src/status.ts	catch { return null; // an unreadable pending record is reported b
 src/storage-command.ts	catch (error) { return { code: 1, text: "Storage operation failed: " + (error as Error).message + ". Inspect storage before retrying; an interrupted apply may have completed part of the approved operation." }; }
 src/storage-recovery.ts	catch (error) { return (error as NodeJS.ErrnoException).code === "ESRCH" ? "dead" : "unknown"; }
 src/storage-recovery.ts	catch { return undefined; }
-src/supervisor.ts	catch (e) { if (!active(run.raw, run.data)) return { exit: 0, stdout: "", stderr: "" }; return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness); }
 src/workspace.ts	catch { return null; }

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Antigravity 1.5.3 edits are gated again.** agy 1.5.3 renamed its edit tools to `write_file` and `edit_file`, with new argument names. The registered matcher named only the 1.2.14 tools, so no Pre hook ran and a forbidden edit was written; only Stop still blocked it. The matcher and the adapter cover both generations, the 1.5.3 payloads are recorded in `test/payloads/agy`, and four write tools the 1.5.3 binary names without a captured shape are refused inside a project instead of passing unread. The machine setup must run again to register the new matcher. Found by the real end-to-end run against the installed CLI.
+- **A hung pinned engine no longer fails open for a project below the session's folder.** The launcher denied an engine failure only when the session's own folder had consent. With the session started in a parent folder and the edit in a nested enabled project, a pinned engine that hung let the write through. A redirect to a pinned engine now counts as evidence of a project, in the shell launcher and in the supervisor. Found by the real end-to-end run against Claude Code 2.1.322.
+
+### Changed
+
+- **Real re-verification against the installed CLIs** (Claude Code 2.1.322, Codex 0.167.0, Cursor 2026.11.05, Grok 1.0.80, agy 1.5.3) is recorded in `docs/MULTI-HARNESS.md` §6.5. The real runner uses the bundled `architecture` pack version, states the unattended approval its last step requires, and no longer counts the SessionStart notice as output in a project with no contract.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The shell guard no longer refuses `cd`, `bun test`, `npm` or Pregate's own `layers` and `compile` commands in an enabled project. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).

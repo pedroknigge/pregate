@@ -231,6 +231,23 @@ test("exit 3 runs the pinned engine once, on the same stdin and arguments", () =
   }
 });
 
+test("a pinned engine that hangs denies also when the session started above the project, in a folder with no consent", () => {
+  // The session's folder is outside every consenting root; the engine found the nested project and
+  // redirected to the engine its lock pins. A redirect is the launcher's evidence of a project.
+  const outside = join(tmpdir(), `pregate-launcher-outside-${process.pid}`);
+  mkdirSync(outside, { recursive: true });
+  try {
+    const hung = install({ [VERSION]: redirect(PINNED), [PINNED]: HANG });
+    const out = run(hook(SHELLS[0]!, hung, "pre", HARNESSES["claude-code"]), payload(HARNESSES["claude-code"].pre), {}, outside);
+    expect(deniedPre(out)).toContain("timed out after 5 s");
+    // Without a redirect nothing names a project, and a session outside every root stays silent.
+    const alone = install({ [VERSION]: "exit 7" });
+    expect(run(hook(SHELLS[0]!, alone, "pre", HARNESSES["claude-code"]), payload(HARNESSES["claude-code"].pre), {}, outside)).toMatchObject({ code: 0, stdout: "", stderr: "" });
+  } finally {
+    removeTree(outside);
+  }
+});
+
 test("exit 3 to a missing engine, to an invalid version or twice denies", () => {
   const absent = install({ [VERSION]: redirect(PINNED) });
   const empty = install({ [VERSION]: redirect(PINNED), [PINNED]: null });

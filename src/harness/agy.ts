@@ -4,13 +4,16 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 // The Antigravity CLI (agy) adapter (MULTI-HARNESS MH-05, MH-11, MH-14). The payload names no event,
 // cwd or call: argv gives the event, stepIdx the call, and run_command's Cwd or the workspace the
 // directory. An empty stdout leaves the call to agy's own permission flow, so it is the only
-// neutral: "allow" would skip that flow.
+// neutral: "allow" would skip that flow. 1.5.3 renamed the edit tools (write_file, edit_file, with
+// Path) and added a top-level cwd; the 1.2.14 names and shapes are still decoded.
 
-export const VERIFIED = "1.2.14";
+export const VERIFIED = "1.5.3";
 
 const BAD: Cause = "payload-unrecognized";
 // What agy shows the user or keeps as metadata: none of it changes the bytes written (MH-11).
 const NOTES = ["Description", "Instruction", "TargetLintErrorIds", "ArtifactMetadata", "toolAction", "toolSummary"];
+
+const UNCAPTURED = new Set(["multi_replace_file_content", "create_file", "delete_file", "rename_file", "notebook_edit"]);
 
 // PreInvocation supplies the session briefing only before the first model call.
 export function decode(event: HookKind, raw: string, _env: HookEnv): HookEvent | Rejected | null {
@@ -55,18 +58,30 @@ function tool(p: Payload, session: Session): HookEvent | Rejected | null {
   // Without a Cwd agy picks a workspace, and which one among several is not known (MH-06).
   if (call.name === "run_command") {
     const w = p.workspacePaths as string[];
-    const cwd = a.Cwd !== undefined && a.Cwd !== "" ? a.Cwd : w.length === 1 ? w[0] : null;
+    const cwd = a.Cwd !== undefined && a.Cwd !== "" ? a.Cwd : absolute(p.cwd) ? p.cwd : w.length === 1 ? w[0] : null;
     return typeof a.CommandLine === "string" && absolute(cwd) ? { kind: "pre-command", command: { ...base, command: a.CommandLine, cwd } } : null;
   }
   const edit = editOf(call.name, a);
-  return edit !== null && absolute(a.TargetFile) ? { kind: "pre-edit", changes: [{ ...base, path: a.TargetFile, edit, from: null }] } : null;
+  const path = a.TargetFile ?? a.Path;
+  return edit !== null && absolute(path) ? { kind: "pre-edit", changes: [{ ...base, path, edit, from: null }] } : null;
 }
 
 // A wrong type is a changed contract (null ⇒ payload-unrecognized). An argument outside the closed
 // set may change what is written, and so may Append with Overwrite: that edit cannot be rebuilt.
 function editOf(tool: string, a: Payload): Edit | null {
   const unknown: Edit = { form: "unknown", cause: tool };
-  if (tool === "multi_replace_file_content") return unknown;      // not in 1.2.14: no captured shape [V]
+  // No captured shape [V]: what these write cannot be rebuilt, so the call is refused inside a root.
+  if (UNCAPTURED.has(tool)) return unknown;
+  if (tool === "write_file") {
+    if (typeof a.Content !== "string" || !flag(a.Overwrite)) return null;
+    return keys(a, ["Path", "Content"], ["Overwrite", ...NOTES]) ? { form: "full", content: a.Content } : unknown;
+  }
+  if (tool === "edit_file") {
+    if (typeof a.Target !== "string" || typeof a.Replacement !== "string") return null;
+    // Whether agy fails, takes the first or takes every match of a repeated Target is not verified.
+    // A range over the whole file makes a missing or repeated Target unknown instead of a failure.
+    return keys(a, ["Path", "Target", "Replacement"], NOTES) ? { form: "oldnew", old: a.Target, neu: a.Replacement, all: false, lines: [1, Number.MAX_SAFE_INTEGER] } : unknown;
+  }
   if (tool === "write_to_file") {
     if (typeof a.CodeContent !== "string" || !flag(a.Append) || !flag(a.Overwrite)) return null;
     if (!keys(a, ["TargetFile", "CodeContent"], ["Append", "Overwrite", ...NOTES]) || (a.Append === true && a.Overwrite === true)) return unknown;
@@ -86,8 +101,9 @@ function editOf(tool: string, a: Payload): Edit | null {
 function refuse(event: HookKind, p: Payload | null, session: Session | null, cause: Cause): Rejected {
   const call = isObject(p?.toolCall) ? p.toolCall : {};
   const a = isObject(call.args) ? call.args : {};
-  const file = typeof a.TargetFile === "string" ? a.TargetFile.slice(0, a.TargetFile.lastIndexOf("/")) : null;
-  const dirs = [...(Array.isArray(p?.workspacePaths) ? p.workspacePaths : []), a.Cwd, file].filter(absoluteLocation);
+  const target = typeof a.TargetFile === "string" ? a.TargetFile : typeof a.Path === "string" ? a.Path : null;
+  const file = target === null ? null : target.slice(0, target.lastIndexOf("/"));
+  const dirs = [...(Array.isArray(p?.workspacePaths) ? p.workspacePaths : []), a.Cwd, p?.cwd, file].filter(absoluteLocation);
   return { cause, kind: event === "pre" ? "pre-edit" : event, reentry: event === "stop" && count(p?.executionNum) && p.executionNum > 0, session, dirs };
 }
 

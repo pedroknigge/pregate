@@ -171,7 +171,7 @@ describe("agy", () => {
       "pregate-global": {
         enabled: true,
         PreToolUse: [{
-          matcher: "^(write_to_file|replace_file_content|multi_replace_file_content|run_command|send_command_input)$",
+          matcher: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
           hooks: [{ type: "command", command: HOOK_COMMAND["pre agy"], timeout: 120 }],
         }],
         Stop: [{ type: "command", command: HOOK_COMMAND["stop agy"], timeout: 60 }],
