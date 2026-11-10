@@ -7,35 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 ### Added
 
-- **Shell guard friction is measured.** `bun scripts/measure-shell-friction.ts` sends a committed corpus of routine git, npm, Bun, make, Python, shell and Pregate commands through the real pre hook in an enabled scratch project and records each decision. The page [Shell guard friction](docs/benchmarks/shell-guard-friction.md) publishes the result with the machine it depends on, a labeled field sample from one real session, and a keep, trim or hold reading. No anti-evasion rule was added.
-- **Maintenance, reproducible build and rollback are documented and tested.** [Maintenance, reproducible build and rollback](docs/guides/maintenance.md) says who releases Pregate, how to build a tag from a clean checkout, how a published archive is verified, and how a pinned project is upgraded and rolled back. An end-to-end test runs the upgrade and the rollback on every CI run with two real engines that differ only in version: the upgrade changes the pin and no rule, both engines deny the same edit for the same rule, and reverting the upgrade commit restores the first lock byte for byte. The page states what a rebuild does not prove: two local builds were identical, and a local build of `v0.0.5` did not match the published archive.
+- **Maintenance, reproducible build and rollback are documented and tested.** [Maintenance, reproducible build and rollback](docs/guides/maintenance.md) says who releases Pregate, how to build a tag from a clean checkout, how a published archive is verified, and how a pinned project is upgraded and rolled back. An end-to-end test runs the upgrade and the rollback on every CI run with two real engines that differ only in version: the upgrade changes the pin and no rule, both engines deny the same edit for the same rule, and reverting the upgrade commit restores the first committed contract. The page states what a rebuild does not prove: two local builds were identical, and a local build of `v0.0.5` did not match the published archive.
 - `pregate project launcher [--preview|--yes]` installs a reviewed launcher in the project at `.pregate/bin/pregate` (Windows: `pregate.cmd` and `project-launcher.ps1`). The launcher runs the engine that `.pregate/pregate.lock.json` pins from the user cache (`<DATA>/<version>/`) and never falls back to a launcher on PATH. Hook calls go through the engine's `--supervise` path. The command needs a valid engine pin and that engine in the cache (`pregate prepare`), and the files go through the same review and approval as a contract proposal. A hook call with a missing or empty cached engine denies (exit 2) and names the reason. On Windows the launcher calls PowerShell by its absolute path under `%SystemRoot%`. `pregate install` keeps this launcher; it removes only the launcher that 0.1.0 committed at the same path.
 
 ### Changed
 
 - **Deadline tests bound the mechanism, not the machine.** Three tests proved a deadline with an upper bound on the whole command, engine start included: 3.5 s for a fitness verifier with a 500 ms deadline or an output budget, and 19 s for an issue transport with a 15 s deadline. On a memory-constrained Windows machine the engine start alone can exceed the margin. The bound is now on the life of the process the deadline ends, from its first line to the return of the command, and it is tighter (3 s, and 3 s past the 15 s deadline). Each such process also leaves a file only when it reaches its own exit, and the tests assert that the file is absent, which holds at any machine speed. No timeout was raised. Not validated on a low-memory Windows machine: none was available.
+- **Real re-verification against the installed CLIs** (Claude Code 2.1.322, Codex 0.167.0, Cursor 2026.11.05, Grok 1.0.80, agy 1.5.3) is recorded in `docs/MULTI-HARNESS.md` §6.5. The real runner uses the bundled `architecture` pack version, states the unattended approval its last step requires, and no longer counts the SessionStart notice as output in a project with no contract.
 
-### Fixed
-
-- **The shell guard no longer refuses `cd`, `bun test`, `pregate layers` or `pregate compile` in an enabled project.** The first friction measurement refused 32 of 101 routine commands; it now refuses 19. Three causes protected nothing. A shell builtin was looked up on `PATH`, and macOS ships `/usr/bin/cd`, `type`, `read`, `wait` and `umask` as scripts with a computed command name, so every `cd` was `shell-admin` there since 0.0.5. `bun test` was read as Bun running a script named `test` and refused when the project has a `test` directory. `pregate layers` and `pregate compile`, which only read or prepare a review, were not on the guard's list of commands an agent may run, although the skill tells the agent to run them. No form of those commands that applies a contract is allowed, and a script on `PATH`, a function named like a builtin, and `bun ./test` are still read. The remaining refusals (an installed tool that is a script, such as `npm`; a read-only project script that imports a file-system module) are listed on the measurement page for a maintainer decision.
-
-=======
->>>>>>> release-0.0.6
-=======
 ### Fixed
 
 - **Antigravity 1.5.3 edits are gated again.** agy 1.5.3 renamed its edit tools to `write_file` and `edit_file`, with new argument names. The registered matcher named only the 1.2.14 tools, so no Pre hook ran and a forbidden edit was written; only Stop still blocked it. The matcher and the adapter cover both generations, the 1.5.3 payloads are recorded in `test/payloads/agy`, and four write tools the 1.5.3 binary names without a captured shape are refused inside a project instead of passing unread. The machine setup must run again to register the new matcher. Found by the real end-to-end run against the installed CLI.
 - **A hung pinned engine no longer fails open for a project below the session's folder.** The launcher denied an engine failure only when the session's own folder had consent. With the session started in a parent folder and the edit in a nested enabled project, a pinned engine that hung let the write through. A redirect to a pinned engine now counts as evidence of a project, in the shell launcher and in the supervisor. Found by the real end-to-end run against Claude Code 2.1.322.
 
-### Changed
-
-- **Real re-verification against the installed CLIs** (Claude Code 2.1.322, Codex 0.167.0, Cursor 2026.11.05, Grok 1.0.80, agy 1.5.3) is recorded in `docs/MULTI-HARNESS.md` §6.5. The real runner uses the bundled `architecture` pack version, states the unattended approval its last step requires, and no longer counts the SessionStart notice as output in a project with no contract.
-
->>>>>>> harness-drift
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The shell guard no longer refuses `cd`, `bun test`, `npm` or Pregate's own `layers` and `compile` commands in an enabled project. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).

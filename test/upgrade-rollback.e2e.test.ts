@@ -11,8 +11,8 @@ import { removeReleased } from "./remove-tree.ts";
 
 // The documented upgrade and rollback of one pinned project, with two real engines that differ only
 // in version. The approved rules and the verdict on the same edit hold across the upgrade, and the
-// rollback (revert the contract commit, run the previous engine) restores the first lock byte for
-// byte. docs/guides/maintenance.md states this procedure.
+// rollback (revert the contract commit, run the previous engine) restores the first committed
+// contract. docs/guides/maintenance.md states this procedure.
 setDefaultTimeout(120_000);
 
 const OLD = "9.9.7", NEW = "9.9.8";
@@ -109,7 +109,10 @@ test("a pinned project is upgraded and rolled back with the same rules and the s
   expect(p.git("diff", "--name-only", contract, approval).stdout.trim().split("\n").every((path) => path.startsWith(".pregate/"))).toBe(true);
   const reverted = p.git("revert", "--no-edit", approval);
   expect(reverted.code, reverted.text).toBe(0);
-  expect(p.lock()).toBe(first);
+  // The committed contract is the first one, object for object. The working copy is compared
+  // without line endings: Git for Windows may check a text file out with CRLF.
+  for (const file of [LOCK, ".pregate/preset.json"]) expect(p.git("rev-parse", `HEAD:${file}`).stdout, file).toBe(p.git("rev-parse", `${contract}:${file}`).stdout);
+  expect(p.lock().replaceAll("\r\n", "\n")).toBe(first.replaceAll("\r\n", "\n"));
   const restored = p.verdict(OLD);
   expect(restored.code, restored.text).toBe(2);
   expect(restored.rules).toEqual(before.rules);

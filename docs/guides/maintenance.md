@@ -63,7 +63,7 @@ The upgrade is one commit, so the rollback is its revert, run with the previous 
 
 ```sh
 git log --oneline -3 -- .pregate      # find the commit "apply reviewed PREGATE contract <code>"
-git revert --no-edit <that commit>    # the lock is the earlier lock again, byte for byte
+git revert --no-edit <that commit>    # the committed contract is the earlier one again
 pregate update --engine <old>         # only when that engine is no longer installed on this machine
 pregate status                        # the project pins <old> and is enforced by it
 ```
@@ -73,7 +73,7 @@ pregate status                        # the project pins <old> and is enforced b
 - A newer engine does not propose a downgrade, and it does not judge a project that pins an older engine: the hook routes to the pinned engine or fails closed.
 - Roll back teammates the same way: they pull the revert. A clone whose pinned engine is missing fails closed and names `pregate update --engine <v>`.
 
-[`test/upgrade-rollback.e2e.test.ts`](../../test/upgrade-rollback.e2e.test.ts) runs this procedure on every CI run with two real engines that differ only in version. It asserts that the upgrade changes the pin and no rule, that both engines deny the same edit for the same rule, that the upgrade commit touches only `.pregate/`, and that the revert restores the first lock byte for byte with the same verdict.
+[`test/upgrade-rollback.e2e.test.ts`](../../test/upgrade-rollback.e2e.test.ts) runs this procedure on every CI run with two real engines that differ only in version. It asserts that the upgrade changes the pin and no rule, that both engines deny the same edit for the same rule, that the upgrade commit touches only `.pregate/`, and that the revert restores the first committed contract, the same Git objects, with the same verdict.
 
 ## What this page does not establish
 
