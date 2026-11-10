@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -12,6 +12,7 @@ import { submissionOwner } from "../src/issue-submission.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { REPO } from "../src/product.ts";
 import { key, record } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const repository = join(import.meta.dir, "..");
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-issue-transport-")));
@@ -56,7 +57,7 @@ process.chdir(process.argv[2]!);
 process.exit(await run(process.argv.slice(3)));
 `);
 }, 120_000);
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 async function killedWithGh(child: ChildProcess, exited: Promise<unknown>, ghPid: () => number | undefined, work: () => Promise<void>): Promise<void> {
   try {

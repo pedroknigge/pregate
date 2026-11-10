@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
+
 ## [0.0.5] - 2026-11-09
 
 What changed for people who use an agent in a repository. An agent can now turn an instruction file into rules: it proposes each rule with code that must fail and code that must pass, and the engine stages only the rules those cases prove. The guide review shows what a layer map finds in the code today, and an agent can propose that map. Pregate raises a promotion when advisor rules stay clean, and `report` says what the gate did to the agent. A project that depends on `dcouplr` and has no core layer no longer fails its first review. See the [0.0.5 notes](docs/releases/0.0.5.md).

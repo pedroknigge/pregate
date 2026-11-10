@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { BUILTIN } from "../src/assets.ts";
@@ -12,6 +12,7 @@ import { sha256 } from "../src/state.ts";
 import { contractState } from "../src/status.ts";
 import { projectFitness } from "../src/fitness-command.ts";
 import type { Lock, Session } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Cases spawn git or the engine; on Windows each spawn costs 0.3-1 s.
 setDefaultTimeout(60_000);
@@ -40,7 +41,7 @@ afterEach(() => {
     else process.env[key] = value;
   }
 });
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function put(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true });

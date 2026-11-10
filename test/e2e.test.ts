@@ -9,6 +9,7 @@ import { hookCommand } from "../src/register.ts";
 import { enable } from "../src/consent.ts";
 import type { HarnessId } from "../src/types.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The global MH-28 installation, driven through the literal hook in HOME/.claude/settings.json
 // on git copies of test/demo-repo. All machine and runtime state stays in one temporary folder.
@@ -44,7 +45,7 @@ beforeAll(() => {
   ok(run([BIN, "setup"], HOME, envOf()), "setup");
 });
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 // ── The code the agent proposes ──────────────────────────────────────────────────────────
 

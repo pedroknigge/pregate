@@ -1,11 +1,12 @@
 import { afterAll, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { WINDOWS } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-native-admission-"));
 const target = hostTarget(), archive = `pregate-${VERSIONS.engine}-${target}.${WINDOWS ? "zip" : "tar.gz"}`;
@@ -13,7 +14,7 @@ const installer = WINDOWS ? "install.ps1" : "install.sh";
 const archiveBytes = "corrupted candidate archive", installerBytes = "installer must never run";
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const archiveLine = hash(archiveBytes) + "  " + archive + "\n", installerLine = hash(installerBytes) + "  " + installer + "\n";
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test.each([
   ["archive checksum differs", "0".repeat(64) + "  " + archive + "\n" + installerLine],

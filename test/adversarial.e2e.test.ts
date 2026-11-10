@@ -9,6 +9,7 @@ import { ENGINE_FILE } from "../src/platform.ts";
 import { hookCommand } from "../src/register.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled pregate binary, against disposable git repositories. These cases are the
 // soundness claims in docs/guarantees.md: what no-new actually compares, and where a
@@ -39,7 +40,7 @@ beforeAll(() => {
   template = buildTemplate();
 });
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 let template = "";
 let states = 0;

@@ -13,12 +13,13 @@ import { LOCK, PRESET, VERSIONS } from "../src/gate.ts";
 import { canonical } from "../src/compile.ts";
 import { H, sha256 } from "../src/state.ts";
 import type { FitnessBinding, FitnessReceipt, Preset } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-fitness-"));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
 beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test("fitness bind prepares one reviewed binding without executing or changing active policy", () => {
   const project = verifierProject("compiled", "binding-preview", 'require("node:fs").writeFileSync("ran-verifier", "yes");', 1000);
@@ -78,7 +79,7 @@ function candidateProject(label: string) {
   const file = join(root, "pregate.fitness.json"); writeFileSync(file, JSON.stringify(manifest));
   const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, label + "-home"), XDG_DATA_HOME: join(area, label + "-data"), XDG_STATE_HOME: join(area, label + "-state") };
   const run = (...args: string[]) => {
-    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
+    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 30000 });
     if (child.error || child.signal) throw new Error(`${args}: ${child.error?.message ?? child.signal}`);
     return { code: child.status, text: child.stdout };
   };
@@ -215,7 +216,7 @@ test.skipIf(process.platform === "win32")("rendered candidate review commands pr
   writeFileSync(join(p.root, file), JSON.stringify(p.manifest));
   const planned = p.run("fitness", "plan", "--candidates", file, "--json"); expect(planned.code).toBe(0);
   const command = JSON.parse(planned.text).review;
-  const reviewed = spawnSync("sh", ["-c", command], { cwd: p.root, env: { ...p.env, PATH: dirname(binary) + ":" + process.env.PATH }, encoding: "utf8", timeout: 10000 });
+  const reviewed = spawnSync("sh", ["-c", command], { cwd: p.root, env: { ...p.env, PATH: dirname(binary) + ":" + process.env.PATH }, encoding: "utf8", timeout: 30000 });
   expect(reviewed.error).toBeUndefined(); expect(reviewed.status).toBe(0); expect(reviewed.stdout).toContain("Digest:");
   expect(existsSync(join(p.root, "injected"))).toBe(false); p.untouched();
 });
@@ -280,7 +281,7 @@ console.log(result.text); process.exit(result.code);
 `);
   const run = (...args: string[]) => spawnSync(kind === "source" ? process.execPath : binary,
     kind === "source" ? [worker, root, ...args.slice(1)] : args,
-    { cwd: kind === "source" ? join(import.meta.dir, "..") : root, env, encoding: "utf8", timeout: 10000, killSignal: "SIGKILL" });
+    { cwd: kind === "source" ? join(import.meta.dir, "..") : root, env, encoding: "utf8", timeout: 30000, killSignal: "SIGKILL" });
   return { run, marker, root };
 }
 
@@ -502,7 +503,7 @@ test("compiled onboarding keeps all 64 requirements active while verifiers are a
   mkdirSync(join(root, "src"), { recursive: true }); mkdirSync(join(root, "quality")); mkdirSync(join(root, ".pregate"));
   const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "progressive-home"), XDG_DATA_HOME: join(area, "progressive-data"), XDG_STATE_HOME: join(area, "progressive-state") };
   const run = (...args: string[]) => {
-    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
+    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 30000 });
     expect(child.error).toBeUndefined(); expect(child.signal).toBeNull();
     return { code: child.status, text: child.stdout };
   };
@@ -557,7 +558,7 @@ test("timeouts, source mutation and contract mutation during a verifier cannot p
   mkdirSync(join(root, "src"), { recursive: true }); mkdirSync(join(root, ".pregate"));
   const env = { ...process.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", HOME: join(area, "unstable-home"), XDG_DATA_HOME: join(area, "unstable-data"), XDG_STATE_HOME: join(area, "unstable-state") };
   const run = (...args: string[]) => {
-    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 10000 });
+    const child = spawnSync(binary, args, { cwd: root, env, encoding: "utf8", timeout: 30000 });
     expect(child.error).toBeUndefined(); expect(child.signal).toBeNull();
     return { code: child.status, text: child.stdout };
   };

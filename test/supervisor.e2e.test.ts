@@ -10,6 +10,7 @@ import { windowsHook } from "../src/windows-command.ts";
 import type { HarnessId } from "../src/types.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(120_000);
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-native-")));
@@ -84,7 +85,7 @@ beforeAll(() => {
   expect(cli("setup").code).toBe(0);
   expect(cli("preset", "compile").code).toBe(0);
 });
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function writePayload(h: HarnessId, target: string): string {
   const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json" };

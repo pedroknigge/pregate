@@ -11,6 +11,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
 import { agyPlugin, exact } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // MULTI-HARNESS §6.2, the machine commands: the compiled binary runs `setup`, `update`, `uninstall`
 // and `doctor` on a machine that lives in one temporary folder (HOME, XDG_*, CODEX_HOME, GROK_HOME,
@@ -29,7 +30,7 @@ const EVENTS = ["PreToolUse", "Stop", "SessionStart"];
 const TOOLS = ["cp", "git", "gzip", "mkdir", "rm", "sed", "tar"];
 
 beforeAll(() => compileBinary(hostTarget(), BIN));
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 test("D25: setup installs versioned skills; doctor detects missing/stale copies; uninstall removes them", () => {
   const m = machine(["claude-code"]);

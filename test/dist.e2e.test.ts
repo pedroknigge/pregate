@@ -7,6 +7,7 @@ import pkg from "../package.json" with { type: "json" };
 import { VERSIONS } from "../src/versions.ts";
 import { hostTarget } from "../scripts/build.ts";
 import { prepareSigner } from "./signing-tool.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The distribution (MULTI-HARNESS MH-31, MH-32): install.sh against fake gh, uname and xattr on a
 // PATH that holds only the tools it needs, so the release mode and both targets run on any host and
@@ -46,7 +47,7 @@ beforeAll(() => {
   ].join("\n"));
 });
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 // A PATH with the fakes and the host tools, minus `without`: nothing else on the host is reachable.
 function path(without = ""): string {
