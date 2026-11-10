@@ -244,23 +244,23 @@
     },
     {
       "id": "bun-test",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "bun-test-file",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "bun-test-names-contract",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "bun-test-piped",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "bun-run-typecheck",
@@ -289,8 +289,8 @@
     },
     {
       "id": "bun-chain",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "make-default",
@@ -434,8 +434,8 @@
     },
     {
       "id": "redirect-tmp",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "tee-tmp",
@@ -474,18 +474,18 @@
     },
     {
       "id": "cd-and-run",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "cd-absolute",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "type-builtin",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "command-v",
@@ -559,23 +559,23 @@
     },
     {
       "id": "pregate-layers",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "pregate-layers-apply",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "pregate-compile",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "pregate-compile-apply",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "pregate-rules-test",

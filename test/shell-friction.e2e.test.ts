@@ -34,6 +34,11 @@ test("a shell write to a governed source file is refused and a read of it is not
   for (const id of ["git-status", "git-diff", "git-log", "cat", "grep", "ls", "sed-print", "pregate-status", "pregate-audit"]) expect(decided(id).decision, id).toBe("allow");
 });
 
+test("what the shell or Bun runs itself, and Pregate's own proposal commands, are not refused", () => {
+  for (const id of ["cd-and-run", "cd-absolute", "type-builtin", "command-v", "bun-test", "bun-test-file", "bun-test-names-contract", "bun-test-piped", "bun-chain", "redirect-tmp",
+    "pregate-layers", "pregate-layers-apply", "pregate-compile", "pregate-compile-apply", "pregate-rules-test", "pregate-report"]) expect(decided(id).decision, id).toBe("allow");
+});
+
 test("the page states the counts of the run it is given", () => {
   const text = page(outcomes, { session: "One session.", commands: 10, denied: 1, byCause: { "shell-write": 1 }, labels: [{ count: 1, verdict: "intended", cause: "shell-write", shape: "A write." }] },
     { platform: "test", scripts: [] });
