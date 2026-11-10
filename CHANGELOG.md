@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First-run instructions name one command, `pregate guide --preview`. It already proposes advisor mode for a new project, so the SessionStart setup notice, `status`, the `rules add`, `compile` and `layers` setup messages, the README and the skill no longer add `--enforcement advisor`. The flag still selects `enforce` or `shadow`. An end-to-end test covers the path: no mode flag, an advisor finding that does not block the write, promotion, then the same edit denied.
 
 ### Changed
+- The human output of `pregate audit` ends with a line that states the exit code of that run and what it means. `Exit 2` says the audit is incomplete, not a count of violations, and names the cause (the number of files that could not be analyzed and the first one, a tree that changed during the audit, or what `--strict` counts). Exit codes themselves are unchanged, and JSON, JSONL and SARIF output carry no such line.
+
+### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 
 ## [0.0.5] - 2026-11-09

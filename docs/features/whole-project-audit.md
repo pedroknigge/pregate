@@ -72,6 +72,13 @@ document their scope. A syntax diagnostic is not proof of a compiler error.
 The first private consumer diagnostic
 records the directory-index repair, measured scope and remaining calibration limits.
 
+The last line of the human output states the exit code of that run and what it
+means, for example `Exit 2: incomplete, not a count of violations: 6 files could
+not be analyzed (first: src/a.ts: syntax)`. Exit 2 still prints a full report,
+so read that line before the totals: the findings hold for the files that were
+read, and the result is not a pass and not a tally. JSON, JSONL and SARIF output
+carry no such line; use the process exit code and `errors` there.
+
 Exit codes:
 
 - `0`: no static violations, failed/unverified fitness requirements or unresolved
