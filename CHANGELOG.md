@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `pregate project launcher [--preview|--yes]` installs a reviewed launcher in the project at `.pregate/bin/pregate` (Windows: `pregate.cmd` and `project-launcher.ps1`). The launcher runs the engine that `.pregate/pregate.lock.json` pins from the user cache (`<DATA>/<version>/`) and never falls back to a launcher on PATH. Hook calls go through the engine's `--supervise` path. The command needs a valid engine pin and that engine in the cache (`pregate prepare`), and the files go through the same review and approval as a contract proposal. A hook call with a missing or empty cached engine denies (exit 2) and names the reason. On Windows the launcher calls PowerShell by its absolute path under `%SystemRoot%`. `pregate install` keeps this launcher; it removes only the launcher that 0.1.0 committed at the same path.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).

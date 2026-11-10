@@ -1,11 +1,22 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { relativePath as relative } from "./paths.ts";
+import { approvePending } from "./approval-command.ts";
+import { approvalDeadline, proposeContract } from "./approval.ts";
 import { ASSETS } from "./assets.ts";
 import type { CiProviderId } from "./ci/provider.ts";
-import { writeAtomic } from "./disk.ts";
+import { dataHome } from "./consent.ts";
+import { validateContract } from "./contract.ts";
+import { grammars, sourcesOf } from "./contract-diagnostic.ts";
+import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
 import { isObject, parse } from "./harness/wire.ts";
+import { clock, LOCK, PRESET, readText, VERSIONS } from "./inertia.ts";
+import { pendingReview } from "./pending-review.ts";
+import { ENGINE_FILE, WINDOWS } from "./platform.ts";
+import { ENGINE_VERSION } from "./product.ts";
+import { pinnedEngine } from "./project-updates.ts";
+import { sha256 } from "./state.ts";
 
 // `pregate install` (MULTI-HARNESS MH-28): only what belongs to the repo, on request: the pre-commit
 // and the CI template. The hooks and the launcher are global (`pregate setup`), so what an install of
@@ -30,7 +41,8 @@ export function install(root: string, opts: { gitHook: boolean; ci: CiProviderId
     writeAtomic(settings, after!);
     lines.push("Removed PREGATE 0.1.0 hooks from .claude/settings.json; hooks are now global (pregate setup). Commit the change.");
   }
-  if (existsSync(join(root, OLD_LAUNCHER))) {
+  // The reviewed project launcher (`pregate project launcher`) has the same path and stays.
+  if (existsSync(join(root, OLD_LAUNCHER)) && readText(join(root, OLD_LAUNCHER)) !== ASSETS["project-launcher.sh"]) {
     rmSync(join(root, OLD_LAUNCHER));
     lines.push(`Removed ${OLD_LAUNCHER}; the launcher is global (pregate setup). Commit the removal.`);
   }
@@ -132,4 +144,85 @@ function write(path: string, text: string, executable: boolean): void {
   mkdirSync(dirname(path), { recursive: true });
   writeAtomic(path, text);
   if (executable) chmodSync(path, 0o755);
+}
+
+// ── project launcher ─────────────────────────────────────────────────────────────────
+
+// `pregate project launcher`: a reviewed launcher in the repository that runs the engine the lock
+// pins from the user cache and never the launcher on PATH. It is a contract write, so it goes
+// through the same proposal and human approval as a preset change.
+type LauncherWrite = { path: string; before: string | null; after: string };
+const LAUNCHER_USAGE = "usage: pregate project launcher [--preview|--yes]";
+const LAUNCHER_DIR = ".pregate/bin";
+const LAUNCHER_PS1 = "project-launcher.ps1";
+
+// The last file is the one a hook names. cmd.exe reads CRLF and the asset is stored with LF. The
+// .cmd calls the .ps1 next to it by the name written here.
+export function projectLauncherFiles(windows = WINDOWS): { name: string; text: string }[] {
+  if (!windows) return [{ name: "pregate", text: ASSETS["project-launcher.sh"]! }];
+  return [
+    { name: LAUNCHER_PS1, text: ASSETS[LAUNCHER_PS1]! },
+    { name: "pregate.cmd", text: ASSETS["project-launcher.cmd"]!.replace(/\r?\n/g, "\r\n") },
+  ];
+}
+
+function launcherWrites(root: string): LauncherWrite[] {
+  return projectLauncherFiles().map((file) => {
+    const path = join(root, LAUNCHER_DIR, file.name);
+    return { path, before: readText(path), after: file.text };
+  });
+}
+
+// The launcher's own test of an engine ([ -x ] && [ -s ]), for a regular file only.
+function cachedEngine(pin: string): boolean {
+  const s = statSync(join(dataHome(), pin, ENGINE_FILE), { throwIfNoEntry: false });
+  return s !== undefined && s.isFile() && s.size > 0 && (WINDOWS || (s.mode & 0o111) !== 0);
+}
+
+// The pinned engine version, or why this project cannot have a launcher yet.
+function launcherPin(root: string): { pin: string } | { error: string } {
+  const pin = pinnedEngine(root);
+  if (pin === null || !ENGINE_VERSION.test(pin)) {
+    return { error: "This project has no valid engine pin. Inspect pregate preset diagnose --json and compile the lock first." };
+  }
+  if (!cachedEngine(pin)) {
+    return { error: `Engine ${pin} is not installed in the cache. Run pregate prepare (or pregate prepare --engine ${pin}) before installing the project launcher.` };
+  }
+  return { pin };
+}
+
+// The digest of the pending review of these writes. The contract itself does not change.
+async function proposeLauncher(root: string, presetText: string, writes: LauncherWrite[]): Promise<{ digest: string } | { error: string }> {
+  await grammars();
+  const compiled = validateContract({ presetText, filesOf: sourcesOf(root, true), versions: VERSIONS, now: clock });
+  if ("errors" in compiled) return { error: compiled.errors.join("\n") };
+  const baseline = sha256(presetText + (readText(join(root, LOCK)) ?? ""));
+  approvalDeadline();
+  const proposal = proposeContract({ root, baseline, lockText: compiled.text, activate: false, writes });
+  return { digest: sha256(JSON.stringify(proposal)) };
+}
+
+export async function projectLauncher(args: string[]): Promise<{ code: number; text: string }> {
+  if (args.length > 1 || args.some((a) => a !== "--preview" && a !== "--yes")) return { code: 1, text: LAUNCHER_USAGE };
+  const root = findRoot(canonical(process.cwd()), () => true);
+  if (root === null) return { code: 1, text: "Run from a Git project with .pregate/pregate.lock.json." };
+  const pinned = launcherPin(root);
+  if ("error" in pinned) return { code: 1, text: pinned.error };
+  const presetText = readText(join(root, PRESET));
+  if (presetText === null) return { code: 1, text: "No .pregate/preset.json; initialize or migrate the project first." };
+  const writes = launcherWrites(root);
+  const where = writes.at(-1)!.path;
+  if (writes.every((w) => w.before === w.after)) {
+    return { code: 0, text: `Project launcher at ${where} already matches the reviewed template; engine ${pinned.pin} is cached.` };
+  }
+  const proposed = await proposeLauncher(root, presetText, writes);
+  if ("error" in proposed) return { code: 1, text: proposed.error };
+  const header = `Install a project-local launcher at ${where}. It runs engine ${pinned.pin} from the cache only (no PATH fallback).`;
+  if (args.includes("--preview")) {
+    return { code: 0, text: `${header}\n${pendingReview(root, proposed.digest).text}\nProject unchanged until the human approves the digest.` };
+  }
+  const applied = await approvePending(root, args.includes("--yes"), proposed.digest);
+  if (applied.code !== 0) return applied;
+  if (!WINDOWS) for (const w of writes) chmodSync(w.path, 0o755);
+  return { code: 0, text: `${header}\n${applied.text}` };
 }
