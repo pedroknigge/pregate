@@ -123,7 +123,8 @@ export function draftExamples(files: Files, checkId: string, dir: string): Files
 // `rules add`: one sentence becomes a catalog rule, or a drafted check with generated fixtures.
 export type CatalogEntry = { fqn: string; methodology: string; alias: Alias; check: Check };
 export type RuleIntent = { kind: "import-edge"; from: string; to: string } | { kind: "call-ban"; callee: string; subject?: string } | { kind: "package-ban"; name: string };
-export interface DraftSample { kind: DraftKind; name: string; text: string; note: string }
+// `at`: a glob the case sits under, when it must not sit where the rule looks.
+export interface DraftSample { kind: DraftKind; name: string; text: string; note: string; at?: string }
 export interface IntentDraft { area: string; files?: string; fix: string; patterns: PatternConfig[]; cases: DraftSample[] }
 
 export const regexLiteral = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
