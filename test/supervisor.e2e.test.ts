@@ -2,7 +2,8 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import pkg from "../package.json" with { type: "json" };
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
@@ -79,7 +80,7 @@ async function heldInput(argv: string[], raw: string, cwd = repo, closeAfter: nu
 
 beforeAll(() => {
   for (const folder of [join(home, ".claude"), repo, join(repo, ".pregate"), join(repo, "src"), join(area, "outside")]) mkdirSync(folder, { recursive: true });
-  compileBinary(hostTarget(), binary);
+  engineAt(binary);
   expect(run(["git", "init", "-q", repo]).code).toBe(0);
   writeFileSync(join(repo, ".pregate/preset.json"), readFileSync("catalog/presets/legacy-safe.json", "utf8"));
   expect(cli("setup").code).toBe(0);

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, truncateSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { packTemplate } from "../src/pack-template.ts";
 import { VERSIONS } from "../src/versions.ts";
@@ -22,7 +22,7 @@ setDefaultTimeout(60_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-adoption-"));
 const binary = join(area, ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 afterAll(() => removeTree(area));
 
 function project(name: string) {

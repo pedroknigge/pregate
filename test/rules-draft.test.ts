@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { removeReleased } from "./remove-tree.ts";
 
@@ -11,7 +11,7 @@ setDefaultTimeout(60_000);
 
 const area = mkdtempSync(join(tmpdir(), "pregate-draft-"));
 const binary = join(area, ENGINE_FILE);
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 // Bun's rmSync ignores maxRetries and throws EBUSY at once while Windows still maps the compiled engine.
 afterAll(() => removeReleased(area), 20_000);
 

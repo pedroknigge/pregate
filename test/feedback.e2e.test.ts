@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
@@ -14,7 +14,7 @@ setDefaultTimeout(60_000);
 const area = realpathSync(mkdtempSync(join(tmpdir(), "pregate-feedback-")));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 const template = JSON.parse(readFileSync("test/fixtures/report-events.json", "utf8"))[1].event as CallEvent;
-beforeAll(() => compileBinary(hostTarget(), binary, true));
+beforeAll(() => engineAt(binary, true));
 afterAll(() => removeTree(area));
 
 function project() {

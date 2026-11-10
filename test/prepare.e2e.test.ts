@@ -6,7 +6,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -35,7 +36,7 @@ interface Isolated {
   settings: string; hooks: string; cursorHooks: string; launcher: string; link: string;
 }
 
-beforeAll(() => compileBinary(hostTarget(), BIN));
+beforeAll(() => engineAt(BIN));
 afterAll(() => removeTree(TMP));
 
 function isolated(): Isolated {

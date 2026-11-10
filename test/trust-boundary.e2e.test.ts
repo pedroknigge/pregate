@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { compile } from "../src/compile.ts";
 import { disable, enable } from "../src/consent.ts";
 import { canonical } from "../src/disk.ts";
@@ -41,7 +41,7 @@ beforeAll(() => {
   // does not depend on which agents this machine has installed.
   mkdirSync(join(HOME, ".claude"), { recursive: true });
   mkdirSync(join(TMP, "tmp"), { recursive: true });
-  compileBinary(hostTarget(), BIN, true);
+  engineAt(BIN, true);
   ok(run([BIN, "setup"], HOME, envOf()), "setup");
   template = buildTemplate();
 });

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { removeTree } from "./remove-tree.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 
@@ -58,7 +58,7 @@ function hook(kind: "pre" | "stop" | "session-start", raw: string) {
 
 beforeAll(() => {
   mkdirSync(join(area, "opt/engine"), { recursive: true });
-  compileBinary(hostTarget(), binary, true);
+  engineAt(binary, true);
   for (const dir of [repo, other, outside]) git(dir);
   mkdirSync(join(repo, "src/nested"), { recursive: true });
   mkdirSync(join(other, "src"), { recursive: true });

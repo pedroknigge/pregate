@@ -7,7 +7,7 @@ import { compile } from "../src/compile.ts";
 import { clock, grammars, VERSIONS } from "../src/gate.ts";
 import { deadGlobLines, deriveLayers, layerEvidence, layerEvidenceLines, detectedScope, detectLayers, detectStack, emptyLayerLines, initialScope, onboardingCard, onboardingPreset, scopeCoverage } from "../src/onboard.ts";
 import type { Files } from "../src/types.ts";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { repoFiles } from "../src/init.ts";
 import { librarySources } from "../src/library.ts";
@@ -26,7 +26,7 @@ setDefaultTimeout(60_000);
 const executable = mkdtempSync(join(tmpdir(), "pregate-onboard-engine-"));
 const binary = join(executable, ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 afterAll(() => removeTree(executable));
 
 const files: Files = {
