@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **CI runs each suite once.** The Linux job ran the whole suite twice: `repo-hygiene.e2e` cloned the branch and ran every suite again inside the clone, 19 of the job's 39 minutes. The CI job is itself a fresh clone that installs and runs every suite, so the clone test now checks the tracked files, installs, type-checks and builds, and no longer repeats the suite. The Windows job ran `runtime`, `onboard`, `windows-powershell-script.e2e` and `windows-distribution.e2e` twice, and ran the latency bench that the `latency (windows-latest)` job already runs there. It now runs each suite once, in three parallel jobs with `bun test --shard`; the required check `windows` passes only when all three pass. No suite and no assertion was removed from a platform that had no other run of it.
+- **The test suites start fewer and cheaper processes.** Per-test timings from CI showed that 3% of the tests used 83% of the Windows time, and that the cost was process starts, not the number of tests. Eight suites ran the engine from source for every call and now run the compiled engine. About 40 files compiled their own engine, 44 builds in one run; each now copies one build per flavour and test process. `dcouplr.test.ts` compiled the same lock 134 times and `prepare.e2e` packed the same archive four times; each does it once. No assertion changed.
 
 ## [0.0.6] - 2026-11-10
 
