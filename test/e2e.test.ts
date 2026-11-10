@@ -381,7 +381,7 @@ test("SessionStart in a Git repository without a contract says once how to set u
     const told = ok(start(dir), `${flag} SessionStart`);
     const context = json(told).hookSpecificOutput.additionalContext!;
     expect(context).toContain("installed but not enabled");
-    expect(context).toContain("pregate guide --preview --enforcement advisor");
+    expect(context).toContain("pregate guide --preview");
     silent(start(plain));
     expect(existsSync(state)).toBe(false);
   }

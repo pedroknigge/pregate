@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `compile apply` proposal can state where the code is allowed with `except`, a list of globs ("only inside `src/lib/ai`"). The drafted rule ignores those paths, and the engine proves it before staging: the failing code placed under each excepted path must pass. An `except` glob that matches no file is refused.
 
 ### Changed
+- First-run instructions name one command, `pregate guide --preview`. It already proposes advisor mode for a new project, so the SessionStart setup notice, `status`, the `rules add`, `compile` and `layers` setup messages, the README and the skill no longer add `--enforcement advisor`. The flag still selects `enforce` or `shadow`. An end-to-end test covers the path: no mode flag, an advisor finding that does not block the write, promotion, then the same edit denied.
+
+### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 
 ## [0.0.5] - 2026-11-09

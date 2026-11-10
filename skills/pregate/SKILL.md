@@ -40,8 +40,7 @@ imports from this project instead of concepts. Keep a summary under eight lines.
 1. Look first, without changing anything: `pregate guide --json`,
    `pregate layers --json`, and `pregate compile <file>` for each instruction
    file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
-2. The project has no contract: prepare `pregate guide --preview --enforcement
-   advisor`. Tell the user what will be watched in their own terms, for example
+2. The project has no contract: prepare `pregate guide --preview`. Tell the user what will be watched in their own terms, for example
    "code in `src/domain` may not import `src/infra`; 3 files already do and
    are kept as they are; a new one gets a warning with the repair". Say that
    nothing blocks yet.
@@ -599,7 +598,7 @@ pins and the exact `update --projects ... --preview` command for them. When a
 session starts in a project pinned to an older engine and a newer one is
 installed, SessionStart says "PREGATE update ready"; ask the user to run
 `! pregate update`. In a Git repository without a contract, SessionStart says
-PREGATE is installed but not enabled; offer `guide --preview --enforcement advisor`.
+PREGATE is installed but not enabled; offer `guide --preview`.
 Where `guide` is available, offer its explicit multi-project selection:
 `! pregate guide --projects <path...>` is a human terminal flow with one
 confirmation of all displayed digests. The agent can inspect `guide --json

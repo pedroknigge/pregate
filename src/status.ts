@@ -280,7 +280,7 @@ export function coverageLead(s: Status): string[] {
 
 // The short form leads with enforced, monitored and unverified rules, then the lock size.
 function briefStatus(s: Status): string[] {
-  if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview --enforcement advisor (the human approves its review)."];
+  if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview (the human approves its review)."];
   return [
     ...coverageLead(s),
     `Local consent is ${s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,

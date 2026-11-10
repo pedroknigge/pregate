@@ -32,7 +32,7 @@ curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/insta
 
 Or `npm i -g pregate`. Windows and the details are in [Install and adopt, step by step](#install-and-adopt-step-by-step).
 
-**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes what to watch, and reports in plain language. Without the skill, run `pregate guide --preview --enforcement advisor`.
+**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes what to watch, and reports in plain language. Without the skill, run `pregate guide --preview`.
 
 **3. Approve.** This is the only step a human must do, in a terminal:
 
@@ -199,11 +199,11 @@ The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the
 ### 2. Preview an advisor contract in your Git repository
 
 ```sh
-pregate guide --preview --enforcement advisor
+pregate guide --preview
 pregate approve --preview
 ```
 
-Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
+A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
 
 ```text
 pregate approve <code>
@@ -317,7 +317,7 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 
 | Task | Command |
 | --- | --- |
-| Prepare an advisor contract | `pregate guide --preview --enforcement advisor` |
+| Prepare an advisor contract | `pregate guide --preview` |
 | Review a pending contract | `pregate approve --preview` |
 | Inspect consent and installation | `pregate status` / `pregate doctor` |
 | Sort an instruction file into rules and guidance | `pregate compile <rules.md>` |
