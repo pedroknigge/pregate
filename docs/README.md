@@ -8,6 +8,7 @@ its recorded candidate, not proof that a later candidate passes.
 ## Start and use the tool
 
 - [Install, update and remove](guides/installation.md)
+- [Maintenance, reproducible build and rollback](guides/maintenance.md)
 - [Gate a Vercel build](guides/vercel-ci.md)
 - [Try the owned language demos](guides/demo.md)
 - [Use the pregate skill in your coding harness](guides/pregate-skill.md)
@@ -130,6 +131,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [guides/domain-language.md](guides/domain-language.md) | Product/reference |
 | [guides/installation.md](guides/installation.md) | Product/reference |
 | [guides/invariant-enforcement.md](guides/invariant-enforcement.md) | Product/reference |
+| [guides/maintenance.md](guides/maintenance.md) | Product/reference |
 | [guides/pregate-skill.md](guides/pregate-skill.md) | Product/reference |
 | [guides/readiness-packs.md](guides/readiness-packs.md) | Product/reference |
 | [guides/rule-pack-worksheet.md](guides/rule-pack-worksheet.md) | Product/reference |
