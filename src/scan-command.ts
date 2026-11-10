@@ -407,7 +407,7 @@ export async function layers(args: string[], directory = process.cwd()): Promise
   }
   try {
     const root = findRoot(canonical(directory), () => true);
-    if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor. Its review proposes layers from the folder names." };
+    if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview. Its review proposes layers from the folder names." };
     await grammars();
     return apply ? await layersApply(root, resolvePath(directory, args[1]!)) : layersShow(root, args[0] === "--json");
   } catch (e) { return { code: 1, text: visible(`Layers failed: ${(e as Error).message}. Contract unchanged.`) }; }   // fail-closed: exit 1, nothing staged

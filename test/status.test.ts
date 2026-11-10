@@ -56,7 +56,7 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     expect(brief.some((line) => line.startsWith(`Local consent is active in ${root}. Effective protection: degraded. Mode: shadow.`) && line.endsWith(`Up to date (engine ${VERSIONS.engine}).`))).toBe(true);
     expect(brief.at(-1)).toBe("Next: pregate setup. Details: pregate status --verbose.");
     expect(degraded.mode).toBe("shadow");
-    expect(statusText(protectionStatus(null))).toBe("PREGATE is not set up here.\nNext: pregate guide --preview --enforcement advisor (the human approves its review).");
+    expect(statusText(protectionStatus(null))).toBe("PREGATE is not set up here.\nNext: pregate guide --preview (the human approves its review).");
     expect(degraded.rules.some((rule) => rule.enforcement === "shadow")).toBe(true);
     expect(degraded.rules.some((rule) => rule.integrity && rule.enforcement === "enforce")).toBe(true);
     for (const path of [join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate"), join(data, VERSIONS.engine, ENGINE_FILE)]) { put(path, "present"); chmodSync(path, 0o755); }

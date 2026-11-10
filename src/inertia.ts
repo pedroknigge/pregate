@@ -130,7 +130,7 @@ export function dormantNotice(cwd: string): string | null {
     if (statSync(join(at, ".git"), { throwIfNoEntry: false }) !== undefined) break;
     if (dirname(at) === at) return null;
   }
-  return "PREGATE is installed but not enabled in this repository. To set it up, run `pregate guide --preview --enforcement advisor` and show the user its review; only the user approves.";
+  return "PREGATE is installed but not enabled in this repository. To set it up, run `pregate guide --preview` and show the user its review; only the user approves.";
 }
 
 export function told(notice: string | null, full = ""): Decision {

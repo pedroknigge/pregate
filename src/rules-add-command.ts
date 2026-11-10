@@ -32,7 +32,7 @@ export async function rulesAdd(args: string[], root: string | null): Promise<Res
   if (args.includes("--yes")) return { code: 1, text: "rules add only prepares a review; the human approves it with pregate approve <code>. Nothing staged." };
   const request = parseAdd(args);
   if (request === null) return { code: 1, text: ADD_USAGE };
-  if (root === null || !existsSync(join(root, PRESET))) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor" };
+  if (root === null || !existsSync(join(root, PRESET))) return { code: 1, text: "Set up PREGATE first: pregate guide --preview" };
   const languages = new Set(workspacePaths(root, (rel) => grammarOf(rel) !== null).map(languageOf).filter((l) => l !== null));
   if (!request.draft) {
     const matched = await fromCatalog(root, request, catalogEntries(languages));
@@ -220,7 +220,7 @@ export async function rulesCompile(args: string[], root: string | null, cwd = pr
   const sources = compileSources(root, cwd);
   const items = documentationStatements(text).filter((s) => s.statement.length >= 8 && !s.statement.startsWith("|")).map((s) => compiled(s, sources));
   const preview = flags[0] === "--preview";
-  if (preview && root === null) return { code: 1, text: [compileText(operands[0]!, text, items), "Set up PREGATE first: pregate guide --preview --enforcement advisor. Then run this preview again."].join("\n") };
+  if (preview && root === null) return { code: 1, text: [compileText(operands[0]!, text, items), "Set up PREGATE first: pregate guide --preview. Then run this preview again."].join("\n") };
   const review = preview ? await stageCompiled(root!, items) : null;
   if (flags[0] === "--json") return { code: 0, text: JSON.stringify(compileJson(operands[0]!, text, items), null, 2) };
   if (flags[0] === "--template") return { code: 0, text: JSON.stringify(compileTemplate(operands[0]!, items), null, 2) };
@@ -351,7 +351,7 @@ type Proposed = { line: number; sentence: string; fail: string[]; pass: string[]
 
 async function compileApply(args: string[], root: string | null, cwd: string): Promise<Result> {
   if (args.length !== 2 || args[1] !== "--preview" || args[0]!.startsWith("-")) return { code: 1, text: `compile apply only prepares a review; the human approves it.\n${COMPILE_USAGE}` };
-  if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor" };
+  if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview" };
   const path = resolve(cwd, args[0]!);
   if (!existsSync(path) || !statSync(path).isFile()) return { code: 1, text: `No file ${args[0]}. Format: ${PROPOSALS_FORMAT}` };
   const proposals = proposedRules(readFileSync(path, "utf8"));
