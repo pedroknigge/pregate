@@ -1276,3 +1276,22 @@ test("layers and compile read or prepare a review; no form of them applies one",
   expect(guard("pregate compile .pregate/preset.json", ROOT, ctx)).toBe("protected-path");
   expect(guard("CI=1 pregate layers apply /tmp/map.json --preview", ROOT, ctx)).toBe("hook-switch");
 });
+
+test("an installed tool that is a script is read for control commands only; a script on PATH inside a project is project code", () => {
+  const texts: Record<string, string> = {
+    "/opt/tools/bin/npm": "#!/usr/bin/env node\nrequire('fs').writeFileSync(process.argv[2], 'x');\n",
+    "/opt/tools/bin/deploy": "#!/bin/sh\npregate approve --yes\n",
+    "/repo/node_modules/.bin/fmt": "#!/usr/bin/env node\nrequire('fs').writeFileSync('src/a.ts', 'x');\n",
+  };
+  const at = (name: string) => Object.keys(texts).find((path) => path.endsWith(`/${name}`)) ?? null;
+  const base = { ...ctx, commandPath: at, readScriptFile: (path: string) => path in texts ? { kind: "text" as const, text: texts[path]! } : { kind: "missing" as const },
+    readControlFile: (path: string): Cause | null => path in texts && /pregate approve/.test(texts[path]!) ? "shell-admin" : null };
+  const placed = { ...base, outsideRoots: (abs: string) => !abs.startsWith(`${ROOT}/`) };
+  for (const command of ["npm install", "npm test", "NODE_ENV=test npm run build", "npm test | tail -5"]) expect(guard(command, ROOT, placed), command).toBeNull();
+  expect(guard("deploy", ROOT, placed)).toBe("shell-admin");
+  expect(guard("fmt", ROOT, placed)).toBe("shell-write");
+  // What the installed tool is asked to write is still judged by the command's own targets.
+  expect(guard("npm test > src/a.ts", ROOT, placed)).toBe("shell-write");
+  // A context that cannot place the file reads every script on PATH like a project script.
+  expect(guard("npm install", ROOT, base)).toBe("shell-write");
+});

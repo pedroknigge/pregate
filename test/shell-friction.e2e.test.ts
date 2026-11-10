@@ -36,7 +36,7 @@ test("a shell write to a governed source file is refused and a read of it is not
 
 test("what the shell or Bun runs itself, and Pregate's own proposal commands, are not refused", () => {
   for (const id of ["cd-and-run", "cd-absolute", "type-builtin", "command-v", "bun-test", "bun-test-file", "bun-test-names-contract", "bun-test-piped", "bun-chain", "redirect-tmp",
-    "pregate-layers", "pregate-layers-apply", "pregate-compile", "pregate-compile-apply", "pregate-rules-test", "pregate-report"]) expect(decided(id).decision, id).toBe("allow");
+    "npm-install", "npm-ci", "npm-test", "npm-run-build", "npm-run-lint", "tee-tmp", "env-prefix", "wait-builtin", "pregate-layers", "pregate-layers-apply", "pregate-compile", "pregate-compile-apply", "pregate-rules-test", "pregate-report"]) expect(decided(id).decision, id).toBe("allow");
 });
 
 test("the page states the counts of the run it is given", () => {

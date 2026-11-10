@@ -149,38 +149,38 @@
     },
     {
       "id": "npm-install",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-ci",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-install-pkg",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-test",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-run-build",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-run-lint",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npm-run-format",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "npx-tsc",
@@ -439,8 +439,8 @@
     },
     {
       "id": "tee-tmp",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "curl-read",
@@ -469,8 +469,8 @@
     },
     {
       "id": "env-prefix",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "cd-and-run",
@@ -494,8 +494,8 @@
     },
     {
       "id": "wait-builtin",
-      "decision": "deny",
-      "cause": "shell-write"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "redirect-source",
