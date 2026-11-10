@@ -292,3 +292,13 @@ test("clean-code and testing are suggested only where their checks read real sou
   expect(recommendPacks({ "src/a.ts": "" }, ["TypeScript"]).map(item => item.ns)).toEqual(["clean-code", "typescript"]);
   expect(recommendPacks({ "src/a.ts": "", "src/a.test.ts": "" }, ["TypeScript"], ["clean-code/clean-code", "testing/tdd", "security-audit/obvious-sinks"]).map(item => item.ns)).toEqual(["typescript"]);
 });
+
+test("a methodology that reads the core layer is left out, and named, when the project has no core layer", () => {
+  const files = { "package.json": '{"dependencies":{"dcouplr":"0.1.3"}}', "src/lib/a.ts": "export const a = 1;\n" };
+  const dcouplr = recommendPacks(files, ["TypeScript"]).find(item => item.ns === "dcouplr")!;
+  expect(dcouplr.methodologies).toEqual(["dcouplr/factories"]);
+  expect(dcouplr.reasons.at(-1)).toBe("dcouplr/managed-components left out: it checks the core layer and this project declares none. Propose layers with pregate layers apply, then add it.");
+  expect(recommendPacks(files, ["TypeScript"], [], true).find(item => item.ns === "dcouplr")!.methodologies).toEqual(["dcouplr/factories", "dcouplr/managed-components"]);
+  const layered = { ...files, "src/domain/order.ts": "export const order = 1;\n", "src/infra/db.ts": "export const db = 1;\n" };
+  expect(recommendPacks(layered, ["TypeScript"]).find(item => item.ns === "dcouplr")!.methodologies).toEqual(["dcouplr/factories", "dcouplr/managed-components"]);
+});

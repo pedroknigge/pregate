@@ -1,9 +1,13 @@
 import { canonical, findRoot } from "./disk.ts";
 import { visible } from "./contract.ts";
 import { repoFiles } from "./init.ts";
-import { deadGlobLines, detectedScope, detectLayers, detectStack, emptyLayerLines, initialScope as newProjectScope, onboardingPreset, scopeCoverage, scopeCoverageText, sourceRole } from "./onboard.ts";
+import { deadGlobLines, deriveLayers, detectedScope, detectLayers, detectStack, emptyLayerLines, layerEvidence, layerEvidenceLines, newBreak, initialScope as newProjectScope, onboardingPreset, scopeCoverage, scopeCoverageText, sourceRole } from "./onboard.ts";
 import { imports, parse } from "./ts.ts";
-import { readText, PRESET, VERSIONS } from "./gate.ts";
+import { clock, readText, PRESET, sourcesOf, VERSIONS } from "./gate.ts";
+import { applyPreset } from "./approval-command.ts";
+import { validateContract } from "./contract.ts";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve as resolvePath } from "node:path";
 import { BUILTIN } from "./assets.ts";
 import { join } from "node:path";
 import { validate } from "./schema.ts";
@@ -15,7 +19,7 @@ import { librarySource } from "./library.ts";
 import { packCatalog, patternsOf } from "./compile.ts";
 import { grammarOf, languageApplies } from "./languages.ts";
 import { matches } from "./paths.ts";
-import type { Files, Layer, Preset } from "./types.ts";
+import type { Files, Layer, Lock, Preset } from "./types.ts";
 import { discoverDocumentation } from "./project-discovery.ts";
 
 // Exact manifest dependencies are evidence for applicability, not for compliance.
@@ -71,7 +75,8 @@ export function proposedScope(files: Files, stack: ReturnType<typeof detectStack
 }
 
 // `base` lists the methodologies the project or its initial recipe already selects; suggestions skip them.
-export function recommendPacks(files: Files, languages: string[], base: string[] = []): Recommendation[] {
+// `hasCore`: the project's own preset already declares a core-kind layer.
+export function recommendPacks(files: Files, languages: string[], base: string[] = [], hasCore = false): Recommendation[] {
   const selected = new Map<string, Selected>();
   const add: Add = (ns, methodologies, reason, owner) => {
     const item = selected.get(ns) ?? { ns, reasons: [], methodologies: [] };
@@ -96,8 +101,30 @@ export function recommendPacks(files: Files, languages: string[], base: string[]
   layeredRecommendations(add, primary, base);
   applicableRecommendations(add, primary, base, selected.has("security-audit"));
   const available = new Set(librarySources().map((pin) => pin.ns));
-  return [...selected.values()].filter((item) => available.has(item.ns)).sort((a, b) => a.ns.localeCompare(b.ns))
+  if (!hasCore && ![...selected.values()].some((item) => item.layers !== undefined)) withoutCoreLayerPolicies(selected);
+  return [...selected.values()].filter((item) => available.has(item.ns) && item.methodologies.length > 0).sort((a, b) => a.ns.localeCompare(b.ns))
     .map(({ owners, ...item }) => owners ? { ...item, ...ownershipScope(owners, manifests.map(([path]) => manifestRoot(path))) } : item);
+}
+
+// A methodology whose rule reads `@layers:core` does not compile without a core-kind layer, and one
+// failing methodology rejects the whole proposal. With no such layer declared or derived, it is left
+// out and named, so a dependency alone cannot make the first review fail.
+function withoutCoreLayerPolicies(selected: Map<string, Selected>): void {
+  for (const item of selected.values()) {
+    const blocked = item.methodologies.filter((method) => needsCoreLayer(item.ns, method));
+    if (blocked.length === 0) continue;
+    item.methodologies = item.methodologies.filter((method) => !blocked.includes(method));
+    item.reasons = [...item.reasons, `${blocked.join(", ")} left out: it checks the core layer and this project declares none. Propose layers with pregate layers apply, then add it.`];
+  }
+}
+
+function needsCoreLayer(ns: string, method: string): boolean {
+  if (!CATALOGS.has(ns)) { const files = librarySource(ns); CATALOGS.set(ns, files && packCatalog(files)); }
+  const catalog = CATALOGS.get(ns);
+  if (!catalog || "errors" in catalog) return false;
+  const globsOf = (value: unknown) => Array.isArray(value) ? value.filter((glob): glob is string => typeof glob === "string") : [];
+  return catalog.methodologies.filter((item) => item.id === method).flatMap((item) => item.invariants)
+    .some((alias) => [...globsOf(alias.defaults.paths), ...globsOf(alias.defaults.exclude), ...globsOf(alias.defaults.within)].includes("@layers:core"));
 }
 
 type Selected = Recommendation & { owners?: string[] };
@@ -301,6 +328,10 @@ function scanScope(files: Files, stack: ReturnType<typeof detectStack>, preset: 
   return { validPreset, coverage, coverageState, scope };
 }
 
+export function declaresCore(preset: Preset | null): boolean {
+  return Object.values(preset?.layers ?? {}).some((layer) => layer.kind === "core");
+}
+
 // Methodologies the project already selects, or the initial recipe would select for a new project.
 export function baseMethodologies(stack: ReturnType<typeof detectStack>, preset: Preset | null): string[] {
   return preset?.methodologies ?? onboardingPreset(stack.recommended, BUILTIN, VERSIONS, stack, librarySources())?.methodologies ?? [];
@@ -333,7 +364,7 @@ async function scanReport(args: string[], directory: string) {
     const presetText = established === null ? null : readText(join(root, PRESET));
     const preset: unknown = presetText === null ? null : JSON.parse(presetText);
     const { validPreset, coverage, coverageState, scope } = scanScope(files, stack, preset, established === null);
-    const recommendations = recommendPacks(files, stack.languages, baseMethodologies(stack, validPreset));
+    const recommendations = recommendPacks(files, stack.languages, baseMethodologies(stack, validPreset), declaresCore(validPreset));
     const plan = scanPlan(recommendations.filter(item => !item.scopeProblems?.length), validPreset, scope);
     const presetWarnings = validPreset ? [...emptyLayerLines(validPreset.layers, Object.keys(files)), ...deadGlobLines(validPreset, () => Object.keys(files))] : [];
     const customCandidates = stack.edges.map((edge) => ({ evidence: edge, suggestion: "Review dependency ownership and propose a project-specific boundary rule with pass/fail/trap fixtures.", status: "suggestion; not an executable rule" }));
@@ -360,4 +391,93 @@ async function scanReport(args: string[], directory: string) {
       "After approval, run pregate audit. Choose behavior-preserving repairs or a reviewed no-new-debt baseline; freezing debt does not certify compliance.",
     ].join("\n")) };
   } catch (e) { return { code: 1, text: visible(`Scan failed: ${(e as Error).message}. Project and consent unchanged.`) }; }
+}
+
+// `pregate layers`: the layer map as evidence, and the route for an agent to propose one. The
+// agent reads the folders and their imports, writes a map, and the engine reports what that map
+// finds in the code today before the human reviews one digest. Nothing here changes the contract.
+const LAYERS_USAGE = "usage: pregate layers [--json] | layers apply <layers.json> --preview";
+const LAYERS_FORMAT = '{"why": "<one sentence>", "layers": {"domain": {"paths": ["src/domain/**"], "mayImport": [], "kind": "core"}, "ui": {"paths": ["src/ui/**"], "mayImport": ["domain"], "kind": "adapter"}}}';
+type LayerMap = Record<string, Layer>;
+
+export async function layers(args: string[], directory = process.cwd()): Promise<{ code: number; text: string }> {
+  const apply = args[0] === "apply";
+  if (apply ? args.length !== 3 || args[2] !== "--preview" || args[1]!.startsWith("-") : args.length > 1 || (args.length === 1 && args[0] !== "--json")) {
+    return { code: 1, text: apply && !args.includes("--preview") ? `layers apply only prepares a review; add --preview. The human approves it with pregate approve <code>.\n${LAYERS_USAGE}` : LAYERS_USAGE };
+  }
+  try {
+    const root = findRoot(canonical(directory), () => true);
+    if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor. Its review proposes layers from the folder names." };
+    await grammars();
+    return apply ? await layersApply(root, resolvePath(directory, args[1]!)) : layersShow(root, args[0] === "--json");
+  } catch (e) { return { code: 1, text: visible(`Layers failed: ${(e as Error).message}. Contract unchanged.`) }; }   // fail-closed: exit 1, nothing staged
+}
+
+function layersShow(root: string, json: boolean): { code: number; text: string } {
+  const files = repoFiles(root), lock = currentLock(root);
+  const declared = lock?.layers ?? {}, derived = deriveLayers(files);
+  const source = Object.keys(declared).length ? "contract" : Object.keys(derived.layers).length ? "derived from folder names" : "none";
+  const map = source === "contract" ? declared : derived.layers;
+  const evidence = layerEvidence(files, map);
+  const consequence = lock === null ? "checked once a contract is approved" : newBreak({ ...lock, layers: map });
+  const next = `Proposal format for pregate layers apply <layers.json> --preview: ${LAYERS_FORMAT}`;
+  if (json) return { code: 0, text: JSON.stringify({ schemaVersion: 1, root, source, layers: map, notes: source === "contract" ? [] : derived.notes, evidence, newBreak: consequence, next }, null, 2) };
+  const may = (layer: Layer) => layer.mayImport.includes("*") ? "may import any code" : layer.mayImport.length ? `may import ${layer.mayImport.join(", ")}` : "imports no other layer";
+  return { code: 0, text: visible([`Layers (${source}): ${Object.entries(map).map(([name, layer]) => `${name} [${layer.paths.join(", ")}] (${layer.kind}; ${may(layer)})`).join("; ") || "no layer map"}.`,
+    ...(source === "contract" ? [] : derived.notes), ...layerEvidenceLines(evidence, lock?.ratchet ?? "no-new", consequence), next].join("\n")) };
+}
+
+function currentLock(root: string): Lock | null {
+  try { return JSON.parse(readText(join(root, ".pregate/pregate.lock.json")) ?? "null") as Lock | null; }
+  catch (e) { if (e instanceof SyntaxError) return null; throw e; }   // a malformed lock shows the derived map; status names the lock
+}
+
+async function layersApply(root: string, file: string): Promise<{ code: number; text: string }> {
+  if (!existsSync(file)) return { code: 1, text: `No file ${file}. Format: ${LAYERS_FORMAT}` };
+  const proposed = proposedLayers(readFileSync(file, "utf8"));
+  if (typeof proposed === "string") return { code: 1, text: `${proposed} Nothing staged. Format: ${LAYERS_FORMAT}` };
+  const files = repoFiles(root), paths = Object.keys(files);
+  const empty = Object.entries(proposed.layers).flatMap(([name, layer]) => layer.paths.filter(glob => !paths.some(path => matches(glob, path))).map(glob => `${name} (${glob})`));
+  if (empty.length) return { code: 1, text: `Layer paths matching no file: ${empty.join(", ")}. A layer that matches nothing checks nothing; correct the paths. Nothing staged.` };
+  const candidate = withLayerPolicy(root, { ...JSON.parse(readFileSync(join(root, PRESET), "utf8")) as Preset, layers: proposed.layers }, files);
+  if ("errors" in candidate) return { code: 1, text: [...candidate.errors, "Nothing staged."].join("\n") };
+  const review = await applyPreset(root, JSON.stringify(candidate.preset, null, 2) + "\n", { preview: true, stable: true });
+  if (review.code !== 0) return review;
+  return { code: 0, text: visible([`Proposed layer map: ${proposed.why}`, ...candidate.notes,
+    ...layerEvidenceLines(layerEvidence(files, proposed.layers), candidate.lock.ratchet, newBreak(candidate.lock)), review.text].join("\n")) };
+}
+
+// The agent's file is data: a reason and a map. Shape errors are named here; the contract
+// compiler still validates the full candidate.
+function proposedLayers(text: string): { why: string; layers: LayerMap } | string {
+  let value: unknown;
+  try { value = JSON.parse(text); }
+  catch (e) { if (e instanceof SyntaxError) return `The layer proposal is not JSON: ${e.message}.`; throw e; }
+  const { why, layers: map } = (value ?? {}) as { why?: unknown; layers?: unknown };
+  if (typeof why !== "string" || why.trim() === "") return "The proposal needs a why: one sentence a reviewer can check against the code.";
+  if (typeof map !== "object" || map === null || Array.isArray(map) || Object.keys(map).length === 0) return "The proposal needs a layers object with at least one layer.";
+  const names = Object.keys(map);
+  for (const [name, layer] of Object.entries(map as Record<string, Partial<Layer> | null>)) {
+    if (!/^[a-z][a-z0-9-]*$/.test(name)) return `Layer name ${JSON.stringify(name)} must be lowercase letters, digits and hyphens.`;
+    if (!Array.isArray(layer?.paths) || layer.paths.length === 0 || layer.paths.some(glob => typeof glob !== "string" || glob === "")) return `Layer ${name} needs paths: a list of globs.`;
+    if (!Array.isArray(layer.mayImport) || layer.mayImport.some(other => other !== "*" && (!names.includes(other) || other === name))) return `Layer ${name} needs mayImport: other layer names from this map, or "*".`;
+    if (!["core", "port", "adapter", "main"].includes(layer.kind as string)) return `Layer ${name} needs kind: core, port, adapter or main.`;
+  }
+  return { why: why.trim().replace(/\s+/g, " ").slice(0, 300), layers: map as LayerMap };
+}
+
+// A map no rule reads protects nothing. When the candidate compiles without a layer rule, the
+// layer methodology of each language found in the layers is added to the same review.
+function withLayerPolicy(root: string, preset: Preset, files: Files): { preset: Preset; lock: Lock; notes: string[] } | { errors: string[] } {
+  const compiled = (candidate: Preset) => validateContract({ presetText: JSON.stringify(candidate), filesOf: sourcesOf(root, true), versions: VERSIONS, now: clock });
+  const first = compiled(preset);
+  if (!("errors" in first) && newBreak(first.lock).startsWith("not checked") === false) return { preset, lock: first.lock, notes: [] };
+  const globs = Object.values(preset.layers ?? {}).flatMap(layer => layer.paths);
+  const wanted = new Map(Object.keys(files).filter(path => globs.some(glob => matches(glob, path))).flatMap(path => { const policy = LAYERED[grammarOf(path) ?? ""]; return policy ? [policy] : []; }));
+  const added = [...wanted].filter(([, method]) => !preset.methodologies.includes(method));
+  if (added.length === 0) return "errors" in first ? first : { preset, lock: first.lock, notes: ["No layer rule reads this map: no bundled layer policy covers the languages in these folders."] };
+  const sources = [...preset.sources, ...librarySources().filter(pin => added.some(([ns]) => ns === pin.ns) && !preset.sources.some(source => source.ns === pin.ns))];
+  const next = { ...preset, sources, methodologies: [...preset.methodologies, ...added.map(([, method]) => method)] };
+  const second = compiled(next);
+  return "errors" in second ? second : { preset: next, lock: second.lock, notes: [`Added ${added.map(([, method]) => method).join(", ")} so a rule reads this map.`] };
 }

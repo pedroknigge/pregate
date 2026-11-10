@@ -25,6 +25,7 @@ its recorded candidate, not proof that a later candidate passes.
 
 ## Implemented features
 
+- [Layers with evidence, compiling an instruction file, and promotion raised by Pregate](features/agent-proposed-contract.md)
 - [Initialization and stack detection](features/initialization.md)
 - [Source coverage and combined onboarding plans](features/onboarding-scope.md)
 - [Pack discovery, pins and selective composition](features/pack-composition.md)
@@ -94,6 +95,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [examples/docs-to-pack/README.md](examples/docs-to-pack/README.md) | Executable example |
 | [examples/readiness-verification/README.md](examples/readiness-verification/README.md) | Executable example |
 | [features/agent-practices-pack.md](features/agent-practices-pack.md) | Product/reference |
+| [features/agent-proposed-contract.md](features/agent-proposed-contract.md) | Product/reference |
 | [features/approval-in-harness.md](features/approval-in-harness.md) | Product/reference |
 | [features/consumer-saas-pack.md](features/consumer-saas-pack.md) | Product/reference |
 | [features/core-maintainability-update.md](features/core-maintainability-update.md) | Product/reference |

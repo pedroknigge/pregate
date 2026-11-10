@@ -230,7 +230,9 @@ export function briefing(lock: Lock, launcher: string, lead: string | null = nul
   const owed = own.filter((r) => unbound(lock, r)).length;
   const rules = own.filter((r) => !unbound(lock, r)).map((r) => briefRule(lock, r));
   rules.push(...Object.entries(lock.layers).map(([name, layer]) => `Layer ${name} (${layer.paths.join(",")}): may import ${layer.mayImport.join(",") || "only itself"}.`));
-  const obligations = owed === 0 ? "" : `\nEvidence obligations: ${owed} requirements have no reviewed project verifier; preset show lists them (unverified is not compliance).`;
+  // Until the project binds its first verifier it has not adopted project verification, so the
+  // unbound requirements are not session context; status and audit still report them.
+  const obligations = owed === 0 || !adoptedFitness(lock) ? "" : `\nEvidence obligations: ${owed} requirements have no reviewed project verifier; preset show lists them (unverified is not compliance).`;
   const tail = `Enforce blocks deny/ask; advisor informs so the agent decides; shadow observes; warn never blocks. Existing metric debt must not grow.\nOptional pre-check when permitted: ${precheck(launcher, null)}\nUse /pregate for guidance and \`${word(launcher)} preset show\` for scope, parameters and layers when inspection is permitted. Contract changes require human approval. For onboarding or updates, inspect guide --json and offer relevant choices together; prepare one guide --preview for the chosen packs. Only the human confirms its review.\n${INSPECTION_GUIDANCE}\n${ADAPTATION_BRIEF}`;
   const budget = TEXT_MAX - head.length - obligations.length - tail.length - 100;
   const listed = fit(rules.slice(0, BRIEF_RULES).map((r) => `\n${r}`), rules.length, budget, (n) => `\n+${n} checks; preset show lists full details when inspection is permitted.`);
@@ -250,6 +252,10 @@ function severityText(r: LockRule): string {
   if (gate.unmatched === "skip") return `${gate.severity} when ${gate.package} ${gate.range}`;
   if (gate.severity === r.severity) return r.severity;
   return `${gate.severity} when ${gate.package} ${gate.range}, otherwise ${r.severity}`;
+}
+
+export function adoptedFitness(lock: Lock): boolean {
+  return Object.keys(lock.fitness ?? {}).length > 0;
 }
 
 function unbound(lock: Lock, r: LockRule): boolean {

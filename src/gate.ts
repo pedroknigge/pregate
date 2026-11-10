@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
@@ -24,6 +24,37 @@ import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand 
 
 export { ENGINE_VERSION, FLOOR, LAUNCHER, LOCK, PRESET, REDIRECT, VERSIONS, clock, delegate, engineHome, launcher, pinned, readText, redirect, rejected, within };
 export { grammars, lockOf, onSessionStart, sourceDirs, sourcesOf };
+
+// The hook's SessionStart: the contract briefing, and at most once a day per project the advisor
+// rules that stayed clean while the agent worked. Pregate raises the promotion; the human decides.
+const NUDGE_EVERY_MS = 24 * 3_600_000;
+
+export async function sessionStart(e: Extract<HookEvent, { kind: "session-start" }>): Promise<Decision> {
+  const decision = onSessionStart(e);
+  if (!decision.full.includes("PREGATE is active:")) return decision;
+  const line = await promotionLine(e.cwd);
+  return line === null ? decision : { ...decision, full: `${decision.full}\n${line}` };
+}
+
+async function promotionLine(cwd: string): Promise<string | null> {
+  const root = findRoot(canonical(cwd), enabled);
+  if (root === null) return null;
+  const marker = join(state.stateDir(), "promotion-nudge", state.H(slash(root)));
+  if (existsSync(marker) && Date.now() - statSync(marker).mtimeMs < NUDGE_EVERY_MS) return null;
+  mkdirSync(dirname(marker), { recursive: true });
+  writeFileSync(marker, "");
+  try {
+    const [{ records, unifyRoot }, { promotionReady, promotionText }, { applicable }] = await Promise.all([import("./recorded.ts"), import("./report.ts"), import("./report-command.ts")]);
+    const now = Date.now();
+    const ready = promotionReady(unifyRoot(records(now - 14 * 86_400_000), root), root, now);
+    const rules = applicable(root, ready.rules);
+    return rules.length === 0 ? null : promotionText({ rules, edits: ready.edits });
+  } catch {
+    // fail-closed: an unreadable event history omits this optional line only. The briefing and every
+    // check are unchanged, and pregate report names the failure.
+    return null;
+  }
+}
 
 type Held = { root: string; loaded: Loaded | Cause; lock: Lock | null; rel: string };   // a path's root, for the guard
 

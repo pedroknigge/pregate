@@ -3,7 +3,7 @@ import { approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
-import { scan } from "./scan-command.ts";
+import { layers, scan } from "./scan-command.ts";
 import { report } from "./report-command.ts";
 import { feedback } from "./feedback-command.ts";
 import { dispute } from "./dispute-command.ts";
@@ -62,12 +62,14 @@ const USAGE = `usage:
   pregate preset diagnose [--json] | schema
   pregate rules test [<dir> | --library <ns> | --fixture <dir|repro.json>]
   pregate rules add "<sentence>" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]
+  pregate compile <rules.md> [--json|--template|--preview] | compile apply <proposals.json> --preview
   pregate rules draft <pack-dir> <area>/<name> [--pattern <rule.json|auto> --message <text> --why <text> --fix <text>] [--files <glob>] [--fail <file>]... [--pass <file>]... [--trap <file> --trap-note <text>]...
   pregate storage inspect [--json] | prune --older-than <days> [--preview] | recover [--preview] | show <digest> | apply <digest> [--yes]
   pregate enable | disable [--yes] | status [--json|--verbose]
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
+  pregate layers [--json] | layers apply <layers.json> --preview
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]
@@ -124,6 +126,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "fitness": return fitness(args);
     case "init": return init(args);
     case "scan": return scan(args);
+    case "layers": return layers(args);
     case "demo": return (await import("./demo-command.ts")).demo(args);
     case "report": return report(args);
     case "session": return (await import("./session-command.ts")).sessionCommand(args);
@@ -137,6 +140,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "rules": return args[0] === "test" ? grammars().then(() => rulesTest(args.slice(1)))
       : args[0] === "draft" ? grammars().then(async () => (await import("./rules-draft-command.ts")).rulesDraft(args.slice(1), here()))
       : args[0] === "add" ? grammars().then(async () => (await import("./rules-add-command.ts")).rulesAdd(args.slice(1), here())) : BAD;
+    case "compile": return grammars().then(async () => (await import("./rules-add-command.ts")).rulesCompile(args, here()));
     case "install": return installCommand(args);
     case "ci": return (await import("./ci/command.ts")).ciCommand(args);
     case "setup": return args.length === 0 ? setup() : BAD;

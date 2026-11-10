@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { reportText, summarize, type Recorded } from "../src/report.ts";
+import { promotionReady, promotionText, reportText, summarize, type Recorded } from "../src/report.ts";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -218,3 +218,32 @@ function withStateHome(saved: string | undefined, area: string, run: (area: stri
     rmSync(area, { recursive: true, force: true });
   }
 }
+
+test("the report says what the gate did to the agent: denials repaired and advisor findings gone on the next edit", () => {
+  const records = JSON.parse(readFileSync("test/fixtures/report-events.json", "utf8")) as Recorded[];
+  const base = records[0]!.event, finding = records[1]!.event.violations[0]!;
+  const enforcement = { [finding.rule]: "advisor" } as const;
+  const edit = (at: number, path: string, warnings: typeof base.violations) => ({ session: "one",
+    event: { ...base, at, kind: "pre-edit" as const, path, verdict: "none" as const, form: null, shadowed: false, violations: [], warnings, enforcement } });
+  const result = summarize([edit(1, "/repo/a.ts", [finding]), edit(2, "/repo/b.ts", [finding]), edit(3, "/repo/a.ts", []), edit(4, "/repo/b.ts", [finding])], "/repo", 0);
+  expect([result.advised, result.advisedResolved]).toEqual([3, 1]);
+  expect(reportText(result, "start")).toContain("Agent loop: stopped before a write 0 times, repaired on the next attempt 0 times; 3 advisor findings shown, 1 gone on the same file's next edit.");
+  const fixture = summarize(records, "/repo", 10);
+  expect(reportText(fixture, "start")).toContain(`Agent loop: stopped before a write ${fixture.denials} times, repaired on the next attempt 1 time;`);
+});
+
+test("promotion is ready only for advisor rules that were advisor before the window and stayed clean over enough edits", () => {
+  const records = JSON.parse(readFileSync("test/fixtures/report-events.json", "utf8")) as Recorded[];
+  const base = records[0]!.event, finding = records[1]!.event.violations[0]!;
+  const day = 86_400_000, now = 20 * day;
+  const enforcement = { "a/CLEAN": "advisor", "a/NOISY": "advisor", "a/BLOCKS": "enforce" } as const;
+  const edit = (at: number, policy: Record<string, "advisor" | "enforce">, warnings: typeof base.violations = []) => ({ session: "one",
+    event: { ...base, root: "/repo", at, kind: "pre-edit" as const, path: "/repo/a.ts", verdict: "none" as const, form: null, shadowed: false, violations: [], warnings, enforcement: policy } });
+  const recent = Array.from({ length: 20 }, (_, i) => edit(now - day - i, { ...enforcement, "a/NEW": "advisor" }));
+  const history = [edit(now - 9 * day, enforcement), ...recent, edit(now - 2 * day, enforcement, [{ ...finding, rule: "a/NOISY" }])];
+  expect(promotionReady(history, "/repo", now)).toEqual({ rules: ["a/CLEAN"], edits: 21 });
+  expect(promotionReady(history.slice(0, 15), "/repo", now)).toEqual({ rules: [], edits: 14 });
+  expect(promotionReady(history.slice(1), "/repo", now).rules).toEqual([]);
+  expect(promotionReady(history, "/other", now)).toEqual({ rules: [], edits: 0 });
+  expect(promotionText({ rules: ["a/CLEAN"], edits: 21 })).toBe("Promotion ready: 1 advisor rule reported no finding in the last 7 days over 21 checked edits (a/CLEAN). Tell the user once in this session. The human reviews them with `pregate promote --preview`; do not run an approval.");
+});

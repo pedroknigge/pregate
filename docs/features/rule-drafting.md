@@ -21,9 +21,9 @@ pregate rules add "no moment" --fail 'import moment from "moment";' --pass 'expo
    review names the match and up to two alternatives (`--rule <ns/ID>`). `--draft`
    skips the catalog. A rule that is already active is reported and nothing changes.
 2. Otherwise it drafts a check into `.pregate/packs/project` (namespace `project`,
-   methodology `project/corrections`). Two TypeScript sentence shapes need no code:
+   methodology `project/corrections`). Three TypeScript sentence shapes need no code:
    `<from> must not import <to>` (any module specifier under `<to>`, scoped to a
-   `<from>` folder) and `[<subject>] must not call|use <callee>` (scoped to the
+   `<from>` folder), `never import <package>` (the package and its subpaths) and `[<subject>] must not call|use <callee>` (scoped to the
    subject's folder when one exists). Any other rule needs `--fail` and `--pass` code;
    variants are generated until the check has two fails, a trap and two passes.
    `--files <glob>` scopes the rule. Every generated case must pass `rules test`

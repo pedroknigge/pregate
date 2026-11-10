@@ -8,7 +8,7 @@ import type { Files, Layer, Lock, Preset } from "./types.ts";
 import type { Proposal } from "./proposal.ts";
 import { humanApprovalInstructions } from "./approval.ts";
 import { protectionStatus } from "./status.ts";
-import { deadGlobLines, deriveLayers, scopeCoverage, scopeCoverageText } from "./onboard.ts";
+import { deadGlobLines, deriveLayers, layerEvidence, layerEvidenceLines, newBreak, scopeCoverage, scopeCoverageText } from "./onboard.ts";
 import { repoFiles } from "./init.ts";
 
 export function protectionReadiness(root: string): string {
@@ -36,7 +36,9 @@ function layerLines(root: string, lock: Lock, files: Files): string[] {
   const derived = deriveLayers(files);
   const notes = Bun.deepEquals(derived.layers, lock.layers ?? {}) ? derived.notes : [];
   const may = (layer: Layer) => layer.mayImport.includes("*") ? "may import any code" : layer.mayImport.length ? `may import ${layer.mayImport.join(", ")}` : "imports no other layer";
-  return [...(layers.length && !Bun.deepEquals(current, lock.layers) ? [`Layers to review: ${layers.map(([name, layer]) => `${name} (${layer.kind}; ${may(layer)})`).join("; ")}.`] : []), ...notes];
+  if (!layers.length || Bun.deepEquals(current, lock.layers)) return notes;
+  return [`Layers to review: ${layers.map(([name, layer]) => `${name} (${layer.kind}; ${may(layer)})`).join("; ")}.`, ...notes,
+    ...layerEvidenceLines(layerEvidence(files, lock.layers), lock.ratchet, newBreak(lock))];
 }
 
 function currentLayers(root: string): Lock["layers"] | null {
@@ -69,7 +71,7 @@ export function guidedReview(proposal: Proposal, digest: string, activate: boole
     ...scopeCoverageText(scopeCoverage(files, lock.scope)), ...deadGlobLines(preset, () => Object.keys(files)),
     `Packs: ${sources.map((source: { ns: string; version?: string; path?: string; ref?: string }) => `${source.ns}${source.version ? "@" + source.version : source.path ? " (local " + source.path + ")" : " (Git " + source.ref + ")"}`).join(", ")}.`,
     ...layerLines(proposal.root, lock, files),
-    `Rules: ${count("enforce")} block, ${count("advisor")} advise, ${count("shadow")} observe; ${requirements} evidence requirements (optional).`,
+    `Rules: ${count("enforce")} block, ${count("advisor")} advise, ${count("shadow")} observe${bindings.length ? `; ${requirements} evidence requirements` : ""}.`,
     ...imports,
     `Debt policy: ${lock.ratchet}. ${activate ? "Approval activates this worktree." : "Local consent is preserved; this approval does not enable protection."}`,
     ...diff.summary,

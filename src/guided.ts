@@ -17,7 +17,7 @@ import { detectedScope, detectStack, emptyLayerLines, scopeCoverage } from "./on
 import { composePackPlan, projectUpdate } from "./pack-command.ts";
 import { packCatalog } from "./compile.ts";
 import { projectUpdates } from "./project-updates.ts";
-import { baseMethodologies, recommendPacks, recommendationOverrides, proposedScope } from "./scan-command.ts";
+import { baseMethodologies, declaresCore, recommendPacks, recommendationOverrides, proposedScope } from "./scan-command.ts";
 import { sha256 } from "./state.ts";
 import { contractDiagnosis, protectionStatus } from "./status.ts";
 import { choose, customPaths, interactiveTerminal, say, selectPacks, question } from "./guided-terminal.ts";
@@ -86,7 +86,7 @@ function projectStack(files: ReturnType<typeof repoFiles>, errors: string[]): Re
 }
 
 function packRecommendations(files: ReturnType<typeof repoFiles>, stack: ReturnType<typeof detectStack>, base: Preset | null, errors: string[]): ReturnType<typeof recommendPacks> {
-  try { return recommendPacks(files, stack.languages, baseMethodologies(stack, base)); } catch (e) { errors.push(packInferenceError(e)); return []; }
+  try { return recommendPacks(files, stack.languages, baseMethodologies(stack, base), declaresCore(base)); } catch (e) { errors.push(packInferenceError(e)); return []; }
 }
 
 function packInferenceError(e: unknown): string {
