@@ -167,12 +167,14 @@ function widens(field: Field, before: Lock, after: Lock): boolean {
 }
 
 // More paths in a layer (or a new layer) classify more files; no layer loses a path or changes its kind or
-// imports. A new glob that may share a file with another layer's could move that file out of it, so it warns.
+// imports. A new glob that may share a file with a path another layer already had could move that file
+// out of that layer, so it warns. Two new globs that overlap each other move nothing: neither file was
+// in a layer, so a first map, or new layers beside the old ones, only adds coverage.
 function layersGrow(before: Lock["layers"], after: Lock["layers"]): boolean {
   const kept = Object.entries(before).every(([name, layer]) => after[name] !== undefined && after[name]!.kind === layer.kind
     && equal(after[name]!.mayImport, layer.mayImport) && grows(layer.paths, after[name]!.paths));
   return kept && Object.entries(after).every(([name, layer]) => layer.paths.filter((glob) => !(before[name]?.paths ?? []).includes(glob))
-    .every((glob) => Object.entries(after).every(([other, o]) => other === name || o.paths.every((g) => !mayOverlap(g, glob)))));
+    .every((glob) => Object.entries(before).every(([other, o]) => other === name || o.paths.every((g) => !mayOverlap(g, glob)))));
 }
 
 // Two globs can match one path only if one's literal prefix (up to its first wildcard) starts the other's.
