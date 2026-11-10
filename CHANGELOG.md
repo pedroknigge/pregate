@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- A first layer map, or new layers added beside existing ones, no longer shows `WARNING: this may weaken protection` when the new globs share a path prefix with each other (for example `src/features/**/domain/**` and `src/features/**/application/**`). No file was in a layer before, so nothing can leave one. A new glob that can take a file from a layer that already had it still warns.
+
 ### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 

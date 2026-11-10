@@ -80,6 +80,19 @@ test("layers shows the derived map with its evidence, and an agent's map becomes
   expect(broken).toContain("architecture/CA-DEP-001");
 });
 
+test("a first layer map whose globs share a prefix is reviewed without a weakening warning; taking files from an approved layer still warns", () => {
+  const p = repo("layers-first");
+  const apply = (layers: unknown) => { writeFileSync(join(p.root, "layers.json"), JSON.stringify({ why: "The order and storage files are the two layers.", layers })); return p.cli("layers", "apply", "layers.json", "--preview"); };
+  const first = apply({ domain: { paths: ["src/**/order.ts"], mayImport: [], kind: "core" }, infra: { paths: ["src/**/db.ts"], mayImport: ["domain"], kind: "adapter" } });
+  expect(first.code, first.text).toBe(0);
+  expect(first.text).not.toContain("WARNING");
+  expect(first.text).toContain("Widens layers");
+  expect(p.approve(first.text).code).toBe(0);
+  const taken = apply({ domain: { paths: ["src/**/order.ts"], mayImport: [], kind: "core" }, infra: { paths: ["src/**/db.ts"], mayImport: ["domain"], kind: "adapter" },
+    ui: { paths: ["src/ui/**"], mayImport: ["*"], kind: "adapter" } });
+  expect(taken.text).toContain("WARNING: this may weaken protection.");
+});
+
 test("layers apply refuses a map whose shape or paths cannot be checked, and changes nothing", () => {
   const p = repo("layers-bad");
   const attempt = (value: unknown) => { writeFileSync(join(p.root, "layers.json"), typeof value === "string" ? value : JSON.stringify(value)); return p.cli("layers", "apply", "layers.json", "--preview"); };
