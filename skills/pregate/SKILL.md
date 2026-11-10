@@ -89,8 +89,10 @@ When inspection is permitted and `--help` lists `guide`, first use `guide --json
 It reports actual setup/update/repair/activation state, scope, policy counts and
 recommended actions. Proactively present useful choices together; do not ask
 separately for permission to inspect or prepare each pack. Otherwise use `status`
-(three lines: protected, mode and version, next step; `status --verbose` for
-details), then `preset show` and `explain <rule>`
+(enforced deny rules, advisor or monitor-only rules, unverified requirements
+with no passing project evidence, or not adopted when no verifier is bound,
+and harnesses gated versus channels not covered, with catalog totals after
+that breakdown; `status --verbose` for the full report), then `preset show` and `explain <rule>`
 or `explain --path <file>`. These commands and manual pre-checks are helpers, not
 prerequisites for an edit. If the user prohibits shell use or a helper is
 unavailable, use supplied context and permitted edit tools with hooks active.
@@ -355,7 +357,7 @@ change and assertions with invalid controls. Do not infer architecture or data
 model correctness from a folder name or repeat a generic design prompt per rule.
 The project guide `docs/guides/design-contract.md` provides a short worksheet.
 `status` separates static checks from project assertion coverage; JSON exposes
-`fitnessCoverage` (active, pass, fail, unverified, complete) from current receipts.
+`fitnessCoverage` (active, pass, fail, unverified, complete, adopted) from current receipts.
 Active consent/configuration is not proof of unverified requirements. `doctor`
 checks launcher registration; direct engine hook calls have no launcher
 crash/timeout protection. A wrapper canary does not override registration errors.

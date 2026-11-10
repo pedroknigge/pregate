@@ -424,7 +424,9 @@ export async function doctor(): Promise<Result> {
   // Codex and agy without a binary do not run here; the shared files stay checked for IDE apps.
   const checked = new Map([...found].filter(([h, bin]) => bin !== null || SHARED.includes(h)));
   const ci = describeCi(canonical(process.cwd()));
-  const lines = [installed(p), ok(status(findRoot(canonical(process.cwd()), () => true))), ci.providers.length === 0 ? info(ci.text) : ok(ci.text)];
+  const root = findRoot(canonical(process.cwd()), () => true);
+  const { coverageLead, protectionStatus } = await import("./status.ts");
+  const lines = [...coverageLead(protectionStatus(root)).map((text) => ok(text)), installed(p), ok(status(root)), ci.providers.length === 0 ? info(ci.text) : ok(ci.text)];
   lines.push(...skillProblems().map(fail));
   if (found.size === 0) lines.push(fail("No harness found; PREGATE gates nothing on this machine."));
   else if (checked.size === 0) lines.push(warn("No harness with its binary on PATH; PREGATE gates nothing yet."));
