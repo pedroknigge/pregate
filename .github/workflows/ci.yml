@@ -102,9 +102,18 @@ jobs:
             BASE=$(git merge-base origin/main HEAD 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -n 1)
           fi
           dist/pregate-*-linux-x64/pregate check --ratchet --base "$BASE"
-  windows:
+  # The Windows suite runs in three jobs. A hosted Windows runner starts a compiled engine several
+  # times slower than Linux, and one job ran 29 to 45 minutes against a 45-minute limit. The
+  # steps that do not depend on the shard run in the first one. The job named `windows` below is
+  # the required check: it passes only when every shard passed.
+  windows-suite:
+    name: windows (${{ matrix.shard }}/3)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -147,7 +156,9 @@ jobs:
           git config --global commit.gpgsign false
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+        if: matrix.shard == 1
       - name: Documentation matches CLI and rule manifests
+        if: matrix.shard == 1
         run: |
           bun scripts/core-invariants.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -181,20 +192,16 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:GOCACHE, $env:GOPATH, $env:GOTMPDIR | Out-Null
           go version
           go test ./...
-      - name: Verify native runtime and onboarding
-        run: bun test test/runtime.test.ts test/onboard.test.ts
-      - name: UTF-16 PowerShell scripts are scanned
-        run: bun test test/windows-powershell-script.e2e.test.ts
-      - name: Native Windows bootstrap
-        run: bun test test/windows-distribution.e2e.test.ts
-      # These four suites execute POSIX shell fixtures. Native Windows equivalents are in
-      # supervisor.e2e and windows-distribution.e2e; all other unit/Git/adapter suites run here.
+      # Four of the ignored suites execute POSIX shell fixtures; native Windows equivalents are in
+      # supervisor.e2e and windows-distribution.e2e. bench-latency.e2e runs scripts/bench.ts, which
+      # the `latency (windows-latest)` job runs on this platform with the gate. Every other suite
+      # runs here once, runtime, onboarding and the native bootstrap included.
       - name: Unit and native end-to-end tests
         id: windows-suite
         # Each file gets a fresh global object; the selected tests stay unchanged. The hosted Windows
         # runner starts a compiled engine several times slower than macOS or Linux, so a test with no
         # deadline of its own gets 20 s here in place of Bun's 5 s. A suite's own deadline still wins.
-        run: bun test --isolate --timeout 20000 --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,default-contract-budget.e2e,e2e,repo-hygiene.e2e}.test.ts'
+        run: bun test --isolate --timeout 20000 --shard=${{ matrix.shard }}/3 --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,default-contract-budget.e2e,e2e,repo-hygiene.e2e,bench-latency.e2e}.test.ts'
       # Preserve the full-suite failure. Independent fresh processes help distinguish
       # a repeatable product defect from an accumulated test-runtime failure.
       - name: Diagnose failing Windows suites in fresh processes
@@ -210,9 +217,12 @@ jobs:
           }
           exit 0
       - run: bun src/main.ts rules test catalog
+        if: matrix.shard == 1
       - name: Windows archive
+        if: matrix.shard == 1
         run: bun run scripts/build.ts windows-x64
       - name: Dogfooding
+        if: matrix.shard == 1
         shell: pwsh
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -224,6 +234,16 @@ jobs:
           }
           bun src/main.ts check --ratchet --base $env:BASE
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  windows:
+    needs: windows-suite
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Every Windows shard passed
+        env:
+          RESULT: ${{ needs.windows-suite.result }}
+        run: test "$RESULT" = "success"
   windows-bootstrap:
     needs: test
     # Collect native evidence for a built candidate even if its later self-gate fails.
