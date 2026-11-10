@@ -97,6 +97,9 @@ fail_closed() {
     candidate=$(sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p' "$tmp/in")
     consented "$candidate" && active=1
   fi
+  # An engine redirects only for a root with an approved lock: the call is a project's, also when
+  # the session started in a folder above it that has none.
+  [ -z "${routed:-}" ] || active=1
   [ -n "$active" ] || exit 0
   hint=${3:-"Check the installation (pregate doctor)."}
   case $event in
@@ -323,6 +326,7 @@ run "$version" "$@"
 # MH-19: exit 3 with one version on stdout is "run the engine that the lock of this call's root
 # pins". Once, on the same stdin, within the same deadline.
 if [ $rc = 3 ]; then
+  routed=1
   IFS= read -r v <"$tmp/out" || v=
   case $v in *[!0-9A-Za-z.-]*) v= ;; esac
   printf '%s\n' "$v" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?' \

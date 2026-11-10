@@ -9,6 +9,7 @@ import { HARNESSES, profile } from "../src/harness/profile.ts";
 import { apply } from "../src/reconstruct.ts";
 import { enable, enabled } from "../src/consent.ts";
 import pkg from "../package.json" with { type: "json" };
+import architecture from "../packs/architecture/source.json" with { type: "json" };
 import type { CallEvent, HarnessId } from "../src/types.ts";
 import type { IssueDraft } from "../src/issue.ts";
 import { REPO } from "../src/product.ts";
@@ -86,7 +87,7 @@ const CLIS: Record<HarnessId, Cli> = {
     tty: (p) => ["--trust", "--always-approve", ...GROK_MODEL, p],
   },
   agy: {
-    bin: "agy", write: "the write_to_file tool", edit: "the replace_file_content tool",
+    bin: "agy", write: "the write_file tool", edit: "the edit_file tool",
     headless: (p) => ["-p", p, "--dangerously-skip-permissions", "--print-timeout", "240s", "--output-format", "json"],
     tty: (p) => ["--dangerously-skip-permissions", "--prompt-interactive", p],
   },
@@ -403,7 +404,7 @@ async function* linesOf(stream: ReadableStream<Uint8Array>): AsyncGenerator<stri
 // the disk), no preset, and a lock that pins an engine that hangs (MH-19 + MH-15).
 function templates(w: World): void {
   const preset = (enforcement: string) => JSON.stringify({
-    name: "e2e-real", version: "1.0.0", engine: pkg.version, sources: [{ ns: "core", kind: "builtin", version: VERSIONS.core }, { ns: "architecture", kind: "library", version: "1.1.0" }],
+    name: "e2e-real", version: "1.0.0", engine: pkg.version, sources: [{ ns: "core", kind: "builtin", version: VERSIONS.core }, { ns: "architecture", kind: "library", version: architecture.version }],
     methodologies: ["architecture/functional-core-imperative-shell"], scope: { include: ["src/**"] }, enforcement,
     // Keep all core requirements active. Unbound fitness remains explicitly UNVERIFIED.
     layers: { core: { paths: ["src/core/**"], mayImport: [], kind: "core" }, shell: { paths: ["src/shell/**"], mayImport: ["core"], kind: "adapter" } },
@@ -893,7 +894,7 @@ async function core(w: World, h: HarnessId): Promise<void> {
   check(`${h} no preset`, [
     [existsSync(join(repo, X)), "the file was not written"],
     [bare.state.length === 0, `the gate wrote ${bare.state.length} state files`],
-    [!bare.trace.includes("PREGATE"), "PREGATE spoke"],
+    [!spoke(bare.trace), "PREGATE spoke"],
   ]);
 
   repo = copy(w, "hang", `${h}-hang`);
@@ -932,7 +933,7 @@ async function claudeCore(w: World): Promise<void> {
   check("claude-code no preset", [
     [read(join(repo, X)) === X_TEXT, "the bare write differs"],
     [!r.events.some((e) => e.path === join(repo, X)), "bare write left a gate event"],
-    [!r.trace.includes("PREGATE"), "PREGATE spoke"],
+    [!spoke(r.trace), "PREGATE spoke"],
   ]);
   const blocked = await agent(w, { h: "claude-code", label: "claude-code-deny-hang", repo },
     `Use Write twice, in order: gated/${X} containing exactly:\n${quoted(X_TEXT)}\nthen hung/${OK} containing exactly:\n${quoted(OK_TEXT)}\nEach should be blocked. After the first denial, attempt the second once. No retries, shell, or workarounds. Quote both errors and stop.`);
@@ -1143,8 +1144,14 @@ function processList(w: World): Out | null {
   }
 }
 
+// In a project with no contract the only thing PREGATE says is the SessionStart setup notice.
+function spoke(trace: string): boolean {
+  return trace.replaceAll("PREGATE is installed but not enabled in this repository.", "").includes("PREGATE");
+}
+
 function uninstall(w: World): void {
-  const o = run([w.pregate, "uninstall"], w.home, w.env);
+  // Removing the hooks is a human-only command; this unattended run states that it is one.
+  const o = run([w.pregate, "uninstall", "--yes"], w.home, { ...w.env, PREGATE_UNATTENDED_APPROVAL: "1" });
   const settings = read(join(w.home, ".claude/settings.json")) ?? "";
   const codex = read(join(w.codexHome, "hooks.json")) ?? "";
   check("uninstall", [

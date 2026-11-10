@@ -7,7 +7,7 @@ import type { Decision, DecideInput, Emission, HookEvent, HookKind, Lock, Reject
 import { contract, ENV } from "./contract.ts";
 
 // The Antigravity CLI contract (MULTI-HARNESS MH-05, MH-11, MH-14): real payloads captured from agy
-// 1.2.14 in test/payloads/agy, decoded to exact events; decisions from the real policy, encoded to
+// 1.2.14 and 1.5.3 in test/payloads/agy, decoded to exact events; decisions from the real policy, encoded to
 // exact output.
 
 const DIR = `${import.meta.dir}/../payloads/agy`;
@@ -81,6 +81,29 @@ describe("decode: captured payloads", () => {
     "post-write_to_file.json": { unregistered: NOT_REGISTERED },
     "post-run_command.json": { unregistered: NOT_REGISTERED },
     "pre-view_file.json": { unregistered: OUTSIDE },
+    // agy 1.5.3: the edit tools are write_file and edit_file with Path, and the envelope has a cwd.
+    "pre-write_file.json": {
+      event: "pre", out: {
+        kind: "pre-edit", changes: [{
+          session: conversation(7), callId: "2", tool: "write_file", path: `${PROJECT}/src/x.ts`, edit: { form: "full", content: "export const one = 1;" }, from: null,
+        }],
+      },
+    },
+    "pre-edit_file.json": {
+      event: "pre", out: {
+        kind: "pre-edit", changes: [{
+          session: conversation(8), callId: "4", tool: "edit_file", path: `${PROJECT}/src/sum.ts`,
+          edit: { form: "oldnew", old: "  return a + b;", neu: "  return b + a;", all: false, lines: [1, Number.MAX_SAFE_INTEGER] }, from: null,
+        }],
+      },
+    },
+    "pre-run_command-top-cwd.json": {
+      event: "pre",
+      out: { kind: "pre-command", command: { session: conversation(9), callId: "2", tool: "run_command", command: "ls src", cwd: PROJECT } },
+    },
+    "stop-top-cwd.json": { event: "stop", out: { kind: "stop", session: conversation(7), cwd: PROJECT, reentry: false } },
+    "post-write_file.json": { unregistered: NOT_REGISTERED },
+    "pre-read_file.json": { unregistered: OUTSIDE },
     "pre-invoke_subagent.json": { unregistered: OUTSIDE },
     "pre-send_message-subagent.json": { unregistered: OUTSIDE },
   });
@@ -196,6 +219,42 @@ describe("decode: edits", () => {
 });
 
 // ── commands (MH-11, MH-06) ──────────────────────────────────────────────────────
+
+describe("decode: the 1.5.3 edit tools", () => {
+  const write = json("pre-write_file.json") as { toolCall: { name: string; args: Record<string, unknown> } };
+  const edit = json("pre-edit_file.json") as { toolCall: { name: string; args: Record<string, unknown> } };
+  const withArgs = (base: typeof write, args: Record<string, unknown>, name = base.toolCall.name) => raw({ ...base, toolCall: { ...base.toolCall, name, args } });
+
+  test("write_file writes the whole content, with or without Overwrite", () => {
+    const { Overwrite: _, ...rest } = write.toolCall.args;
+    expect(editOf(decode("pre", withArgs(write, rest), ENV))).toEqual({ form: "full", content: "export const one = 1;" });
+    expect(editOf(decode("pre", withArgs(write, { ...rest, Overwrite: false }), ENV))).toEqual({ form: "full", content: "export const one = 1;" });
+  });
+  test("an argument outside the closed set, on either tool: the edit cannot be rebuilt", () => {
+    expect(editOf(decode("pre", withArgs(write, { ...write.toolCall.args, Append: true }), ENV))).toEqual({ form: "unknown", cause: "write_file" });
+    expect(editOf(decode("pre", withArgs(edit, { ...edit.toolCall.args, AllowMultiple: true }), ENV))).toEqual({ form: "unknown", cause: "edit_file" });
+  });
+  test("a wrong type is a changed contract", () => {
+    expect(causeOf(decode("pre", withArgs(write, { ...write.toolCall.args, Content: 1 }), ENV))).toBe(BAD);
+    expect(causeOf(decode("pre", withArgs(edit, { ...edit.toolCall.args, Target: null }), ENV))).toBe(BAD);
+    expect(causeOf(decode("pre", withArgs(write, { ...write.toolCall.args, Path: "src/x.ts" }), ENV))).toBe(BAD);
+  });
+  test("a write tool with no captured shape is unknown at its path, and refused without one", () => {
+    for (const name of ["create_file", "delete_file", "rename_file", "notebook_edit"]) {
+      expect(editOf(decode("pre", withArgs(write, { Path: `${PROJECT}/src/x.ts` }, name), ENV))).toEqual({ form: "unknown", cause: name });
+      expect(causeOf(decode("pre", withArgs(write, { Source: "a" }, name), ENV))).toBe(BAD);
+    }
+  });
+  test("a refused 1.5.3 call names the directory of its Path and the envelope's cwd", () => {
+    const refused = decode("pre", raw({ ...write, cwd: "/elsewhere", toolCall: { ...write.toolCall, args: { ...write.toolCall.args, Content: 1 } } }), ENV) as Rejected;
+    expect(refused.dirs).toEqual([PROJECT, "/elsewhere", `${PROJECT}/src`]);
+  });
+  test("run_command without a Cwd runs in the envelope's cwd, also with several workspaces", () => {
+    const command = json("pre-run_command-top-cwd.json");
+    const decoded = decode("pre", raw({ ...command, cwd: `${PROJECT}/pkg`, workspacePaths: [PROJECT, "/other"] }), ENV);
+    expect(decoded).toMatchObject({ kind: "pre-command", command: { cwd: `${PROJECT}/pkg`, command: "ls src" } });
+  });
+});
 
 describe("decode: commands", () => {
   const command = (e: HookEvent | Rejected | null) => (e as Extract<HookEvent, { kind: "pre-command" }>).command;
