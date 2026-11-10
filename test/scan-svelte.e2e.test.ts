@@ -3,10 +3,13 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { canonical } from "../src/disk.ts";
+import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The compiled CLI, against a real directory, is the scan a repository gets.
-const cli = join(import.meta.dir, "../src/main.ts");
+// The compiled engine, built once for the test process: it is what ships, and it starts faster
+// than the source entry on every platform.
+const cli = testEngine();
 const area = mkdtempSync(join(tmpdir(), "pregate-scan-svelte-"));
 afterAll(() => removeTree(area));
 
@@ -25,7 +28,7 @@ function scan(name: string, files: Record<string, string>) {
   };
   git("init", "-q");
   git("add", "-A");
-  const out = Bun.spawnSync([process.execPath, cli, "scan", "--json"], {
+  const out = Bun.spawnSync([cli, "scan", "--json"], {
     cwd: root, env, stdout: "pipe", stderr: "pipe", timeout: 60_000,
   });
   if (out.signalCode) throw new Error(`scan terminated: ${out.signalCode}\n${out.stderr.toString()}`);

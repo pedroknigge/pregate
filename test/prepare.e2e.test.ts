@@ -86,13 +86,16 @@ function put(path: string, text: string, mode = 0o644): void {
   writeFileSync(path, text, { mode });
 }
 
-function release(i: Isolated, sums?: string): string {
-  const dir = join(i.root, "release");
-  const enginePath = join(dir, `x/${WINDOWS ? "pregate.exe" : "pregate"}`);
-  mkdirSync(dirname(enginePath), { recursive: true });
-  writeFileSync(enginePath, readFileSync(BIN), { mode: 0o755 });
-  const archivePath = join(dir, ASSET);
+// The archive is the same for every test: the compiled engine, packed the way a release packs it.
+// It is packed once and copied into each test's own release folder; the product only reads it.
+let packedArchive: string | undefined;
+function packOnce(i: Isolated): string {
+  if (packedArchive !== undefined) return packedArchive;
+  const dir = join(TMP, "packed");
   const inner = join(dir, "x", WINDOWS ? "pregate.exe" : "pregate");
+  mkdirSync(dirname(inner), { recursive: true });
+  writeFileSync(inner, readFileSync(BIN), { mode: 0o755 });
+  const archivePath = join(dir, ASSET);
   const ps = WINDOWS ? Bun.which("powershell.exe") : null;
   if (WINDOWS && ps === null) throw new Error("powershell.exe is required to build the prepare E2E archive on Windows");
   const pack = WINDOWS
@@ -100,6 +103,14 @@ function release(i: Isolated, sums?: string): string {
     : ["tar", "-czf", archivePath, "-C", join(dir, "x"), "pregate"];
   const packed = Bun.spawnSync(pack, { cwd: i.root, env: i.env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
   if (packed.exitCode !== 0) throw new Error(`release archive failed: ${packed.stderr.toString()}`);
+  return packedArchive = archivePath;
+}
+
+function release(i: Isolated, sums?: string): string {
+  const dir = join(i.root, "release");
+  const archivePath = join(dir, ASSET);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(archivePath, readFileSync(packOnce(i)));
   put(join(dir, "SHA256SUMS"), sums ?? `${createHash("sha256").update(readFileSync(archivePath)).digest("hex")}  ${ASSET}\n`);
   return dir;
 }
