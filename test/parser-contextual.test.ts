@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { setUpGrammars } from "../src/assets.ts";
 import { errorIn, parse } from "../src/ts.ts";
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(setUpGrammars);
 
@@ -32,5 +33,5 @@ function compilerAgreement(area: string, cases: [string, boolean][]): void {
       expect(parsed.root.text).toBe(text);
       parsed.root.tree.delete();
     }
-  } finally { rmSync(area, { recursive: true, force: true }); }
+  } finally { removeTree(area); }
 }

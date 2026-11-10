@@ -7,6 +7,7 @@ import { compile } from "../src/compile.ts";
 import { LOCK, PRESET } from "../src/inertia.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture, policyFixtureSource } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const preset = policyFixture(readFileSync(new URL("../catalog/presets/legacy-safe.json", import.meta.url), "utf8"));
 const result = compile(preset, policyFixtureSource, VERSIONS);
@@ -76,5 +77,5 @@ test("an unmerged lock in the index is diagnosed as a merge conflict even withou
   git("add", LOCK);
   expect(conflictedContract(root)).toEqual([]);
   expect(form("lock-stale", root).detail).not.toContain("Merge conflict");
-  rmSync(root, { recursive: true, force: true });
+  removeTree(root);
 });

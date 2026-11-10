@@ -10,6 +10,7 @@ import { imports, parse, type Parsed } from "../src/ts.ts";
 import { resolve } from "../src/resolve.ts";
 import { contextFile } from "../src/workspace.ts";
 import type { Check, Files, Read } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(setUpGrammars);
 const manifest = '[package]\nname = "rust_review"\nversion = "0.0.0"\nedition = "2021"\n';
@@ -115,5 +116,5 @@ function deletedAfter(parsed: Parsed, check: (parsed: Parsed) => void): void {
 }
 
 function removedAfter(area: string, use: (area: string) => void): void {
-  try { use(area); } finally { rmSync(area, { recursive: true, force: true }); }
+  try { use(area); } finally { removeTree(area); }
 }

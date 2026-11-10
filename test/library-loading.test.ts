@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Lang, parse } from "@ast-grep/napi";
+import { removeTree } from "./remove-tree.ts";
 
 test.each(["readable", "minified"])("bundled library constructs policy and fixtures only at first lookup (%s)", async variant => {
   const area = mkdtempSync(join(tmpdir(), "pregate-library-loading-"));
@@ -41,5 +42,5 @@ console.log(JSON.stringify({ observed, sources: sources.length, fixtures: Object
 }, 60_000); // Bun.build of the whole library alone takes ~5 s on a Windows runner.
 
 async function inScratch(dir: string, use: () => Promise<void>): Promise<void> {
-  try { await use(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { await use(); } finally { removeTree(dir); }
 }

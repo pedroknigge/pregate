@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { apiInventory, pinnedSource } from "../scripts/dcouplr-coverage.ts";
 import { grammars } from "../src/gate.ts";
 import ledger from "../packs/dcouplr/API-COVERAGE.json" with { type: "json" };
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(grammars);
 const entry = "dist/index.d.mts";
@@ -127,5 +128,5 @@ test("published ledger exposes unchecked lifecycle and replacement surfaces", ()
 });
 
 function inScratch(dir: string, use: () => void): void {
-  try { use(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { use(); } finally { removeTree(dir); }
 }

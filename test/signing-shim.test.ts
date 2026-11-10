@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { WINDOWS } from "../src/platform.ts";
 import { FAKE_COSIGN, prepareSigner } from "./signing-tool.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Default-suite signing. The shim is a repository file. Nothing here may contact Sigstore.
 
@@ -43,7 +44,7 @@ describe.skipIf(WINDOWS)("offline cosign shim", () => {
       writeFileSync(file, bytes);
       expect(signer.verify(file).ok).toBe(false);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeTree(dir);
     }
   });
 
@@ -88,7 +89,7 @@ describe.skipIf(WINDOWS)("offline cosign shim", () => {
       expect(bad.exitCode).toBe(1);
       expect(bad.stderr.toString()).toContain("signature mismatch");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      removeTree(dir);
     }
   });
 });

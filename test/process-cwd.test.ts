@@ -2,13 +2,14 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 const dir = realpathSync(mkdtempSync(join(tmpdir(), "pregate-cwd-")));
 
 test("a test can change its own working directory", () => {
   process.chdir(dir);
   expect(realpathSync(process.cwd())).toBe(dir);
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 });
 
 test("the next test still reads the repository", () => {

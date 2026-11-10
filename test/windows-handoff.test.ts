@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createWindowsReport, runRecordedSteps, type WindowsReport } from "../scripts/verify-windows.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const script = join(import.meta.dir, "../scripts/verify-windows.ts");
 function run(...args: string[]) {
@@ -101,7 +102,7 @@ test("report.json lists a completed step before the run ends", async () => {
     await pending.catch((error: unknown) => {
       runError = error instanceof Error ? error.message : String(error);
     });
-    rmSync(directory, { recursive: true, force: true });
+    removeTree(directory);
   }
   if (runError !== undefined) throw new Error(runError);
 }, 20_000);
@@ -182,6 +183,6 @@ test("a timed-out step is killed with the child it spawned", async () => {
         }
       }
     }
-    rmSync(directory, { recursive: true, force: true });
+    removeTree(directory);
   }
 }, 20_000);

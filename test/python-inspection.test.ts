@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { nodeInspection, pythonInspection } from "../src/python-inspection.ts";
 import { pathWithoutWindowsApps, pythonCommand } from "./host-command.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const inspect = (source: string) => pythonInspection(["-I", "-c", source].map(text => ({ text, literal: true })));
 
@@ -79,7 +80,7 @@ test("closed node inspection permits JSON requires, member reads and printing", 
     expect(node(source!, flag)).toBe(true);
     expect(Bun.spawnSync(["node", flag!, source!], { cwd: dir, stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
   }
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 });
 
 test("writes, execs, dynamic code and non-JSON requires do not receive node inspection admission", () => {

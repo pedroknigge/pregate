@@ -18,6 +18,7 @@ import { classes, errorIn, functions, imports, nestings, parse } from "../src/ts
 import { contextFile, workspacePaths } from "../src/workspace.ts";
 import type { Check, Files, Impl, Read } from "../src/types.ts";
 import pkg from "../package.json" with { type: "json" };
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(setUpGrammars);
 const read = (files: Files): Read => path => files[path] ?? null;
@@ -179,7 +180,7 @@ test("Rust source inventory excludes conventional Cargo outputs, includes manife
 });
 
 function removedAfter(root: string, body: () => void) {
-  try { body(); } finally { rmSync(root, { recursive: true, force: true }); }
+  try { body(); } finally { removeTree(root); }
 }
 
 test("Vendored Rust parser and license match the declared source-built provenance", () => {

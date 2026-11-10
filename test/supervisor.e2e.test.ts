@@ -73,7 +73,7 @@ async function heldInput(argv: string[], raw: string, cwd = repo, closeAfter: nu
     if (end !== null) clearTimeout(end);
     if (proc.exitCode === null) { proc.kill(); await proc.exited; }
     proc.stdin.end();
-    rmSync(capture, { recursive: true, force: true });
+    removeTree(capture);
   });
 }
 

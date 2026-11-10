@@ -173,7 +173,7 @@ function scan(root: string, lock: NonNullable<ReturnType<typeof contractState>["
     incremental: cache === null ? { enabled: false as const } : { enabled: true as const, evaluator: EVALUATOR, ...cache.stats },
     budgets: { maxSourceBytes: MAX_SOURCE_BYTES, maxSourceCacheBytes: MAX_SOURCE_CACHE_BYTES, peakSourceCacheBytes: reader.peakBytes(), parserConcurrency: 1 },
     auditedRules: selected.lock.rules.map((r) => ({ rule: r.id, check: r.check, languages: ruleLanguages(r), paths: r.params.paths, exclude: r.params.exclude, files: applied.get(r.id) ?? 0 })),
-    skippedRules: selected.skipped, enforceCandidates: promotable.ready, idleAdvisorRules: promotable.idle, findings, errors, unsupported, uncovered, fileCoverage, excluded, summary: finished };
+    skippedRules: selected.skipped, enforceCandidates: promotable.ready, ratchetCandidates: promotable.debt, idleAdvisorRules: promotable.idle, findings, errors, unsupported, uncovered, fileCoverage, excluded, summary: finished };
 }
 
 // How many audited files each static rule applies to, by scope, paths and language.
@@ -184,11 +184,15 @@ function appliedFiles(fileCoverage: { rules: string[] }[]): Map<string, number> 
 }
 
 // A clean advisor rule is promotable only when it read at least one file: a rule that matches
-// nothing has 0 violations without proving anything, so it stays idle.
+// nothing has 0 violations without proving anything, so it stays idle. A dirty advisor rule is
+// promotable under no-new: the existing ratchet grandfathers the current findings and denies new
+// ones. Strict keeps every current violation, so those rules stay out.
 function promotionCandidates(lock: Lock, rules: LockRule[], violating: Set<string>, applied: Map<string, number>) {
-  const clean = rules.filter((r) => enforcementOf(lock, r) === "advisor" && r.severity !== "warn" && !violating.has(r.id))
-    .map((r) => r.id).sort((a, b) => Number(b.startsWith("core/")) - Number(a.startsWith("core/")) || a.localeCompare(b));
-  return { ready: clean.filter(id => (applied.get(id) ?? 0) > 0), idle: clean.filter(id => !applied.get(id)) };
+  const order = (a: string, b: string) => Number(b.startsWith("core/")) - Number(a.startsWith("core/")) || a.localeCompare(b);
+  const advisor = rules.filter((r) => enforcementOf(lock, r) === "advisor" && r.severity !== "warn");
+  const clean = advisor.filter((r) => !violating.has(r.id)).map((r) => r.id).sort(order);
+  const debt = lock.ratchet === "strict" ? [] : advisor.filter((r) => violating.has(r.id) && (applied.get(r.id) ?? 0) > 0).map((r) => r.id).sort(order);
+  return { ready: clean.filter(id => (applied.get(id) ?? 0) > 0), idle: clean.filter(id => !applied.get(id)), debt };
 }
 
 function auditedFile(file: AuditedFile, run: AuditRun): { findings: AuditFinding[]; errors: AuditError[] } {
@@ -269,6 +273,7 @@ function auditText(r: AuditReport, full: boolean) {
     ...humanRows("Adopted assertions needing evidence", adopted, f => `  ${f.rule}: ${f.status.toUpperCase()} — ${f.reason}`),
     ...humanRows("By rule", r.summary.rules, rule => `  ${rule.rule}: ${rule.count} in ${rule.files} files (${rule.check})`, HUMAN_RULE_LIMIT),
     ...humanRows("Ready to promote to enforce (0 violations in audited scope; run pregate promote --preview)", r.enforceCandidates, id => `  ${promotableRow(r, id)}`, HUMAN_RULE_LIMIT),
+    ...humanRows("Ready to promote under the no-new ratchet (existing findings grandfathered; new findings denied; run pregate promote --preview)", r.ratchetCandidates, id => `  ${debtRow(r, id)}`, HUMAN_RULE_LIMIT),
     ...humanRows("Locations", r.findings, v => {
       const key = JSON.stringify([v.rule, v.fix]), repeated = repairs.has(key);
       repairs.add(key);
@@ -282,6 +287,12 @@ function auditText(r: AuditReport, full: boolean) {
 function promotableRow(r: AuditReport, id: string): string {
   const files = r.auditedRules.find(rule => rule.rule === id)?.files ?? 0;
   return `${id} (${files} file${files === 1 ? "" : "s"}): set {"enforcement": "enforce"} in overrides`;
+}
+
+function debtRow(r: AuditReport, id: string): string {
+  const found = r.summary.rules.find(rule => rule.rule === id);
+  const count = found?.count ?? 0, files = found?.files ?? 0;
+  return `${id} (${count} existing finding${count === 1 ? "" : "s"} in ${files} file${files === 1 ? "" : "s"}): set {"enforcement": "enforce"} in overrides`;
 }
 
 // Test, fixture and generated findings count as debt too; this line only says where they are.
@@ -308,6 +319,7 @@ function fullAuditText(r: AuditReport) {
     ...r.fitness.map((f) => `  ${f.rule}: ${f.status.toUpperCase()} — ${f.reason}`),
     "By rule:", ...r.summary.rules.map((v) => `  ${v.rule}: ${v.count} in ${v.files} files (${v.check})`),
     ...(r.enforceCandidates.length ? ["Ready to promote to enforce (0 violations in audited scope; run pregate promote --preview):", ...r.enforceCandidates.map((id) => `  ${promotableRow(r, id)}`)] : []),
+    ...(r.ratchetCandidates.length ? ["Ready to promote under the no-new ratchet (existing findings grandfathered; new findings denied; run pregate promote --preview):", ...r.ratchetCandidates.map((id) => `  ${debtRow(r, id)}`)] : []),
     "Locations:", ...r.findings.map((v) => `  ${v.path}:${v.line} ${v.rule} [${v.severity}, ${v.enforcement}]: ${v.message}\n    Fix: ${v.fix}`),
     ...r.errors.map((e) => `  UNRESOLVED ${e.path}${e.line === null ? "" : `:${e.line}`}: ${e.cause}`),
     ...r.unsupported.map((p) => `  UNSUPPORTED ${p}`),
@@ -352,7 +364,9 @@ async function runPromote(args: string[]): Promise<{ code: number; text: string 
   const result = scan(root, contract.lock, null, null);
   if (result.changedDuringAudit || !contractState(root).valid) return { code: 1, text: "Project contents changed during audit; rerun promote against a stable tree." };
   if (result.errors.length > 0) return { code: 1, text: `Cannot promote rules while ${result.errors.length} analysis error(s) remain (${result.errors[0]!.path}: ${result.errors[0]!.cause}). Fix analysis errors and retry.` };
-  const selected = selectedPromotions(options.rules, contract.lock.rules, result);
+  const findings = new Map(result.summary.rules.map(r => [r.rule, r.count]));
+  const findingFiles = new Map(result.summary.rules.map(r => [r.rule, r.files]));
+  const selected = selectedPromotions(options.rules, contract.lock, result, findings);
   if ("code" in selected) return selected;
   const counts = new Map(result.auditedRules.map(r => [r.rule, r.files]));
   const idle = options.rules === undefined ? result.idleAdvisorRules : [];
@@ -360,28 +374,44 @@ async function runPromote(args: string[]): Promise<{ code: number; text: string 
   const next = promotedPreset(root, contract.lock.rules, selected.ids);
   const applied = await applyPreset(root, JSON.stringify(next, null, 2) + "\n", { preview: options.preview, yes: options.yes });
   if (applied.code !== 0) return options.preview || options.yes ? applied : { ...applied, text: `${applied.text}\n${PROMOTE_HINT}` };
-  return { code: 0, text: [promotionText(selected.ids, counts, options.preview), ...idleText(idle), applied.text].join("\n") };
+  return { code: 0, text: [promotionText(selected.ids, counts, findings, findingFiles, options.preview), ...idleText(idle), applied.text].join("\n") };
 }
 
-type Promotable = { enforceCandidates: string[]; idleAdvisorRules: string[] };
+type Promotable = { enforceCandidates: string[]; ratchetCandidates: string[]; idleAdvisorRules: string[] };
 
-function selectedPromotions(requested: string[] | undefined, rules: LockRule[], scanned: Promotable): { ids: string[] } | { code: number; text: string } {
-  if (requested === undefined) return { ids: scanned.enforceCandidates };
-  const eligible = new Set(scanned.enforceCandidates), idle = new Set(scanned.idleAdvisorRules), ids: string[] = [];
+function selectedPromotions(requested: string[] | undefined, lock: Lock, scanned: Promotable, findings: Map<string, number>): { ids: string[] } | { code: number; text: string } {
+  if (requested === undefined) return { ids: [...scanned.enforceCandidates, ...scanned.ratchetCandidates] };
+  const eligible = new Set([...scanned.enforceCandidates, ...scanned.ratchetCandidates]), idle = new Set(scanned.idleAdvisorRules), ids: string[] = [];
   for (const token of requested) {
-    const match = rules.find(r => [r.id, ...r.aliases].some(a => a === token || a.endsWith(`/${token}`)) || r.check.startsWith(`${token}@`));
+    const match = lock.rules.find(r => [r.id, ...r.aliases].some(a => a === token || a.endsWith(`/${token}`)) || r.check.startsWith(`${token}@`));
     if (!match) return { code: 1, text: `Unknown rule ${token}. Run pregate preset show to list active rules.` };
     if (idle.has(match.id)) return { code: 1, text: `Rule ${match.id} matches no files in the audited scope; promoting it would prove nothing. Check its paths with pregate explain ${match.id}.` };
-    if (!eligible.has(match.id)) return { code: 1, text: `Rule ${match.id} is not eligible to promote (must be an active static advisor rule with 0 violations in audited scope).` };
+    if (!eligible.has(match.id)) return { code: 1, text: ineligiblePromotion(lock, match, findings.get(match.id) ?? 0) };
     if (!ids.includes(match.id)) ids.push(match.id);
   }
   return { ids };
 }
 
+function ineligiblePromotion(lock: Lock, rule: LockRule, findings: number): string {
+  if (findings > 0 && lock.ratchet === "strict" && enforcementOf(lock, rule) === "advisor" && rule.severity !== "warn") {
+    return `Rule ${rule.id} is not eligible to promote under a strict ratchet: ${findings} existing finding${findings === 1 ? "" : "s"} would block, and strict does not grandfather them. Set ratchet no-new to freeze that debt, or clear the findings first.`;
+  }
+  return `Rule ${rule.id} is not eligible to promote (must be an active static advisor rule; warn rules never block).`;
+}
+
 const PROMOTE_HINT = "Run pregate promote --preview to prepare the review; the human approves it with the code it prints.";
 
-function promotionText(ids: string[], counts: Map<string, number>, pending: boolean): string {
-  return `${pending ? `Would promote to enforce (${ids.length}, pending approval)` : `Promoted to enforce (${ids.length})`}: ${ids.map(id => { const files = counts.get(id) ?? 0; return `${id} (${files} file${files === 1 ? "" : "s"})`; }).join(", ")}.`;
+function promotionText(ids: string[], counts: Map<string, number>, findings: Map<string, number>, findingFiles: Map<string, number>, pending: boolean): string {
+  const described = ids.map(id => {
+    const found = findings.get(id) ?? 0;
+    if (found === 0) {
+      const files = counts.get(id) ?? 0;
+      return `${id} (${files} file${files === 1 ? "" : "s"})`;
+    }
+    const files = findingFiles.get(id) ?? 0;
+    return `${id} (${found} existing finding${found === 1 ? "" : "s"} in ${files} file${files === 1 ? "" : "s"} grandfathered by the no-new ratchet; new findings are denied)`;
+  });
+  return `${pending ? `Would promote to enforce (${ids.length}, pending approval)` : `Promoted to enforce (${ids.length})`}: ${described.join(", ")}.`;
 }
 
 function idleText(idle: string[]): string[] {

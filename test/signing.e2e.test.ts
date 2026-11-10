@@ -6,6 +6,7 @@ import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { WINDOWS } from "../src/platform.ts";
 import { prepareRealCosign, SIGSTORE_E2E_ENV, type Signer } from "./signing-tool.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Real keyed cosign. Contacts Sigstore (TUF, and Rekor when sign-blob uploads). GitHub Actions
 // sets PREGATE_E2E_SIGSTORE=1 after installing cosign. Local `bun test` skips this file.
@@ -29,7 +30,7 @@ if (!enabled) {
 
   afterAll(() => {
     for (const server of servers.splice(0)) server.stop();
-    rmSync(root, { recursive: true, force: true });
+    removeTree(root);
   });
 
   function target(): string {

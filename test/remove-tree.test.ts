@@ -2,14 +2,14 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { removeReleased } from "./remove-tree.ts";
+import { removeReleased, removeTree } from "./remove-tree.ts";
 
 const WINDOWS = process.platform === "win32";
 
 function inTemp(run: (dir: string) => void | Promise<void>): () => Promise<void> {
   return async () => {
     const dir = mkdtempSync(join(tmpdir(), "pregate-remove-"));
-    try { await run(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+    try { await run(dir); } finally { removeTree(dir); }
   };
 }
 

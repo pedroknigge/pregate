@@ -13,6 +13,7 @@ import { eventName, history, H, key, record, sha256, stateDir } from "../src/sta
 import type { CallEvent, Check, Fixture, Session } from "../src/types.ts";
 import { pathKey, slash } from "../src/paths.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 async function withCleanupAsync<T>(work: () => Promise<T>, cleanup: () => void | Promise<void>): Promise<T> {
   try { return await work(); } finally { await cleanup(); }
@@ -54,7 +55,7 @@ async function inRepo(run: (root: string) => Promise<void>): Promise<void> {
   }, () => {
     process.chdir(cwd);
     vars.forEach((v, i) => saved[i] === undefined ? delete process.env[v] : process.env[v] = saved[i]);
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 }
 

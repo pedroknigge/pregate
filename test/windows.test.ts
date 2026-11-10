@@ -13,6 +13,7 @@ import { WINDOWS } from "../src/platform.ts";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import type { HarnessId } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -119,7 +120,7 @@ test.skipIf(!WINDOWS)("a hidden consent record cannot bypass either the launcher
       expect(result.exitCode).toBe(2);
       if (!installed) expect(result.stderr.toString()).toContain("PREGATE could not evaluate");
     }
-  }, () => { rmSync(area, { recursive: true, force: true }); });
+  }, () => { removeTree(area); });
 }, 65_000);
 
 test.skipIf(!WINDOWS)("cmd.exe runs the deflated hook: no consent anywhere exits 0 without the launcher", () => {
@@ -128,7 +129,7 @@ test.skipIf(!WINDOWS)("cmd.exe runs the deflated hook: no consent anywhere exits
     const r = Bun.spawnSync(["cmd.exe", "/d", "/c", windowsHook(join(area, "data/pregate"), "pre", "agy")],
       { stdin: Buffer.from('{"toolCall":{"args":{}}}'), stdout: "pipe", stderr: "pipe", timeout: 30_000 });
     expect({ code: r.exitCode, stdout: r.stdout.toString(), stderr: r.stderr.toString() }).toEqual({ code: 0, stdout: "", stderr: "" });
-  }, () => { rmSync(area, { recursive: true, force: true }); });
+  }, () => { removeTree(area); });
 }, 30_000);
 
 test.skipIf(!WINDOWS)("Windows PowerShell uses its own utility module despite an incompatible inherited module path", () => {
@@ -152,7 +153,7 @@ test.skipIf(!WINDOWS)("Windows PowerShell uses its own utility module despite an
       env: { ...env, PREGATE_ARCHIVE: file, PREGATE_SHA256: "0".repeat(64) }, stdout: "pipe", stderr: "pipe", timeout: 10000,
     });
     expect(installer.exitCode).toBe(1); expect(installer.stderr.toString()).toContain("SHA-256 mismatch; nothing installed");
-  }, () => { rmSync(area, { recursive: true, force: true }); });
+  }, () => { removeTree(area); });
 }, 35_000);
 
 test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s decodes native Windows targets from its captured envelope", (h) => {

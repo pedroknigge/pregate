@@ -41,7 +41,7 @@ pregate approve --preview     # read the change and see its code
 pregate approve <code>
 ```
 
-Nothing blocks on day one. Rules start in advisor mode: the agent sees each finding and decides. Violations that already exist are kept as known debt, and only new ones are reported. When a rule reports nothing for a week of real edits, Pregate says so at the start of a session and proposes to make it block. A human approves that too.
+Nothing blocks on day one. Rules start in advisor mode: the agent sees each finding and decides. Violations that already exist are kept as known debt, and only new ones are reported. When a rule reports nothing for a week of real edits, Pregate says so at the start of a session and proposes to make it block. A rule that already has findings can block too: the existing ones stay as known debt and only new ones are denied. A human approves each promotion.
 
 ## Where the rules come from
 
@@ -92,7 +92,7 @@ This section is written for an AI agent that reads this file to decide how to ac
 - Checks the proposed file content. Hooks reconstruct supported edits before evaluation. `pregate check --stdin --path <file>` accepts the complete proposed file without writing it.
 - Shares one `.pregate/preset.json` and compiled `.pregate/pregate.lock.json` across the supported harnesses. Git pre-commit and CI evaluate that contract too.
 - Lets you introduce rules gradually. Advisor rules explain without blocking. Enforce rules can block. The no-new ratchet blocks new or growing violations while allowing existing debt that did not grow.
-- Lists existing findings with `audit`, then proposes clean advisor rules for enforcement with `promote`. A human reviews the change before it applies.
+- Lists existing findings with `audit`, then proposes advisor rules for enforcement with `promote`. Clean rules block every match. Under the no-new ratchet, rules that already have findings can move to enforce too: existing findings stay grandfathered and new ones are denied. A human reviews the change before it applies.
 - Gives agents `Why`, `Fix`, and `Avoid` guidance, including known ways a superficial repair would miss the rule.
 - Binds contract approval to a SHA-256 digest. A human approves the exact preview through a terminal, not through the agent's permission prompt.
 
@@ -226,7 +226,7 @@ A committed contract is not local consent. For an existing cloned or disabled co
 pregate promote --preview
 ```
 
-`audit` and `report` list clean advisor rules as `enforceCandidates`, and a session start names them when they have stayed clean for a week of edits. Review and approve the promotion's new digest. Zero findings is a candidate for enforcement, not proof that a rule covers every case.
+`audit` and `report` list clean advisor rules as `enforceCandidates`, and a session start names them when they have stayed clean for a week of edits. When the ratchet is `no-new`, `audit` also lists advisor rules that already have findings as `ratchetCandidates`. `pregate promote --preview` can move either set to enforce. A clean rule blocks every match. A rule with existing findings keeps those matches grandfathered by the no-new ratchet and denies new ones. A strict ratchet does not grandfather, so dirty rules stay out. Review and approve the promotion's new digest. Zero findings is a candidate for enforcement, not proof that a rule covers every case.
 
 For a wrong finding, record feedback separately:
 

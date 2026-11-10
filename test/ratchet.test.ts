@@ -14,6 +14,7 @@ import { grammarOf, parse } from "../src/ts.ts";
 import type { Analysis, Lock, Read } from "../src/types.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { policyFixture, policyFixtureSource } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 let policies: Lock[];
 beforeAll(async () => { await setUpGrammars(); policies = locks(); });
@@ -153,7 +154,7 @@ async function restoringHome(base: string, saved: (string | undefined)[], run: (
     await run(base);
   } finally {
     HOME_VARS.forEach((k, i) => (saved[i] === undefined ? delete process.env[k] : (process.env[k] = saved[i])));
-    rmSync(base, { recursive: true, force: true });
+    removeTree(base);
   }
 }
 

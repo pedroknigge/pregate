@@ -7,6 +7,7 @@ import { compile } from "../src/compile.ts";
 import { canonical } from "../src/disk.ts";
 import { check, LOCK, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { sarifReport } from "../src/sarif.ts";
+import { removeTree } from "./remove-tree.ts";
 
 test("sarifReport, audit --sarif and check --format sarif emit valid SARIF 2.1.0 documents", async () => {
   const root = canonical(mkdtempSync(join(tmpdir(), "pregate-sarif-")));
@@ -68,6 +69,6 @@ test("sarifReport, audit --sarif and check --format sarif emit valid SARIF 2.1.0
     expect(direct.runs[0].invocations).toEqual([{ executionSuccessful: false }]);
     expect(direct.runs[0].results).toEqual([]);
   } finally {
-    rmSync(root, { recursive: true, force: true });
+    removeTree(root);
   }
 });

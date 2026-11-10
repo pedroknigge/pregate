@@ -7,6 +7,7 @@ import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
 import { applyReviewedProposal } from "../src/approval-command.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The release binary, not the test build: PREGATE_TEST_ANSWER cannot answer it.
 // The bench and the language smoke use this same terminal helper.
@@ -41,7 +42,7 @@ test.skipIf(process.platform === "win32")("a release binary enables only after y
     expect(accepted.stdout).toContain("Approve?");
     expect(status()).toContain("is active");
   } finally {
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   }
 }, 120_000);
 
@@ -82,6 +83,6 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
   } finally {
     if (previous === undefined) delete process.env.XDG_DATA_HOME;
     else process.env.XDG_DATA_HOME = previous;
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   }
 }, 120_000);

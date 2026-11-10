@@ -7,6 +7,7 @@ import { sha256 } from "../src/state.ts";
 import { compile } from "../src/compile.ts";
 import { sourcesOf, VERSIONS } from "../src/gate.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function isolated(run: (root: string) => void) {
   const area = realpathSync(mkdtempSync(join(tmpdir(), "pregate-dependency-cache-"))), saved = process.env.XDG_STATE_HOME;
@@ -16,7 +17,7 @@ function isolated(run: (root: string) => void) {
 
 function restoringState(area: string, saved: string | undefined, run: (root: string) => void) {
   try { run(join(area, "repo")); }
-  finally { if (saved === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = saved; rmSync(area, { recursive: true, force: true }); }
+  finally { if (saved === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = saved; removeTree(area); }
 }
 
 test("checkpoint reload validates content, absent probes, contract context and canonical identities", () => isolated(root => {

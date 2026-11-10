@@ -14,6 +14,7 @@ import { loadTsPaths, reexportTargets, resolve } from "../src/resolve.ts";
 import { grammarOf, imports, parse } from "../src/ts.ts";
 import { sha256 } from "../src/state.ts";
 import type { Analysis, Check, Files, Lock, Phase, Read } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(setUpGrammars);
 const check: Check = { id: "architecture/dependencies/layers", version: "1.0.0", area: "dependencies", cardinality: "singleton", dimension: "deps.layers",
@@ -216,7 +217,7 @@ function persistent(run: (root: string) => void) {
 
 function restoringStateHome(area: string, previous: string | undefined, run: (root: string) => void) {
   try { run(join(area, "repo")); }
-  finally { if (previous === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = previous; rmSync(area, { recursive: true, force: true }); }
+  finally { if (previous === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = previous; removeTree(area); }
 }
 
 test.each([

@@ -7,6 +7,7 @@ import pkg from "../package.json" with { type: "json" };
 import { compileBinary } from "../scripts/build.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { VERSIONS } from "../src/versions.ts";
+import { removeTree } from "./remove-tree.ts";
 
 if (WINDOWS) describe("native Windows bootstrap with the real release engine", () => {
   setDefaultTimeout(240_000);
@@ -35,7 +36,7 @@ if (WINDOWS) describe("native Windows bootstrap with the real release engine", (
   };
   afterAll(() => {
     for (const key of keys) reg("delete", hkcu(key), "/f");
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 
   function install(hash: string, version?: string, extra: Record<string, string> = {}, entry = join(import.meta.dir, "../install.ps1")) {

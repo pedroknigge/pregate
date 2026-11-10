@@ -15,6 +15,7 @@ import { PENDING_MS, readProposal } from "../src/proposal.ts";
 import { scan } from "../src/scan-command.ts";
 import { H, sha256 } from "../src/state.ts";
 import type { Preset } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 async function withCleanupAsync<T>(work: () => Promise<T>, cleanup: () => void | Promise<void>): Promise<T> {
   try { return await work(); } finally { await cleanup(); }
@@ -35,7 +36,7 @@ async function project(run: (root: string, area: string) => Promise<void>) {
     for (const [key, value] of Object.entries(before)) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 }
 

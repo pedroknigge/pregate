@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertReleaseVersions } from "../scripts/build.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -71,6 +72,6 @@ test("the release version check accepts this tree and rejects an Action default 
     ].join("\n"));
     expect(() => assertReleaseVersions(dir)).toThrow(/action\.yml version default=0\.0\.1 differs from package\.json 0\.0\.2/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });

@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 test("the documented domain DSL runs and detects removed boundary, transition and ownership guards", () => {
   const dir = mkdtempSync(join(tmpdir(), "pregate-domain-language-"));
@@ -32,5 +33,5 @@ test("the documented domain DSL runs and detects removed boundary, transition an
 });
 
 function removedAfter(dir: string, body: () => void) {
-  try { body(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { body(); } finally { removeTree(dir); }
 }

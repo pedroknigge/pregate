@@ -226,7 +226,7 @@ function readdirEngines(data: string): string[] {
 }
 
 function cpDemo(project: string): void {
-  rmSync(project, { recursive: true, force: true });
+  removeTree(project);
   cpSync(DEMO, project, { recursive: true });
   rmSync(join(project, ".git"), { recursive: true, force: true });
   Bun.spawnSync(["git", "init", "-q"], { cwd: project, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
