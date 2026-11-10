@@ -8,7 +8,7 @@ Two measurements are recorded here. Sample precision says how many maintainer-la
 
 This run audited 46 packs on 8 pinned trees (238 source files) and recorded **8951 findings**. Sample precision is shown for 5 maintainer-labeled packs. Every other pack is unmeasured.
 
-Engine 0.0.5, core 0.0.1.
+Engine 0.0.6, core 0.0.1.
 
 Maintainer-labeled sample: 17 true-positive, 11 false-positive. Packs that do not appear in that sample are unmeasured.
 

@@ -1,6 +1,6 @@
 # Guided project workflow
 
-Included in 0.0.5. Check [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.
+Included in 0.0.6. Check [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.
 Check `pregate --help` for `guide`. The
 [explicit update workflow](project-update.md) remains available.
 

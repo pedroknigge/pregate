@@ -1,6 +1,6 @@
 # Try a guardrail before adopting a contract
 
-`pregate demo` is included in 0.0.5. It needs the
+`pregate demo` is included in 0.0.6. It needs the
 compiled binary and Git. Check [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified.
 
 ```sh

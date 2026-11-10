@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-11-10
+
+What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
+
 ### Added
 - A `compile apply` proposal can state where the code is allowed with `except`, a list of globs ("only inside `src/lib/ai`"). The drafted rule ignores those paths, and the engine proves it before staging: the failing code placed under each excepted path must pass. An `except` glob that matches no file is refused.
 - `pregate layers apply <map.json> --preview --complete` refuses a layer map that leaves a source file in scope in no layer, or under which a folder created later would be in none, and names the folders. A file in no layer is unrestricted, so code moved to an uncovered folder escaped layer rules such as `CA-DEP-001` without a finding. A catch-all layer (for example `src/**`) closes the gap, because the most specific layer path still wins. Partial maps and projects that do not pass the flag are unchanged; the engine and the contract format are unchanged.

@@ -7,9 +7,9 @@ branding:
 
 inputs:
   version:
-    description: "Pregate release version (e.g. 0.0.5). scripts/build.ts requires this to match package.json."
+    description: "Pregate release version (e.g. 0.0.6). scripts/build.ts requires this to match package.json."
     required: false
-    default: "0.0.5"
+    default: "0.0.6"
   mode:
     description: "Command mode: check (whole tree) | audit | ratchet (requires base)"
     required: false

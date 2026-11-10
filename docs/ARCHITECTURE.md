@@ -2,7 +2,7 @@
 
 > *A gate for explicit, executable code and architecture constraints.*
 
-**Current source: published engine 0.0.5, core 0.0.1:** 68 default rules (64 project fitness requirements and four
+**Current source: published engine 0.0.6, core 0.0.1:** 68 default rules (64 project fitness requirements and four
 general change guards); language/practice/pattern policies are optional packs.
 Human-reviewed off overrides are supported. The pure evidence gate is
 [fitness.ts](../src/fitness.ts); execution and file fingerprints live in
@@ -10,7 +10,7 @@ Human-reviewed off overrides are supported. The pure evidence gate is
 defines its approval, staleness, scope and semantic limits. Earlier core names,
 non-disableable integrity claims and default rule counts below are historical.
 
-**Current status:** 0.0.5 is the public release. macOS ARM64 is stable. Linux and
+**Current status:** 0.0.6 is the public release. macOS ARM64 is stable. Linux and
 Windows builds are experimental. It adds
 Python/Go/Rust demos, bounded Rust source analysis and public-ready HTTPS downloads
 with private fallback. Core is unchanged. See
