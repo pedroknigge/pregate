@@ -71,6 +71,13 @@ const SCRIPT_EXT: [RegExp, string][] = [
   [/\.ps1$/i, "powershell"],
 ];
 const ARCHIVES = new Set(["tar", "gtar", "bsdtar"]);
+// What a shell runs itself and never looks up on PATH. macOS ships `/usr/bin/cd`, `/usr/bin/type`
+// and their siblings as scripts for `env` and `find -exec`; `cd src` does not run them.
+const BUILTINS = new Set(["alias", "bg", "cd", "command", "echo", "false", "fc", "fg", "getopts", "hash", "jobs", "kill", "printf", "pwd", "read", "test", "true", "type",
+  "ulimit", "umask", "unalias", "wait", "["]);
+// Bun reads these first words as its own subcommands, never as a script file of that name.
+const BUN_SUBCOMMANDS = new Set(["add", "audit", "build", "c", "create", "exec", "i", "info", "init", "install", "link", "outdated", "patch", "pm", "publish", "remove", "rm",
+  "run", "test", "unlink", "update", "upgrade", "why", "x"]);
 const FIXERS = new Set(["prettier", "eslint", "ruff", "biome", "gofmt", "rustfmt", "clang-format"]);
 
 function inferScriptInterpreter(path: string, text: string): string {
@@ -117,7 +124,7 @@ function namedScript(head: Word, name: string, cwd: string | null, ctx: Ctx): Ca
       return scriptFile(ctx, resolved, interp, cwd);
     }
   }
-  if (/[\\/]/.test(head.text) || ctx.commandPath === undefined || head.text === "" || head.text.includes("\0")) return null;
+  if (/[\\/]/.test(head.text) || ctx.commandPath === undefined || head.text === "" || head.text.includes("\0") || BUILTINS.has(head.text)) return null;
   const found = ctx.commandPath(head.text);
   if (found === null || found === "") return null;
   const peek = ctx.readScriptFile?.(found) ?? { kind: "missing" as const };
@@ -1109,10 +1116,23 @@ function pregate(args: Word[], guideAllowed: boolean): Cause | null {
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "draft") return null;
   // `rules add` prepares one pending review in the data directory; only the human approves it.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "add" && !args.some((w) => w.text === "--yes")) return null;
+  if (proposal(args)) return null;
   if (args[0]?.text === "guide" && !guideAllowed && !commandHelp(args.map(w => w.text))) return "shell-admin";
   if (readOnlyPregate(args, false)) return null;
   const sub = args.find((w) => !w.text.startsWith("-"));
   return sub !== undefined && (!sub.literal || MACHINE.test(sub.text)) ? "hook-switch" : "shell-admin";
+}
+
+// `layers` and `compile` read the project, or prepare one pending review that only the human
+// approves, like `rules add`. Every word is literal and no form applies anything.
+function proposal(args: Word[]): boolean {
+  if (!args.every((w) => w.literal && w.subs.length === 0) || args.some((w) => w.text === "--yes" || w.text === "--digest")) return false;
+  const [verb, ...rest] = args.map((w) => w.text);
+  if (verb !== "layers" && verb !== "compile") return false;
+  const flags = rest.filter((text) => text.startsWith("-")), operands = rest.filter((text) => !text.startsWith("-"));
+  if (operands[0] === "apply") return operands.length === 2 && flags.includes("--preview") && flags.every((flag) => flag === "--preview" || (verb === "layers" && flag === "--complete"));
+  if (verb === "layers") return operands.length === 0 && flags.every((flag) => flag === "--json");
+  return operands.length === 1 && flags.length <= 1 && flags.every((flag) => ["--json", "--template", "--preview"].includes(flag));
 }
 
 function wrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
@@ -1493,7 +1513,7 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
   const interp = name.replace(/^python[\d.]*$/, "python");
   const control = first(program, (w) => w.literal ? (w.file === undefined ? pregateControlCause(w.text) : controlFile(ctx, w.file)) : null)
-    ?? (!inlined && operands[0] !== undefined && !["-", "repl"].includes(operands[0].text)
+    ?? (!inlined && operands[0] !== undefined && !["-", "repl"].includes(operands[0].text) && !(interp === "bun" && BUN_SUBCOMMANDS.has(operands[0].text))
       ? (operands[0].literal ? ((abs) => abs === null ? "shell-write" : scriptFile(ctx, abs, interp, cwd, options))(resolve(cwd, operands[0].text)) : "shell-write") : null);
   if (control !== null) return control;
   // Code that reads its arguments (`sys.argv[1]`, `process.argv`, `@ARGV`) may write the files they

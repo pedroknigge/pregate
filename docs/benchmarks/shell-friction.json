@@ -1,0 +1,616 @@
+{
+  "machine": {
+    "platform": "darwin arm64",
+    "scripts": [
+      "cd",
+      "command",
+      "npm",
+      "npx",
+      "pregate",
+      "type",
+      "wait"
+    ]
+  },
+  "outcomes": [
+    {
+      "id": "git-status",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-diff",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-log",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-show",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-blame",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-grep",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-branch-list",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-add",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-add-file",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-commit",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-commit-heredoc",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-push",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-fetch",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-new-branch",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-switch-create",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-checkout-branch",
+      "decision": "deny",
+      "cause": "protected-path"
+    },
+    {
+      "id": "git-restore-file",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "git-stash",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-reset-soft",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-reset-hard",
+      "decision": "deny",
+      "cause": "protected-path"
+    },
+    {
+      "id": "git-merge",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-rebase",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-pull",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-tag-list",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "git-commit-no-verify",
+      "decision": "deny",
+      "cause": "shell-admin"
+    },
+    {
+      "id": "gh-pr-view",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "gh-pr-create",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "npm-install",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-ci",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-install-pkg",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-test",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-run-build",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-run-lint",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npm-run-format",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npx-tsc",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "npx-eslint",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "npx-eslint-fix",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npx-prettier-write",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "npx-vitest",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pnpm-install",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pnpm-test",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "yarn-build",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "node-script",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "node-version",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "node-print",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-install",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-test",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-test-file",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-test-names-contract",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-test-piped",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-run-typecheck",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-script",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "bun-script-names-command",
+      "decision": "deny",
+      "cause": "hook-switch"
+    },
+    {
+      "id": "bun-script-variable",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "bun-x-tsc",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bun-chain",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "make-default",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "make-test",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "make-build",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "make-dry",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "make-jobs",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "python-version",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "python-script",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "python-print",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "python-json-filter",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "python-read-file",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "python-pytest",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "python-pip",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "python-write-source",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "python-heredoc-write-tmp",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "ruff-check",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "uv-run",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "ls",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "cat",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "head-pipe",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "grep",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "rg",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "find",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "wc",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "sed-print",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "jq",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "grep-variable-path",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "loop-read",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "mkdir-tmp",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "redirect-tmp",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "tee-tmp",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "curl-read",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "curl-download-tmp",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "rm-build",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "cp-doc",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "docker-build",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "env-prefix",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "cd-and-run",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "cd-absolute",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "type-builtin",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "command-v",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "wait-builtin",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "redirect-source",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "sed-in-place",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "mv-source",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "rm-source",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "script-file",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bash-script-file",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "bash-script-variable",
+      "decision": "deny",
+      "cause": "shell-write"
+    },
+    {
+      "id": "pregate-status",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-check",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-audit",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-check-stdin",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-report",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-layers",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-layers-apply",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-compile",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-compile-apply",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-rules-test",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-preview",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-cat-contract",
+      "decision": "allow",
+      "cause": null
+    },
+    {
+      "id": "pregate-grep-contract",
+      "decision": "deny",
+      "cause": "protected-path"
+    },
+    {
+      "id": "pregate-approve",
+      "decision": "deny",
+      "cause": "shell-admin"
+    },
+    {
+      "id": "pregate-disable",
+      "decision": "deny",
+      "cause": "shell-admin"
+    },
+    {
+      "id": "pregate-edit-contract",
+      "decision": "deny",
+      "cause": "protected-path"
+    }
+  ]
+}

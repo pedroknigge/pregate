@@ -82,6 +82,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [benchmarks/case-study-production-repository.md](benchmarks/case-study-production-repository.md) | Measurement record |
 | [benchmarks/false-positives.md](benchmarks/false-positives.md) | Measurement record |
 | [benchmarks/hook-latency.md](benchmarks/hook-latency.md) | Measurement record |
+| [benchmarks/shell-guard-friction.md](benchmarks/shell-guard-friction.md) | Measurement record |
 | [CLI.md](CLI.md) | Product/reference |
 | [core-catalog.md](core-catalog.md) | Product/reference |
 | [examples/dcouplr-delivery/README.md](examples/dcouplr-delivery/README.md) | Executable example |

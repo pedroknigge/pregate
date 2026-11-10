@@ -1233,3 +1233,46 @@ describe("without a root only the machine is protected", () => {
     expect(guard('claude -p "fix the git hooks"', "/tmp/elsewhere", rootless())).toBeNull();
   });
 });
+
+test("a shell builtin is not looked up on PATH: macOS ships /usr/bin/cd as a script with a computed command name", () => {
+  const wrapper = "#!/bin/sh\nbuiltin `echo ${0##*/} | tr \\[:upper:] \\[:lower:]` ${1+\"$@\"}\n";
+  const asked: string[] = [];
+  const shipped = ["alias", "cd", "command", "read", "type", "umask", "wait", "deploy"];
+  const context = { ...ctx, commandPath: (name: string) => { asked.push(name); return shipped.includes(name) ? `/usr/bin/${name}` : null; },
+    readScriptFile: (path: string) => path === "/usr/bin/deploy" ? { kind: "text" as const, text: "#!/bin/sh\npregate approve --yes\n" } : { kind: "text" as const, text: wrapper } };
+  for (const command of ["cd src", "cd src && ls src", "cd /tmp; type node", "read answer", "wait", "umask 022", "command -v node", "alias", "test -f src/a.ts"]) expect(guard(command, ROOT, context), command).toBeNull();
+  expect(asked.filter((name) => ["cd", "type", "read", "wait", "umask", "alias", "test"].includes(name))).toEqual([]);
+  // A name the shell does look up is still read: a script on PATH that runs a control command.
+  expect(guard("deploy", ROOT, context)).not.toBeNull();
+  expect(asked).toContain("deploy");
+  // A function that takes a builtin's name is still read as the commands it runs.
+  expect(guard("cd() { pregate approve --yes; }; cd", ROOT, context)).toBe("shell-admin");
+});
+
+test("bun's own subcommands are not read as a script file of that name", () => {
+  const read: string[] = [];
+  const context = { ...ctx, readControlFile: (path: string): Cause | null => { read.push(path); return "shell-admin"; } };
+  for (const command of ["bun test", "bun test test/a.test.ts", "bun run typecheck && bun test", "bun install", "bun x tsc --noEmit"]) expect(guard(command, ROOT, context), command).toBeNull();
+  expect(read).toEqual([]);
+  // A path, or a first word that is no subcommand, is still read as the script Bun runs.
+  expect(guard("bun ./test", ROOT, context)).toBe("shell-admin");
+  expect(guard("bun scripts/deploy.ts", ROOT, context)).toBe("shell-admin");
+  expect(guard("node test", ROOT, context)).toBe("shell-admin");
+  expect(read).toEqual([`${ROOT}/test`, `${ROOT}/scripts/deploy.ts`, `${ROOT}/test`]);
+});
+
+test("layers and compile read or prepare a review; no form of them applies one", () => {
+  for (const command of [
+    "pregate layers", "pregate layers --json", "pregate layers apply /tmp/map.json --preview", "pregate layers apply /tmp/map.json --preview --complete",
+    "pregate compile AGENTS.md", "pregate compile CLAUDE.md --json", "pregate compile AGENTS.md --template", "pregate compile AGENTS.md --preview",
+    "pregate compile apply /tmp/proposals.json --preview",
+  ]) expect(guard(command, ROOT, ctx), command).toBeNull();
+  for (const command of [
+    "pregate layers apply /tmp/map.json", "pregate layers apply /tmp/map.json --preview --yes", "pregate layers apply /tmp/map.json --preview --digest 0123456789ab",
+    "pregate layers --yes", "pregate layers apply --preview", "pregate layers apply /tmp/a.json /tmp/b.json --preview",
+    "pregate compile apply /tmp/proposals.json", "pregate compile apply /tmp/proposals.json --preview --yes", "pregate compile apply /tmp/proposals.json --preview --complete",
+    "pregate compile", "pregate compile \"$FILE\"", "pregate compile $(cat /tmp/name)", "pregate compile AGENTS.md --json --yes",
+  ]) expect(guard(command, ROOT, ctx), command).toBe("shell-admin");
+  expect(guard("pregate compile .pregate/preset.json", ROOT, ctx)).toBe("protected-path");
+  expect(guard("CI=1 pregate layers apply /tmp/map.json --preview", ROOT, ctx)).toBe("hook-switch");
+});

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Shell guard friction is measured.** `bun scripts/measure-shell-friction.ts` sends a committed corpus of routine git, npm, Bun, make, Python, shell and Pregate commands through the real pre hook in an enabled scratch project and records each decision. The page [Shell guard friction](docs/benchmarks/shell-guard-friction.md) publishes the result with the machine it depends on, a labeled field sample from one real session, and a keep, trim or hold reading. No anti-evasion rule was added.
+
+### Fixed
+
+- **The shell guard no longer refuses `cd`, `bun test`, `pregate layers` or `pregate compile` in an enabled project.** The first friction measurement refused 32 of 101 routine commands; it now refuses 19. Three causes protected nothing. A shell builtin was looked up on `PATH`, and macOS ships `/usr/bin/cd`, `type`, `read`, `wait` and `umask` as scripts with a computed command name, so every `cd` was `shell-admin` there since 0.0.5. `bun test` was read as Bun running a script named `test` and refused when the project has a `test` directory. `pregate layers` and `pregate compile`, which only read or prepare a review, were not on the guard's list of commands an agent may run, although the skill tells the agent to run them. No form of those commands that applies a contract is allowed, and a script on `PATH`, a function named like a builtin, and `bun ./test` are still read. The remaining refusals (an installed tool that is a script, such as `npm`; a read-only project script that imports a file-system module) are listed on the measurement page for a maintainer decision.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
