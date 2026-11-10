@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Deadline tests bound the mechanism, not the machine.** Three tests proved a deadline with an upper bound on the whole command, engine start included: 3.5 s for a fitness verifier with a 500 ms deadline or an output budget, and 19 s for an issue transport with a 15 s deadline. On a memory-constrained Windows machine the engine start alone can exceed the margin. The bound is now on the life of the process the deadline ends, from its first line to the return of the command, and it is tighter (3 s, and 3 s past the 15 s deadline). Each such process also leaves a file only when it reaches its own exit, and the tests assert that the file is absent, which holds at any machine speed. No timeout was raised. Not validated on a low-memory Windows machine: none was available.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).

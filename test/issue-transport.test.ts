@@ -28,6 +28,7 @@ beforeAll(() => {
 const action = process.argv[3], mode = process.env.PREGATE_GH_CASE;
 appendFileSync(process.env.PREGATE_GH_CALLS!, action + "\\n");
 writeFileSync(process.env.PREGATE_GH_PID!, String(process.pid));
+writeFileSync(process.env.PREGATE_GH_PID! + ".started", String(Date.now()));
 if (process.platform !== "win32") process.on("SIGTERM", () => {});
 if (action === "list") {
   if (mode === "reconcile") {
@@ -43,7 +44,7 @@ if (action === "list") {
   const body = process.argv[process.argv.indexOf("--body-file") + 1]!;
   writeFileSync(process.env.PREGATE_GH_BODY!, readFileSync(body, "utf8"));
   process.stdout.write("https://github.com/pedroknigge/pregate/issues/42\\n");
-  if (mode === "deadline") setTimeout(() => process.exit(0), 22000);
+  if (mode === "deadline") setTimeout(() => { writeFileSync(process.env.PREGATE_GH_PID! + ".finished", "by itself"); process.exit(0); }, 22000);
 } else process.exit(9);
 `);
   const built = Bun.spawnSync([process.execPath, "build", producer, "--compile", "--minify",
@@ -131,13 +132,18 @@ function calls(path: string): string[] { return readFileSync(path, "utf8").trim(
 
 test.each(["source", "compiled"] as const)("%s issue transport boundary: deadline rejects late success and reconciles without a second create", (kind) => {
   const p = project(kind, "deadline");
-  const began = performance.now();
   const submitted = p.invoke(["issue", "submit", p.id, "--yes"]);
+  // The 15 s deadline is on the transport call, so the bound is on how long that `gh` lived: from
+  // its first line to the return of the command, 3 s past the deadline at most. Engine start and
+  // the earlier `gh` call are not part of it. A `gh` that reached its own exit leaves `.finished`.
+  const lived = Date.now() - Number(readFileSync(`${p.env.PREGATE_GH_PID}.started`, "utf8"));
   expect(submitted.code, submitted.text).toBe(1);
   expect(submitted.text).toContain("15000 ms");
   expect(submitted.text).toContain("Publication outcome is uncertain");
   expect(submitted.text).toContain("reconciles the existing issue");
-  expect(performance.now() - began).toBeLessThan(19_000);
+  expect(lived).toBeGreaterThanOrEqual(14_000);
+  expect(lived).toBeLessThan(18_000);
+  expect(existsSync(`${p.env.PREGATE_GH_PID}.finished`)).toBe(false);
   expect(() => process.kill(Number(readFileSync(p.env.PREGATE_GH_PID, "utf8")), 0)).toThrow();
   expect(existsSync(p.receipt)).toBe(false);
   expect(existsSync(p.draftFile)).toBe(true);
