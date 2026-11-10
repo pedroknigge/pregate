@@ -40,6 +40,9 @@ export interface GuardContext {
   readScriptFile?: (path: string) => { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
   // Resolves a bare command name on PATH. The shell layer supplies it; the core does not read the environment.
   commandPath?: (name: string) => string | null;
+  // Whether a program found on PATH lies outside every enabled project: an installed tool, not
+  // project code. Without it every script found on PATH is read like a project script.
+  outsideRoots?: (abs: string) => boolean;
   // The files a git command that moves history or the worktree would change (`args` from the
   // subcommand on), or null when they cannot be known. Without it such a command may write anything.
   gitChanges?: (cwd: string, args: string[]) => GitChanges | null;
@@ -127,6 +130,10 @@ function namedScript(head: Word, name: string, cwd: string | null, ctx: Ctx): Ca
   if (/[\\/]/.test(head.text) || ctx.commandPath === undefined || head.text === "" || head.text.includes("\0") || BUILTINS.has(head.text)) return null;
   const found = ctx.commandPath(head.text);
   if (found === null || found === "") return null;
+  // An installed tool that is a script (`npm`, `npx`, `pip`) uses the file system by its nature,
+  // like the native tools that are not read at all. It is read for control commands only. A script
+  // on PATH that lies inside a project (`node_modules/.bin`, a linked project file) is project code.
+  if (ctx.outsideRoots?.(found) === true) return controlFile(ctx, found);
   const peek = ctx.readScriptFile?.(found) ?? { kind: "missing" as const };
   if (peek.kind === "native") return null;
   const interp = peek.kind === "text" ? inferScriptInterpreter(found, peek.text) : "sh";

@@ -137,9 +137,18 @@ function lexists(path: string): boolean {
   try {
     return lstatSync(path, { throwIfNoEntry: false }) !== undefined;
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT" || (e as NodeJS.ErrnoException).code === "ENOTDIR") return false;
+    if (absent(e, path)) return false;
     throw e;
   }
+}
+
+// A Windows network path (`\\host\share`) whose host does not answer is not there. A command
+// that names a URL reaches this: `https://example.com/x` holds the piece `//example.com/x`.
+const NETWORK_PATH = /^[\\/]{2}[^\\/]/;
+const UNREACHABLE = new Set(["EUNKNOWN", "ENOTFOUND", "ENETUNREACH", "EHOSTUNREACH", "EHOSTDOWN", "ETIMEDOUT", "ECONNREFUSED"]);
+function absent(error: unknown, path: string): boolean {
+  const code = (error as NodeJS.ErrnoException).code ?? "";
+  return code === "ENOENT" || code === "ENOTDIR" || (NETWORK_PATH.test(path) && UNREACHABLE.has(code));
 }
 
 // The path a write to `abs` lands on: realpath of the deepest existing ancestor plus the rest. A
@@ -154,6 +163,8 @@ export function canonical(abs: string): string {
       const real = realPathOf(existing, rest);
       if (real !== null) return real;
       if (lexists(existing)) break;
+      // An unreachable network path has no real path: it is judged where it is spelled.
+      if (dirname(existing) === existing && NETWORK_PATH.test(abs)) return slash(abs);
       if (dirname(existing) === existing) throw new Error(`${abs}: no existing ancestor`);
       rest = rest === "" ? basename(existing) : `${basename(existing)}/${rest}`;
       existing = dirname(existing);
@@ -190,8 +201,7 @@ function realPathOf(existing: string, rest: string): string | null {
   try {
     return slash(join(realpathSync(existing), rest));
   } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code;
-    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    if (absent(e, existing)) return null;
     throw e;
   }
 }
