@@ -79,6 +79,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | Document | Role |
 | --- | --- |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Product/reference |
+| [benchmarks/case-study-production-repository.md](benchmarks/case-study-production-repository.md) | Measurement record |
 | [benchmarks/false-positives.md](benchmarks/false-positives.md) | Measurement record |
 | [benchmarks/hook-latency.md](benchmarks/hook-latency.md) | Measurement record |
 | [CLI.md](CLI.md) | Product/reference |

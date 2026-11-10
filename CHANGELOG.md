@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A case study of one trial on a private production repository of 13,499 source files, in an isolated clone: setup, instruction files to rules (0 of about 500 statements had a sentence shape; three rules proposed from real lines), a labeled sample of one rule's findings (5 of 15 were what the statement meant), audit time and pre-check latency from source. It states what was not measured: no live agent, no harness, no false-positive rate. See [the page](docs/benchmarks/case-study-production-repository.md).
+
 ### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 
