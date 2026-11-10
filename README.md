@@ -32,7 +32,7 @@ curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/insta
 
 Or `npm i -g pregate`. Windows and the details are in [Install and adopt, step by step](#install-and-adopt-step-by-step).
 
-**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes what to watch, and reports in plain language. Without the skill, run `pregate guide --preview --enforcement advisor`.
+**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes what to watch, and reports in plain language. Without the skill, run `pregate guide --preview`.
 
 **3. Approve.** This is the only step a human must do, in a terminal:
 
@@ -199,11 +199,11 @@ The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the
 ### 2. Preview an advisor contract in your Git repository
 
 ```sh
-pregate guide --preview --enforcement advisor
+pregate guide --preview
 pregate approve --preview
 ```
 
-Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
+A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
 
 ```text
 pregate approve <code>
@@ -215,6 +215,8 @@ Approval normally commits the contract in a Git worktree. Add `--no-commit` to l
 pregate status
 pregate audit --plan
 ```
+
+`audit` ends with a line that states its exit code. `Exit 0` and `Exit 1` are complete results: nothing blocks, or findings block. `Exit 2` is an incomplete audit, for example a file with a syntax error. It still prints a report, and it is not a count of violations.
 
 A committed contract is not local consent. For an existing cloned or disabled contract, review `status`, then use `pregate enable` in a human terminal and confirm. Advisor rules do not block edits, but explicit enforcing overrides, contract integrity failures, and bound fitness requirements can still block. Review the preview rather than assuming every rule became advisory.
 
@@ -317,7 +319,7 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 
 | Task | Command |
 | --- | --- |
-| Prepare an advisor contract | `pregate guide --preview --enforcement advisor` |
+| Prepare an advisor contract | `pregate guide --preview` |
 | Review a pending contract | `pregate approve --preview` |
 | Inspect consent and installation | `pregate status` / `pregate doctor` |
 | Sort an instruction file into rules and guidance | `pregate compile <rules.md>` |
@@ -347,6 +349,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Rule drafting](docs/features/rule-drafting.md)
 - [Project fitness](docs/features/project-fitness.md)
 - [Hook latency](docs/benchmarks/hook-latency.md)
+- [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
 - [Guarantees and residual limits](docs/guarantees.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
 - [Release notes for 0.0.5](docs/releases/0.0.5.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)

@@ -80,6 +80,56 @@ test("layers shows the derived map with its evidence, and an agent's map becomes
   expect(broken).toContain("architecture/CA-DEP-001");
 });
 
+test("a first layer map whose globs share a prefix is reviewed without a weakening warning; taking files from an approved layer still warns", () => {
+  const p = repo("layers-first");
+  const apply = (layers: unknown) => { writeFileSync(join(p.root, "layers.json"), JSON.stringify({ why: "The order and storage files are the two layers.", layers })); return p.cli("layers", "apply", "layers.json", "--preview"); };
+  const first = apply({ domain: { paths: ["src/**/order.ts"], mayImport: [], kind: "core" }, infra: { paths: ["src/**/db.ts"], mayImport: ["domain"], kind: "adapter" } });
+  expect(first.code, first.text).toBe(0);
+  expect(first.text).not.toContain("WARNING");
+  expect(first.text).toContain("Widens layers");
+  expect(p.approve(first.text).code).toBe(0);
+  const taken = apply({ domain: { paths: ["src/**/order.ts"], mayImport: [], kind: "core" }, infra: { paths: ["src/**/db.ts"], mayImport: ["domain"], kind: "adapter" },
+    ui: { paths: ["src/ui/**"], mayImport: ["*"], kind: "adapter" } });
+  expect(taken.text).toContain("WARNING: this may weaken protection.");
+});
+
+// A file in no layer is unrestricted: code moved to an uncovered folder imports anything and the check
+// stays quiet. A partial map is still valid; --complete is the opt-in that refuses the gap.
+test("a complete map names code in an undeclared folder; a partial map stays quiet there and floods nothing", () => {
+  const HELPER = 'import { saveOrder } from "../infra/db.ts";\nexport const helper = saveOrder;\n';
+  const core = { domain: MAP.layers.domain, infra: MAP.layers.infra };
+  const apply = (p: ReturnType<typeof repo>, layers: unknown, ...flags: string[]) => {
+    writeFileSync(join(p.root, "layers.json"), JSON.stringify({ why: "Domain and storage are the declared layers.", layers })); return p.cli("layers", "apply", "layers.json", "--preview", ...flags);
+  };
+
+  const partial = repo("layers-partial");
+  const loose = apply(partial, core);
+  expect(loose.code, loose.text).toBe(0);
+  expect(loose.text).toContain("Not in any layer, so imports there are unrestricted: src/components (1 file); src/services (1 file; imports domain); src/ui (1 file; imports infra, src/services).");
+  expect(partial.approve(loose.text).code).toBe(0);
+  expect(partial.check("src/utils/helper.ts", HELPER)).toEqual([]);                                   // the documented gap of a partial map
+  expect(partial.check("src/domain/price.ts", HELPER)).toContain("architecture/CA-DEP-001");            // declared layers still judge
+  expect(partial.check("src/ui/cart.ts", SOURCES["src/ui/cart.ts"]!)).toEqual([]);                     // and nothing floods
+
+  const strict = repo("layers-complete");
+  const gap = apply(strict, core, "--complete");
+  expect(gap.code).toBe(1);
+  expect(gap.text).toContain("--complete: 3 source files are in no layer (src/components, src/services, src/ui). Place them, or add a catch-all layer whose path covers them. Nothing staged.");
+  const open = apply(strict, { ...MAP.layers, components: { paths: ["src/components/**"], mayImport: ["domain"], kind: "adapter" } }, "--complete");
+  expect(open.code).toBe(1);
+  expect(open.text).toContain("--complete: a new folder under src would be in no layer, and code there would be unrestricted. Add a catch-all layer whose path covers it, such as src/**.");
+  const closed = apply(strict, { ...core, rest: { paths: ["src/**"], mayImport: ["domain"], kind: "adapter" } }, "--complete");
+  expect(closed.code, closed.text).toBe(0);
+  expect(closed.text).toContain("Complete map: every source file in scope is in a layer, and so is a folder created later.");
+  expect(closed.text).toContain("Layer rest (3 files): 1 existing import of infra, which it may not import. Example: src/ui/cart.ts imports src/infra/db.ts.");
+  expect(strict.approve(closed.text).code).toBe(0);
+  expect(strict.check("src/utils/helper.ts", HELPER)).toContain("architecture/CA-DEP-001");            // the undeclared folder is named
+  expect(strict.check("src/domain/price.ts", HELPER)).toContain("architecture/CA-DEP-001");
+  expect(strict.check("src/utils/pure.ts", 'import { place } from "../domain/order.ts";\nexport const pure = place;\n')).toEqual([]);
+  expect(strict.check("src/ui/cart.ts", SOURCES["src/ui/cart.ts"]!)).toEqual([]);                      // the existing break stays known debt
+  expect(apply(strict, core, "--complete", "--complete").code).toBe(1);
+});
+
 test("layers apply refuses a map whose shape or paths cannot be checked, and changes nothing", () => {
   const p = repo("layers-bad");
   const attempt = (value: unknown) => { writeFileSync(join(p.root, "layers.json"), typeof value === "string" ? value : JSON.stringify(value)); return p.cli("layers", "apply", "layers.json", "--preview"); };
@@ -134,6 +184,26 @@ test("compile reports without a contract and needs one only to stage", () => {
   expect(p.cli("compile", "AGENTS.md", "--preview")).toMatchObject({ code: 1, text: expect.stringContaining("Set up PREGATE first") });
   expect(p.cli("compile", "MISSING.md")).toMatchObject({ code: 1, text: expect.stringContaining("No file MISSING.md") });
   expect(p.cli("compile")).toMatchObject({ code: 1, text: expect.stringContaining("usage: pregate compile") });
+});
+
+test("a proposal states where the code is allowed, and the engine proves the exception before staging it", () => {
+  const p = repo("apply-except");
+  mkdirSync(join(p.root, "src/lib/ai"), { recursive: true });
+  writeFileSync(join(p.root, "src/lib/ai/client.ts"), 'import Vendor from "@vendor/sdk";\nexport const client = new Vendor();\n');
+  const sdk = { line: 12, sentence: "Import the vendor sdk only inside the ai library", fail: ['import Vendor from "@vendor/sdk";\nexport const client = new Vendor();'],
+    pass: ['import { ask } from "./ai-client";\nexport const answer = ask;'], except: ["src/lib/ai/**"] };
+  const propose = (rules: unknown[]) => { writeFileSync(join(p.root, "proposals.json"), JSON.stringify({ file: "CLAUDE.md", rules })); return p.cli("compile", "apply", "proposals.json", "--preview"); };
+  expect(propose([{ ...sdk, except: ["src/nowhere/**"] }]).text).toContain("Not staged, L12: except matches no file: src/nowhere/**.");
+  expect(propose([{ ...sdk, except: [] }])).toMatchObject({ code: 1, text: expect.stringContaining("except is a list of globs") });
+  const review = propose([sdk]);
+  expect(review.code, review.text).toBe(0);
+  expect(review.text).toContain("1 verified and staged");
+  expect(review.text).toContain("allowed in src/lib/ai/**");
+  expect(p.approve(review.text).code).toBe(0);
+  expect(p.cli("rules", "test", ".pregate/packs/project")).toMatchObject({ code: 0 });
+  const code = 'import Vendor from "@vendor/sdk";\nexport const v = Vendor;\n';
+  expect(p.check("src/services/ai.ts", code)).toHaveLength(1);
+  expect(p.check("src/lib/ai/second.ts", code)).toEqual([]);
 });
 
 test("compile --template hands the agent the statements that did not compile, with the steps to complete them", () => {

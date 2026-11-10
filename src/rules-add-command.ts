@@ -8,6 +8,7 @@ import { testCheck } from "./fixtures.ts";
 import { clock, LOCK, PRESET, readText } from "./gate.ts";
 import { grammarOf, ruleLanguages } from "./languages.ts";
 import { librarySource, librarySources } from "./library.ts";
+import { matches } from "./paths.ts";
 import { addInvariant } from "./pack-compose.ts";
 import { type CatalogEntry, catalogMatches, draftCase, draftCheckDir, draftExamples, draftRule, type DraftSample, fixtureTarget, intentDraft,
   ruleIntent, ruleSlug, ruleTokens, snippetCases, statementKind } from "./pack-template.ts";
@@ -23,7 +24,7 @@ import { workspacePaths } from "./workspace.ts";
 type Result = { code: number; text: string };
 type Request = { sentence: string; fails: string[]; passes: string[]; files?: string; rule?: string; draft: boolean };
 type Entry = CatalogEntry & { manifest: Manifest };
-type Shape = { language: RuleLanguage; area: string; files?: string; fix: string; patterns: PatternConfig[]; cases: DraftSample[]; notes: string[] };
+type Shape = { language: RuleLanguage; area: string; files?: string; except?: string[]; fix: string; patterns: PatternConfig[]; cases: DraftSample[]; notes: string[] };
 
 export const ADD_USAGE = "usage: pregate rules add \"<sentence>\" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]";
 const PROJECT_DIR = ".pregate/packs/project";
@@ -32,7 +33,7 @@ export async function rulesAdd(args: string[], root: string | null): Promise<Res
   if (args.includes("--yes")) return { code: 1, text: "rules add only prepares a review; the human approves it with pregate approve <code>. Nothing staged." };
   const request = parseAdd(args);
   if (request === null) return { code: 1, text: ADD_USAGE };
-  if (root === null || !existsSync(join(root, PRESET))) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor" };
+  if (root === null || !existsSync(join(root, PRESET))) return { code: 1, text: "Set up PREGATE first: pregate guide --preview" };
   const languages = new Set(workspacePaths(root, (rel) => grammarOf(rel) !== null).map(languageOf).filter((l) => l !== null));
   if (!request.draft) {
     const matched = await fromCatalog(root, request, catalogEntries(languages));
@@ -179,7 +180,7 @@ function caseTarget(files: string | undefined, c: DraftSample, language: RuleLan
 function draftFiles(before: Files, sentence: string, shape: Shape): { files: Files; id: string } | string {
   let name = ruleSlug(sentence);
   for (let n = 2; before[`${draftCheckDir(shape.area, name)}/check.json`] !== undefined; n++) name = `${ruleSlug(sentence)}-${n}`;
-  const patterns = shape.files === undefined ? shape.patterns : shape.patterns.map((p) => ({ ...p, files: [shape.files!] }));
+  const patterns = shape.patterns.map((p) => ({ ...p, ...(shape.files === undefined ? {} : { files: [shape.files] }), ...(shape.except?.length ? { ignores: shape.except } : {}) }));
   const rule = draftRule(before, { ns: "project", area: shape.area, name, language: shape.language, patterns, message: sentence, why: `Project rule: ${sentence}`, fix: shape.fix });
   if (typeof rule === "string") return rule;
   const id = `project/${shape.area}/${name}`, dir = draftCheckDir(shape.area, name);
@@ -187,7 +188,7 @@ function draftFiles(before: Files, sentence: string, shape: Shape): { files: Fil
   const check = JSON.parse(files[`${dir}/check.json`]!) as Check;
   const today = new Date().toISOString().slice(0, 10);
   for (const c of shape.cases) {
-    const target = caseTarget(shape.files, c, shape.language);
+    const target = caseTarget(c.at ?? shape.files, c, shape.language);
     const lines = sampleLines(check, shape.language, { rel: target, text: c.text });
     if (typeof lines === "string") return `Cannot evaluate the generated case ${c.kind}/${c.name}: ${lines}. Nothing staged.`;
     files = { ...files, ...draftCase(files, dir, shape.language, { kind: c.kind, target, text: c.text, lines, note: c.note, today }) };
@@ -220,7 +221,7 @@ export async function rulesCompile(args: string[], root: string | null, cwd = pr
   const sources = compileSources(root, cwd);
   const items = documentationStatements(text).filter((s) => s.statement.length >= 8 && !s.statement.startsWith("|")).map((s) => compiled(s, sources));
   const preview = flags[0] === "--preview";
-  if (preview && root === null) return { code: 1, text: [compileText(operands[0]!, text, items), "Set up PREGATE first: pregate guide --preview --enforcement advisor. Then run this preview again."].join("\n") };
+  if (preview && root === null) return { code: 1, text: [compileText(operands[0]!, text, items), "Set up PREGATE first: pregate guide --preview. Then run this preview again."].join("\n") };
   const review = preview ? await stageCompiled(root!, items) : null;
   if (flags[0] === "--json") return { code: 0, text: JSON.stringify(compileJson(operands[0]!, text, items), null, 2) };
   if (flags[0] === "--template") return { code: 0, text: JSON.stringify(compileTemplate(operands[0]!, items), null, 2) };
@@ -303,6 +304,7 @@ const TEMPLATE_STEPS = [
   "fail: one or more snippets the rule must reject, written the way this project writes that mistake.",
   "pass: the correct way to write it, and one more snippet that looks similar but is allowed. Similar allowed code is what stops a rule from matching too much.",
   "files: one glob, only when the rule applies to part of the tree.",
+  "except: a list of globs, only when the statement names a place where the code is allowed (\"only inside src/lib/ai\"). The engine proves it: the failing code placed there must pass.",
   "pattern: optional AST match rule, for when the engine answers that it cannot infer one. Examples: {\"kind\": \"call_expression\", \"has\": {\"field\": \"function\", \"regex\": \"(^|\\\\.)fetch$\"}} and {\"kind\": \"binary_expression\", \"regex\": \"^Math\\\\.round\\\\(.*\\\\* 100\\\\) / 100$\"}.",
   "rule: instead of sentence, fail and pass, the id of a bundled rule to switch on (pregate pack list --library).",
   "Then run pregate compile apply <this file> --preview. A refused proposal names the reason: correct it and run again. Only the human approves the review.",
@@ -347,11 +349,11 @@ async function stageCompiled(root: string, items: Compiled[]): Promise<Result> {
 // the rules that pass their own cases, in one review. A proposal it cannot verify is named and
 // left out; nothing an agent writes here reaches the contract without that proof and the human.
 const PROPOSALS_FORMAT = '{"file": "AGENTS.md", "rules": [{"line": 12, "sentence": "Route handlers must not call the database client directly", "fail": ["<bad code>"], "pass": ["<good code>"], "files": "src/app/api/**"}, {"line": 30, "rule": "architecture/HEX-EDGE-001"}]}';
-type Proposed = { line: number; sentence: string; fail: string[]; pass: string[]; files?: string; rule?: string; pattern?: MatchRule };
+type Proposed = { line: number; sentence: string; fail: string[]; pass: string[]; files?: string; except?: string[]; rule?: string; pattern?: MatchRule };
 
 async function compileApply(args: string[], root: string | null, cwd: string): Promise<Result> {
   if (args.length !== 2 || args[1] !== "--preview" || args[0]!.startsWith("-")) return { code: 1, text: `compile apply only prepares a review; the human approves it.\n${COMPILE_USAGE}` };
-  if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview --enforcement advisor" };
+  if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview" };
   const path = resolve(cwd, args[0]!);
   if (!existsSync(path) || !statSync(path).isFile()) return { code: 1, text: `No file ${args[0]}. Format: ${PROPOSALS_FORMAT}` };
   const proposals = proposedRules(readFileSync(path, "utf8"));
@@ -392,13 +394,25 @@ function proposedRules(text: string): { file: string; rules: Proposed[] } | stri
     if (!strings(raw.pass) || (raw.pass as string[]).length === 0) return `${at} needs pass: at least one snippet of code the rule must accept.`;
     if (raw.files !== undefined && (typeof raw.files !== "string" || raw.files === "")) return `${at}: files is one glob.`;
     if (raw.pattern !== undefined && (typeof raw.pattern !== "object" || raw.pattern === null || Array.isArray(raw.pattern))) return `${at}: pattern is one AST match rule object, such as {"kind": "call_expression", "has": {"field": "function", "regex": "^fetch$"}}.`;
+    if (raw.except !== undefined && (!strings(raw.except) || (raw.except as string[]).length === 0)) return `${at}: except is a list of globs where the statement allows the code.`;
   }
-  return { file, rules: (rules as Partial<Proposed>[]).map((r) => ({ line: r.line!, sentence: (r.sentence ?? r.rule ?? "").trim(), fail: r.fail ?? [], pass: r.pass ?? [], files: r.files, rule: r.rule, pattern: r.pattern })) };
+  return { file, rules: (rules as Partial<Proposed>[]).map((r) => ({ line: r.line!, sentence: (r.sentence ?? r.rule ?? "").trim(), fail: r.fail ?? [], pass: r.pass ?? [], files: r.files, except: r.except, rule: r.rule, pattern: r.pattern })) };
 }
 
 // The agent may write the pattern itself; the generated cases (the code after other declarations,
 // nested in a callback, mentioned in a string) still have to agree with it.
 function proposedShape(p: Proposed, sources: Sources): Shape | string {
+  const shape = shapeOf(p, sources);
+  if (typeof shape === "string" || p.except === undefined) return shape;
+  const paths = workspacePaths(sources.home, () => true);
+  const empty = p.except.filter((glob) => !paths.some((rel) => matches(glob, rel)));
+  if (empty.length) return `except matches no file: ${empty.join(", ")}. An exception names where the statement allows the code; correct the glob.`;
+  // The exception is proved the way the rule is: the failing code, placed where it is allowed, must pass.
+  const allowed = p.except.map((glob, i): DraftSample => ({ kind: "pass", name: `allowed-${i + 1}`, text: p.fail[0]!.endsWith("\n") ? p.fail[0]! : `${p.fail[0]}\n`, note: "", at: glob }));
+  return { ...shape, except: p.except, cases: [...shape.cases, ...allowed] };
+}
+
+function shapeOf(p: Proposed, sources: Sources): Shape | string {
   if (p.pattern === undefined) {
     const shape = draftShape(sources.home, { sentence: p.sentence, fails: p.fail, passes: p.pass, files: p.files, draft: true }, sources.languages);
     if (typeof shape === "string") return shape.replace(" Nothing staged.", "").replace("use pregate rules draft with --pattern", "add a pattern to this proposal");
@@ -431,5 +445,5 @@ function proposedItem(p: Proposed, sources: Sources): Compiled | string {
   if (typeof shape === "string") return shape;
   const id = `project/${shape.area}/${ruleSlug(p.sentence)}`;
   if (sources.project[`${draftCheckDir(shape.area, ruleSlug(p.sentence))}/check.json`] !== undefined) return { ...base, kind: "active", rule: id, note: "already a project rule" };
-  return { ...base, kind: "draft", rule: id, shape, note: `project rule ${id}${p.files ? ` in ${p.files}` : ""}; pattern ${clipped(shape.patterns.map((pattern) => JSON.stringify(pattern.rule)).join(" | "))}` };
+  return { ...base, kind: "draft", rule: id, shape, note: `project rule ${id}${p.files ? ` in ${p.files}` : ""}${p.except ? `, allowed in ${p.except.join(", ")}` : ""}; pattern${clipped(shape.patterns.map((pattern) => JSON.stringify(pattern.rule)).join(" | "))}` };
 }

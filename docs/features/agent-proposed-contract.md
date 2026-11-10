@@ -48,6 +48,33 @@ evidence for the proposed map, adds a layer methodology when no selected rule re
 layers, and stages one digest-bound review for the human. `why` is one sentence a
 reviewer can check against the code.
 
+### A complete map
+
+A file in no layer is unrestricted. With a partial map, code moved to an uncovered
+folder can import anything and the check stays quiet; the review line `Not in any
+layer` names those folders, and that is all a partial map says about them.
+
+`pregate layers apply <map.json> --preview --complete` is the opt-in for a project
+that wants no such folder. It refuses a map when a source file in scope is in no
+layer, and when a folder created later under a source root would be in none:
+
+```text
+--complete: 3 source files are in no layer (src/components, src/services, src/ui). Place them, or add a catch-all layer whose path covers them.
+--complete: a new folder under src would be in no layer, and code there would be unrestricted. Add a catch-all layer whose path covers it, such as src/**.
+```
+
+A catch-all layer closes both. The most specific layer path wins, so `src/**`
+takes only the files no other layer names:
+
+```json
+{"rest": {"paths": ["src/**"], "mayImport": ["domain"], "kind": "adapter"}}
+```
+
+After approval, a new file in an undeclared folder is judged like any other file
+of that layer. Imports that already break the catch-all layer stay as known debt
+under no-new. Nothing changes for a project that does not pass the flag, and the
+engine and the contract format are the same: completeness is a property of the map.
+
 A layer map is a proposal about intent. The evidence shows what it would flag; it does
 not show that the map is the right architecture.
 
@@ -109,6 +136,20 @@ fail, and code that must pass:
    "pattern": {"kind": "binary_expression", "regex": "^Math\\.round\\(.*\\* 100\\) / 100$"}},
   {"line": 30, "rule": "architecture/HEX-EDGE-001"}]}
 ```
+
+When the statement names a place where the code is allowed ("only inside
+`src/lib/ai`"), the proposal says so with `except`, a list of globs:
+
+```json
+{"line": 536, "sentence": "Import the vendor sdk only inside the ai library",
+ "fail": ["import Vendor from \"@vendor/sdk\";"], "pass": ["import { ask } from \"./ai-client\";"],
+ "except": ["src/lib/ai/**"]}
+```
+
+The exception is proved like the rule: the failing code, placed under each
+excepted path, must pass. A glob that matches no file is refused. Without
+`except`, a rule is as broad as its examples, and existing uses in the allowed
+place would only be kept as known debt.
 
 The engine synthesizes a pattern from the cases, or uses the agent's `pattern`. It adds
 its own cases (the code after other declarations, nested in a callback, mentioned in a

@@ -181,6 +181,27 @@ test("adding a path to a layer and to rule paths is named by its delta without a
   }
 });
 
+// A first layer map over `src/features/**/domain/**` and `src/features/**/application/**` warned that
+// protection might weaken: the two new globs share a prefix. No file was in a layer before.
+test("a first layer map, and new layers beside the old ones, widen without a warning even when the new globs share a prefix", () => {
+  const before = lock();
+  const first = structuredClone(before);
+  first.layers = { domain: { paths: ["src/features/**/domain/**"], mayImport: [], kind: "core" },
+    application: { paths: ["src/features/**/application/**"], mayImport: ["domain"], kind: "core" } };
+  const diff = contractDiff(before, first);
+  expect(diff.warning).toBe(false);
+  expect(diff.lines.join("\n")).toContain("Widens layers");
+  expect(diff.lines.join("\n")).not.toContain("review for weaker coverage");
+  const more = structuredClone(first);
+  more.layers.ui = { paths: ["src/ui/**"], mayImport: ["*"], kind: "adapter" };
+  more.layers.hooks = { paths: ["src/ui/hooks/**"], mayImport: ["*"], kind: "adapter" };
+  expect(contractDiff(first, more).warning).toBe(false);
+  // A new glob that can take a file out of a layer that already had it still warns.
+  const taken = structuredClone(first);
+  taken.layers.shared = { paths: ["src/features/shared/**"], mayImport: ["*"], kind: "adapter" };
+  expect(contractDiff(first, taken).warning).toBe(true);
+});
+
 test("removing a layer path, changing mayImport or kind, a glob overlapping another layer, or a wider exclude still warns", () => {
   const before = lock();
   before.layers = { core: { paths: ["src/core/**"], mayImport: [], kind: "core" }, shell: { paths: ["src/a.ts", "src/b.ts"], mayImport: ["core"], kind: "adapter" } };

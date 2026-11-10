@@ -495,10 +495,27 @@ export function identifierScopeOf(n: Node): ScopeKind {
   return "unshadowed";
 }
 
+// The first node of a kind set on each line, built once per parsed file. A repair hint is looked up
+// once per violation; walking the whole tree each time is quadratic, and a vendored 68,000-line
+// bundle with thousands of long functions then takes minutes for one rule.
+const FIRST_ON_LINE = new WeakMap<Parsed, Map<string[], Map<number, Node>>>();
+
+function firstOnLine(p: Parsed, kinds: string[], line: number): Node | undefined {
+  let perKinds = FIRST_ON_LINE.get(p);
+  if (!perKinds) FIRST_ON_LINE.set(p, perKinds = new Map());
+  let byLine = perKinds.get(kinds);
+  if (!byLine) {
+    byLine = new Map();
+    for (const n of descendants(p.root, kinds)) if (!byLine.has(lineOf(n))) byLine.set(lineOf(n), n);
+    perKinds.set(kinds, byLine);
+  }
+  return byLine.get(line);
+}
+
 export function suggestFunctionSplit(p: Parsed, fnLine: number, max: number): string | null {
   const g = grammarOf(p.rel);
   const fnKinds = g === "rust" ? RUST_FUNCTIONS : g === "python" || g === "go" ? OTHER_FUNCTIONS : FUNCTION_KINDS;
-  const fn = descendants(p.root, fnKinds).find((n) => lineOf(n) === fnLine);
+  const fn = firstOnLine(p, fnKinds, fnLine);
   const body = fn?.childForFieldName("body");
   const stmts = body ? members(body).filter((c) => !fnKinds.includes(c.type)) : [];
   if (!fn || stmts.length < 3) return null;
@@ -518,7 +535,7 @@ export function suggestFunctionSplit(p: Parsed, fnLine: number, max: number): st
 }
 
 export function suggestNestingFix(p: Parsed, line: number): string | null {
-  const node = descendants(p.root, ALL_CONTROLS).find((n) => lineOf(n) === line);
+  const node = firstOnLine(p, ALL_CONTROLS, line);
   if (!node) return null;
   let outer: Node | null = null;
   for (let up = node.parent; up && !ALL_FUNCTIONS.includes(up.type); up = up.parent) {

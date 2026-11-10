@@ -75,7 +75,7 @@ test("a Git repository without a contract gets one setup line; a contract or a p
   mkdirSync(plain, { recursive: true });
   const line = dormantNotice(join(repo, "src"));
   expect(line).toContain("installed but not enabled");
-  expect(line).toContain("pregate guide --preview --enforcement advisor");
+  expect(line).toContain("pregate guide --preview");
   expect(dormantNotice(plain)).toBeNull();
   put(join(repo, ".pregate/preset.json"), "{}\n");
   expect(dormantNotice(join(repo, "src"))).toBeNull();

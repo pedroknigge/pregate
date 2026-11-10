@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A `compile apply` proposal can state where the code is allowed with `except`, a list of globs ("only inside `src/lib/ai`"). The drafted rule ignores those paths, and the engine proves it before staging: the failing code placed under each excepted path must pass. An `except` glob that matches no file is refused.
+- `pregate layers apply <map.json> --preview --complete` refuses a layer map that leaves a source file in scope in no layer, or under which a folder created later would be in none, and names the folders. A file in no layer is unrestricted, so code moved to an uncovered folder escaped layer rules such as `CA-DEP-001` without a finding. A catch-all layer (for example `src/**`) closes the gap, because the most specific layer path still wins. Partial maps and projects that do not pass the flag are unchanged; the engine and the contract format are unchanged.
+- A case study of one trial on a private production repository of 13,499 source files, in an isolated clone: setup, instruction files to rules (0 of about 500 statements had a sentence shape; three rules proposed from real lines), a labeled sample of one rule's findings (5 of 15 were what the statement meant), audit time and pre-check latency from source. It states what was not measured: no live agent, no harness, no false-positive rate. See [the page](docs/benchmarks/case-study-production-repository.md).
+
 ### Changed
+- First-run instructions name one command, `pregate guide --preview`. It already proposes advisor mode for a new project, so the SessionStart setup notice, `status`, the `rules add`, `compile` and `layers` setup messages, the README and the skill no longer add `--enforcement advisor`. The flag still selects `enforce` or `shadow`. An end-to-end test covers the path: no mode flag, an advisor finding that does not block the write, promotion, then the same edit denied.
+- The human output of `pregate audit` ends with a line that states the exit code of that run and what it means. `Exit 2` says the audit is incomplete, not a count of violations, and names the cause (the number of files that could not be analyzed and the first one, a tree that changed during the audit, or what `--strict` counts). Exit codes themselves are unchanged, and JSON, JSONL and SARIF output carry no such line.
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
+
+### Fixed
+- A first layer map, or new layers added beside existing ones, no longer shows `WARNING: this may weaken protection` when the new globs share a path prefix with each other (for example `src/features/**/domain/**` and `src/features/**/application/**`). No file was in a layer before, so nothing can leave one. A new glob that can take a file from a layer that already had it still warns.
+- One large generated or vendored file no longer stalls a check or an audit. Three questions with one answer per node were asked again for every candidate: the repair hint of each over-limit function or nested block walked the whole tree; `inside: { stopBy: end, has: … }` scanned the ancestor once per candidate; and a regex over a long enclosing node ran once per node inside it. Each is now answered once per node. On a 1.9 MB, 68,000-line JavaScript bundle, a check with 194 rules went from not finishing in two minutes to about 7 s on an M-series laptop, and the audit of the 13,499-file repository that contains it went from not finishing in ten minutes to 86 s. Findings are unchanged.
 
 ## [0.0.5] - 2026-11-09
 

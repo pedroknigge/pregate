@@ -30,7 +30,7 @@ usage:
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
-  pregate layers [--json] | layers apply <layers.json> --preview
+  pregate layers [--json] | layers apply <layers.json> --preview [--complete]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

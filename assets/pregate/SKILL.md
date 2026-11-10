@@ -40,8 +40,7 @@ imports from this project instead of concepts. Keep a summary under eight lines.
 1. Look first, without changing anything: `pregate guide --json`,
    `pregate layers --json`, and `pregate compile <file>` for each instruction
    file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
-2. The project has no contract: prepare `pregate guide --preview --enforcement
-   advisor`. Tell the user what will be watched in their own terms, for example
+2. The project has no contract: prepare `pregate guide --preview`. Tell the user what will be watched in their own terms, for example
    "code in `src/domain` may not import `src/infra`; 3 files already do and
    are kept as they are; a new one gets a warning with the repair". Say that
    nothing blocks yet.
@@ -51,7 +50,9 @@ imports from this project instead of concepts. Keep a summary under eight lines.
      `layers --json`, write a layer map to a temporary file outside the
      repository, and run `pregate layers apply <file> --preview`. Give a
      one-sentence reason a reviewer can check against the code. Explain each
-     existing import the map would flag.
+     existing import the map would flag. When the user wants no folder left
+     outside the rules, add `--complete` and give the map a catch-all layer
+     (for example `src/**`) for the code no other layer names.
    - Instruction files. Real ones are paragraphs, so reading them is your
      part and proving each rule is the engine's. Run `pregate compile <file>
      --template`, save the JSON to a temporary file outside the repository, and
@@ -599,7 +600,7 @@ pins and the exact `update --projects ... --preview` command for them. When a
 session starts in a project pinned to an older engine and a newer one is
 installed, SessionStart says "PREGATE update ready"; ask the user to run
 `! pregate update`. In a Git repository without a contract, SessionStart says
-PREGATE is installed but not enabled; offer `guide --preview --enforcement advisor`.
+PREGATE is installed but not enabled; offer `guide --preview`.
 Where `guide` is available, offer its explicit multi-project selection:
 `! pregate guide --projects <path...>` is a human terminal flow with one
 confirmation of all displayed digests. The agent can inspect `guide --json
@@ -743,7 +744,7 @@ usage:
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
-  pregate layers [--json] | layers apply <layers.json> --preview
+  pregate layers [--json] | layers apply <layers.json> --preview [--complete]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

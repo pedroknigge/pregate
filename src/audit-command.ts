@@ -113,7 +113,19 @@ async function runAudit(args: string[], output: Emit): Promise<{ code: number; t
   }
   if (sarif) return { code, text: sarifReport(contract.lock, report.findings, report.errors.length === 0 && !report.changedDuringAudit) };
   return { code, text: json ? JSON.stringify({ ...report, ...(ranked ? { refactorPlan: ranked } : {}) }, null, 2)
-    : auditText(report, full) + (report.tsconfig ? `\n${report.tsconfig}` : "") + (ranked ? "\n\n" + visible(refactorPlanText(ranked)) : "") };
+    : auditText(report, full) + (report.tsconfig ? `\n${report.tsconfig}` : "") + (ranked ? "\n\n" + visible(refactorPlanText(ranked)) : "") + `\n${visible(exitLine(report, code, strict))}` };
+}
+
+// The last human line says what this run's exit code means. Exit 2 prints a full report too, and it
+// is "not finished", not "more violations": a script or a reader must not take it for either a pass
+// or a count.
+function exitLine(r: AuditReport, code: number, strict: boolean): string {
+  if (code === 0) return `Exit 0: complete; nothing blocks under ${strict ? "--strict" : "the live policy"}.`;
+  if (code === 1) return strict ? "Exit 1: complete; findings or a failed project assertion exist (--strict counts every finding)."
+    : `Exit 1: complete; ${r.summary.blockingUnderLivePolicy} finding${r.summary.blockingUnderLivePolicy === 1 ? "" : "s"} block under the live policy, or an adopted project assertion has no passing evidence.`;
+  const why = r.errors.length > 0 ? `${r.errors.length} file${r.errors.length === 1 ? "" : "s"} could not be analyzed (first: ${r.errors[0]!.path}: ${r.errors[0]!.cause})`
+    : r.changedDuringAudit ? "project contents changed during the audit" : "--strict counts unsupported files, files with no language policy and unverified requirements";
+  return `Exit 2: incomplete, not a count of violations: ${why}. The findings above hold for the files that were read. Fix the cause and run again for a complete result.`;
 }
 
 function sourceReader(root: string) {

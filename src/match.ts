@@ -460,9 +460,37 @@ function relation(key: "inside" | "has" | "precedes" | "follows", raw: unknown, 
   const stop: Stop = r.stopBy === undefined || r.stopBy === "neighbor" ? "neighbor" : r.stopBy === "end" ? "end"
     : compileRule(r.stopBy, s, `${at}.stopBy`);
   const stops: Stops = (n, now) => typeof stop === "function" && stop(n, {}, now) !== null;
-  if (key === "has") return has(inner, field, stop, stops, s);
+  const free = key === "has" && stop === "end" ? freeVariables(rawInner) : null;
+  if (key === "has") return free === null ? has(inner, field, stop, stops, s) : once(has(inner, field, stop, stops, s), free);
   if (key === "inside") return inside(inner, field, stop, stops);
   return sibling(inner, key === "precedes", stop, stops, s);
+}
+
+// A rule that reads no metavariable gives `has` to the end of a node one answer for that node,
+// whoever asks. `inside: { kind: program, stopBy: end, has: … }` asks the same question of the
+// program from every candidate; without this, a 68,000-line bundle scans its whole tree once per
+// call expression and one rule runs for minutes.
+// The same holds when the rule binds metavariables that are still free where it runs: the answer,
+// with the bindings it adds, depends on the node alone. A candidate that already carries one of them
+// is asked directly. A utility, a scope or a `$$$` list is not analyzed here and is never remembered.
+function freeVariables(raw: unknown): string[] | null {
+  const source = JSON.stringify(raw);
+  if (/"(?:matches|scope)"\s*:/.test(source) || source.includes("$$$")) return null;
+  return [...new Set([...source.matchAll(/\$\$?([A-Z][A-Z0-9_]*)/g)].map((m) => `$${m[1]}`))];
+}
+
+function once(test: Test, variables: string[]): Test {
+  const answers = new WeakMap<Rec, Env | null>();   // the bindings the test adds at a node, or null
+  return (n, env, now) => {
+    if (variables.some((name) => env[name] !== undefined)) return test(n, env, now);
+    let added = answers.get(n);
+    if (added === undefined) {
+      const found = test(n, env, now);
+      added = found === null ? null : Object.fromEntries(variables.flatMap((name) => found[name] === undefined ? [] : [[name, found[name]!]]));
+      answers.set(n, added);
+    }
+    return added === null ? null : { ...env, ...added };
+  };
 }
 
 function inside(inner: Test, field: number | null, stop: Stop, stops: Stops): Test {
@@ -610,15 +638,30 @@ function translate(src: string, at: string): { source: string; flags: string; re
 }
 
 // Only a regex with a repeated group can give up (SLOW_MS), and only its "no match" is in doubt.
+// A regex over a node's text has one answer for that node. `inside: { stopBy: end, regex }` asks it of
+// the same enclosing function or call from every node within; a bundle wrapped in one 1.9 MB call ran
+// the expression over that text once per candidate. A short text is cheaper to test than to remember.
+const REMEMBER_FROM = 2048;
+
 function regexTest(src: string, at: string): Test {
   const { re, repeatsGroup } = regex(src, at);
-  if (!repeatsGroup) return (n, env) => (re.test(text(n)) ? env : null);
+  const answers = new WeakMap<Rec, boolean>();
+  const remembered = (n: Rec, run: () => boolean): boolean => {
+    if (n.end - n.start < REMEMBER_FROM) return run();
+    let found = answers.get(n);
+    if (found === undefined) answers.set(n, found = run());
+    return found;
+  };
+  if (!repeatsGroup) return (n, env) => (remembered(n, () => re.test(text(n))) ? env : null);
   return (n, env, now) => {
-    const subject = text(n);
-    const start = now();
-    if (re.test(subject)) return env;
-    if (subject.length > LONG || now() - start > SLOW_MS) throw new GaveUp(n);
-    return null;
+    const matched = remembered(n, () => {
+      const subject = text(n);
+      const start = now();
+      if (re.test(subject)) return true;
+      if (subject.length > LONG || now() - start > SLOW_MS) throw new GaveUp(n);   // not remembered: it gives up again
+      return false;
+    });
+    return matched ? env : null;
   };
 }
 
