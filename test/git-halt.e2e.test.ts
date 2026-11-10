@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { removeTree } from "./remove-tree.ts";
 
@@ -23,7 +23,7 @@ interface Out { code: number; stdout: string; stderr: string }
 beforeAll(() => {
   mkdirSync(HOME, { recursive: true });
   mkdirSync(join(TMP, "tmp"), { recursive: true });
-  compileBinary(hostTarget(), BIN, true);
+  engineAt(BIN, true);
 });
 
 afterAll(() => removeTree(TMP));

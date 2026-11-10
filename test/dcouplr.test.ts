@@ -616,7 +616,12 @@ function candidate(methodologies: string[]): ReturnType<typeof compile> {
     } };
   return compile(JSON.stringify(preset), (source) => source.kind === "builtin" ? BUILTIN : files, VERSIONS);
 }
+// The pack files and the methodology list are constants, so the lock is compiled once.
+let compiled: Lock | undefined;
 function lock(): Lock {
+  return compiled ??= compileLock();
+}
+function compileLock(): Lock {
   const methodologies = Object.entries(files).filter(([path]) => path.startsWith("methodologies/") && path.endsWith(".json"))
     .map(([, text]) => JSON.parse(text).id as string);
   const result = candidate(methodologies);

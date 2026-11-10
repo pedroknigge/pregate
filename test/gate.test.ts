@@ -13,7 +13,7 @@ import * as state from "../src/state.ts";
 import * as workspace from "../src/workspace.ts";
 import * as gitHost from "../src/git.ts";
 import type { Edit, HookEvent, ProposedChange, Rejected, Session } from "../src/types.ts";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
 import { pathKey } from "../src/paths.ts";
@@ -196,7 +196,7 @@ test("shell-normalized guide invocations cannot bypass rootless guard loading in
 test("production hooks deny normalized neutral-cwd guide calls in all five native protocols", () => {
   const outside = canonical(area), installed = join(process.env.XDG_DATA_HOME!, "pregate", VERSIONS.engine, ENGINE_FILE);
   mkdirSync(dirname(installed), { recursive: true });
-  compileBinary(hostTarget(), installed);
+  engineAt(installed);
   const payload = (harness: Session["harness"], command: string) => {
     if (harness === "agy") return { conversationId: "normalized-guide", workspacePaths: [outside], stepIdx: 1, toolCall: { name: "run_command", args: { Cwd: outside, CommandLine: command } } };
     if (harness === "grok") return { hookEventName: "pre_tool_use", sessionId: "normalized-guide", cwd: outside, toolName: "run_terminal_command", toolUseId: "guide", toolInputTruncated: false, toolInput: { command } };
@@ -1541,7 +1541,7 @@ describe("engine selection", () => {
     pin(root, VERSIONS.engine);
     const data = join(area, "install");
     const engine = join(data, VERSIONS.engine, ENGINE_FILE);
-    compileBinary(hostTarget(), engine);
+    engineAt(engine);
     const driver = join(area, "delegate.ts");
     put(driver, `import { delegate, VERSIONS } from ${JSON.stringify(join(import.meta.dir, "../src/gate.ts"))};\nVERSIONS.engine = "0.0.0";\nconst r = delegate(process.argv[2]!, process.argv.slice(4), process.argv[3]!);\nif (r?.text) console.error(r.text);\nprocess.exit(r?.code ?? 42);\n`);
     const built = await Bun.build({ entrypoints: [driver], target: "bun", outdir: area, naming: "delegate.js" });

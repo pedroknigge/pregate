@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { compile } from "../src/compile.ts";
 import { canonical as canonicalPath, readTree } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -18,7 +18,7 @@ import { removeTree } from "./remove-tree.ts";
 const area = mkdtempSync(join(tmpdir(), "pregate-fitness-"));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 afterAll(() => removeTree(area));
 
 test("fitness bind prepares one reviewed binding without executing or changing active policy", () => {

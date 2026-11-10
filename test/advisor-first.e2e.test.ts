@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { removeReleased } from "./remove-tree.ts";
@@ -17,7 +17,7 @@ const area = canonical(mkdtempSync(join(tmpdir(), "pregate-advisor-first-")));
 // The engine's installation tree is protected from agent writes, so it gets a directory of its own.
 const installed = canonical(mkdtempSync(join(tmpdir(), "pregate-advisor-first-engine-")));
 const binary = join(installed, "bin", ENGINE_FILE);
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 afterAll(() => { removeReleased(area); removeReleased(installed); }, 40_000);
 
 const SOURCES: Record<string, string> = {

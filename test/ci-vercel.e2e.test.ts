@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture } from "./policy-fixtures.ts";
@@ -19,7 +19,7 @@ const area = mkdtempSync(join(tmpdir(), "pregate-ci-vercel-"));
 const binary = join(area, "pregate");
 const EN = "Vercel \u2013 app";
 
-beforeAll(() => compileBinary(hostTarget(), binary, true));
+beforeAll(() => engineAt(binary, true));
 afterAll(() => removeTree(area));
 
 test("the compiled binary recognizes Vercel statuses and check runs, with and without Actions", async () => {

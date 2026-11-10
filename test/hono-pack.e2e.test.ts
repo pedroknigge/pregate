@@ -4,10 +4,13 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { canonical } from "../src/disk.ts";
+import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The compiled CLI, against a real directory, is the scan and the gate a repository gets.
-const cli = join(import.meta.dir, "../src/main.ts");
+// The compiled engine, built once for the test process: it is what ships, and it starts faster
+// than the source entry on every platform.
+const cli = testEngine();
 const area = mkdtempSync(join(tmpdir(), "pregate-hono-"));
 afterAll(() => removeTree(area));
 
@@ -68,7 +71,7 @@ function project(name: string) {
     writeFileSync(abs, text);
   };
   const run = (args: string[], input?: string) => {
-    const out = Bun.spawnSync([process.execPath, cli, ...args], {
+    const out = Bun.spawnSync([cli, ...args], {
       cwd: root, env, stdin: input === undefined ? "ignore" : Buffer.from(input),
       stdout: "pipe", stderr: "pipe", timeout: 45_000,
     });

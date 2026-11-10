@@ -2,10 +2,13 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The same entry the hook runs: proposed source arrives on stdin and the gate reports JS-EVAL-001.
-const cli = join(import.meta.dir, "../src/main.ts");
+// The compiled engine, built once for the test process: it is what ships, and it starts faster
+// than the source entry on every platform.
+const cli = testEngine();
 const area = mkdtempSync(join(tmpdir(), "pregate-js-eval-"));
 afterAll(() => removeTree(area));
 
@@ -85,7 +88,7 @@ function project(name: string) {
     writeFileSync(join(root, path), text);
   };
   const run = (args: string[], input?: string) => {
-    const out = Bun.spawnSync([process.execPath, cli, ...args], {
+    const out = Bun.spawnSync([cli, ...args], {
       cwd: root, env, stdin: input === undefined ? "ignore" : Buffer.from(input),
       stdout: "pipe", stderr: "pipe", timeout: 45_000,
     });

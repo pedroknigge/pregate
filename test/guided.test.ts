@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { canonical } from "../src/disk.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -27,7 +27,7 @@ const binary = suppliedBinary ?? join(area, ENGINE_FILE);
 // Release verification can replay every production-terminal control against the
 // packaged artifact. This seam is test-only and never recompiles that artifact.
 beforeAll(() => {
-  if (suppliedBinary === undefined) return compileBinary(hostTarget(), binary);
+  if (suppliedBinary === undefined) return engineAt(binary);
   expect(isAbsolute(binary)).toBe(true);
   expect(statSync(binary).isFile()).toBe(true);
   const version = Bun.spawnSync([binary, "--version"], { stdout: "pipe", stderr: "pipe", timeout: 10_000 });

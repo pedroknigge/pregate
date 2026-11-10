@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { approvalText } from "../src/contract.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
@@ -23,7 +23,7 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
     mkdirSync(join(root, ".pregate"));
     writeFileSync(join(root, ".pregate/preset.json"), readFileSync("catalog/presets/legacy-safe.json", "utf8"));
     const binary = join(area, ENGINE_FILE);
-    compileBinary(hostTarget(), binary, true);
+    engineAt(binary, true);
     const env = { ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
       TMPDIR: area, CODEX_HOME: join(area, "codex"), GROK_HOME: join(area, "grok") };
     const tty = (answer: string, ...args: string[]) => {

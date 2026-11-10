@@ -2,6 +2,7 @@ import { beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { corpus, measure, page, type Outcome } from "../scripts/measure-shell-friction.ts";
+import { testEngine } from "./compiled-engine.ts";
 
 // The friction measurement, run on the committed corpus through the real pre hook. What every
 // platform must agree on is asserted here; the counts that depend on which tools a machine has as
@@ -11,7 +12,7 @@ setDefaultTimeout(600_000);
 const BENCH = join(import.meta.dir, "..", "docs", "benchmarks");
 const commands = corpus();
 let outcomes: Outcome[];
-beforeAll(() => { outcomes = measure(commands); }, 600_000);
+beforeAll(() => { outcomes = measure(commands, [testEngine()]); }, 600_000);
 const decided = (id: string) => outcomes.find((o) => o.id === id)!;
 
 test("the corpus names each command once and the published result covers it", () => {

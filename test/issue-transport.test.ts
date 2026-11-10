@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { compile } from "../src/compile.ts";
 import { canonical } from "../src/disk.ts";
 import { LOCK, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
@@ -52,7 +52,7 @@ if (action === "list") {
     `--outfile=${join(bin, process.platform === "win32" ? "gh.exe" : "gh")}`],
   { cwd: repository, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
   expect(built.exitCode, built.stderr.toString()).toBe(0);
-  compileBinary(hostTarget(), engine);
+  engineAt(engine);
   writeFileSync(worker, `import { run } from ${JSON.stringify(join(repository, "src/cli.ts"))};
 process.chdir(process.argv[2]!);
 process.exit(await run(process.argv.slice(3)));

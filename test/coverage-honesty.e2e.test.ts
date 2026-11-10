@@ -7,10 +7,13 @@ import { enforcementOf } from "../src/enforcement.ts";
 import { LOCK, PRESET } from "../src/inertia.ts";
 import { VERSIONS } from "../src/versions.ts";
 import type { Lock, LockRule } from "../src/types.ts";
+import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The CLI, on a scratch repository, is what status and doctor print for a project.
-const cli = join(import.meta.dir, "../src/main.ts");
+// The compiled engine, built once for the test process: it is what ships, and it starts faster
+// than the source entry on every platform.
+const cli = testEngine();
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-coverage-")));
 setDefaultTimeout(60_000);
 afterAll(() => removeTree(area));
@@ -55,7 +58,7 @@ test("status and doctor lead with enforced, advisor and unverified rules on a mi
     GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.com",
   };
   const run = (args: string[]) => {
-    const out = Bun.spawnSync([process.execPath, cli, ...args], { cwd: root, env, stdout: "pipe", stderr: "pipe", timeout: 60_000 });
+    const out = Bun.spawnSync([cli, ...args], { cwd: root, env, stdout: "pipe", stderr: "pipe", timeout: 60_000 });
     if (out.signalCode) throw new Error(`${args.join(" ")} terminated: ${out.signalCode}\n${out.stderr.toString()}`);
     return { code: out.exitCode, stdout: out.stdout.toString(), stderr: out.stderr.toString() };
   };

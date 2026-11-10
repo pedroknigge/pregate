@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
 import { applyReviewedProposal } from "../src/approval-command.ts";
 import { canonical } from "../src/disk.ts";
@@ -19,7 +19,7 @@ test.skipIf(process.platform === "win32")("a release binary enables only after y
     writeFileSync(join(root, ".pregate/preset.json"), readFileSync("catalog/presets/legacy-safe.json", "utf8"));
     expect(Bun.spawnSync(["git", "init", "-q", "-b", "main", root]).exitCode).toBe(0);
     const binary = join(area, ENGINE_FILE);
-    compileBinary(hostTarget(), binary, false);
+    engineAt(binary, false);
     const env: Record<string, string | undefined> = {
       ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
       TMPDIR: area, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y",
@@ -56,7 +56,7 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
     mkdirSync(join(root, "src"), { recursive: true });
     writeFileSync(join(root, "src/a.ts"), "export const value = 1;\n");
     const binary = join(area, ENGINE_FILE);
-    compileBinary(hostTarget(), binary, false);
+    engineAt(binary, false);
     const data = join(area, "data");
     const env: Record<string, string | undefined> = {
       ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: data, XDG_STATE_HOME: join(area, "state"),
