@@ -173,6 +173,11 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
     configurationRead: (p) => configurationRead(sid, root, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    // The real file decides: a link on PATH into a project is that project's code.
+    outsideRoots: (p) => {
+      const abs = canonical(p);
+      return findRoot(dirname(abs), enabled) === null && !known.some((r) => within(abs, r));
+    },
     isProtected: (p) => {
       const abs = canonical(p);
       if (protects(abs, globs)) return true;
