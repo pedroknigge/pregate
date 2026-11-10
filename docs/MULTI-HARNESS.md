@@ -146,6 +146,8 @@ A single-file patch follows exactly today's path.
   - If the range is missing, the whole file is searched.
 - Closed key list: besides the required ones, `Overwrite`, `Description`, `Instruction`, `TargetLintErrorIds`, `ArtifactMetadata`, `toolAction`, and `toolSummary` are accepted. Any other ⇒ `unknown`, because it can change what is written (the same criterion as with Claude).
 - `multi_replace_file_content` ⇒ `unknown`: it does not exist in 1.2.14 [V] and its form is [D]. It enters when there is a capture.
+- **agy 1.5.3 renamed the edit tools** [V, captured 2026-11-10]. `write_file` (`Path`, `Content`, optional `Overwrite`) is `full`. `edit_file` (`Path`, `Target`, `Replacement`) is `oldnew` over the whole file with `all = false`; a `Target` that is missing or repeated is `cannot-reconstruct`, because what agy does with it is not verified. Any other argument on either tool ⇒ `unknown`. The envelope gained `cwd` and `hookEventName`; `run_command` no longer sends `Cwd`, and runs in the envelope's `cwd`. The 1.2.14 names and shapes are still decoded.
+- `create_file`, `delete_file`, `rename_file` and `notebook_edit` are named in the 1.5.3 binary and have no captured shape: they are in the matcher and decode to `unknown` at their `Path`, or to `payload-unrecognized` without one.
 - `run_command` is a command (`CommandLine`, with `Cwd` as cwd). `send_command_input` ⇒ `shell-write`: it sends stdin to a process that cannot be analyzed.
 
 **MH-12. Grok forms.**
@@ -274,7 +276,7 @@ f='<DATA>/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook <ev> --harn
 | shared (Claude Code, Cursor, Grok) | `~/.claude/settings.json`, and also `${CLAUDE_CONFIG_DIR}/settings.json` if that variable is set and points elsewhere (Cursor and Grok read the one under `HOME` [V]) | `PreToolUse` `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash\|PowerShell\|Monitor\|Delete\|apply_patch\|edit\|bash\|write\|search_replace\|hashline_edit\|run_terminal_command`, 30; `Stop` 60; `SessionStart` 15; `--harness claude-code` | Grok's native names are registered too: its Write aliases do not cover `write`. Cursor Delete verified; Grok's three literals were not offered (§6.4). |
 | codex | `${CODEX_HOME:-~/.codex}/hooks.json` (never `config.toml`) | `PreToolUse` `^(apply_patch\|Bash)$`, 30; `Stop` 60; `SessionStart` 15. Groups **at the end** | The default is 600 s and fails open [V], so the timeout is explicit. Trust: MH-24 |
 | cursor, native Stop | `~/.cursor/hooks.json` | `version:1`, `hooks.stop`, plain command, timeout 60, `loop_limit:null`, `--harness cursor` | The TUI does not enter the Stop dispatcher if only the imported one exists. The shared Stop is omitted when this install owns the native one; followups share the counter even if `generation_id` changes. |
-| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
+| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|write_file\|edit_file\|create_file\|delete_file\|rename_file\|notebook_edit\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
 
 - **Closed tool lists.** An anchored matcher does not see a new write tool that a CLI update brings (Cursor and Grok update themselves). What was discarded (a `*` matcher with an allowlist in the launcher) cost a spawn on every read on the machine. What is done: `doctor` compares each CLI's version with `VERIFIED` and warns if it differs; the §6.3 E2E inventories the tools on each new version before raising `VERIFIED`. MCP tools that write files stay outside the gate on all five, the same as in the MVP; Stop, pre-commit, and CI see them.
 
@@ -476,6 +478,26 @@ Defects found and fixed:
 - **Cursor:** the imported Stop alone did not activate the TUI dispatcher. A native Stop of our own is installed and running both is avoided. Each followup brings another `generation_id`, so the Stop counter uses session continuity until the turn completes; it now blocks twice and finishes. There is an automated regression of the cap and its reset.
 - **agy:** the disabled project plugin `pregate` overrode the global one with the same identity. Changing only the named hook was not enough; changing the folder, manifest, and named hook to `pregate-global` was. The real case denies again and uninstall removes our own plugin. A deliberate collision with the new identity remains subject to loader precedence and to doctor; it is not isolation against hostile human configuration.
 - **Runner:** locks use the compiled version; access-token copies are refreshed before each harness; exact context avoids Codex's fuzzy patch; `danger-full-access` allows the write in the scratch under the outer sandbox (the nested `workspace-write` sandbox did not allow it); the Codex TUI uses `--no-daemon` because this environment blocks `/bin/ps`; agy uses `--prompt-interactive`. Unavailable process inspection is recorded and does not block uninstall.
+
+**6.5 Real re-verification, 2026-11-10.** The real runner of §6.3 was run per harness against the installed CLIs, with the same isolation as §6.4.
+
+| Harness / real version | Deny and file absent | Allowed edit = reconstruction = disk | No preset, no objection | `9.9.9-hang`, fail-closed | Interactive deny |
+|---|---|---|---|---|---|
+| Claude Code 2.1.322 | PASS | PASS | PASS | PASS after the fix below | Not run: two-prompt limit |
+| Codex 0.167.0 | PASS | PASS | PASS | PASS | PASS |
+| Cursor 2026.11.05-86047df | PASS | PASS | PASS | PASS | PASS |
+| Grok 1.0.80 | PASS | PASS | PASS | PASS | PASS |
+| agy 1.5.3 | PASS after the fix below | PASS after the fix below | PASS | PASS after the fix below | PASS after the fix below |
+
+Still failing, as the coverage line of the status command already states: Grok does not honor the Stop block, and Cursor's Stop did not block in a pty.
+
+Defects found and fixed:
+
+- **agy 1.5.3 edits were not gated before the write.** The matcher named `write_to_file` and `replace_file_content`; 1.5.3 calls `write_file` and `edit_file`, so no Pre hook ran and the forbidden file was written. Only Stop still blocked. The matcher and the adapter now cover both generations, and the 1.5.3 payloads are in `test/payloads/agy`.
+- **A hung pinned engine failed open for a project below the session's folder.** The launcher denied a failure only when the session's own folder had consent. With the session in a parent folder and the edit in a nested enabled project, the engine redirected to the pinned engine, that engine hung, and the launcher exited 0. A redirect now counts as evidence of a project, in the shell launcher and in the supervisor. A hang of the installed engine before any redirect, for a nested project, is still not denied by the shell launcher: it cannot tell that a project is involved.
+- **Runner:** it pinned the `architecture` pack at 1.1.0 (bundled: 1.3.0), removed the hooks at the end without stating the unattended approval that command now requires, and counted the SessionStart notice for a project with no contract as output.
+
+`VERIFIED` moved only for agy (1.5.3), whose payloads were captured again. The other adapters passed with their recorded payload contracts unchanged, and their `VERIFIED` stays at the version whose payloads are in `test/payloads`.
 
 **Ledger of every [E2E] and extra in §6.3.** PASS confirms what was observed; pending/not offered keeps the conservative option and does **not** close W12 completely or authorize D20.
 

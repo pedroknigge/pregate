@@ -23,7 +23,7 @@ export type RepoFiles = Record<string, string>;
 const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   shared: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command",
   codex: "^(apply_patch|Bash)$",
-  agy: "^(write_to_file|replace_file_content|multi_replace_file_content|run_command|send_command_input)$",
+  agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
 };
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };

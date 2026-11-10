@@ -114,10 +114,14 @@ export async function supervise(data: string, version: string, args: string[], i
 }
 
 async function engineEmission(run: EngineRun): Promise<Emission> {
+  // An engine redirects only for a root with an approved lock, so a failure after a redirect is a
+  // project's call even when the session started in a folder above that root.
+  let routed = false;
   try {
     if (run.inputTimeout) throw new Error(STDIN_TIMEOUT);
     let r = await child(installed(run.data, run.version), run.argv, run.input, run.dir, run.watch);
     if (r.code === 3) {
+      routed = true;
       const v = r.stdout.split("\n")[0] ?? "";
       r = await child(installed(run.data, v), run.argv, run.input, run.dir, run.watch);
     }
@@ -127,7 +131,9 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
     if (r.code === 2 && r.stderr.trim() === "") throw new Error("the engine denied without a reason");
     return { exit: r.code, stdout: r.stdout, stderr: r.stderr };
   } catch (e) {
-    if (!active(run.raw, run.data)) return { exit: 0, stdout: "", stderr: "" };
+    // fail-closed: any engine failure in a call that reached a project denies. Only a call with no
+    // redirect and no consenting directory, which is no project's call, passes.
+    if (!routed && !active(run.raw, run.data)) return { exit: 0, stdout: "", stderr: "" };
     return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness);
   } finally {
     rmSync(run.dir, { recursive: true, force: true });
