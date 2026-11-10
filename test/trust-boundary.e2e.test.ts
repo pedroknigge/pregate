@@ -12,6 +12,7 @@ import { hookCommand } from "../src/register.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Trust boundaries an agent's own scripts must not cross, on the compiled binary and real git
 // repositories: a contract loosened behind the hooks' back, consent removed mid-session, history
@@ -45,7 +46,7 @@ beforeAll(() => {
   template = buildTemplate();
 });
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 let template = "";
 let states = 0;

@@ -1,12 +1,13 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 // The same entry the hook runs: proposed source arrives on stdin and the gate reports JS-EVAL-001.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = mkdtempSync(join(tmpdir(), "pregate-js-eval-"));
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 const indirect = `export function zero(code: string) {
   return (0, eval)(code);

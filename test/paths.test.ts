@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { canonical, findRoot } from "../src/disk.ts";
 import { REQUESTS, inScope, layerOf, machineGlobs, matches, pathKey, protectedGlobs, protects, ruleApplies, scopeUnder } from "../src/paths.ts";
 import type { Layer, Lock } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function lock(scope: Lock["scope"], layers: Record<string, Layer> = {}): Lock {
   return {
@@ -190,7 +191,7 @@ describe("layerOf", () => {
 
 describe("disk.canonical and findRoot", () => {
   const base = canonical(mkdtempSync(`${tmpdir()}/pregate-paths-`));
-  afterAll(() => rmSync(base, { recursive: true, force: true }));
+  afterAll(() => removeTree(base));
   const repo = `${base}/repo`;
   mkdirSync(`${repo}/.pregate`, { recursive: true });
   mkdirSync(`${repo}/src`, { recursive: true });
@@ -244,7 +245,7 @@ describe("disk.canonical and findRoot", () => {
 // a file by. The home here has its configuration in symlinked dotfiles.
 describe("machineGlobs", () => {
   const base = canonical(mkdtempSync(`${tmpdir()}/pregate-machine-`));
-  afterAll(() => rmSync(base, { recursive: true, force: true }));
+  afterAll(() => removeTree(base));
   const home = `${base}/home`;
   const dot = `${base}/dotfiles`;
   for (const d of [`${dot}/claude`, `${dot}/grok-hooks`, `${home}/.codex`, `${home}/.grok`, `${home}/.local/bin`]) mkdirSync(d, { recursive: true });

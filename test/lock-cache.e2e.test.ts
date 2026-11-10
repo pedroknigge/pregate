@@ -7,6 +7,7 @@ import { ensureCompiledEngine } from "../scripts/compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { sha256 } from "../src/state.ts";
 import { slash } from "../src/paths.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled engine's Pre hook, cold (cache deleted) against warm (compiled lock reused).
 // Decisions must match. Changing the lock or a path rule must miss. A corrupt cache recompiles.
@@ -38,7 +39,7 @@ const env: Record<string, string> = {
 interface Out { code: number; stdout: string; stderr: string; ms: number }
 type Edit = { kind: "allow" } | { kind: "syntax" };
 
-afterAll(() => rmSync(work, { recursive: true, force: true }));
+afterAll(() => removeTree(work));
 
 test("Pre hook reuses the compiled lock and reports cold versus warm latency", () => {
   install();

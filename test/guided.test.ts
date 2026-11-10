@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -14,6 +14,7 @@ import type { Proposal } from "../src/proposal.ts";
 import { inScope } from "../src/paths.ts";
 import { guidedReview } from "../src/guided-review.ts";
 import { sha256 } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -33,7 +34,7 @@ beforeAll(() => {
   expect(version.exitCode, version.stderr.toString()).toBe(0);
   expect(version.stdout.toString().trim()).toBe(`pregate ${VERSIONS.engine} (core ${VERSIONS.core})`);
 }, 120_000);
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 function project(name: string, files: Record<string, string> = {}, git = false) {
   const root = canonical(join(area, name));

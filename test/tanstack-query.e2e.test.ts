@@ -1,13 +1,14 @@
 import { afterAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled entrypoint: scan, check, and hook see the same TanStack Query pack a repository does.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = mkdtempSync(join(tmpdir(), "pregate-tanstack-query-"));
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 const stringKey = `import { useQuery } from "@tanstack/react-query";
 

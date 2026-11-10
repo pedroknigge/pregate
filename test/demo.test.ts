@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathKey } from "../src/paths.ts";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { sha256 } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(480_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-demo-controls-"));
@@ -15,7 +16,7 @@ beforeAll(() => {
   expect(isAbsolute(binary) && statSync(binary).isFile()).toBe(true);
   expect(Bun.spawnSync([binary, "--version"], { stdout: "pipe", stderr: "pipe" }).stdout.toString().trim()).toBe(`pregate ${VERSIONS.engine} (core ${VERSIONS.core})`);
 }, 120_000);
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 function cli(args: string[], env: Record<string, string | undefined> = {}) {
   // Three Go phases share one cold cache: the first compile is the slow one. 420s covers that

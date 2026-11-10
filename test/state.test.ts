@@ -9,6 +9,7 @@ import {
   H, beforeText, beforeTexts, ensureSnapshot, eventFiles, eventName, firstContact, history, key, record, roots, sha256, snapshot, sourcesOk, stateDir, stopBlocks, turnDenials,
 } from "../src/state.ts";
 import type { CallEvent, Snapshot } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -21,7 +22,7 @@ async function withCleanupAsync<T>(work: () => Promise<T>, cleanup: () => void |
 const base = canonical(mkdtempSync(`${tmpdir()}/pregate-state-`));
 // Children get `env` explicitly: Bun.spawn otherwise passes the environment the test started with.
 process.env.XDG_STATE_HOME = `${base}/state`;
-afterAll(() => rmSync(base, { recursive: true, force: true }));
+afterAll(() => removeTree(base));
 
 // Setup only: the code under test runs git through src/git.ts.
 function sh(cwd: string, ...args: string[]): string {

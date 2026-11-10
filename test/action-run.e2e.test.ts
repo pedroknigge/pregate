@@ -1,11 +1,12 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compile } from "../src/compile.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture, policyFixtureSource } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The composite action's run step is scripts/action-run.sh. These cases execute that
 // script against the real CLI for every mode, SARIF and base combination.
@@ -126,5 +127,5 @@ function describeAction(): void {
     expect(failures).toEqual([]);
   });
 
-  afterAll(() => rmSync(area, { recursive: true, force: true }));
+  afterAll(() => removeTree(area));
 }

@@ -1,13 +1,14 @@
 import { afterAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 // The CLI, against a fixture project, is the gate a repository gets.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = mkdtempSync(join(tmpdir(), "pregate-astro-pack-"));
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 const collectionWithoutLoader = `import { defineCollection, z } from "astro:content";
 

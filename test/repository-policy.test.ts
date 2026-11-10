@@ -1,5 +1,5 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BUILTIN } from "../src/assets.ts";
@@ -8,6 +8,7 @@ import { decide, LOOP_DEFAULTS } from "../src/decide.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { librarySource } from "../src/library.ts";
 import { FIXABLE_BY, type DecideInput, type Lock } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Cases spawn git or the engine; on Windows each spawn costs 0.3-1 s.
 setDefaultTimeout(60_000);
@@ -15,7 +16,7 @@ setDefaultTimeout(60_000);
 const root = join(import.meta.dir, "..");
 const preset = readFileSync(join(root, ".pregate/preset.json"), "utf8");
 const area = mkdtempSync(join(tmpdir(), "pregate-policy-"));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function contract(loop?: object): Lock {
   const text = loop === undefined ? preset : JSON.stringify({ ...JSON.parse(preset), loop });

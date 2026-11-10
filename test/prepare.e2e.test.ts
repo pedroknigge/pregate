@@ -9,6 +9,7 @@ import pkg from "../package.json" with { type: "json" };
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { enable } from "../src/consent.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // prepare installs a verified engine into the cache without machine registration (project-bounded step 1).
 
@@ -35,7 +36,7 @@ interface Isolated {
 }
 
 beforeAll(() => compileBinary(hostTarget(), BIN));
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 function isolated(): Isolated {
   const root = join(TMP, `p${Math.random().toString(36).slice(2)}`);

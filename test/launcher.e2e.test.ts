@@ -6,6 +6,7 @@ import { ENGINE_VERSION, REDIRECT } from "../src/gate.ts";
 import { enable } from "../src/consent.ts";
 import type { HarnessId } from "../src/types.ts";
 import { DATA as FIXTURE_DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The launcher and the registered command (MULTI-HARNESS §6.2, MH-15, MH-19, MH-22), run by the
 // shells that run them for real: the launcher under sh (bash 3.2 on macOS), dash and bash; the
@@ -38,7 +39,7 @@ const shell = (name: string): string => {
 const SHELLS = ["sh", "dash", "bash"].map(shell);
 const COMMAND_SHELLS = [...SHELLS, shell("zsh")];
 
-afterAll(() => rmSync(TMP, { recursive: true, force: true }));
+afterAll(() => removeTree(TMP));
 
 type Env = Record<string, string>;
 interface Out { code: number | null; stdout: string; stderr: string; ms: number }

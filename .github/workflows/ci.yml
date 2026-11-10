@@ -191,8 +191,10 @@ jobs:
       # supervisor.e2e and windows-distribution.e2e; all other unit/Git/adapter suites run here.
       - name: Unit and native end-to-end tests
         id: windows-suite
-        # Each file gets a fresh global object; deadlines and the selected tests stay unchanged.
-        run: bun test --isolate --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,default-contract-budget.e2e,e2e,repo-hygiene.e2e}.test.ts'
+        # Each file gets a fresh global object; the selected tests stay unchanged. The hosted Windows
+        # runner starts a compiled engine several times slower than macOS or Linux, so a test with no
+        # deadline of its own gets 20 s here in place of Bun's 5 s. A suite's own deadline still wins.
+        run: bun test --isolate --timeout 20000 --path-ignore-patterns 'test/{launcher.e2e,machine.e2e,dist.e2e,default-contract-budget.e2e,e2e,repo-hygiene.e2e}.test.ts'
       # Preserve the full-suite failure. Independent fresh processes help distinguish
       # a repeatable product defect from an accumulated test-runtime failure.
       - name: Diagnose failing Windows suites in fresh processes

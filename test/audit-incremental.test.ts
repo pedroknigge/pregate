@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, expect, setDefaultTimeout, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { audit } from "../src/audit-command.ts";
@@ -12,6 +12,7 @@ import { ENGINE_FILE } from "../src/platform.ts";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { fitnessFingerprint } from "../src/fitness-command.ts";
+import { removeTree } from "./remove-tree.ts";
 
 async function withCleanupAsync<T>(work: () => Promise<T>, cleanup: () => void | Promise<void>): Promise<T> {
   try { return await work(); } finally { await cleanup(); }
@@ -40,7 +41,7 @@ beforeEach(() => {
   put(PRESET, JSON.stringify(preset)); refreshContract();
 });
 afterEach(() => { for (const name of names) if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; });
-afterAll(() => rmSync(base, { recursive: true, force: true }));
+afterAll(() => removeTree(base));
 
 function put(path: string, text: string): void { mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), text); }
 function refreshContract(): void {

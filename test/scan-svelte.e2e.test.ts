@@ -1,13 +1,14 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { canonical } from "../src/disk.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled CLI, against a real directory, is the scan a repository gets.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = mkdtempSync(join(tmpdir(), "pregate-scan-svelte-"));
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 function scan(name: string, files: Record<string, string>) {
   const root = canonical(join(area, name));

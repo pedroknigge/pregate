@@ -1,11 +1,12 @@
 import { afterAll, expect, spyOn, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { coordinationMarkers } from "../src/storage-recovery.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-recovery-markers-"));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test("permission or unsupported process-probe errors cannot prove abandonment", () => {
   const dir = join(area, "uncertain"); mkdirSync(join(dir, ".leases"), { recursive: true });

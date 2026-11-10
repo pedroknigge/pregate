@@ -8,13 +8,14 @@ import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
 import { eventName, H, sha256 } from "../src/state.ts";
 import type { CallEvent } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(60_000);
 const area = realpathSync(mkdtempSync(join(tmpdir(), "pregate-storage-")));
 const binary = join(area, "engine/version", ENGINE_FILE);
 const template = JSON.parse(readFileSync("test/fixtures/report-events.json", "utf8"))[1].event as CallEvent;
 beforeAll(() => compileBinary(hostTarget(), binary, true));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function put(path: string, text: string): void {
   mkdirSync(join(path, ".."), { recursive: true });

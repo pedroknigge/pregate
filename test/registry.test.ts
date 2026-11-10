@@ -10,9 +10,10 @@ import { compareVersions } from "../src/product.ts";
 import { pinnedEngine, staleProjects } from "../src/project-updates.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { slash } from "../src/paths.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-registry-")));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function put(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true });
