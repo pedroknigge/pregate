@@ -23,6 +23,9 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 | --- | --- |
 | “Show me what PREGATE protects” | Suggest human `pregate demo` with owned Python, Go, and Rust samples. Explain source and native-tool evidence separately; toy approval is not consumer consent. |
 | “Set up PREGATE here” | Inspect `guide --json`, review documentation, stack and source layout, suggest useful official packs and a custom project pack together. |
+| “Make my AGENTS.md rules real” | Run `compile <file> --template`, keep the statements a check on one source file can decide, give each a short sentence with failing and passing code from this project, and run `compile apply <proposals.json> --preview`. Say which statements became rules and which stay as guidance. |
+| “Protect my architecture” | Read `layers --json`, write a layer map for the folders no layer covers, and run `layers apply <map.json> --preview`. Explain each existing import the map would flag. |
+| “Is it working?” | Read the `Agent loop` line of `pregate report` and repeat it in one sentence. |
 | “Update this project and review new packs” | Compare installed and project versions, inspect the entire catalog, prepare one engine/core/official-pack update with selected additions. Preserve local packs and decisions. |
 | “Audit this repo and freeze existing debt” | Run `audit --plan`, disclose coverage gaps and unverified requirements, propose no-new policy if needed. |
 | “Repair these findings” | Explain the invariant, preserve behavior, repair a bounded change, run relevant project tests and re-audit. |
@@ -31,7 +34,11 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 | “Help design this change” | Read the project's domain, relationship, unit and work-budget contract; expose missing facts and propose bounded assertions rather than guessing the architecture. |
 | “Report this tool problem” | Prepare a minimal reviewed issue draft; publish only through your explicit human approval. |
 
-These are prompts, not new slash subcommands. The installed command reference
+These are prompts, not new slash subcommands. The skill opens with a simple
+path for the common case: the agent runs the inspection, layer, instruction-file
+and promotion commands itself, reports in plain language, and leaves you one
+action, the approval. See [the agent proposes, the engine verifies, a human
+approves](../features/agent-proposed-contract.md). The installed command reference
 is included in the skill. Ask for one pack selection and one concrete review,
 rather than approving each suggested pack separately.
 

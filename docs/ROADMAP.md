@@ -53,7 +53,9 @@ restoration and grouped migration need verification before removing those
 bundled assets.
 
 0.0.5 includes the [guided project workflow](features/guided-project-workflow.md),
-multi-project updates, compact audits, and Rust source analysis. The current
+multi-project updates, compact audits, and Rust source analysis. It adds the
+route from an instruction file to rules, layer maps with evidence, and promotion
+raised by the engine ([feature guide](features/agent-proposed-contract.md)). The current
 inventory is [packs](packs.md). Remaining work includes native Windows and Linux
 admission, a trusted Cursor human approval, persistent dependency-graph reuse,
 and broader empirical maintainability evaluation. Rule fixtures do not establish
@@ -101,6 +103,10 @@ approval. Resolve those before expanding enforcement or making release claims.
 
 | Delivery | Product benefit | Release evidence |
 | --- | --- | --- |
+| Instruction file to rules (`compile`, `compile apply`) | Prose the agent could skip becomes rules that run before the write | Command tests with approval and firing rules; one trial on a production repository in an isolated clone (three rules from real lines, findings equal to a text search); no live-agent measurement |
+| Layers with evidence (`guide`, `layers`, `layers apply`) | The reviewer sees what a layer map flags today before approving it | Pure and command tests; the trial map reported 250 existing breaks and refused paths that matched no file |
+| Promotion raised at SessionStart; `Agent loop` in `report`; promotion of rules with findings under no-new | The path from advisor to enforce does not depend on memory, and the effect on the agent is one line | Unit and gate tests over recorded events; no field data yet |
+| Quiet unbound requirements; coverage breakdown in `status` and `doctor` | The first session shows what is checked, not what is not adopted | Status, audit and briefing tests; JSON and `--full` unchanged |
 | Context-aware dependency checks | Configuration and barrel changes cannot silently weaken architecture | Pre/Stop/index/base regressions with independent baselines |
 | Complete standalone mode | A user can protect a folder without first setting up Git | Real CLI and launcher workflows without Git |
 | Active benchmark and measured optimization | Published timings describe work actually performed | Blocking canary, stage evidence, representative percentiles, unchanged budgets |
@@ -137,9 +143,28 @@ verification remains pending.
 
 Pack authors can already use the
 [documentation-to-pack method](guides/docs-to-rule-pack.md) and its executable
-example to turn precise skill/library requirements into data packs. An assisted
-converter remains a future candidate and must emit reviewable fixtures and
-unsupported-claim diagnostics rather than silently activating inferred policy.
+example to turn precise skill/library requirements into data packs. For a
+project's own instruction file, the assisted route exists: `compile --template`
+and `compile apply` let an agent propose each rule with failing and passing
+code, and only rules that pass their generated cases are staged
+([feature guide](features/agent-proposed-contract.md)). It names what it refuses
+and never activates inferred policy without the human review.
+
+Open after the first trial on a production repository (13,499 source files):
+
+- A rule made from a prose statement is as broad as its examples. Two of three
+  trial rules ignored an exception the prose stated (an allowed folder, an
+  allowed call site). A proposal needs a way to state an exception and prove it.
+- `pregate audit` did not finish there within ten minutes. Measure it and find
+  the cause before recommending audit as the check of a new rule on a large tree.
+- Folder names placed no layer in that repository. Derivation from the import
+  graph, as a proposal with evidence, is a candidate; an agent-written map is
+  the route today.
+- A file in a folder no layer covers escapes the layer rules. Reporting those
+  files is a candidate as an explicit opt-in for a complete map (see #51).
+- The instruction-file and layer commands are not yet measured with a live
+  agent over time: how many proposals an agent gets right, and how many rules
+  stay enabled after a month.
 
 1. **Pack quality and reuse.** Machine-readable coverage/limitations; standalone
    pack testing; safe updates/removal; scoped contradictory-policy diagnostics.

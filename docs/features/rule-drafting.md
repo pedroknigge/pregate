@@ -5,6 +5,13 @@ case the feedback commands do not: no rule fired, the agent wrote something a
 reviewer rejected, and the team wants that mistake to be impossible next time.
 `feedback`, `dispute` and `issue` handle the opposite case, a rule that was wrong.
 
+For many rules at once, written as prose in an instruction file such as
+`AGENTS.md`, use `pregate compile`: it sorts the file's statements, and
+`compile apply <proposals.json> --preview` stages the rules an agent proposed
+with failing and passing code, as one review. It uses the drafting described
+here, and it refuses a pattern that is only the example's own text. See
+[instruction files to rules](agent-proposed-contract.md#compile-an-instruction-file).
+
 ## One sentence, one review
 
 `rules add` is the short path from a team rule to an active one:
