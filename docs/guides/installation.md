@@ -186,6 +186,10 @@ pregate install --ci vercel
 
 `pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to warm the cache for a pinned engine before project-local hook setup lands; `pregate setup` still performs full machine registration today.
 
+## Project launcher
+
+`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. No harness hook names this launcher yet; `pregate setup` still registers the global one.
+
 ## Updates and removal
 
 `pregate update` selects the latest published release. `update --version <v>` selects
