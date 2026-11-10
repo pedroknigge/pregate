@@ -89,8 +89,10 @@ When inspection is permitted and `--help` lists `guide`, first use `guide --json
 It reports actual setup/update/repair/activation state, scope, policy counts and
 recommended actions. Proactively present useful choices together; do not ask
 separately for permission to inspect or prepare each pack. Otherwise use `status`
-(three lines: protected, mode and version, next step; `status --verbose` for
-details), then `preset show` and `explain <rule>`
+(enforced deny rules, advisor or monitor-only rules, unverified requirements
+with no passing project evidence, or not adopted when no verifier is bound,
+and harnesses gated versus channels not covered, with catalog totals after
+that breakdown; `status --verbose` for the full report), then `preset show` and `explain <rule>`
 or `explain --path <file>`. These commands and manual pre-checks are helpers, not
 prerequisites for an edit. If the user prohibits shell use or a helper is
 unavailable, use supplied context and permitted edit tools with hooks active.
@@ -136,7 +138,7 @@ application code there or edit lock bytes.
 
 ## Start and compose a project
 
-The guided coordinator is included in 0.0.4.
+The guided coordinator is included in 0.0.5.
 Check installed help before relying on a flag. The human
 can run `pregate` in an interactive terminal or `! pregate guide` where the harness
 provides one. Bare no-argument input redirected by a hook retains hook-auto;
@@ -355,7 +357,7 @@ change and assertions with invalid controls. Do not infer architecture or data
 model correctness from a folder name or repeat a generic design prompt per rule.
 The project guide `docs/guides/design-contract.md` provides a short worksheet.
 `status` separates static checks from project assertion coverage; JSON exposes
-`fitnessCoverage` (active, pass, fail, unverified, complete) from current receipts.
+`fitnessCoverage` (active, pass, fail, unverified, complete, adopted) from current receipts.
 Active consent/configuration is not proof of unverified requirements. `doctor`
 checks launcher registration; direct engine hook calls have no launcher
 crash/timeout protection. A wrapper canary does not override registration errors.
@@ -575,7 +577,7 @@ never type. Full library coverage remains incomplete.
 
 For an existing project, inspect installed versus project/lock versions rather
 than assuming `--version` identifies the engine used by every hook. Unified
-migration forms are in 0.0.4; check `--help` when the installed engine is older.
+migration forms are in 0.0.5; check `--help` when the installed engine is older.
 Prepare `update --project --preview` or
 `pack update --all --preview`: engine, core and every registered pack enter one
 candidate and one digest-bound human approval. A single-pack update uses the

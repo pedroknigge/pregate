@@ -3,6 +3,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import core from "../catalog/source.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
+import { INIT_PRESET_NAMES } from "../src/init-presets.ts";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -72,16 +73,12 @@ test("relative markdown links resolve and engine/core versions match the release
   expect(broken).toEqual([]);
   expect(versions).toEqual([]);
 
-  const published = [join(ROOT, "README.md"), join(ROOT, "CHANGELOG.md"), ...walk(join(ROOT, "docs"))];
-  const npm: string[] = [];
   const actions: string[] = [];
+  const published = [join(ROOT, "README.md"), join(ROOT, "CHANGELOG.md"), ...walk(join(ROOT, "docs"))];
   for (const file of published) {
     const text = readFileSync(file, "utf8");
     const rel = file.slice(ROOT.length + 1);
     const lines = text.split("\n");
-    lines.forEach((line, index) => {
-      if (/npx\s+pregate\b/.test(line) || /npm\s+(?:install|i|add)\b[^\n]*\bpregate\b/.test(line)) npm.push(`${rel}:${index + 1}`);
-    });
     const uses = /uses:\s*pedroknigge\/pregate@(\S+)/g;
     let match: RegExpExecArray | null;
     while ((match = uses.exec(text))) {
@@ -91,8 +88,58 @@ test("relative markdown links resolve and engine/core versions match the release
       if (!/^[0-9a-f]{40}$/.test(ref) || !/#\s*v\d+\.\d+\.\d+/.test(around)) actions.push(`${rel}:${line} @${ref}`);
     }
   }
-  expect(npm).toEqual([]);
   expect(actions).toEqual([]);
+});
+
+test("living docs do not claim there is no npm package", () => {
+  const deny = /there is no npm package|no npm package yet|still no npm package|no npm package in this release/i;
+  const stale: string[] = [];
+  const roots = [
+    join(ROOT, "README.md"),
+    join(ROOT, "CHANGELOG.md"),
+    ...walk(join(ROOT, "docs/guides")),
+    join(ROOT, "docs/releases/0.0.5.md"),
+  ];
+  for (const file of roots) {
+    const rel = file.slice(ROOT.length + 1);
+    const text = readFileSync(file, "utf8");
+    const unreleased = rel === "CHANGELOG.md"
+      ? text.split(/^## \[/m).find((part) => part.startsWith("Unreleased]"))?.split("\n").slice(1).join("\n") ?? ""
+      : text;
+    const body = rel === "CHANGELOG.md" ? unreleased : outsideFences(text);
+    body.split("\n").forEach((line, index) => {
+      if (deny.test(line)) stale.push(`${rel}:${index + 1}`);
+    });
+  }
+  expect(stale).toEqual([]);
+});
+
+test("packs/presets README init preset list matches the init CLI", () => {
+  const text = readFileSync(join(ROOT, "packs/presets/README.md"), "utf8");
+  const block = text.match(/accept only:\n\n((?:`[^`]+`[,\s]*)+)/)?.[1] ?? "";
+  const listed = [...block.matchAll(/`([a-z][a-z0-9-]*)`/g)].map((m) => m[1]!).sort();
+  expect(listed).toEqual([...INIT_PRESET_NAMES].sort());
+});
+
+test("living docs only name init CLI presets after init or guide --preset", () => {
+  const allowed = new Set<string>(INIT_PRESET_NAMES);
+  const cmd = /(?:init|guide)\b[^\n`]*--preset\s+([a-z][a-z0-9-]*)/g;
+  const bad: string[] = [];
+  const roots = [join(ROOT, "README.md"), ...walk(join(ROOT, "docs")), join(ROOT, "packs/presets/README.md")];
+  for (const file of roots) {
+    const rel = file.slice(ROOT.length + 1);
+    if (historical(rel) || rel.includes("/fixtures/")) continue;
+    const text = outsideFences(readFileSync(file, "utf8"));
+    let match: RegExpExecArray | null;
+    while ((match = cmd.exec(text))) {
+      const name = match[1] ?? "";
+      if (!allowed.has(name)) {
+        const line = text.slice(0, match.index).split("\n").length;
+        bad.push(`${rel}:${line} --preset ${name}`);
+      }
+    }
+  }
+  expect(bad).toEqual([]);
 });
 
 test("install commands and living docs use this release, not a pre-rename version", () => {

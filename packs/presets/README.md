@@ -3,27 +3,42 @@
 These are contracts, not rule sources. Test a pack with `rules test --library <ns>`
 or `rules test packs/<ns>`. Do not point `rules test` at `packs/presets`.
 
-These source recipes pin engine 0.0.4 and builtin core 0.0.1; that engine is
+These source recipes pin engine 0.0.5 and builtin core 0.0.1; that engine is
 the published release. The [generated inventory](../../docs/packs.md) lists every source
-and methodology. For a new project, prefer `pregate init --preview --preset <name>`:
-it registers the bundled packs and proposes detected scope in one review. Manual
-copies of recipes with path sources need those pack directories at the specified
-paths before `preset compile`. Paths are relative to the project root. Compilation
-does not grant consent, migrate a contract or approve a new policy.
+and methodology.
 
-The four language starters instead use versioned bundled sources and need no
-copies. Prefer `pregate init --preview` for a new project: it recommends a starter
-from actual files or Python/Go/Cargo metadata, selects only detected languages for
-mixed projects and requests human review before writing the preset. Explicit
-`--preset python-starter`, `go-starter`, `rust-starter` and `mixed-starter` are also supported.
-All language starters observe in shadow; integrity remains enforced. Select
-architecture/effects independently after declaring the intended layers.
-Python and Go provide architecture and effects policies; Rust provides architecture.
+## Init and guide presets
 
-The four framework examples (`react-spa`, `nextjs-fullstack`, `node-api`,
-`vue-spa`) also start in shadow for calibration. Integrity remains enforced.
-Inspect findings with `pregate audit`, review false positives and deliberately
-choose per-rule enforcement before using these examples to block edits.
+`pregate init`, `pregate guide`, and `guide --preview --preset <name>` accept only:
+
+`backend-clean-ddd`, `functional-ts`, `legacy-safe`, `integrity-only`,
+`python-starter`, `go-starter`, `rust-starter`, `mixed-starter`.
+
+For a new project, prefer `pregate init --preview` or `pregate guide --preview`:
+they register bundled packs and propose detected scope in one review. Explicit
+`--preset` uses one of the names above.
+
+The three catalog recipes (`backend-clean-ddd`, `functional-ts`, `legacy-safe`)
+live in `catalog/presets/`. Language starters are bundled and need no local copies.
+
+Manual copies of other recipes with path sources need those pack directories at the
+specified paths before `preset compile`. Paths are relative to the project root.
+Compilation does not grant consent, migrate a contract or approve a new policy.
+
+## Example recipes (manual apply)
+
+The JSON files below are reference contracts. They are **not** accepted by
+`init --preset` or `guide --preset` until wired into the catalog. To use one,
+copy it into `.pregate/preset.json` (adjust path sources), compile with
+`pregate preset compile`, and complete the normal human approval flow—or submit
+the candidate through `preset apply <request.json> --preview`.
+
+Framework-oriented examples (`react-spa`, `nextjs-fullstack`, `node-api`,
+`vue-spa`, `hexagonal-backend`, and the rest of this table except the init
+names) start in shadow for calibration unless the file sets another default.
+Integrity remains enforced. Inspect findings with `pregate audit`, review false
+positives and deliberately choose per-rule enforcement before using these examples
+to block edits.
 
 ## Switching one rule
 
@@ -36,7 +51,7 @@ The preset's enforcement is the default. One rule moves independently with `over
   "senior/SR-BRACE-001": "off",
   "pstack/PS-COMMENT-001": {
     "enforcement": "enforce",
-    "note": "Enforce this rule even if the preset default is shadow."
+    "note": "enforce this rule even if the preset default is shadow."
   }
 }
 ```
@@ -50,7 +65,20 @@ Omit an optional methodology from `methodologies` to drop its group. Omit its
 source to remove a pack. Core activates automatically; dropping a core methodology
 from this list does not disable the defaults. Use reviewed per-rule `off` overrides.
 
-## Presets
+## Init and guide preset files
+
+| File | Sources beyond core | What it shows |
+| --- | --- | --- |
+| `backend-clean-ddd.json` | architecture, clean-code, ddd, testing, typescript | Catalog DDD + clean architecture starter (detected layered backends). |
+| `functional-ts.json` | clean-code, architecture, testing, typescript | Catalog functional-core / imperative-shell starter. |
+| `legacy-safe.json` | clean-code, testing, typescript | Catalog minimal TypeScript starter. |
+| `integrity-only.json` | (none) | Core integrity only; no optional packs. |
+| `python-starter.json` | bundled python | Python quality observations. |
+| `go-starter.json` | bundled go | Go quality observations. |
+| `rust-starter.json` | bundled rust | Rust quality observations. |
+| `mixed-starter.json` | bundled python, go, rust | Detected language starters plus optional JS/TS clean-code observations. |
+
+## Example recipe files
 
 | File | Sources beyond core | What it shows |
 | --- | --- | --- |
@@ -67,10 +95,6 @@ from this list does not disable the defaults. Use reviewed per-rule `off` overri
 | `nextjs-fullstack.json` | typescript, nextjs, prisma, authjs | Next.js App Router fullstack: routing/rendering rules, Prisma client safety, and Auth.js config/session contracts. Entry files keep their default-export exclusion. |
 | `node-api.json` | typescript, node, express, postgres | Node API: runtime discipline, Express middleware/request contracts, and pg client safety. |
 | `vue-spa.json` | typescript, vue, tailwind | Vue single-page app: strict types plus export discipline, Composition API rules, and scannable Tailwind classes. |
-| `python-starter.json` | bundled python | Python quality observations, including function parameters/size, nesting, declared public methods and bare exceptions. |
-| `go-starter.json` | bundled go | Go quality observations, including grouped function parameters, size, nesting and dot imports. |
-| `rust-starter.json` | bundled rust | Rust quality observations for functions, closures, nesting, wildcard imports and mutable statics. Source-only checks do not expand macros. |
-| `mixed-starter.json` | bundled python, go, rust | Independent Python/Go/Rust quality dimensions plus optional JS/TS clean-code observations. Initialization selects the languages detected in the project. |
 
 `resolve` is how a dimension with two active answers picks one.
 `senior-typescript-strict` and `hexagonal-backend` select the optional clean-code

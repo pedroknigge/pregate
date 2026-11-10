@@ -1,6 +1,6 @@
 # Install, update and remove PREGATE
 
-PREGATE 0.0.4 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
+PREGATE 0.0.5 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
 x64. macOS ARM64 is the stable platform. Linux and Windows are experimental
 test builds, not supported for production until native release validation passes.
 Focused source verification does not admit a final platform release.
@@ -21,6 +21,19 @@ Public release one-liner (verifies the archive SHA-256 against `SHA256SUMS`, and
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
 ```
 
+### npm (global or one-shot)
+
+`pregate@0.0.4` is published on npm (2026-11-09). Install globally or invoke without a global install:
+
+```sh
+npm i -g pregate
+npx pregate doctor
+```
+
+The npm tarball ships only the launcher (`bin/pregate.mjs`) plus `install.sh` / `install.ps1`. The first successful command for a version downloads the matching GitHub release archive (about 55 MB for 0.0.5), verifies it against `SHA256SUMS`, verifies Sigstore bundles when `cosign` is on `PATH` and bundles exist, and fails when `PREGATE_REQUIRE_SIGNATURE=1` and a bundle is missing or invalid. It then runs the same setup path as the shell installers: engine under the user data directory, launcher on `PATH`, harness hook registration, and the `/pregate` companion skill. Later invocations call the cached engine directly.
+
+Older public tags (0.0.1 through 0.0.3) were never published to npm; use the GitHub release installers for those versions.
+
 You can also install or sync the `/pregate` companion skill via [`npx skills`](https://github.com/vercel-labs/skills):
 
 ```sh
@@ -30,17 +43,17 @@ npx skills add pedroknigge/pregate
 ## Manual checksum verification (macOS and Linux)
 
 Download the selected tag's installer and checksum manifest into an empty directory.
-The examples select 0.0.4 for macOS ARM64. Install a tag that has actually been published.
+The examples select 0.0.5 for macOS ARM64. Install a tag that has actually been published.
 
 ```sh
-gh release download v0.0.4 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
+gh release download v0.0.5 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
 ```
 
 Verify the installer before running it. On macOS:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing
-sh install.sh --version 0.0.4
+sh install.sh --version 0.0.5
 ```
 
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
@@ -56,8 +69,8 @@ The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` 
 Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
 
 ```sh
-tag=v0.0.4
-asset=pregate-0.0.4-darwin-arm64.tar.gz
+tag=v0.0.5
+asset=pregate-0.0.5-darwin-arm64.tar.gz
 gh release download "$tag" --repo pedroknigge/pregate \
   --pattern "$asset" --pattern "$asset.bundle" \
   --pattern SHA256SUMS --pattern SHA256SUMS.bundle
@@ -88,11 +101,11 @@ cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
   "$dir\SHA256SUMS"
-cosign verify-blob --bundle "$dir\pregate-0.0.4-windows-x64.zip.bundle" `
+cosign verify-blob --bundle "$dir\pregate-0.0.5-windows-x64.zip.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
-  "$dir\pregate-0.0.4-windows-x64.zip"
-gh attestation verify "$dir\pregate-0.0.4-windows-x64.zip" --repo pedroknigge/pregate `
+  "$dir\pregate-0.0.5-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.0.5-windows-x64.zip" --repo pedroknigge/pregate `
   --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
 ```
 
@@ -100,17 +113,17 @@ gh attestation verify "$dir\pregate-0.0.4-windows-x64.zip" --repo pedroknigge/pr
 
 Use PowerShell (Windows PowerShell 5.1 or newer):
 
-These commands select the 0.0.4 experimental Windows archive;
+These commands select the 0.0.5 experimental Windows archive;
 they do not establish native admission. See the [Windows retry](windows-verification.md).
 
 ```powershell
 $dir = Join-Path $env:TEMP ('pregate-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $dir | Out-Null
-gh release download v0.0.4 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
+gh release download v0.0.5 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
 if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 $sum = Get-Content "$dir/SHA256SUMS" | Where-Object { $_ -match '  install.ps1$' } | Select-Object -First 1
 if (!$sum -or (Get-FileHash "$dir/install.ps1" -Algorithm SHA256).Hash -ine $sum.Substring(0,64)) { throw 'Installer checksum mismatch' }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.4
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.5
 Remove-Item $dir -Recurse -Force
 ```
 
@@ -181,11 +194,11 @@ project locks, so inspect each contract before adopting different bundled pack d
 `setup` refreshes global registrations and installed companion instructions from
 the running engine. `doctor` reports missing or stale skills.
 
-Update the global engine to 0.0.4 and review one or several
+Update the global engine to 0.0.5 and review one or several
 project contracts together:
 
 ```sh
-pregate update --version 0.0.4
+pregate update --version 0.0.5
 pregate guide --projects "/path/project-a" "/path/project-b"
 ```
 
@@ -214,7 +227,7 @@ the guide inspects the complete installed catalog and offers a grouped pack/audi
 choice when it finds missing recommendations. Otherwise it prints the audit
 command. The catalog includes the optional Rust pack; check the
 [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified
-and the [changelog](../../CHANGELOG.md) for 0.0.4.
+and the [changelog](../../CHANGELOG.md) for 0.0.5.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.
@@ -254,8 +267,8 @@ packaged smoke tests establish and what still needs actual harness testing.
 
 ## Release line
 
-This guide describes 0.0.4. Public releases use the 0.0.x line. `pregate demo`,
+This guide describes 0.0.5. Public releases use the 0.0.x line. `pregate demo`,
 `update --projects <path...> --preview`, the optional Rust pack, and the download
-limits above (`curl -q`, TLS 1.2, redirect and size budgets) are what 0.0.4
+limits above (`curl -q`, TLS 1.2, redirect and size budgets) are what 0.0.5
 installs. See the [v0.0.1 release notes](../releases/0.0.1.md) for what the first
-public tag verified and the [changelog](../../CHANGELOG.md) for 0.0.4.
+public tag verified and the [changelog](../../CHANGELOG.md) for 0.0.5.

@@ -12,6 +12,7 @@ const scripts = ["core-invariants.ts", "readiness-packs.ts", "source-invariants.
 for (const script of [...scripts, "readme-catalog.ts", "latency-gate.ts"]) cpSync(join(source, "scripts", script), join(root, "scripts", script));
 cpSync(join(source, "src/cli.ts"), join(root, "src/cli.ts"));
 cpSync(join(source, "src/capabilities.ts"), join(root, "src/capabilities.ts"));
+cpSync(join(source, "src/init-presets.ts"), join(root, "src/init-presets.ts"));
 mkdirSync(join(root, "src/harness"));
 cpSync(join(source, "src/harness/codex.ts"), join(root, "src/harness/codex.ts"));
 mkdirSync(join(root, "bench"));

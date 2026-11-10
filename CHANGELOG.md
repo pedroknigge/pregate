@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-09
+
+What changed for people who use an agent in a repository. An agent can now turn an instruction file into rules: it proposes each rule with code that must fail and code that must pass, and the engine stages only the rules those cases prove. The guide review shows what a layer map finds in the code today, and an agent can propose that map. Pregate raises a promotion when advisor rules stay clean, and `report` says what the gate did to the agent. A project that depends on `dcouplr` and has no core layer no longer fails its first review. See the [0.0.5 notes](docs/releases/0.0.5.md).
+
 ### Fixed
+- Windows suite cleanup waits out the brief lock Windows keeps on a compiled engine after that process has exited. Git-halt and audit scratch directories use the shared `removeTree` helper. A lock that lasts is still an error. Test timeouts and assertions are unchanged.
 - `pregate guide --preview` and `scan` no longer fail with `@layers:core matches no layer` in a project that depends on `dcouplr` and has no core layer. A recommended methodology that reads the core layer (`dcouplr/managed-components`) is left out and named until the project declares or derives one.
 - The shell guard denies `rsync`, archive extraction (`tar`/`unzip`), in-place formatters (`prettier --write`, `eslint --fix`, and similar), and literal interpreter or shell scripts whose text reaches the same write-sink list as inline `-c`/`-e` code. Unreadable script files fail closed. `docs/guarantees.md` documents residual bypasses; `test/adversarial.e2e.test.ts` covers the former GLM Pre bypasses.
 
 ### Changed
+- `pregate status` and `pregate doctor` lead with the current repository's enforced deny rules, advisor or monitor-only rules, unverified requirements (no passing project evidence, or not adopted when no verifier is bound), and harness channels that are gated versus not covered. Lock catalog totals follow that breakdown.
 - Before a project binds its first fitness verifier, the guide review, the per-pack summary lines and the SessionStart briefing no longer count the core requirements that have no verifier. `status --verbose` and `audit` print `Project verification: not adopted` in their place. JSON outputs, `fitness status` and the lock are unchanged, and every surface reports unverified requirements again after the first `fitness bind`. `status --json` adds `fitnessCoverage.adopted`.
+- Living installation docs document the npm launcher (`npm i -g pregate`, `npx pregate`). The `0.0.4` release notes record the 2026-11-09 npm publish; historical notes for 0.0.1–0.0.3 still describe GitHub-only install.
+- `init` / `guide --preset` names are documented separately from example preset recipes in `packs/presets/`. The generated pack inventory marks which recipes `init` accepts.
+- The README opens with what Pregate does and how to start, and adds a section written for the agent that reads it. Guarantees and limits are unchanged.
 - Codex CLI **0.167.0** is the minimum supported version (`src/harness/codex.ts`). On Codex 0.166.x and older, direct Guardian review evaluated approval policy on recorded `exec_command` calls without running PreToolUse hooks first ([openai/codex#58368](https://github.com/openai/codex/pull/58368)), so a PREGATE deny could be bypassed when policy would otherwise skip review. `pregate doctor` warns on Codex versions below 0.167.0 with that explanation.
 
 ### Added

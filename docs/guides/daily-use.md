@@ -2,7 +2,7 @@
 
 ## Starting work
 
-The guided coordinator is included in 0.0.4; check `--help` for `guide`.
+The guided coordinator is included in 0.0.5; check `--help` for `guide`.
 Use [the pregate skill](pregate-skill.md) in your coding harness: invoke `/pregate`, then ask
 for setup, an update, an audit or a bounded repair. Setup/update installs the
 matching companion instructions. Loading them grants no approval.
@@ -23,14 +23,19 @@ preview modes do not install anything.
 
 When inspection is permitted through explicit commands,
 run `pregate status` when entering a project and `/pregate` in the harness. Status
-shows consent, contract validity and whether protection is degraded. `doctor`
-checks the global installation. A disabled project remains disabled when `init`
-is repeated. Grok cannot display SessionStart contract context through the
-currently supported protocol; load `/pregate` explicitly.
+leads with this repository's enforced deny rules, advisor or monitor-only rules,
+and unverified requirements. Unverified means no passing project evidence, or
+not adopted when no verifier is bound. The same summary then names which
+harnesses are gated and which channels are not covered. Lock catalog totals
+follow that breakdown. Consent, contract validity and whether protection is
+degraded come after the counts. `doctor` prints the same breakdown for the
+current repository, then checks the global installation. A disabled project
+remains disabled when `init` is repeated. Grok cannot display SessionStart
+contract context through the currently supported protocol; load `/pregate`
+explicitly.
 
-`status` counts static enforcement separately from project
-requirements. `status --json` exposes `fitnessCoverage` with `active`, `pass`,
-`fail`, `unverified` and `complete`. Evidence is checked against current inputs
+`status --json` exposes `fitnessCoverage` with `active`, `pass`, `fail`,
+`unverified`, `complete` and `adopted`. Evidence is checked against current inputs
 without running commands. An active setup does not mean every requirement has
 proof; an unverified requirement is not a protected assertion.
 

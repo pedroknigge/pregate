@@ -54,9 +54,11 @@ samples, not a complete audit or a measured quality score.
 pregate init --preview --preset functional-ts
 ```
 
-Core recipes include `backend-clean-ddd`, `functional-ts`, `legacy-safe`
-and `integrity-only`; language and library combinations are also accepted. The
-[complete recipe inventory](../packs.md) lists the packaged preset files.
+`init` and `guide --preset` accept only `backend-clean-ddd`, `functional-ts`,
+`legacy-safe`, `integrity-only`, `python-starter`, `go-starter`, `rust-starter`,
+and `mixed-starter`. The [complete recipe inventory](../packs.md) lists every
+packaged preset JSON file; other recipes are examples to copy or apply through a
+reviewed preset change, not names for `--preset`.
 Recommendations use the detected layout. Ordinary rules
 start in shadow; per-rule overrides take precedence. All 68 core rules activate
 and enforce by default, including the 48 software requirements. Missing project

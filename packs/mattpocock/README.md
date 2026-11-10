@@ -27,7 +27,7 @@ Four inputs is a local, configurable calibration of small function interfaces, n
 
 ## Coverage and compatibility
 
-Version `1.1.1`; included in 0.0.4. TypeScript/TSX and JavaScript files use PREGATE's TypeScript/TSX grammars. Fixtures exercise TypeScript, TSX and JavaScript. No Python, Go, Markdown, HTML or Bash checks are promised.
+Version `1.1.1`; included in 0.0.5. TypeScript/TSX and JavaScript files use PREGATE's TypeScript/TSX grammars. Fixtures exercise TypeScript, TSX and JavaScript. No Python, Go, Markdown, HTML or Bash checks are promised.
 
 Testing policies default to `*.test.*`, `*.spec.*`, `__tests__/`, `test/` and `tests/` paths. Design and diagnosis default to the selected project's scope. Every check runs at pre, stop, commit and CI phases. `paths`, `exclude`, severity and enforcement can be selected through the reviewed project contract.
 
