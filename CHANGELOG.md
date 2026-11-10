@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A `compile apply` proposal can state where the code is allowed with `except`, a list of globs ("only inside `src/lib/ai`"). The drafted rule ignores those paths, and the engine proves it before staging: the failing code placed under each excepted path must pass. An `except` glob that matches no file is refused.
+
 ### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 

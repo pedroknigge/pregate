@@ -110,6 +110,20 @@ fail, and code that must pass:
   {"line": 30, "rule": "architecture/HEX-EDGE-001"}]}
 ```
 
+When the statement names a place where the code is allowed ("only inside
+`src/lib/ai`"), the proposal says so with `except`, a list of globs:
+
+```json
+{"line": 536, "sentence": "Import the vendor sdk only inside the ai library",
+ "fail": ["import Vendor from \"@vendor/sdk\";"], "pass": ["import { ask } from \"./ai-client\";"],
+ "except": ["src/lib/ai/**"]}
+```
+
+The exception is proved like the rule: the failing code, placed under each
+excepted path, must pass. A glob that matches no file is refused. Without
+`except`, a rule is as broad as its examples, and existing uses in the allowed
+place would only be kept as known debt.
+
 The engine synthesizes a pattern from the cases, or uses the agent's `pattern`. It adds
 its own cases (the code after other declarations, nested in a callback, mentioned in a
 string) and stages only the rules that pass all of them, in one review. It refuses, by

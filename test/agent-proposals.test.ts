@@ -136,6 +136,26 @@ test("compile reports without a contract and needs one only to stage", () => {
   expect(p.cli("compile")).toMatchObject({ code: 1, text: expect.stringContaining("usage: pregate compile") });
 });
 
+test("a proposal states where the code is allowed, and the engine proves the exception before staging it", () => {
+  const p = repo("apply-except");
+  mkdirSync(join(p.root, "src/lib/ai"), { recursive: true });
+  writeFileSync(join(p.root, "src/lib/ai/client.ts"), 'import Vendor from "@vendor/sdk";\nexport const client = new Vendor();\n');
+  const sdk = { line: 12, sentence: "Import the vendor sdk only inside the ai library", fail: ['import Vendor from "@vendor/sdk";\nexport const client = new Vendor();'],
+    pass: ['import { ask } from "./ai-client";\nexport const answer = ask;'], except: ["src/lib/ai/**"] };
+  const propose = (rules: unknown[]) => { writeFileSync(join(p.root, "proposals.json"), JSON.stringify({ file: "CLAUDE.md", rules })); return p.cli("compile", "apply", "proposals.json", "--preview"); };
+  expect(propose([{ ...sdk, except: ["src/nowhere/**"] }]).text).toContain("Not staged, L12: except matches no file: src/nowhere/**.");
+  expect(propose([{ ...sdk, except: [] }])).toMatchObject({ code: 1, text: expect.stringContaining("except is a list of globs") });
+  const review = propose([sdk]);
+  expect(review.code, review.text).toBe(0);
+  expect(review.text).toContain("1 verified and staged");
+  expect(review.text).toContain("allowed in src/lib/ai/**");
+  expect(p.approve(review.text).code).toBe(0);
+  expect(p.cli("rules", "test", ".pregate/packs/project")).toMatchObject({ code: 0 });
+  const code = 'import Vendor from "@vendor/sdk";\nexport const v = Vendor;\n';
+  expect(p.check("src/services/ai.ts", code)).toHaveLength(1);
+  expect(p.check("src/lib/ai/second.ts", code)).toEqual([]);
+});
+
 test("compile --template hands the agent the statements that did not compile, with the steps to complete them", () => {
   const p = repo("template", false);
   const template = JSON.parse(p.cli("compile", "AGENTS.md", "--template").text);
