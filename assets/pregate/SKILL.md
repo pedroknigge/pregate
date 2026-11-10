@@ -51,7 +51,9 @@ imports from this project instead of concepts. Keep a summary under eight lines.
      `layers --json`, write a layer map to a temporary file outside the
      repository, and run `pregate layers apply <file> --preview`. Give a
      one-sentence reason a reviewer can check against the code. Explain each
-     existing import the map would flag.
+     existing import the map would flag. When the user wants no folder left
+     outside the rules, add `--complete` and give the map a catch-all layer
+     (for example `src/**`) for the code no other layer names.
    - Instruction files. Real ones are paragraphs, so reading them is your
      part and proving each rule is the engine's. Run `pregate compile <file>
      --template`, save the JSON to a temporary file outside the repository, and
@@ -740,7 +742,7 @@ usage:
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
-  pregate layers [--json] | layers apply <layers.json> --preview
+  pregate layers [--json] | layers apply <layers.json> --preview [--complete]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

@@ -80,6 +80,43 @@ test("layers shows the derived map with its evidence, and an agent's map becomes
   expect(broken).toContain("architecture/CA-DEP-001");
 });
 
+// A file in no layer is unrestricted: code moved to an uncovered folder imports anything and the check
+// stays quiet. A partial map is still valid; --complete is the opt-in that refuses the gap.
+test("a complete map names code in an undeclared folder; a partial map stays quiet there and floods nothing", () => {
+  const HELPER = 'import { saveOrder } from "../infra/db.ts";\nexport const helper = saveOrder;\n';
+  const core = { domain: MAP.layers.domain, infra: MAP.layers.infra };
+  const apply = (p: ReturnType<typeof repo>, layers: unknown, ...flags: string[]) => {
+    writeFileSync(join(p.root, "layers.json"), JSON.stringify({ why: "Domain and storage are the declared layers.", layers })); return p.cli("layers", "apply", "layers.json", "--preview", ...flags);
+  };
+
+  const partial = repo("layers-partial");
+  const loose = apply(partial, core);
+  expect(loose.code, loose.text).toBe(0);
+  expect(loose.text).toContain("Not in any layer, so imports there are unrestricted: src/components (1 file); src/services (1 file; imports domain); src/ui (1 file; imports infra, src/services).");
+  expect(partial.approve(loose.text).code).toBe(0);
+  expect(partial.check("src/utils/helper.ts", HELPER)).toEqual([]);                                   // the documented gap of a partial map
+  expect(partial.check("src/domain/price.ts", HELPER)).toContain("architecture/CA-DEP-001");            // declared layers still judge
+  expect(partial.check("src/ui/cart.ts", SOURCES["src/ui/cart.ts"]!)).toEqual([]);                     // and nothing floods
+
+  const strict = repo("layers-complete");
+  const gap = apply(strict, core, "--complete");
+  expect(gap.code).toBe(1);
+  expect(gap.text).toContain("--complete: 3 source files are in no layer (src/components, src/services, src/ui). Place them, or add a catch-all layer whose path covers them. Nothing staged.");
+  const open = apply(strict, { ...MAP.layers, components: { paths: ["src/components/**"], mayImport: ["domain"], kind: "adapter" } }, "--complete");
+  expect(open.code).toBe(1);
+  expect(open.text).toContain("--complete: a new folder under src would be in no layer, and code there would be unrestricted. Add a catch-all layer whose path covers it, such as src/**.");
+  const closed = apply(strict, { ...core, rest: { paths: ["src/**"], mayImport: ["domain"], kind: "adapter" } }, "--complete");
+  expect(closed.code, closed.text).toBe(0);
+  expect(closed.text).toContain("Complete map: every source file in scope is in a layer, and so is a folder created later.");
+  expect(closed.text).toContain("Layer rest (3 files): 1 existing import of infra, which it may not import. Example: src/ui/cart.ts imports src/infra/db.ts.");
+  expect(strict.approve(closed.text).code).toBe(0);
+  expect(strict.check("src/utils/helper.ts", HELPER)).toContain("architecture/CA-DEP-001");            // the undeclared folder is named
+  expect(strict.check("src/domain/price.ts", HELPER)).toContain("architecture/CA-DEP-001");
+  expect(strict.check("src/utils/pure.ts", 'import { place } from "../domain/order.ts";\nexport const pure = place;\n')).toEqual([]);
+  expect(strict.check("src/ui/cart.ts", SOURCES["src/ui/cart.ts"]!)).toEqual([]);                      // the existing break stays known debt
+  expect(apply(strict, core, "--complete", "--complete").code).toBe(1);
+});
+
 test("layers apply refuses a map whose shape or paths cannot be checked, and changes nothing", () => {
   const p = repo("layers-bad");
   const attempt = (value: unknown) => { writeFileSync(join(p.root, "layers.json"), typeof value === "string" ? value : JSON.stringify(value)); return p.cli("layers", "apply", "layers.json", "--preview"); };

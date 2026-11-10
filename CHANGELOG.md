@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `pregate layers apply <map.json> --preview --complete` refuses a layer map that leaves a source file in scope in no layer, or under which a folder created later would be in none, and names the folders. A file in no layer is unrestricted, so code moved to an uncovered folder escaped layer rules such as `CA-DEP-001` without a finding. A catch-all layer (for example `src/**`) closes the gap, because the most specific layer path still wins. Partial maps and projects that do not pass the flag are unchanged; the engine and the contract format are unchanged.
+
 ### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 
