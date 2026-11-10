@@ -360,3 +360,23 @@ jobs:
             --only "200 lines, second touch" \
             --only "2,000 lines, first touch" \
             --only "2,000 lines, second touch"
+      # Informational. The gate above compares with a fixed number, and hosted runners differ in
+      # speed more than the allowance. This step times the last release's engine and this one in
+      # turn on the same runner and reports the ratio. It cannot fail the job; a ratio becomes a
+      # gate only when its spread over hosted runs is known.
+      - name: Latency against the last release (informational)
+        continue-on-error: true
+        shell: bash
+        run: |
+          tag="$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/||' | sort -V | tail -n 1)"
+          reference="${RUNNER_TEMP}/pregate-reference"
+          git fetch --no-tags --depth 1 origin "refs/tags/${tag}:refs/tags/${tag}"
+          git worktree add --detach "$reference" "$tag"
+          (cd "$reference" && bun install --frozen-lockfile)
+          repeat=3
+          if [ "$RUNNER_OS" = "Windows" ]; then repeat=1; fi
+          bun scripts/bench.ts --runs 25 --repeat "$repeat" --inform --against "$reference" --against-label "$tag" \
+            --only "200 lines, first touch" \
+            --only "200 lines, second touch" \
+            --only "2,000 lines, first touch" \
+            --only "2,000 lines, second touch"
