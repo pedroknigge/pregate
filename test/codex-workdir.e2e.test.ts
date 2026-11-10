@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { removeTree } from "./remove-tree.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -73,7 +74,8 @@ beforeAll(() => {
   expect(compiled.code, compiled.text).toBe(0);
 });
 
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+// A compiled engine just ran from this directory; Windows can still hold it mapped.
+afterAll(() => removeTree(area));
 
 test("Codex 0.166 workdir payloads keep the session project and block a write that lands in it", () => {
   const started = hook("session-start", JSON.stringify({
