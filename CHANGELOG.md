@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- One large generated or vendored file no longer stalls a check or an audit. Three questions with one answer per node were asked again for every candidate: the repair hint of each over-limit function or nested block walked the whole tree; `inside: { stopBy: end, has: … }` scanned the ancestor once per candidate; and a regex over a long enclosing node ran once per node inside it. Each is now answered once per node. On a 1.9 MB, 68,000-line JavaScript bundle, a check with 194 rules went from not finishing in two minutes to about 7 s on an M-series laptop, and the audit of the 13,499-file repository that contains it went from not finishing in ten minutes to 86 s. Findings are unchanged.
+
 ### Changed
 - Windows CI: every suite-level temporary directory cleanup goes through the shared `removeTree` helper, which waits out the lock Windows keeps on a just-run compiled engine. The Windows suite gives a test with no deadline of its own 20 s in place of Bun's 5 s, and the fitness suite gives a spawned engine 30 s. Test selection and assertions are unchanged.
 
