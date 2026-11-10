@@ -97,6 +97,15 @@ describe("captured calls", () => {
     return ranged(a.TargetContent, a.ReplacementContent, [a.StartLine, a.EndLine], a.AllowMultiple);
   };
 
+  test("agy 1.5.3 edit_file: one exact match is applied; a missing or repeated target is unknown, never a silent failure", () => {
+    const edit = { form: "oldnew" as const, old: "  return a + b;", neu: "  return b + a;", all: false, lines: [1, Number.MAX_SAFE_INTEGER] as [number, number] };
+    expect(apply("export function add(a: number, b: number): number {\n  return a + b;\n}\n", edit))
+      .toEqual({ status: "exact", after: "export function add(a: number, b: number): number {\n  return b + a;\n}\n" });
+    expect(apply("  return a + b;\n  return a + b;\n", edit)).toEqual({ status: "unknown", after: null });
+    expect(apply("nothing here\n", edit)).toEqual({ status: "unknown", after: null });
+    expect(apply(null, edit)).toEqual({ status: "unknown", after: null });
+  });
+
   test("agy replace_file_content on one line", () => {
     expect(apply("line one\nline two\nline three\n", replace("pre-replace_file_content.json")))
       .toEqual({ after: "line one\nline 2\nline three\n", status: "exact" });

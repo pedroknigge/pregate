@@ -6,7 +6,7 @@ An AI agent can skip an instruction. The instruction loads in every session, and
 
 It fits any repository where an agent writes code, small or large, solo or team. It works alongside your linters, tests, CI, and review. It does not replace them.
 
-[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.5 release notes](docs/releases/0.0.5.md)
+[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.6 release notes](docs/releases/0.0.6.md)
 
 ## What it looks like
 
@@ -74,6 +74,10 @@ A statement such as "write clear code" or "run the tests before you finish" is n
 
 `pregate guide --preview` derives layers from conventional folder names and shows what they find today: which imports already break each layer, and which folders no layer covers. For folders it cannot place, the agent writes a layer map and `pregate layers apply <map.json> --preview` reports the evidence before you approve.
 
+A file in no layer is unrestricted, so a partial map leaves a way around it: move the code to a folder the map does not cover. Add `--complete` when you want no such folder. It refuses a map that leaves a source file, or a folder created later, outside every layer; a catch-all layer such as `src/**` closes the gap.
+
+A statement that allows the code in one place ("only inside `src/lib/ai`") becomes a rule with an exception, and the exception is proved like the rule. What a real trial found, including a rule that was broader than its statement, is in the [case study](docs/benchmarks/case-study-production-repository.md).
+
 ## For the agent reading this
 
 This section is written for an AI agent that reads this file to decide how to act. It is literal.
@@ -123,9 +127,9 @@ See [language coverage](src/capabilities.ts), [architecture and scope limits](do
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-This page describes engine 0.0.5.
+This page describes engine 0.0.6.
 
-[Release v0.0.5](https://github.com/pedroknigge/pregate/releases/tag/v0.0.5)
+[Release v0.0.6](https://github.com/pedroknigge/pregate/releases/tag/v0.0.6)
 
 Supported harnesses, from `src/capabilities.ts`. A harness that is not in this table is not supported.
 
@@ -284,7 +288,7 @@ Use `--ci github,vercel` for both. When both providers are configured, both must
 | Linux x64 and arm64 | Experimental test builds |
 | Windows x64 | Experimental test builds |
 
-Intel Mac archives are produced but are not declared stable. Passing a CI job is not a promise of production support. 0.0.5 is this release. Windows users of 0.0.2 should upgrade. Two bugs in that release could let an edit through on Windows without a finding. 0.0.3 denies those calls. See the [0.0.5 release notes](docs/releases/0.0.5.md) and [Windows verification guide](docs/guides/windows-verification.md).
+Intel Mac archives are produced but are not declared stable. Passing a CI job is not a promise of production support. 0.0.6 is this release. Windows users of 0.0.2 should upgrade. Two bugs in that release could let an edit through on Windows without a finding. 0.0.3 denies those calls. See the [0.0.6 release notes](docs/releases/0.0.6.md) and [Windows verification guide](docs/guides/windows-verification.md).
 
 ### Measured hook latency
 
@@ -350,9 +354,10 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Project fitness](docs/features/project-fitness.md)
 - [Hook latency](docs/benchmarks/hook-latency.md)
 - [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
+- [Shell guard friction](docs/benchmarks/shell-guard-friction.md): which routine commands the guard refuses
 - [Guarantees and residual limits](docs/guarantees.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
-- [Release notes for 0.0.5](docs/releases/0.0.5.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
+- [Release notes for 0.0.6](docs/releases/0.0.6.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
 
 ## Contributing
 

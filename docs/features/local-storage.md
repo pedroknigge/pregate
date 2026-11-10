@@ -1,6 +1,6 @@
 # Local source storage and reviewed retention
 
-These commands are in 0.0.5. Linux and Windows builds stay experimental until native validation passes.
+These commands are in 0.0.6. Linux and Windows builds stay experimental until native validation passes.
 
 PREGATE's session state can contain complete local source text. It is not a
 hash-only log. Session retention is explicit: session records do not expire or

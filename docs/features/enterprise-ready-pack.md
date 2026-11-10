@@ -1,6 +1,6 @@
 # Enterprise-ready pack
 
-Included in 0.0.5. This optional preview pack contains 57 project evidence gates.
+Included in 0.0.6. This optional preview pack contains 57 project evidence gates.
 Gate fixtures and a bounded
 isolation example pass; a real enterprise product has not been certified.
 

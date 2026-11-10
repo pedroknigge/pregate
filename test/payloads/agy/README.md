@@ -43,6 +43,21 @@ from the command that registered the hook. `stepIdx` plus `conversationId` ident
 | `pre-send_message-subagent.json` | PreToolUse `send_message` inside a subagent | `Recipient` = parent conversationId (the only parent link) |
 | `stop-parent-not-idle.json` | Stop (parent) | `fullyIdle:false` while the subagent is still running |
 
+## agy 1.5.3 (captured 2026-11-10)
+
+`agy` **1.5.3**, macOS arm64, model `gemini-4-argon-medium`, same headless mode and isolation as above, project hook with matcher `"*"`. The envelope adds `cwd`, `hookEventName`, `lastUserInput`, `modelName` and `toolCall.id`. The edit tools have new names and argument names, and `run_command` sends no `Cwd`.
+
+| File | Event | What it shows |
+|---|---|---|
+| `pre-write_file.json` | PreToolUse `write_file` | create: `{Path, Content, Overwrite:true}` with the full content |
+| `post-write_file.json` | PostToolUse `write_file` | same as Pre plus `"error":""` |
+| `pre-edit_file.json` | PreToolUse `edit_file` | `{Path, Target, Replacement}`: one exact replacement, no range and no `AllowMultiple` |
+| `pre-read_file.json` | PreToolUse `read_file` | `{Path}` |
+| `pre-run_command-top-cwd.json` | PreToolUse `run_command` | `{CommandLine, WaitMsBeforeAsync, toolSummary}`; the directory is the envelope's `cwd` |
+| `stop-top-cwd.json` | Stop | the 1.2.14 fields plus `cwd` and `hookEventName` |
+
+Not captured in 1.5.3: `create_file`, `delete_file`, `rename_file` and `notebook_edit`, which the binary names; PreInvocation; what `edit_file` does when `Target` is missing or repeated.
+
 ## Not captured
 
 - **`multi_replace_file_content`**: in 1.2.14 the tool is rejected with `unknown tool: "multi_replace_file_content"`.

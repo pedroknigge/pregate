@@ -12,7 +12,7 @@ distinct from current real harness interaction evidence.
 
 **Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
 
-0.0.5 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
+0.0.6 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
 Under [D29/O60](ARCHITECTURE.md), human commands prompt on /dev/tty (or CONIN$ on Windows);
 interactive Claude Code and agy use enforced native permissions. Codex, Cursor,
 Grok and headless sessions deny contract edits and direct the human to
@@ -146,6 +146,8 @@ A single-file patch follows exactly today's path.
   - If the range is missing, the whole file is searched.
 - Closed key list: besides the required ones, `Overwrite`, `Description`, `Instruction`, `TargetLintErrorIds`, `ArtifactMetadata`, `toolAction`, and `toolSummary` are accepted. Any other ⇒ `unknown`, because it can change what is written (the same criterion as with Claude).
 - `multi_replace_file_content` ⇒ `unknown`: it does not exist in 1.2.14 [V] and its form is [D]. It enters when there is a capture.
+- **agy 1.5.3 renamed the edit tools** [V, captured 2026-11-10]. `write_file` (`Path`, `Content`, optional `Overwrite`) is `full`. `edit_file` (`Path`, `Target`, `Replacement`) is `oldnew` over the whole file with `all = false`; a `Target` that is missing or repeated is `cannot-reconstruct`, because what agy does with it is not verified. Any other argument on either tool ⇒ `unknown`. The envelope gained `cwd` and `hookEventName`; `run_command` no longer sends `Cwd`, and runs in the envelope's `cwd`. The 1.2.14 names and shapes are still decoded.
+- `create_file`, `delete_file`, `rename_file` and `notebook_edit` are named in the 1.5.3 binary and have no captured shape: they are in the matcher and decode to `unknown` at their `Path`, or to `payload-unrecognized` without one.
 - `run_command` is a command (`CommandLine`, with `Cwd` as cwd). `send_command_input` ⇒ `shell-write`: it sends stdin to a process that cannot be analyzed.
 
 **MH-12. Grok forms.**
@@ -274,7 +276,7 @@ f='<DATA>/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook <ev> --harn
 | shared (Claude Code, Cursor, Grok) | `~/.claude/settings.json`, and also `${CLAUDE_CONFIG_DIR}/settings.json` if that variable is set and points elsewhere (Cursor and Grok read the one under `HOME` [V]) | `PreToolUse` `Write\|Edit\|MultiEdit\|NotebookEdit\|Bash\|PowerShell\|Monitor\|Delete\|apply_patch\|edit\|bash\|write\|search_replace\|hashline_edit\|run_terminal_command`, 30; `Stop` 60; `SessionStart` 15; `--harness claude-code` | Grok's native names are registered too: its Write aliases do not cover `write`. Cursor Delete verified; Grok's three literals were not offered (§6.4). |
 | codex | `${CODEX_HOME:-~/.codex}/hooks.json` (never `config.toml`) | `PreToolUse` `^(apply_patch\|Bash)$`, 30; `Stop` 60; `SessionStart` 15. Groups **at the end** | The default is 600 s and fails open [V], so the timeout is explicit. Trust: MH-24 |
 | cursor, native Stop | `~/.cursor/hooks.json` | `version:1`, `hooks.stop`, plain command, timeout 60, `loop_limit:null`, `--harness cursor` | The TUI does not enter the Stop dispatcher if only the imported one exists. The shared Stop is omitted when this install owns the native one; followups share the counter even if `generation_id` changes. |
-| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
+| agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|write_file\|edit_file\|create_file\|delete_file\|rename_file\|notebook_edit\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
 
 - **Closed tool lists.** An anchored matcher does not see a new write tool that a CLI update brings (Cursor and Grok update themselves). What was discarded (a `*` matcher with an allowlist in the launcher) cost a spawn on every read on the machine. What is done: `doctor` compares each CLI's version with `VERIFIED` and warns if it differs; the §6.3 E2E inventories the tools on each new version before raising `VERIFIED`. MCP tools that write files stay outside the gate on all five, the same as in the MVP; Stop, pre-commit, and CI see them.
 
@@ -477,6 +479,26 @@ Defects found and fixed:
 - **agy:** the disabled project plugin `pregate` overrode the global one with the same identity. Changing only the named hook was not enough; changing the folder, manifest, and named hook to `pregate-global` was. The real case denies again and uninstall removes our own plugin. A deliberate collision with the new identity remains subject to loader precedence and to doctor; it is not isolation against hostile human configuration.
 - **Runner:** locks use the compiled version; access-token copies are refreshed before each harness; exact context avoids Codex's fuzzy patch; `danger-full-access` allows the write in the scratch under the outer sandbox (the nested `workspace-write` sandbox did not allow it); the Codex TUI uses `--no-daemon` because this environment blocks `/bin/ps`; agy uses `--prompt-interactive`. Unavailable process inspection is recorded and does not block uninstall.
 
+**6.5 Real re-verification, 2026-11-10.** The real runner of §6.3 was run per harness against the installed CLIs, with the same isolation as §6.4.
+
+| Harness / real version | Deny and file absent | Allowed edit = reconstruction = disk | No preset, no objection | `9.9.9-hang`, fail-closed | Interactive deny |
+|---|---|---|---|---|---|
+| Claude Code 2.1.322 | PASS | PASS | PASS | PASS after the fix below | Not run: two-prompt limit |
+| Codex 0.167.0 | PASS | PASS | PASS | PASS | PASS |
+| Cursor 2026.11.05-86047df | PASS | PASS | PASS | PASS | PASS |
+| Grok 1.0.80 | PASS | PASS | PASS | PASS | PASS |
+| agy 1.5.3 | PASS after the fix below | PASS after the fix below | PASS | PASS after the fix below | PASS after the fix below |
+
+Still failing, as the coverage line of the status command already states: Grok does not honor the Stop block, and Cursor's Stop did not block in a pty.
+
+Defects found and fixed:
+
+- **agy 1.5.3 edits were not gated before the write.** The matcher named `write_to_file` and `replace_file_content`; 1.5.3 calls `write_file` and `edit_file`, so no Pre hook ran and the forbidden file was written. Only Stop still blocked. The matcher and the adapter now cover both generations, and the 1.5.3 payloads are in `test/payloads/agy`.
+- **A hung pinned engine failed open for a project below the session's folder.** The launcher denied a failure only when the session's own folder had consent. With the session in a parent folder and the edit in a nested enabled project, the engine redirected to the pinned engine, that engine hung, and the launcher exited 0. A redirect now counts as evidence of a project, in the shell launcher and in the supervisor. A hang of the installed engine before any redirect, for a nested project, is still not denied by the shell launcher: it cannot tell that a project is involved.
+- **Runner:** it pinned the `architecture` pack at 1.1.0 (bundled: 1.3.0), removed the hooks at the end without stating the unattended approval that command now requires, and counted the SessionStart notice for a project with no contract as output.
+
+`VERIFIED` moved only for agy (1.5.3), whose payloads were captured again. The other adapters passed with their recorded payload contracts unchanged, and their `VERIFIED` stays at the version whose payloads are in `test/payloads`.
+
 **Ledger of every [E2E] and extra in §6.3.** PASS confirms what was observed; pending/not offered keeps the conservative option and does **not** close W12 completely or authorize D20.
 
 | Item | Real result / decision |
@@ -537,7 +559,7 @@ What the session gate does not see and is left for Stop (where it exists), pre-c
 - **§5.4:** layout (MH-18) and releases (MH-32).
 - **O11:** bounded by MH-13.
 - **O25:** `payload-unrecognized` names the harness and the tool.
-- **SPEC §14.6:** Codex, Cursor, and agy are in the current public release (0.0.5). `hashline_edit` stays in v2.
+- **SPEC §14.6:** Codex, Cursor, and agy are in the current public release (0.0.6). `hashline_edit` stays in v2.
 
 ---
 
@@ -655,7 +677,7 @@ export function uninstall(purge: boolean): Promise<{ code: 0 | 1; text: string }
 export function doctor(): Promise<{ code: 0 | 1; text: string }>;
 ```
 
-Launcher protocol in 0.0.5: exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
+Launcher protocol in 0.0.6: exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
 
 **W0 delta (built; this overrides the signatures above).**
 - `HARNESSES` and `profile` live in `src/harness/profile.ts`, not in `main.ts`: `main.ts` runs on import, so neither a test nor `doctor` could import it, and `machine.ts → main.ts → cli.ts → machine.ts` would be a cycle.
@@ -703,7 +725,7 @@ Launcher protocol in 0.0.5: exit 0 and 2 = the engine's output; exit 3 with firs
 
 | # | Question | Recommendation |
 |---|---|---|
-| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.5 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
+| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.6 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
 | U-2 | **Release downloads.** `pedroknigge/pregate` is public. Anonymous HTTPS downloads the release. `gh auth login` is only the fallback when that download fails | No extra repository grant. Use the installers in the [installation guide](guides/installation.md) |
 | U-3 | **Codex trust.** `setup` grants it through app-server **only to the PREGATE keys whose definition is exactly what it wrote**, which is the same as approving them in `/hooks`. I understand D20's "yes" covers it. If a foreign hook loses trust, setup restores and fails: it never touches foreign trust | Confirm. If not, `setup` leaves it pending and `doctor` fails until it is approved by hand |
 | U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all five harnesses. Never auto-update |

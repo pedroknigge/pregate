@@ -11,7 +11,7 @@ executable enforcement. Historical pack counts/acceptance apply to their candida
 
 The current core 0.0.1 activates 64 project requirements, including the original
 48 software invariants, plus four general change guards by default, with reviewed
-explicit disable. Unbound requirements remain unverified. Source engine 0.0.5
+explicit disable. Unbound requirements remain unverified. Source engine 0.0.6
 is the published release. Engineering
 policies formerly named `core/clean-code`, `core/clean-architecture`, `core/tdd`
 and `core/ddd-tactical` are now optional packs. [Project fitness](features/project-fitness.md)
@@ -26,7 +26,7 @@ stdin evidence for verification limits.
 
 **Implementation notes:** [MULTI-HARNESS.md](MULTI-HARNESS.md) supersedes the original per-repo installation and declarative profiles below. Five pure adapters (`claude-code`, `codex`, `cursor`, `grok`, `agy`) normalize calls to `pre-edit.changes[]` with optional move origin `from`. Reconstruction supports full, append, ranged old/new, exact Codex hunks and delete; multi-file calls overlay their proposed tree and one deny blocks all. Empty old text creates a missing file only. Standalone directories operate with or without Git: directory traversal and snapshot fallbacks decouple the Git/GitHub requirement (O72). Over 300 invariant rules covering software engineering, future human maintainability, modular monolith architecture, and agent skill contracts are systematically cataloged, with 81 automated checks active across 8 library packs and 9 presets (O73). Outside every preset, machine protection remains active with no git, parser or state; unreadable envelopes deny, while recognized rejected envelopes with only unrooted directories are neutral. Grok shutdown is ignored (MH-01–17).
 
-Global `setup` installs engines under `<DATA>/<version>/`, launcher under `<DATA>/bin/`, and `~/.local/bin/pregate` on PATH. Claude/Cursor/Grok share one Claude settings registration; Cursor also has a native Stop registration; Codex has trusted hooks; agy has the `pregate-global` plugin. Real CLI corrections and acceptance are in MULTI-HARNESS §6.4. `update [--version v | --engine v]`, `uninstall [--purge]` and `doctor` operate on the machine; repo `install [--git-hook] [--ci github]` removes legacy registrations and only manages pre-commit/CI. Runtime derives DATA from its executable; hook exit 3 redirects once to the lock's engine, and CLI read-only repo commands delegate before reading stdin. Pins below `FLOOR = "0.0.1"` deny. Pre launcher faults universally emit exit 2, empty stdout and nonempty single-line stderr. SessionStart without a preset is silent. Roots whose preset predates first contact are accepted without SessionStart. `doctor` checks drift/trust and each adapter's canary through literal `$SHELL -c`. Releases carry LICENSE, THIRD_PARTY_NOTICES, installer and `SHA256SUMS` (MH-18–34). The published release on this repository is v0.0.5.
+Global `setup` installs engines under `<DATA>/<version>/`, launcher under `<DATA>/bin/`, and `~/.local/bin/pregate` on PATH. Claude/Cursor/Grok share one Claude settings registration; Cursor also has a native Stop registration; Codex has trusted hooks; agy has the `pregate-global` plugin. Real CLI corrections and acceptance are in MULTI-HARNESS §6.4. `update [--version v | --engine v]`, `uninstall [--purge]` and `doctor` operate on the machine; repo `install [--git-hook] [--ci github]` removes legacy registrations and only manages pre-commit/CI. Runtime derives DATA from its executable; hook exit 3 redirects once to the lock's engine, and CLI read-only repo commands delegate before reading stdin. Pins below `FLOOR = "0.0.1"` deny. Pre launcher faults universally emit exit 2, empty stdout and nonempty single-line stderr. SessionStart without a preset is silent. Roots whose preset predates first contact are accepted without SessionStart. `doctor` checks drift/trust and each adapter's canary through literal `$SHELL -c`. Releases carry LICENSE, THIRD_PARTY_NOTICES, installer and `SHA256SUMS` (MH-18–34). The published release on this repository is v0.0.6.
 
 > **A prevention gate for bad code and bad architecture. If it breaks your invariants, it never gets written.** *(chosen tagline, U11)*
 >
@@ -1764,8 +1764,8 @@ pregate
 | `pregate explain <id>` / `--path <file>` | MVP | Source, why, fixtures, and effective parameters; or every invariant that applies to a file and where it comes from |
 | `pregate preset show` / `compile` | MVP | The contract in human language; compilation with conflict errors; writes the lock to disk. Human only (the guard denies it to the agent) |
 | `pregate preset apply <request>` | MVP | Applies a proposal from `.pregate/requests/` (JSON patch) after showing it: validates, compiles, and writes the preset and the lock. It is the human act of activation (U4) |
-| `pregate install [--git-hook] [--ci github]` | 0.0.5 | Repo pre-commit/CI only; removes legacy 0.1.0 hooks and launcher (MH-28) |
-| `pregate setup` / `update [--version v \| --engine v]` / `uninstall [--purge]` | 0.0.5 | Global installation, explicit verified update, ownership-preserving removal (MH-27) |
+| `pregate install [--git-hook] [--ci github]` | 0.0.6 | Repo pre-commit/CI only; removes legacy 0.1.0 hooks and launcher (MH-28) |
+| `pregate setup` / `update [--version v \| --engine v]` / `uninstall [--purge]` | 0.0.6 | Global installation, explicit verified update, ownership-preserving removal (MH-27) |
 | `pregate rules test [path]` | MVP | Runs fixtures (including `trap/`) and determinism; validates schemas, IDs, namespaces, and versions of a source. In v1 it adds the standard trap corpus |
 | `pregate capture --harness <id>` | v1 | Records real harness payloads for contract fixtures (§14.7) |
 | `pregate bench` | MVP (internal) | Benchmark of §16 on the fixture repos |
@@ -1780,7 +1780,7 @@ pregate
 | `pregate baseline` | v1 | Generates the baseline. A human runs it; the guard denies it to the agent |
 | `pregate approve <fingerprint\|--last>` | v1 | Records an exception (local best-effort; effective in CI with CODEOWNERS) |
 | `pregate report` / `label` | v1 | Instrument calibration only: precision per rule, loops, evasions, real traps, `net_catches`, beneficial correction; human labeling. **No burn-down or debt report** (U10, ArkGate's territory). In the MVP pilot, labeling is done by hand on the `state/` records |
-| `pregate doctor` | 0.0.5 | Versions, drift, Codex trust, PATH and canaries for all five adapters (MH-27) |
+| `pregate doctor` | 0.0.6 | Versions, drift, Codex trust, PATH and canaries for all five adapters (MH-27) |
 
 ### 13.9 Scalability and discarded technical decisions
 
@@ -1930,7 +1930,7 @@ Source: `docs/research/harnesses-2026-10-01.json` and `harnesses-grok-2026-10-01
 
 | Phase | Adapters | Why |
 |---|---|---|
-| **0.0.5** | **Claude Code, Codex CLI, Cursor CLI, Grok Build, Antigravity (`agy`)** | Captured payload contracts; pure adapters, strict Codex patch parser, one registration per harness and dialect-specific denies (MULTI-HARNESS MH-01–14). Real CLI §6.3 verification is required before installation on the user's machine |
+| **0.0.6** | **Claude Code, Codex CLI, Cursor CLI, Grok Build, Antigravity (`agy`)** | Captured payload contracts; pure adapters, strict Codex patch parser, one registration per harness and dialect-specific denies (MULTI-HARNESS MH-01–14). Real CLI §6.3 verification is required before installation on the user's machine |
 | **v1 (wave 1)** | Gemini CLI, Qwen Code, Copilot CLI | Enter with captured and verified pre-edit contracts |
 | **v1.1 (wave 2)** | Factory Droid, Augment, VS Code agent mode, Devin Local/CLI, Junie CLI, Kiro | Enter with captured and verified contracts; post-edit with revert where pre-edit is unavailable |
 | **v2 (wave 3)** | In-process plugins: opencode, Kilo, Amp, Cline (plugin), pi. Grok's `hashline_edit`. Copilot cloud agent. Codex IDE when #33413 is resolved (until then, post-edit with revert) | They require a JS/TS shim (it takes advantage of the core in TS) and plugin APIs with active changes |

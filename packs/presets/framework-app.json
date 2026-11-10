@@ -2,7 +2,7 @@
   "$schema": "../../schema/preset.v1.json",
   "name": "framework-app",
   "version": "1.0.0",
-  "engine": "0.0.5",
+  "engine": "0.0.6",
   "sources": [
     {
       "ns": "core",

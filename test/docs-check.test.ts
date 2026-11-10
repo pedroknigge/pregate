@@ -98,7 +98,7 @@ test("living docs do not claim there is no npm package", () => {
     join(ROOT, "README.md"),
     join(ROOT, "CHANGELOG.md"),
     ...walk(join(ROOT, "docs/guides")),
-    join(ROOT, "docs/releases/0.0.5.md"),
+    join(ROOT, "docs/releases/0.0.6.md"),
   ];
   for (const file of roots) {
     const rel = file.slice(ROOT.length + 1);

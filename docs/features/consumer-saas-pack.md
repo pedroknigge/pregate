@@ -1,6 +1,6 @@
 # Consumer SaaS pack
 
-Included in 0.0.5.
+Included in 0.0.6.
 This optional preview pack contains 39 distinct `CONSUMER-NNN` evidence gates,
 selected through `consumer-saas/readiness` or `pack enable --only`. It remains
 separate from core and is not automatically selected for other products. No actual consumer product is certified.
