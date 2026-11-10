@@ -24,6 +24,7 @@ import { proposeContract, readProposal, PENDING_MS } from "../src/approval.ts";
 import { inert } from "../src/inertia.ts";
 import { pendingRoot } from "../src/proposal.ts";
 import { issueContent } from "../src/issue.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Many cases run git and the engine several times; on Windows a git or engine spawn is far slower.
 setDefaultTimeout(60_000);
@@ -48,7 +49,7 @@ afterEach(() => {
     else process.env[name] = saved[name];
   }
 });
-afterAll(() => rmSync(base, { recursive: true, force: true }));
+afterAll(() => removeTree(base));
 
 function put(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true });

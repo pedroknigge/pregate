@@ -1,5 +1,5 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonical } from "../src/disk.ts";
@@ -7,12 +7,13 @@ import { enforcementOf } from "../src/enforcement.ts";
 import { LOCK, PRESET } from "../src/inertia.ts";
 import { VERSIONS } from "../src/versions.ts";
 import type { Lock, LockRule } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The CLI, on a scratch repository, is what status and doctor print for a project.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = canonical(mkdtempSync(join(tmpdir(), "pregate-coverage-")));
 setDefaultTimeout(60_000);
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 function counted(lock: Lock) {
   const owned = new Set(lock.ownedByArkgate);

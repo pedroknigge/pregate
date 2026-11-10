@@ -1,14 +1,15 @@
 import { afterAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { canonical } from "../src/disk.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled CLI, against a real directory, is the scan and the gate a repository gets.
 const cli = join(import.meta.dir, "../src/main.ts");
 const area = mkdtempSync(join(tmpdir(), "pregate-hono-"));
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 const bad = `import { Hono, type Context } from "hono";
 

@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, openSync, closeSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, openSync, closeSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-runtime-"));
 const source = join(area, "stdin.ts");
@@ -17,7 +18,7 @@ beforeAll(() => {
   const built = Bun.spawnSync([process.execPath, "build", source, "--compile", "--minify", "--no-compile-autoload-bunfig", "--no-compile-autoload-dotenv", `--outfile=${binary}`], { stdout: "pipe", stderr: "pipe" });
   expect(built.exitCode, built.stderr.toString()).toBe(0);
 });
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test.each(["source", "compiled"] as const)("%s runtime consumes complete stdin from buffered and file transports", (kind) => {
   const argv = kind === "source" ? [process.execPath, source] : [binary];

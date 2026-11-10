@@ -96,6 +96,15 @@ enables protection; adoption and updates preserve consent, including disabled
 projects. Activation is a separate choice. The digest binds the stated consent
 effect and contract bytes.
 
+The review lists the layers to review with their evidence: per layer, the
+production imports that already break its direction, with one example, and the
+sibling folders that no layer covers. It also says what a new break meets under
+the proposed mode. A recommended methodology that reads the core layer is left
+out, and named in `guide --json` and `scan`, when the project declares or
+derives no core layer; one such methodology would otherwise reject the whole
+proposal. Core requirements that have no verifier are not counted in the rule
+totals or the per-pack lines until the project binds its first verifier.
+
 Compact and full guide previews state installation readiness before consent:
 missing engine, launcher or harness registrations mean degraded protection.
 Present registrations do not prove that hooks work. Run `pregate setup` for missing

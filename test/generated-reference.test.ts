@@ -1,8 +1,9 @@
 import { afterAll, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { removeTree } from "./remove-tree.ts";
 
 const root = mkdtempSync(join(tmpdir(), "pregate-generated-crlf-"));
 const source = join(import.meta.dir, "..");
@@ -31,7 +32,7 @@ function staleOutputRejected(path: string, original: string, run: () => { exitCo
   finally { writeFileSync(path, original); }
 }
 // Removing the copied tree takes ~15 s on Windows.
-afterAll(() => rmSync(root, { recursive: true, force: true }), 120_000);
+afterAll(() => removeTree(root), 120_000);
 test.each(scripts)("%s accepts a CRLF checkout without rewriting it and detects substantive stale output", (script) => {
   const run = () => Bun.spawnSync([process.execPath, join(root, "scripts", script), "--check"], { cwd: root, stdout: "pipe", stderr: "pipe", timeout: 15000 });
   const before = fingerprint(), accepted = run();

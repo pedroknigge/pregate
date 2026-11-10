@@ -6,13 +6,14 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(60_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-language-packs-"));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 const repo = join(import.meta.dir, "..");
 beforeAll(() => compileBinary(hostTarget(), binary, true));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 function releasedCapture<T>(capture: string, descriptors: number[], body: () => T): T {
   try { return body(); } finally {

@@ -82,6 +82,24 @@ source path/line/hash and no invented verifier. `guide --preview --packs none` a
 it retains recipe policies. Adoption/update approval preserves disabled consent;
 activation is an explicit separate choice.
 
+The guide review names the layers it derived from folder names and what they
+find today: the production imports that already break each layer, and the
+folders no layer covers. Those folders are unrestricted until a map places
+them. An agent can propose that map with `layers apply <map.json> --preview`.
+
+Rules you already wrote as prose can enter the same way. `compile <file>` sorts
+an instruction file such as `AGENTS.md` into rules, statements that need an
+example, and guidance. For paragraphs and tables the agent completes
+`compile <file> --template` and stages it with `compile apply <proposals.json>
+--preview`. Only rules that pass their generated cases are staged, and the
+instruction file is never edited. See [the feature guide](../features/agent-proposed-contract.md).
+
+At most once a day, SessionStart names advisor rules that reported nothing for
+seven days over at least 20 checked edits. Review them with `promote --preview`.
+`pregate report` has an `Agent loop` line: how often an edit was stopped and
+repaired on the next attempt, and how many advisor findings were gone on the
+same file's next edit.
+
 With the explicit workflow, begin with `scan` to inspect applicable pack
 recommendations and custom-rule suggestions. Save `scan --plan` to `plan.json`,
 keep your chosen recommendations, and run `pack apply plan.json --preview`.

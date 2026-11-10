@@ -1,10 +1,11 @@
 import { expect, setDefaultTimeout, test, beforeAll, afterAll } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // Default auto-detected contract budget.
 //
@@ -92,7 +93,7 @@ beforeAll(() => {
   if (setup.code !== 0) throw new Error(`setup exited ${setup.code}\n${setup.stdout}\n${setup.stderr}`);
 });
 
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => removeTree(root));
 
 // Skipped unless PREGATE_BUDGET_E2E=1: the fetch needs the network.
 test.skipIf(!ENABLED)("fetched got and zod stay under the default-contract findings budget (PREGATE_BUDGET_E2E=1)", () => {

@@ -6,12 +6,13 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(180_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-prisma-orm7-"));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 beforeAll(() => compileBinary(hostTarget(), binary, true));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 const middleware = `import { PrismaClient } from "@prisma/client";
 

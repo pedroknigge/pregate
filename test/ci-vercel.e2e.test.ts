@@ -6,6 +6,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The compiled binary talks to a local stand-in for the GitHub API, then the Vercel build
 // recipe runs that same binary. Ready passes. Error, Canceled, pending-that-never-finishes,
@@ -19,7 +20,7 @@ const binary = join(area, "pregate");
 const EN = "Vercel \u2013 app";
 
 beforeAll(() => compileBinary(hostTarget(), binary, true));
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test("the compiled binary recognizes Vercel statuses and check runs, with and without Actions", async () => {
   let pendingHits = 0;

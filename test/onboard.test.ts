@@ -27,7 +27,7 @@ const executable = mkdtempSync(join(tmpdir(), "pregate-onboard-engine-"));
 const binary = join(executable, ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
 beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
-afterAll(() => rmSync(executable, { recursive: true, force: true }));
+afterAll(() => removeTree(executable));
 
 const files: Files = {
   "package.json": '{"dependencies":{"express":"5.0.0"}}',

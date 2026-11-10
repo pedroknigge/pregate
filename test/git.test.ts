@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isolatedPathEnv } from "./host-command.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-git-deadline-"));
 const bin = join(area, "bin");
@@ -34,7 +35,7 @@ try {
     expect(result.exitCode, result.stderr.toString()).toBe(0);
   }
 });
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 
 test.each(["source", "compiled"] as const)("%s Git calls terminate and reject partial output at the deadline", (kind) => {
   for (const operation of ["git", "batch"]) {

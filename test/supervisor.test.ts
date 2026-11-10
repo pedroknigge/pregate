@@ -1,11 +1,12 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { enable, markReached } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { supervise } from "../src/supervisor.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(15_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-rule-supervisor-"));
@@ -14,7 +15,7 @@ mkdirSync(join(data, version), { recursive: true });
 mkdirSync(root);
 copyFileSync(process.execPath, join(data, version, ENGINE_FILE));
 enable(root, data);
-afterAll(() => rmSync(area, { recursive: true, force: true }));
+afterAll(() => removeTree(area));
 const raw = JSON.stringify({ cwd: root, session_id: "timeout", tool_name: "Write", tool_input: { file_path: join(root, "src/a.ts"), content: "export const a = 1;" } });
 const source = JSON.stringify(fileURLToPath(new URL("../src/progress.ts", import.meta.url)));
 

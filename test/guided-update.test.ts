@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { compileBinary, hostTarget } from "../scripts/build.ts";
@@ -8,6 +8,7 @@ import { VERSIONS } from "../src/versions.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { dataHome } from "../src/consent.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(120_000);
 const root = join(import.meta.dir, "..");
@@ -28,7 +29,7 @@ updateAndContinue().then(result => { console.log(result.text); process.exit(resu
   { cwd: root, stdout: "pipe", stderr: "pipe", timeout: 120_000 });
   if (compiled.exitCode !== 0) throw new Error(compiled.stderr.toString());
 }, 150_000);
-afterAll(() => rmSync(area, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+afterAll(() => removeTree(area));
 
 let serial = 0;
 function fixture(engine = binary) {
