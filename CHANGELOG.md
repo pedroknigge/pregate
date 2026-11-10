@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **CI runs each suite once.** The Linux job ran the whole suite twice: `repo-hygiene.e2e` cloned the branch and ran every suite again inside the clone, 19 of the job's 39 minutes. The CI job is itself a fresh clone that installs and runs every suite, so the clone test now checks the tracked files, installs, type-checks and builds, and no longer repeats the suite. The Windows job ran `runtime`, `onboard`, `windows-powershell-script.e2e` and `windows-distribution.e2e` twice, and ran the latency bench that the `latency (windows-latest)` job already runs there. It now runs each suite once, in three parallel jobs with `bun test --shard`; the required check `windows` passes only when all three pass. No suite and no assertion was removed from a platform that had no other run of it.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The shell guard no longer refuses `cd`, `bun test`, `npm` or Pregate's own `layers` and `compile` commands in an enabled project. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
