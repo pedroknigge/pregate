@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WINDOWS } from "../src/platform.ts";
 import { SIGSTORE_E2E_ENV } from "./signing-tool.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // The default suite must keep passing when HTTPS cannot leave the machine. A dead proxy makes a
 // real cosign (TUF, Rekor, or a release download) fail. Localhost stays direct so the fixture
@@ -53,6 +54,6 @@ test.skipIf(WINDOWS)("default signing tests pass with Sigstore blocked", () => {
     expect(output + xml).not.toContain("tuf-repo-cdn.sigstore.dev");
     expect(output + xml).not.toContain("cosign tests skipped");
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 }, 180_000);

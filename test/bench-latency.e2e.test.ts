@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 const repoRoot = join(import.meta.dir, "..");
 
@@ -23,5 +24,5 @@ test("the compiled Pre hook bench runs on the demo fixture", () => {
     expect(text).toContain("p50 ms");
     expect(text).toContain("median p95");
     expect(text).toContain("ok");
-  } finally { rmSync(area, { recursive: true, force: true }); }
+  } finally { removeTree(area); }
 }, 180000);

@@ -9,6 +9,7 @@ import { compile } from "../src/compile.ts";
 import { sourcesOf, VERSIONS } from "../src/gate.ts";
 import { staticRulesFor } from "../src/languages.ts";
 import { ensureSnapshot, eventName, H, record, stateDir } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 test("recorded events report shadow, rules, examples, halts, window and next-attempt correction", () => {
   const records = JSON.parse(readFileSync("test/fixtures/report-events.json", "utf8")) as Recorded[];
@@ -215,7 +216,7 @@ function withStateHome(saved: string | undefined, area: string, run: (area: stri
     run(area);
   } finally {
     if (saved === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = saved;
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   }
 }
 

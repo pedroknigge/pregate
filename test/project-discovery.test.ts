@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { discoverDocumentation } from "../src/project-discovery.ts";
 import { sha256 } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 test("documentation discovery respects file count and byte budgets without inferring code-example requirements", () => {
   const root = mkdtempSync(join(tmpdir(), "pregate-doc-discovery-"));
@@ -56,5 +57,5 @@ test("documentation suggestions retain complete wrapped paragraphs and list item
 });
 
 function inScratch(dir: string, use: () => void): void {
-  try { use(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { use(); } finally { removeTree(dir); }
 }

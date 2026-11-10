@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { agyApprovalEvidence, agyApprovalPrompt, agyShellOutput, claudeFitnessInspection, claudeShellInput, codexApprovalEvidence, codexShellOutput, newEvents } from "../scripts/e2e-real-evidence.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // These controls test evidence selection, not the product's approval behavior.
 const command = `pregate approve --yes --digest ${"a".repeat(64)}`;
@@ -159,5 +160,5 @@ test("real harness evidence selects new legacy and dated events through the stor
 });
 
 function inScratch(dir: string, use: () => void): void {
-  try { use(); } finally { rmSync(dir, { recursive: true, force: true }); }
+  try { use(); } finally { removeTree(dir); }
 }

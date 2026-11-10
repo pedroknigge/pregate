@@ -3,6 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { applyLabels, type FindingSite, type PackPrecision, type SampleLabel } from "../scripts/precision.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const repoRoot = join(import.meta.dir, "..");
 const tree = join(repoRoot, "test/false-positive-corpus/tree");
@@ -10,7 +11,7 @@ const script = join(repoRoot, "scripts/bench-audit-repos.ts");
 const PIN = "ab3d21c8395b356f93f188c35c65e01e8b645742";
 
 function pinRepo(work: string): string {
-  rmSync(work, { recursive: true, force: true });
+  removeTree(work);
   mkdirSync(dirname(work), { recursive: true });
   cpSync(tree, work, { recursive: true });
   const home = join(dirname(work), "git-home");
@@ -87,5 +88,5 @@ test("precision audit runs every fixture pack and withholds precision for unlabe
     const rejected = run({ area, corpus, labels, out: join(area, "c.json"), markdown: join(area, "c.md"), findings: join(area, "findings-c.json") });
     expect(rejected.exitCode).not.toBe(0);
     expect(rejected.stderr.toString()).toContain("did not match a finding");
-  } finally { rmSync(area, { recursive: true, force: true }); }
+  } finally { removeTree(area); }
 });

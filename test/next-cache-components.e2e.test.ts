@@ -17,7 +17,7 @@ afterAll(() => removeTree(area));
 function releasedCapture<T>(capture: string, descriptors: number[], body: () => T): T {
   try { return body(); } finally {
     for (const fd of descriptors) closeSync(fd);
-    rmSync(capture, { recursive: true, force: true });
+    removeTree(capture);
   }
 }
 

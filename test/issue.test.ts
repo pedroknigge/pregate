@@ -19,6 +19,7 @@ import { findings } from "../src/recorded.ts";
 import { key, record, sha256 } from "../src/state.ts";
 import { submissionOwner } from "../src/issue-submission.ts";
 import type { CallEvent, Session } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 async function withCleanupAsync<T>(work: () => Promise<T>, cleanup: () => void | Promise<void>): Promise<T> {
   try { return await work(); } finally { await cleanup(); }
@@ -48,7 +49,7 @@ async function isolated(run: (root: string, session: Session) => Promise<void>, 
     await run(root, session);
   }, () => {
     process.chdir(cwd); names.forEach((n, i) => saved[i] === undefined ? delete process.env[n] : process.env[n] = saved[i]);
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 }
 

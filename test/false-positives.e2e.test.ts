@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 const repoRoot = join(import.meta.dir, "..");
 const tree = join(repoRoot, "test/false-positive-corpus/tree");
@@ -11,7 +12,7 @@ const script = join(repoRoot, "scripts/measure-false-positives.ts");
 const PIN = "ab3d21c8395b356f93f188c35c65e01e8b645742";
 
 function pinRepo(work: string): string {
-  rmSync(work, { recursive: true, force: true });
+  removeTree(work);
   mkdirSync(dirname(work), { recursive: true });
   cpSync(tree, work, { recursive: true });
   const home = join(dirname(work), "git-home");
@@ -101,7 +102,7 @@ test("false-positive measurement is stable on a pinned fixture corpus", () => {
     const rejected = run(corpus, join(area, "bad.json"), join(area, "bad.md"), null, join(area, "cache-d"));
     expect(rejected.status).not.toBe(0);
     expect(rejected.stderr).toContain("does not match HEAD");
-  } finally { rmSync(area, { recursive: true, force: true }); }
+  } finally { removeTree(area); }
 });
 
 test("the committed report agrees with the committed labels", () => {
@@ -135,5 +136,5 @@ test("an offline full corpus is skipped and does not rewrite results", () => {
     const failed = run(corpus, out, markdown, null, join(area, "cache-required"));
     expect(failed.status).not.toBe(0);
     expect(existsSync(out)).toBe(false);
-  } finally { rmSync(area, { recursive: true, force: true }); }
+  } finally { removeTree(area); }
 });

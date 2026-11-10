@@ -14,6 +14,7 @@ import { canonical } from "../src/disk.ts";
 import { grammars, LOCK, onPreCommand, PRESET, redirect, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { batchReview, engineNote, pendingReview } from "../src/pending-review.ts";
 import type { Session } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // `-c` and an explicit env: Bun does not pass process.env mutations to a spawn that omits env,
 // and an isolated CI home has no user.name. Repo config below is what the product's own commit reads.
@@ -41,7 +42,7 @@ async function committedProject(cwd: string, area: string, root: string, saved: 
     await run(root);
   } finally {
     process.chdir(cwd); ENV_NAMES.forEach((n, i) => saved[i] === undefined ? delete process.env[n] : process.env[n] = saved[i]);
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   }
 }
 

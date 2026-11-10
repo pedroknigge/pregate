@@ -4,13 +4,14 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { git, gitFailure } from "../src/git.ts";
 import { WINDOWS } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const area = mkdtempSync(join(tmpdir(), "pregate-git-cause-"));
 const saved = { PATH: process.env.PATH, Path: process.env.Path };
 afterAll(() => {
   process.env.PATH = saved.PATH;
   process.env.Path = saved.Path;
-  rmSync(area, { recursive: true, force: true });
+  removeTree(area);
 });
 
 function withPath(path: string, run: () => void): void {

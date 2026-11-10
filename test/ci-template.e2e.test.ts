@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WINDOWS } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 // assets/ci-github.yml is what `pregate install --ci github` writes. The install step must
 // take the engine version from the base commit, not the pull request's lock, and must
@@ -72,7 +73,7 @@ if (!WINDOWS) test("the CI template installs the base branch engine and verifies
     const extracted = join(bad.runner, "pregate");
     expect(await Bun.file(extracted).exists()).toBe(false);
   } finally {
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   }
 });
 

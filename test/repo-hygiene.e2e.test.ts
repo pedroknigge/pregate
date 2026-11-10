@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import core from "../catalog/source.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
+import { removeTree } from "./remove-tree.ts";
 
 // A fresh clone of this branch must be installable. The published tree once
 // contained `node_modules` as a symlink to a machine outside the repo, and
@@ -73,7 +74,7 @@ if (process.env[MARK] === "1") {
       const version = run([bin, "--version"], dest).trim();
       expect(version).toBe(`pregate ${pkg.version} (core ${core.version})`);
     } finally {
-      rmSync(dest, { recursive: true, force: true });
+      removeTree(dest);
     }
   });
 }

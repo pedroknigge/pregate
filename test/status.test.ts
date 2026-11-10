@@ -13,6 +13,7 @@ import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { fitness, fitnessFingerprint } from "../src/fitness-command.ts";
 import { discardProposal, proposeBatch, proposeContract } from "../src/proposal.ts";
 import { sha256 } from "../src/state.ts";
+import { removeTree } from "./remove-tree.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -126,7 +127,7 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     expect(protectionStatus(root).contract.errors.length).toBeGreaterThan(0);
   }, () => {
     vars.forEach((n, i) => saved[i] === undefined ? delete process.env[n] : process.env[n] = saved[i]);
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 });
 
@@ -171,7 +172,7 @@ test("status counts actual current, stale and failed fitness evidence separately
   }, () => {
     process.chdir(saved[0]!);
     if (saved[1] === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = saved[1];
-    rmSync(area, { recursive: true, force: true });
+    removeTree(area);
   });
 });
 
@@ -192,7 +193,7 @@ test("status names preset globs that match no file only because [ ] read as synt
     // An unlistable repository (broken .git) drops the advisory; status still answers.
     writeFileSync(join(root, ".git"), "gitdir: missing\n");
     expect(protectionStatus(root).globWarnings).toEqual(["Glob check skipped: project files could not be listed."]);
-  }, () => rmSync(area, { recursive: true, force: true }));
+  }, () => removeTree(area));
 });
 
 test("status names rule pack folders whose files Git does not hold", () => {
@@ -223,5 +224,5 @@ test("status names rule pack folders whose files Git does not hold", () => {
     writeFileSync(join(root, "rules/team/extra.json"), "{}");
     expect(protectionStatus(root).uncommittedSources).toEqual(["rules/team"]);
     expect(protectionStatus(null).uncommittedSources).toEqual([]);
-  }, () => rmSync(area, { recursive: true, force: true }));
+  }, () => removeTree(area));
 });

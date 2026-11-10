@@ -539,7 +539,7 @@ function inScratch(dir: string, use: () => void): void {
   try {
     use();
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 }
 

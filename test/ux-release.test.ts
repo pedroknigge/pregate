@@ -13,6 +13,7 @@ import { beforeText, H, history, key, sessionDir, snapshot } from "../src/state.
 import { refactorPlan, refactorPlanText } from "../src/refactor-plan.ts";
 import type { Preset, Session } from "../src/types.ts";
 import { slash } from "../src/paths.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(120_000);
 
@@ -29,7 +30,7 @@ afterAll(() => {
   for (const [name, value] of [["XDG_DATA_HOME", oldEnv.data], ["XDG_STATE_HOME", oldEnv.state], ["PREGATE_UNATTENDED_APPROVAL", oldEnv.unattended]] as const) {
     if (value === undefined) delete process.env[name]; else process.env[name] = value;
   }
-  rmSync(area, { recursive: true, force: true });
+  removeTree(area);
 });
 
 function git(root: string, ...args: string[]) {

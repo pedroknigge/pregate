@@ -10,6 +10,7 @@ import {
   type ProviderExpectation, type RawGitHubSignal,
 } from "../src/ci/provider.ts";
 import { VERSIONS } from "../src/versions.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const EN = "Vercel \u2013 web";
 
@@ -115,7 +116,7 @@ test("detection sees Actions, Vercel, both, or neither", () => {
     rmSync(join(dir, ".github"), { recursive: true });
     expect(detectProviders(dir).map((provider) => provider.id)).toEqual(["vercel"]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });
 
@@ -179,6 +180,6 @@ test("install --ci vercel writes the recipe and leaves an existing buildCommand"
     expect(actions.text).toContain(`CI template`);
     expect(VERSIONS.engine.length).toBeGreaterThan(0);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });

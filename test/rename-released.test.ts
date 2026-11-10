@@ -3,13 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renameReleased, writeAtomic } from "../src/disk.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const WINDOWS = process.platform === "win32";
 
 function inTemp(run: (dir: string) => void | Promise<void>): () => Promise<void> {
   return async () => {
     const dir = mkdtempSync(join(tmpdir(), "pregate-rename-"));
-    try { await run(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+    try { await run(dir); } finally { removeTree(dir); }
   };
 }
 

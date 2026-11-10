@@ -549,7 +549,7 @@ function seal(path: string): () => void {
     rmSync(path);
     mkdirSync(path);
     return () => {
-      rmSync(path, { recursive: true, force: true });
+      removeTree(path);
       writeFileSync(path, bytes);
     };
   }

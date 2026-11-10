@@ -6,6 +6,7 @@ import { readFixture } from "../src/fixture-replay.ts";
 import { testFixture } from "../src/fixtures.ts";
 import { clock, grammars } from "../src/gate.ts";
 import type { Files } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const check = readFileSync(join(import.meta.dir, "../packs/clean-code/checks/complexity/fn-max-params/check.json"), "utf8");
 function reproduction(before = false): Files {
@@ -65,5 +66,5 @@ test("fixture maps cannot include traversal or unrelated files; directory notes 
 });
 
 function removedAfter(area: string, use: (area: string) => void): void {
-  try { use(area); } finally { rmSync(area, { recursive: true, force: true }); }
+  try { use(area); } finally { removeTree(area); }
 }

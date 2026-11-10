@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { downloadRelease, latestRelease } from "../src/release-download.ts";
 import { update } from "../src/machine.ts";
 import { WINDOWS } from "../src/platform.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const areas: string[] = [];
 const savedEnv = { ...process.env };
@@ -12,7 +13,7 @@ afterEach(() => {
   mock.restore();
   for (const key of Object.keys(process.env)) if (!(key in savedEnv)) delete process.env[key];
   Object.assign(process.env, savedEnv);
-  for (const area of areas.splice(0)) rmSync(area, { recursive: true, force: true });
+  for (const area of areas.splice(0)) removeTree(area);
 });
 
 type Run = (args: string[]) => { code: number; stdout?: string; stderr?: string };

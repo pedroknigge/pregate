@@ -10,6 +10,7 @@ import { builtinContentHash, hashPolicy, libraryPackHashes } from "../src/disk.t
 import { librarySource } from "../src/library.ts";
 import { sha256, stateDir } from "../src/state.ts";
 import type { Lock } from "../src/types.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const saved = { state: process.env.XDG_STATE_HOME, data: process.env.XDG_DATA_HOME };
 let area = "";
@@ -19,7 +20,7 @@ afterEach(() => {
   else process.env.XDG_STATE_HOME = saved.state;
   if (saved.data === undefined) delete process.env.XDG_DATA_HOME;
   else process.env.XDG_DATA_HOME = saved.data;
-  if (area) rmSync(area, { recursive: true, force: true });
+  if (area) removeTree(area);
 });
 
 function project(): { root: string; preset: string; source: string } {
@@ -107,7 +108,7 @@ test("a cache directory that is not a directory still admits the compiled lock",
   const cold = admitted(root);
   const file = cacheFile(root);
   const dir = dirname(file);
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
   writeFileSync(dir, "not a directory\n");
   expect(admitted(root)).toEqual(cold);
   expect(existsSync(file)).toBe(false);

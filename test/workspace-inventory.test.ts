@@ -9,6 +9,7 @@ import { repoFiles } from "../src/init.ts";
 import { scopeCoverage } from "../src/onboard.ts";
 import { workspacePaths } from "../src/workspace.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 test("tracked authored build sources enter onboarding and cold/warm audit without ignored outputs", async () => {
   const root = mkdtempSync(join(tmpdir(), "pregate-tracked-build-"));
@@ -69,12 +70,12 @@ test("standalone build outputs remain excluded and broken Git never falls back t
 });
 
 async function removing(root: string, run: () => Promise<void>): Promise<void> {
-  try { await run(); } finally { rmSync(root, { recursive: true, force: true }); }
+  try { await run(); } finally { removeTree(root); }
 }
 
 function restoringGitConfig(root: string, saved: string | undefined, run: () => void): void {
   try { run(); } finally {
     if (saved === undefined) delete process.env.GIT_CONFIG_COUNT; else process.env.GIT_CONFIG_COUNT = saved;
-    rmSync(root, { recursive: true, force: true });
+    removeTree(root);
   }
 }

@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { accompanyEngine } from "../src/machine.ts";
+import { removeTree } from "./remove-tree.ts";
 
 const PHRASES = [
   "GNU LIBRARY GENERAL PUBLIC LICENSE", "Version 2, June 1991",
@@ -49,6 +50,6 @@ test("a release archive contains the JavaScriptCore and tinycc license texts", (
     expectSourceLinks(readFileSync(join(engine, "THIRD_PARTY_NOTICES"), "utf8"));
     expect(readFileSync(join(engine, "LICENSE"), "utf8").length).toBeGreaterThan(0);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });

@@ -10,6 +10,7 @@ import { reader as workspaceReader } from "../src/workspace.ts";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { removeTree } from "./remove-tree.ts";
 
 beforeAll(setUpGrammars);
 
@@ -155,7 +156,7 @@ describe("resolve", () => {
       writeFileSync(join(root, "node_modules/@x/cfg/tsconfig.json"), JSON.stringify({ compilerOptions: { baseUrl: "../../.." } }));
       for (const args of [["init", "-q"], ["add", "tsconfig.json"]]) Bun.spawnSync(["git", "-C", root, ...args]);
       expect(loadTsPaths(workspaceReader(root, true))).toEqual({ baseUrl: "", paths: [] });
-    }, () => rmSync(root, { recursive: true, force: true }));
+    }, () => removeTree(root));
   });
 });
 
