@@ -356,6 +356,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
 - [Shell guard friction](docs/benchmarks/shell-guard-friction.md): which routine commands the guard refuses
 - [Guarantees and residual limits](docs/guarantees.md)
+- [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
 - [Release notes for 0.0.6](docs/releases/0.0.6.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
 
