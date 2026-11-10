@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hook latency is also read against the last release, on the same runner.** Over 60 CI runs the hosted macOS runner's own speed varied 3.4 times, and the regression gate compares with a fixed number under a 55% allowance: it failed twice on unchanged code, and on a fast runner a hook three times slower would have passed. `bun scripts/bench.ts --against <checkout>` builds the engine of another source checkout with the same toolchain, times both engines in turn on every sample, and reports the ratio per route. The `bench` and `latency` jobs run it against the last release tag as a step that cannot fail them. The existing gate is unchanged; a ratio becomes a gate only when its spread on hosted runners is known.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The shell guard no longer refuses `cd`, `bun test`, `npm` or Pregate's own `layers` and `compile` commands in an enabled project. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
