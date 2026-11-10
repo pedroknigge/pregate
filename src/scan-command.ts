@@ -75,7 +75,8 @@ export function proposedScope(files: Files, stack: ReturnType<typeof detectStack
 }
 
 // `base` lists the methodologies the project or its initial recipe already selects; suggestions skip them.
-export function recommendPacks(files: Files, languages: string[], base: string[] = []): Recommendation[] {
+// `hasCore`: the project's own preset already declares a core-kind layer.
+export function recommendPacks(files: Files, languages: string[], base: string[] = [], hasCore = false): Recommendation[] {
   const selected = new Map<string, Selected>();
   const add: Add = (ns, methodologies, reason, owner) => {
     const item = selected.get(ns) ?? { ns, reasons: [], methodologies: [] };
@@ -100,8 +101,30 @@ export function recommendPacks(files: Files, languages: string[], base: string[]
   layeredRecommendations(add, primary, base);
   applicableRecommendations(add, primary, base, selected.has("security-audit"));
   const available = new Set(librarySources().map((pin) => pin.ns));
-  return [...selected.values()].filter((item) => available.has(item.ns)).sort((a, b) => a.ns.localeCompare(b.ns))
+  if (!hasCore && ![...selected.values()].some((item) => item.layers !== undefined)) withoutCoreLayerPolicies(selected);
+  return [...selected.values()].filter((item) => available.has(item.ns) && item.methodologies.length > 0).sort((a, b) => a.ns.localeCompare(b.ns))
     .map(({ owners, ...item }) => owners ? { ...item, ...ownershipScope(owners, manifests.map(([path]) => manifestRoot(path))) } : item);
+}
+
+// A methodology whose rule reads `@layers:core` does not compile without a core-kind layer, and one
+// failing methodology rejects the whole proposal. With no such layer declared or derived, it is left
+// out and named, so a dependency alone cannot make the first review fail.
+function withoutCoreLayerPolicies(selected: Map<string, Selected>): void {
+  for (const item of selected.values()) {
+    const blocked = item.methodologies.filter((method) => needsCoreLayer(item.ns, method));
+    if (blocked.length === 0) continue;
+    item.methodologies = item.methodologies.filter((method) => !blocked.includes(method));
+    item.reasons = [...item.reasons, `${blocked.join(", ")} left out: it checks the core layer and this project declares none. Propose layers with pregate layers apply, then add it.`];
+  }
+}
+
+function needsCoreLayer(ns: string, method: string): boolean {
+  if (!CATALOGS.has(ns)) { const files = librarySource(ns); CATALOGS.set(ns, files && packCatalog(files)); }
+  const catalog = CATALOGS.get(ns);
+  if (!catalog || "errors" in catalog) return false;
+  const globsOf = (value: unknown) => Array.isArray(value) ? value.filter((glob): glob is string => typeof glob === "string") : [];
+  return catalog.methodologies.filter((item) => item.id === method).flatMap((item) => item.invariants)
+    .some((alias) => [...globsOf(alias.defaults.paths), ...globsOf(alias.defaults.exclude), ...globsOf(alias.defaults.within)].includes("@layers:core"));
 }
 
 type Selected = Recommendation & { owners?: string[] };
@@ -305,6 +328,10 @@ function scanScope(files: Files, stack: ReturnType<typeof detectStack>, preset: 
   return { validPreset, coverage, coverageState, scope };
 }
 
+export function declaresCore(preset: Preset | null): boolean {
+  return Object.values(preset?.layers ?? {}).some((layer) => layer.kind === "core");
+}
+
 // Methodologies the project already selects, or the initial recipe would select for a new project.
 export function baseMethodologies(stack: ReturnType<typeof detectStack>, preset: Preset | null): string[] {
   return preset?.methodologies ?? onboardingPreset(stack.recommended, BUILTIN, VERSIONS, stack, librarySources())?.methodologies ?? [];
@@ -337,7 +364,7 @@ async function scanReport(args: string[], directory: string) {
     const presetText = established === null ? null : readText(join(root, PRESET));
     const preset: unknown = presetText === null ? null : JSON.parse(presetText);
     const { validPreset, coverage, coverageState, scope } = scanScope(files, stack, preset, established === null);
-    const recommendations = recommendPacks(files, stack.languages, baseMethodologies(stack, validPreset));
+    const recommendations = recommendPacks(files, stack.languages, baseMethodologies(stack, validPreset), declaresCore(validPreset));
     const plan = scanPlan(recommendations.filter(item => !item.scopeProblems?.length), validPreset, scope);
     const presetWarnings = validPreset ? [...emptyLayerLines(validPreset.layers, Object.keys(files)), ...deadGlobLines(validPreset, () => Object.keys(files))] : [];
     const customCandidates = stack.edges.map((edge) => ({ evidence: edge, suggestion: "Review dependency ownership and propose a project-specific boundary rule with pass/fail/trap fixtures.", status: "suggestion; not an executable rule" }));

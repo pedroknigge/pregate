@@ -1,6 +1,6 @@
 # firebase
 
-TypeScript Firebase client/admin-SDK usage pack. Source version **1.2.0**, for engine **0.0.4**. The engine parses only TS/JS, so this pack enforces TypeScript Firebase usage; Firestore/Storage Security Rules languages live in BACKLOG.md until a rules-language pack exists.
+TypeScript Firebase client/admin-SDK usage pack. Source version **1.2.0**, for engine **0.0.5**. The engine parses only TS/JS, so this pack enforces TypeScript Firebase usage; Firestore/Storage Security Rules languages live in BACKLOG.md until a rules-language pack exists.
 
 Firebase `apiKey` is public by design (it identifies the project; Security Rules protect the data), so this pack deliberately does NOT forbid it — unlike real secrets, which stay covered by the vibe-proof client-secret rules. COMPLEMENT, don't duplicate: hardcoded private keys and service-account JSON stay with the secrets rules.
 

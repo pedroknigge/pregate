@@ -1,7 +1,8 @@
 import { removeReleased as release } from "../src/disk.ts";
 
-// Windows: an on-access scanner holds a just-written or just-run pregate.exe open without delete
-// sharing. The product waits that lock out; a lock that lasts is still an error.
+// Windows can still map a just-run pregate.exe after that process has exited, so deleting the
+// directory throws EBUSY. Bun's rmSync ignores maxRetries and throws at once. This waits that
+// lock out. A lock that lasts is still an error.
 export function removeReleased(path: string, waitMs = 15_000): void {
   release(path, waitMs);
 }

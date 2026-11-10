@@ -1,6 +1,6 @@
 # solana
 
-Hackathon pack for the Superteam AR Solana stack (Anchor + @solana/kit v8 + Triton + devnet). Source version **1.2.0**, for engine **0.0.4**. TypeScript client only: the engine parses TS/JS, so Anchor/Rust program rules wait for a Rust language pack and live in BACKLOG.md until then.
+Hackathon pack for the Superteam AR Solana stack (Anchor + @solana/kit v8 + Triton + devnet). Source version **1.2.0**, for engine **0.0.5**. TypeScript client only: the engine parses TS/JS, so Anchor/Rust program rules wait for a Rust language pack and live in BACKLOG.md until then.
 
 ## User control
 

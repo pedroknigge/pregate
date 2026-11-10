@@ -222,23 +222,68 @@ export function statusText(s: Status, verbose = false): string {
   return verbose ? verboseStatus(s) : briefStatus(s).join("\n");
 }
 
-function ruleCounts(s: Status) {
+// Static rules only. Fitness obligations are evidence, counted with fitnessCoverage, not as denies.
+function breakdown(s: Status) {
   const evaluated = s.rules.filter((r) => r.implementation !== "fitness" && !r.ownedByArkgate);
-  return {
-    enforced: evaluated.filter((r) => r.enforcement === "enforce" && r.severity !== "warn").length,
-    advisor: evaluated.filter((r) => r.enforcement === "advisor").length,
-    shadow: evaluated.filter((r) => r.enforcement === "shadow").length,
-    warns: evaluated.filter((r) => r.severity === "warn").length,
-  };
+  const deny = evaluated.filter((r) => r.enforcement === "enforce" && r.severity === "deny").length;
+  const ask = evaluated.filter((r) => r.enforcement === "enforce" && r.severity === "ask").length;
+  const advisor = evaluated.filter((r) => r.enforcement === "advisor").length;
+  const shadow = evaluated.filter((r) => r.enforcement === "shadow").length;
+  const warnOnly = evaluated.filter((r) => r.enforcement === "enforce" && r.severity === "warn").length;
+  return { deny, ask, advisor, shadow, warnOnly, monitor: advisor + shadow + warnOnly };
 }
 
-// The short form answers three questions: am I protected, is it current, what next.
+function harnessLine(s: Status): string {
+  const gated = s.harnesses.filter((h) => h.configured).map((h) => h.id);
+  const open = s.harnesses.filter((h) => !h.configured).map((h) => h.id);
+  return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.`;
+}
+
+function unverifiedLine(s: Status): string {
+  const f = s.fitnessCoverage;
+  if (!f.adopted) return `Unverified: not adopted (${f.unverified} optional requirements have no verifier and check nothing).`;
+  return `Unverified: ${f.unverified} (no passing project evidence); ${f.fail} failed; ${f.pass} passing.`;
+}
+
+function channelGaps(s: Status): string {
+  const missing = (label: string, key: "warnings" | "halt" | "stopLimitNotice" | "sessionContext") => {
+    const names = s.harnesses.filter((h) => h[key] !== true).map((h) => h.id);
+    return names.length === 0 ? null : `${label} not covered on ${names.join(", ")}`;
+  };
+  const parts = [
+    missing("warning channel", "warnings"),
+    missing("halt", "halt"),
+    missing("stop-limit notice", "stopLimitNotice"),
+    missing("session context", "sessionContext"),
+  ].filter((part) => part !== null);
+  return parts.length === 0 ? "Channels not covered: none." : `Channels not covered: ${parts.join("; ")}.`;
+}
+
+// What this lock does, before how many rules it contains. Doctor prints the same lines.
+export function coverageLead(s: Status): string[] {
+  const b = breakdown(s);
+  const fitness = s.rules.filter((r) => r.implementation === "fitness").length;
+  const owned = s.rules.filter((r) => r.ownedByArkgate).length;
+  const catalog = `Catalog: ${s.rules.length} rules in this lock (${s.rules.length - fitness} static, ${fitness} fitness).${owned === 0 ? "" : ` ${owned} owned by ArkGate are listed and not evaluated.`}`;
+  const head = s.root === null ? ["No contract in this directory."] : [];
+  return [
+    ...head,
+    `Enforced (deny): ${b.deny}.`,
+    ...(b.ask === 0 ? [] : [`Ask: ${b.ask} (human confirmation, not a deny).`]),
+    `Advisor or monitor only: ${b.monitor} (${b.advisor} advisor, ${b.shadow} shadow, ${b.warnOnly} warn-only).`,
+    unverifiedLine(s),
+    harnessLine(s),
+    channelGaps(s),
+    catalog,
+  ];
+}
+
+// The short form leads with enforced, monitored and unverified rules, then the lock size.
 function briefStatus(s: Status): string[] {
   if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview --enforcement advisor (the human approves its review)."];
-  const { enforced, advisor, shadow } = ruleCounts(s);
   return [
-    `Protected: ${s.state === "active" ? "yes" : "no"}. PREGATE local consent is ${s.consent ? "active" : "inactive"} in ${s.root}; effective protection: ${s.state}.`,
-    `Mode: ${s.mode ?? "unknown"} (${enforced} enforcing, ${advisor} advisor, ${shadow} shadow). ${versionLine(s)}`,
+    ...coverageLead(s),
+    `Local consent is ${s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
     ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
@@ -284,19 +329,20 @@ function providerLine(providers: { id: string; detail: string; checks: string[] 
 }
 
 function verboseStatus(s: Status): string {
-  const { enforced, advisor, shadow, warns } = ruleCounts(s);
+  const b = breakdown(s);
   return [
+    ...coverageLead(s),
     `PREGATE local consent is ${s.consent ? "active" : "inactive"}${s.root === null ? "" : ` in ${s.root}`}. Effective protection: ${s.state}.`,
     ...consentLostLine(s),
     `Contract: ${s.contract.valid ? "valid; preset, sources and compiled lock match" : "not ready"}.`, ...s.contract.errors,
     ...uncommittedLine(s), ...s.globWarnings,
     `Installation: launcher ${s.installation.launcherPresent ? "present" : "missing"}, engine ${s.engine} ${s.installation.enginePresent ? "present" : "missing"}.`,
     ...(s.project === null ? [] : [`Project versions: preset engine ${s.project.engine ?? "unreadable"}; lock engine ${s.project.lockEngine ?? "missing/unreadable"}; lock core ${s.project.core ?? "missing/unreadable"}. A global update does not activate this project's migration; review pregate update --project --preview.`]),
-    `Rules: ${enforced} static enforcing, ${advisor} advisor, ${shadow} shadow, ${warns} warning; ${s.rules.filter((r) => r.ownedByArkgate).length} owned by ArkGate.`,
+    `Rules: ${b.deny} static deny, ${b.ask} ask, ${b.advisor} advisor, ${b.shadow} shadow, ${b.warnOnly} warn-only; ${s.rules.filter((r) => r.ownedByArkgate).length} owned by ArkGate.`,
     ...(!s.fitnessCoverage.adopted
       ? [`Project verification: not adopted (${s.fitnessCoverage.unverified} optional requirements have no verifier and check nothing). pregate fitness plan shows how to bind one.`]
       : [
-      `Project requirements: ${s.fitnessCoverage.active} active; ${s.fitnessCoverage.pass} current assertions passed, ${s.fitnessCoverage.fail} failed, ${s.fitnessCoverage.unverified} unverified. Coverage: ${s.fitnessCoverage.complete ? "complete for the reviewed assertions" : "incomplete"}.`,
+      `Project requirements: ${s.fitnessCoverage.pass} current assertions passed, ${s.fitnessCoverage.fail} failed, ${s.fitnessCoverage.unverified} unverified of ${s.fitnessCoverage.active} in this lock. Coverage: ${s.fitnessCoverage.complete ? "complete for the reviewed assertions" : "incomplete"}.`,
       "Unbound fitness requirements remain active and unverified without blocking work. Adopted assertions require fresh passing evidence. Inspect pregate fitness status --json for coverage; a passing check is not certification.",
       ]),
     `Parsers: ${s.languages.map((l) => `${l.language} (${l.extensions.join(", ")})`).join("; ")}.`,

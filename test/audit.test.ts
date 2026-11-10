@@ -14,6 +14,7 @@ import { compileBinary, hostTarget } from "../scripts/build.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { fitnessFingerprint } from "../src/fitness-command.ts";
 import { policyFixture } from "./policy-fixtures.ts";
+import { removeTree } from "./remove-tree.ts";
 
 setDefaultTimeout(180_000);
 
@@ -348,5 +349,5 @@ test("promote prepares a digest review for clean advisor rules and refuses viola
 });
 
 async function inScratch(dir: string, use: () => Promise<void>): Promise<void> {
-  try { await use(); } finally { rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); }
+  try { await use(); } finally { removeTree(dir); }
 }

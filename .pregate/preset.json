@@ -2,7 +2,7 @@
   "$schema": "../schema/preset.v1.json",
   "name": "pregate",
   "version": "0.1.0",
-  "engine": "0.0.4",
+  "engine": "0.0.5",
   "sources": [
     {
       "ns": "core",
@@ -149,6 +149,7 @@
         "src/proposal.ts",
         "src/pending-review.ts",
         "src/init.ts",
+        "src/init-presets.ts",
         "src/scan-command.ts",
         "src/skill.ts",
         "src/report-command.ts",

@@ -2,7 +2,7 @@
   "core": "0.0.1",
   "coreHash": "25f3b2bf8b0faa89a883f18b19d52e73f3cf112d436f88176f1c7a4ecd14c931",
   "enforcement": "enforce",
-  "engine": "0.0.4",
+  "engine": "0.0.5",
   "generatedMarkers": [],
   "layers": {
     "core": {
@@ -109,6 +109,7 @@
         "src/proposal.ts",
         "src/pending-review.ts",
         "src/init.ts",
+        "src/init-presets.ts",
         "src/scan-command.ts",
         "src/skill.ts",
         "src/report-command.ts",
@@ -164,7 +165,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "409e2bab66c36f0df2596f826d7e6dd81dbae3d2bdf3813a021522d58913f033",
+  "presetHash": "ab38cb5f65aa8cbfc8211a9cfb98cd6359941da8502496fa3171af67fcf05eba",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5425,6 +5426,7 @@
           "src/proposal.ts",
           "src/pending-review.ts",
           "src/init.ts",
+          "src/init-presets.ts",
           "src/scan-command.ts",
           "src/skill.ts",
           "src/report-command.ts",

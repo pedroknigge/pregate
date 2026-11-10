@@ -52,10 +52,19 @@ imports from this project instead of concepts. Keep a summary under eight lines.
      repository, and run `pregate layers apply <file> --preview`. Give a
      one-sentence reason a reviewer can check against the code. Explain each
      existing import the map would flag.
-   - Instruction-file statements that compile: `pregate compile <file>
-     --preview`. For a statement that needs an example, write one failing and
-     one passing snippet from this project's own code, show both, and use
-     `pregate rules add "<sentence>" --fail ... --pass ...`.
+   - Instruction files. Real ones are paragraphs, so reading them is your
+     part and proving each rule is the engine's. Run `pregate compile <file>
+     --template`, save the JSON to a temporary file outside the repository, and
+     follow its `steps`: keep only the statements a check on one source file can
+     decide (a forbidden import, call, syntax or name), and give each a short
+     sentence, code from this project that must fail, the correct code, and one
+     similar snippet that is allowed. Read the instruction file itself as well:
+     rules also sit in tables and long paragraphs. Then run `pregate compile
+     apply <proposals.json> --preview`. A refused proposal names its reason;
+     correct it and run again, and add a `pattern` when the engine says it could
+     only match the example's own text. Tell the user which statements became
+     rules and which stay as guidance. Do not force guidance or agent actions
+     (run the tests, use pnpm) into a rule.
    - After the human approves, offer to delete the compiled lines from the
      instruction file, and delete them only when the user agrees. The rules
      carry their own reason and repair, so the text no longer has to load in
@@ -80,8 +89,10 @@ When inspection is permitted and `--help` lists `guide`, first use `guide --json
 It reports actual setup/update/repair/activation state, scope, policy counts and
 recommended actions. Proactively present useful choices together; do not ask
 separately for permission to inspect or prepare each pack. Otherwise use `status`
-(three lines: protected, mode and version, next step; `status --verbose` for
-details), then `preset show` and `explain <rule>`
+(enforced deny rules, advisor or monitor-only rules, unverified requirements
+with no passing project evidence, or not adopted when no verifier is bound,
+and harnesses gated versus channels not covered, with catalog totals after
+that breakdown; `status --verbose` for the full report), then `preset show` and `explain <rule>`
 or `explain --path <file>`. These commands and manual pre-checks are helpers, not
 prerequisites for an edit. If the user prohibits shell use or a helper is
 unavailable, use supplied context and permitted edit tools with hooks active.
@@ -130,7 +141,7 @@ application code there or edit lock bytes.
 
 ## Start and compose a project
 
-The guided coordinator is included in 0.0.4.
+The guided coordinator is included in 0.0.5.
 Check installed help before relying on a flag. The human
 can run `pregate` in an interactive terminal or `! pregate guide` where the harness
 provides one. Bare no-argument input redirected by a hook retains hook-auto;
@@ -349,7 +360,7 @@ change and assertions with invalid controls. Do not infer architecture or data
 model correctness from a folder name or repeat a generic design prompt per rule.
 The project guide `docs/guides/design-contract.md` provides a short worksheet.
 `status` separates static checks from project assertion coverage; JSON exposes
-`fitnessCoverage` (active, pass, fail, unverified, complete) from current receipts.
+`fitnessCoverage` (active, pass, fail, unverified, complete, adopted) from current receipts.
 Active consent/configuration is not proof of unverified requirements. `doctor`
 checks launcher registration; direct engine hook calls have no launcher
 crash/timeout protection. A wrapper canary does not override registration errors.
@@ -569,7 +580,7 @@ never type. Full library coverage remains incomplete.
 
 For an existing project, inspect installed versus project/lock versions rather
 than assuming `--version` identifies the engine used by every hook. Unified
-migration forms are in 0.0.4; check `--help` when the installed engine is older.
+migration forms are in 0.0.5; check `--help` when the installed engine is older.
 Prepare `update --project --preview` or
 `pack update --all --preview`: engine, core and every registered pack enter one
 candidate and one digest-bound human approval. A single-pack update uses the
@@ -725,7 +736,7 @@ usage:
   pregate preset diagnose [--json] | schema
   pregate rules test [<dir> | --library <ns> | --fixture <dir|repro.json>]
   pregate rules add "<sentence>" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]
-  pregate compile <rules.md> [--json|--preview]
+  pregate compile <rules.md> [--json|--template|--preview] | compile apply <proposals.json> --preview
   pregate rules draft <pack-dir> <area>/<name> [--pattern <rule.json|auto> --message <text> --why <text> --fix <text>] [--files <glob>] [--fail <file>]... [--pass <file>]... [--trap <file> --trap-note <text>]...
   pregate storage inspect [--json] | prune --older-than <days> [--preview] | recover [--preview] | show <digest> | apply <digest> [--yes]
   pregate enable | disable [--yes] | status [--json|--verbose]
