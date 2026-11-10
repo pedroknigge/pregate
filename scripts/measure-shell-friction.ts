@@ -13,7 +13,9 @@ import { canonical } from "../src/disk.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const BENCH = join(ROOT, "docs", "benchmarks");
-const ENGINE = ["bun", join(ROOT, "src", "main.ts")];
+// The engine as a command. The published measurement runs it from source; a test passes the
+// compiled engine, which decides the same and starts faster.
+const SOURCE_ENGINE = ["bun", join(ROOT, "src", "main.ts")];
 export type Intent = "read" | "outside" | "source" | "contract";
 export interface Command { id: string; group: string; intent: Intent; command: string }
 export interface Outcome { id: string; group: string; intent: Intent; command: string; decision: "allow" | "deny"; cause: string | null }
@@ -39,7 +41,7 @@ const FILES: Record<string, string> = {
   "scripts/build.sh": "#!/bin/sh\nset -e\necho building\ntsc -p .\n",
 };
 
-function project(area: string) {
+function project(area: string, engine: string[]) {
   const root = join(area, "repo"), machine = join(area, "machine");
   for (const [rel, text] of Object.entries(FILES)) { mkdirSync(dirname(join(root, rel)), { recursive: true }); writeFileSync(join(root, rel), text, rel.endsWith(".sh") ? { mode: 0o755 } : {}); }
   const env = { ...process.env, HOME: join(machine, "home"), USERPROFILE: join(machine, "home"), CODEX_HOME: join(machine, "codex"), GROK_HOME: join(machine, "grok"),
@@ -55,10 +57,10 @@ function project(area: string) {
   writeFileSync(join(root, "src/a.ts"), `${FILES["src/a.ts"]}export const none = total([]);\n`);
   git("commit", "-qam", "second");
   git("branch", "other", "HEAD~1");
-  const review = run([...ENGINE, "guide", "--preview", "--enforcement", "enforce"]);
+  const review = run([...engine, "guide", "--preview", "--enforcement", "enforce"]);
   const digest = review.text.match(/Digest: ([0-9a-f]{64})/)?.[1];
   if (digest === undefined) throw new Error(`no review to approve:\n${review.text}`);
-  const applied = run([...ENGINE, "approve", "--yes", "--digest", digest]);
+  const applied = run([...engine, "approve", "--yes", "--digest", digest]);
   if (applied.code !== 0) throw new Error(`the contract was not applied:\n${applied.text}`);
   return { root, run };
 }
@@ -67,13 +69,13 @@ export function corpus(): Command[] {
   return (JSON.parse(readFileSync(join(BENCH, "shell-friction-corpus.json"), "utf8")) as { commands: Command[] }).commands;
 }
 
-export function measure(commands: Command[]): Outcome[] {
+export function measure(commands: Command[], engine: string[] = SOURCE_ENGINE): Outcome[] {
   const area = canonical(mkdtempSync(join(tmpdir(), "shell-friction-")));
   try {
-    const p = project(area);
+    const p = project(area, engine);
     return commands.map((entry, index) => {
       const id = String(index).padStart(12, "0");
-      const out = p.run([...ENGINE, "hook", "pre", "--harness", "claude-code"], `${JSON.stringify({
+      const out = p.run([...engine, "hook", "pre", "--harness", "claude-code"], `${JSON.stringify({
         session_id: `00000000-0000-4000-8000-${id}`, cwd: p.root, hook_event_name: "PreToolUse", permission_mode: "acceptEdits",
         tool_name: "Bash", tool_use_id: `toolu_${id}`, tool_input: { command: entry.command } })}\n`);
       const cause = out.text.match(/PREGATE DENY ([a-z-]+)/)?.[1] ?? null;

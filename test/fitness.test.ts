@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { compile } from "../src/compile.ts";
 import { canonical as canonicalPath, readTree } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -18,7 +18,7 @@ import { removeTree } from "./remove-tree.ts";
 const area = mkdtempSync(join(tmpdir(), "pregate-fitness-"));
 const binary = join(area, "engine", "version", ENGINE_FILE);
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
-beforeAll(() => compileBinary(hostTarget(), binary, true), 120_000);
+beforeAll(() => engineAt(binary, true), 120_000);
 afterAll(() => removeTree(area));
 
 test("fitness bind prepares one reviewed binding without executing or changing active policy", () => {
@@ -285,14 +285,24 @@ console.log(result.text); process.exit(result.code);
   return { run, marker, root };
 }
 
+// How long the verifier lived at most: from its first line to the return of the command that ran
+// it, by which time the test has seen it dead. The bound on the mechanism is on this interval. The
+// engine's own start is not part of a deadline, and on a memory-constrained Windows machine it
+// alone can exceed the bound. `child-finished` is written only by a verifier that reached its own
+// exit: its absence shows the engine ended it, on any machine speed.
+function verifierLifetime(root: string): number {
+  return Date.now() - Number(readFileSync(join(root, "child-started"), "utf8"));
+}
+
 test.each(["source", "compiled"] as const)("%s fitness deadline terminates a verifier that ignores SIGTERM", (kind) => {
   // The eventual exit bounds the negative control when the production deadline is ineffective.
-  const { run, marker } = verifierProject(kind, "deadline", `import { writeFileSync } from "node:fs";
+  const { run, marker, root } = verifierProject(kind, "deadline", `import { writeFileSync } from "node:fs";
 writeFileSync("child-pid", String(process.pid));
+writeFileSync("child-started", String(Date.now()));
 if (process.platform !== "win32") process.on("SIGTERM", () => {});
-setTimeout(() => process.exit(0), 7000);
+setTimeout(() => { writeFileSync("child-finished", "by itself"); process.exit(0); }, 7000);
 `, 500);
-  const start = performance.now(), result = run("fitness", "run", "--all"), elapsed = performance.now() - start;
+  const start = performance.now(), result = run("fitness", "run", "--all"), elapsed = performance.now() - start, lifetime = verifierLifetime(root);
   expect(result.error).toBeUndefined(); expect(result.signal).toBeNull(); expect(result.status).toBe(1);
   const pid = Number(readFileSync(marker, "utf8"));
   expect(Number.isSafeInteger(pid) && pid > 0).toBe(true);
@@ -302,19 +312,21 @@ setTimeout(() => process.exit(0), 7000);
   const requirement = JSON.parse(status.stdout).requirements[0];
   expect(requirement.status).toBe("unverified"); expect(requirement.diagnostics).toContain("ETIMEDOUT");
   expect(elapsed).toBeGreaterThanOrEqual(450);
-  expect(elapsed).toBeLessThan(3500);
+  expect(lifetime).toBeLessThan(3000);
+  expect(existsSync(join(root, "child-finished"))).toBe(false);
 }, 15000);
 
 const outputCases = (["source", "compiled"] as const).flatMap((kind) => (["stdout", "stderr"] as const).map((channel) => [kind, channel] as const));
 test.each(outputCases)("%s fitness output budget terminates an oversized %s verifier", (kind, channel) => {
-  const { run, marker } = verifierProject(kind, `output-${channel}`, `import { writeFileSync, writeSync } from "node:fs";
+  const { run, marker, root } = verifierProject(kind, `output-${channel}`, `import { writeFileSync, writeSync } from "node:fs";
 writeFileSync("child-pid", String(process.pid));
+writeFileSync("child-started", String(Date.now()));
 if (process.platform !== "win32") process.on("SIGTERM", () => {});
 const bytes = Buffer.alloc(16 * 1024 * 1024 + 1, 65);
 for (let offset = 0; offset < bytes.length;) offset += writeSync(${channel === "stdout" ? 1 : 2}, bytes.subarray(offset));
-setTimeout(() => process.exit(0), 7000);
+setTimeout(() => { writeFileSync("child-finished", "by itself"); process.exit(0); }, 7000);
 `, 9000);
-  const start = performance.now(), result = run("fitness", "run", "--all"), elapsed = performance.now() - start;
+  const result = run("fitness", "run", "--all"), lifetime = verifierLifetime(root);
   expect(result.error).toBeUndefined(); expect(result.signal).toBeNull(); expect(result.status).toBe(1);
   const pid = Number(readFileSync(marker, "utf8"));
   expect(Number.isSafeInteger(pid) && pid > 0).toBe(true);
@@ -326,7 +338,8 @@ setTimeout(() => process.exit(0), 7000);
   expect(requirement.diagnostics).toContain("16 MiB per-channel budget");
   expect(requirement.diagnostics).toContain(`${channel} (first 4096 bytes):\n${"A".repeat(4096)}`);
   expect(requirement.diagnostics.length).toBeLessThan(9000);
-  expect(elapsed).toBeLessThan(3500);
+  expect(lifetime).toBeLessThan(3000);
+  expect(existsSync(join(root, "child-finished"))).toBe(false);
 }, 15000);
 
 test.each(["source", "compiled"] as const)("%s fitness output budget admits exactly 16 MiB independently on both channels", (kind) => {

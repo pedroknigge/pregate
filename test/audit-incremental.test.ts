@@ -9,7 +9,7 @@ import { canonical, evaluationFingerprint } from "../src/disk.ts";
 import { LOCK, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { sha256 } from "../src/state.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { fitnessFingerprint } from "../src/fitness-command.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -26,7 +26,7 @@ const binary = join(base, ENGINE_FILE);
 const names = ["HOME", "XDG_STATE_HOME", "XDG_DATA_HOME"] as const;
 let saved: Record<string, string | undefined>, root: string, area: string, serial = 0;
 // Compiling the engine takes longer than bun's 5 s hook default on Windows runners.
-beforeAll(() => compileBinary(hostTarget(), binary), 120_000);
+beforeAll(() => engineAt(binary), 120_000);
 beforeEach(() => {
   // Canonical forward-slash form, as the engine reports it (join would use \ on Windows).
   area = `${base}/${++serial}`; root = `${area}/repo`;

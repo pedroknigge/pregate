@@ -3,10 +3,13 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The CLI, against a fixture project, is the gate a repository gets.
-const cli = join(import.meta.dir, "../src/main.ts");
+// The compiled engine, built once for the test process: it is what ships, and it starts faster
+// than the source entry on every platform.
+const cli = testEngine();
 const area = mkdtempSync(join(tmpdir(), "pregate-astro-pack-"));
 afterAll(() => removeTree(area));
 
@@ -130,7 +133,7 @@ function project(name: string) {
     writeFileSync(join(root, path), text);
   };
   const run = (args: string[], input?: string) => {
-    const out = Bun.spawnSync([process.execPath, cli, ...args], {
+    const out = Bun.spawnSync([cli, ...args], {
       cwd: root, env, stdin: input === undefined ? "ignore" : Buffer.from(input),
       stdout: "pipe", stderr: "pipe", timeout: 60_000,
     });

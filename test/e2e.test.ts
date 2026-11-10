@@ -4,7 +4,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rea
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { hookCommand } from "../src/register.ts";
 import { enable } from "../src/consent.ts";
 import type { HarnessId } from "../src/types.ts";
@@ -40,7 +40,7 @@ interface HookOutput {
 beforeAll(() => {
   mkdirSync(HOME, { recursive: true });
   mkdirSync(join(TMP, "tmp"), { recursive: true });
-  compileBinary(hostTarget(), BIN, true);
+  engineAt(BIN, true);
   mkdirSync(join(HOME, ".claude"), { recursive: true });
   ok(run([BIN, "setup"], HOME, envOf()), "setup");
 });

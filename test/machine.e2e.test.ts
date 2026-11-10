@@ -7,7 +7,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
 import { agyPlugin, exact } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
@@ -29,7 +30,7 @@ const ALL = Object.keys(HARNESSES) as HarnessId[];
 const EVENTS = ["PreToolUse", "Stop", "SessionStart"];
 const TOOLS = ["cp", "git", "gzip", "mkdir", "rm", "sed", "tar"];
 
-beforeAll(() => compileBinary(hostTarget(), BIN));
+beforeAll(() => engineAt(BIN));
 afterAll(() => removeTree(TMP));
 
 test("D25: setup installs versioned skills; doctor detects missing/stale copies; uninstall removes them", () => {

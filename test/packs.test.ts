@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { canonical, packCatalog } from "../src/compile.ts";
 import { packTemplate } from "../src/pack-template.ts";
 import { cachedPack, fetchPack, testPack } from "../src/packs.ts";
@@ -54,7 +54,7 @@ test("local Git packs pin commit and content, never auto-update, reject corrupti
     writeFileSync(cache, tree["source.json"]!);
     expect(cachedPack({ ...first, hash: "a".repeat(64) })).toBeNull();
     const binary = join(area, ENGINE_FILE);
-    compileBinary(hostTarget(), binary, true);
+    engineAt(binary, true);
     const root = join(area, "repo");
     mkdirSync(root);
     Bun.spawnSync(["git", "init", "-q", root]);

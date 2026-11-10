@@ -2,16 +2,19 @@
 // launcher, on a git copy of test/demo-repo, run the way the harness runs the hook. Every sample
 // starts a fresh session, so each one measures the same state. Internal: it is not shipped.
 // Usage: bun run bench [--runs N] [--repeat K] [--inform] [--gate <baseline>] [--only <route>]
+//        [--against <checkout> [--against-label <name>]]
 // (N ≥ 25, default 30; K ≥ 1, default 1). The 150 ms budget holds on the reference machine (O31);
 // --inform reports that miss without failing. --gate fails when the median p95 of K repeats
-// regresses more than 55% against the committed per-OS baseline. With GITHUB_STEP_SUMMARY set,
-// the table goes there too.
+// regresses more than 55% against the committed per-OS baseline. --against builds the engine of
+// another source checkout (the last release) with this toolchain, times both engines in turn on
+// every sample, and reports the ratio; it informs and fails nothing. With GITHUB_STEP_SUMMARY set,
+// the tables go there too.
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureCompiledEngine } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "./confirm-terminal.ts";
-import { decideGate, formatGate, median, parseBaseline, parseBenchArgs, type BenchOptions } from "./latency-gate.ts";
+import { decideGate, differential, formatDifferential, formatGate, median, nearestRank, parseBaseline, parseBenchArgs, type BenchOptions, type Differential } from "./latency-gate.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const BUDGET_MS = 150;      // p95 of any Pre (§4.1)
@@ -23,6 +26,8 @@ const LEDGERS = { 200: "src/domain/ledger-200.ts", 300: "src/domain/ledger-300.t
 type Env = Record<string, string>;
 interface Repo { dir: string; env: Env; pre: string; start: string }
 interface Route { name: string; prepare: Payload[]; timed: Payload }
+// One engine under test: its own repository, homes and registered hook commands.
+interface Arm { repo: Repo; routes: Route[] }
 type Payload = Record<string, unknown>;
 
 interface Stats { name: string; runs: number; p50: number; p95: number; max: number }
@@ -33,19 +38,49 @@ function main(): number {
 
 function benchIn(work: string, options: BenchOptions): number {
   try {
-    const repo = setUp(work);
-    const selected = selectRoutes(routes(repo.dir), options.only);
-    const stats = combine(repeatMeasure(repo, selected, options.runs, options.repeat));
+    const arms = [arm(join(work, "candidate"), ROOT, process.env.PREGATE_COMPILED_ENGINE, options.only)];
+    if (options.against !== null) arms.push(arm(join(work, "reference"), realpathSync(options.against), referenceEngine(work, options.against), options.only));
+    const series = repeatMeasure(arms, options.runs, options.repeat);
+    const stats = combine(series.map((arms) => arms[0]!));
     const over = overBudget(stats);
     const verdict = budgetText(over);
     console.log(`${table(stats)}\n\n${verdict}`);
     const summary = process.env.GITHUB_STEP_SUMMARY;
     if (summary) appendFileSync(summary, markdown(stats, verdict));
+    if (options.against !== null) reportDifferential(series, options.againstLabel ?? options.against);
     const gate = options.gate === null ? 0 : applyGate(stats, options.gate);
     return (over.length > 0 && !options.inform) || gate !== 0 ? 1 : 0;
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+}
+
+function arm(work: string, root: string, engine: string | undefined, only: string[]): Arm {
+  mkdirSync(work, { recursive: true });
+  const repo = setUp(work, root, engine);
+  return { repo, routes: selectRoutes(routes(repo.dir), only) };
+}
+
+// The reference engine is built from its own source with the Bun that runs this script, by the
+// build script of that checkout: the same toolchain and the same build flags as the candidate.
+function referenceEngine(work: string, checkout: string): string {
+  const out = join(work, process.platform === "win32" ? "reference-engine.exe" : "reference-engine");
+  const env = { ...process.env };
+  delete env.PREGATE_COMPILED_ENGINE;
+  delete env.GITHUB_ENV;
+  const r = Bun.spawnSync([process.execPath, "scripts/compiled-engine.ts", "--out", out, "--force"], { cwd: checkout, env, stdout: "pipe", stderr: "pipe" });
+  if (r.exitCode !== 0 || !existsSync(out)) throw new Error(`reference engine build failed in ${checkout} (exit ${r.exitCode}): ${r.stdout}${r.stderr}`);
+  return out;
+}
+
+function reportDifferential(series: Map<string, number[]>[][], label: string): void {
+  const names = [...(series[0]?.[0]?.keys() ?? [])];
+  const pooled = (name: string, index: number) => series.flatMap((arms) => arms[index]!.get(name) ?? []);
+  const rows: Differential[] = names.map((name) => differential(name, pooled(name, 0), pooled(name, 1)));
+  console.log(`\n${formatDifferential(label, rows)}`);
+  console.log(JSON.stringify({ platform: process.platform, arch: process.arch, against: label, differential: rows }));
+  const summary = process.env.GITHUB_STEP_SUMMARY;
+  if (summary) appendFileSync(summary, ["", "```", formatDifferential(label, rows), "```", ""].join("\n"));
 }
 
 function selectRoutes(all: Route[], only: string[]): Route[] {
@@ -54,9 +89,9 @@ function selectRoutes(all: Route[], only: string[]): Route[] {
   return only.length === 0 ? all : all.filter((route) => only.includes(route.name));
 }
 
-function repeatMeasure(repo: Repo, all: Route[], runs: number, times: number): Map<string, number[]>[] {
-  const series: Map<string, number[]>[] = [];
-  for (let i = 0; i < times; i++) series.push(measure(repo, all, runs));
+function repeatMeasure(arms: Arm[], runs: number, times: number): Map<string, number[]>[][] {
+  const series: Map<string, number[]>[][] = [];
+  for (let i = 0; i < times; i++) series.push(measure(arms, runs));
   return series;
 }
 
@@ -96,7 +131,7 @@ function applyGate(stats: Stats[], path: string): number {
 // ── The repo under test ────────────────────────────────────────────────────────────
 
 // HOME and the XDG folders point into `work`: the engine, its state and git's config stay there.
-function setUp(work: string): Repo {
+function setUp(work: string, root: string, shared: string | undefined): Repo {
   const dir = join(work, "repo");
   const env: Env = {
     PATH: process.env.PATH ?? "/usr/bin:/bin", TMPDIR: work, HOME: join(work, "home"),
@@ -106,10 +141,9 @@ function setUp(work: string): Repo {
   };
   // One release build per bench run; CI may precompile and set PREGATE_COMPILED_ENGINE.
   const engine = join(work, process.platform === "win32" ? "pregate.exe" : "pregate");
-  const shared = process.env.PREGATE_COMPILED_ENGINE;
   if (shared !== undefined && existsSync(shared)) cpSync(shared, engine);
   else ensureCompiledEngine({ outfile: engine, testApproval: false });
-  seed(dir);
+  seed(dir, root);
   mkdirSync(join(work, "no-preset"));
   mkdirSync(join(env.HOME!, ".claude"), { recursive: true });
   env.PATH = process.platform === "win32" ? (process.env.PATH ?? "") : `${env.HOME}/.local/bin:/usr/bin:/bin`;
@@ -143,10 +177,10 @@ function activeCanary(repo: Repo): void {
 }
 
 // test/demo-repo under backend-clean-ddd, plus the generated ledgers.
-function seed(dir: string): void {
-  cpSync(join(ROOT, "test/demo-repo"), dir, { recursive: true });
+function seed(dir: string, root: string): void {
+  cpSync(join(root, "test/demo-repo"), dir, { recursive: true });
   mkdirSync(join(dir, ".pregate"));
-  cpSync(join(ROOT, "catalog/presets/backend-clean-ddd.json"), join(dir, ".pregate/preset.json"));
+  cpSync(join(root, "catalog/presets/backend-clean-ddd.json"), join(dir, ".pregate/preset.json"));
   writeFileSync(join(dir, LEDGERS[200]), ledger(200));
   writeFileSync(join(dir, LEDGERS[300]), ledger(300));
   writeFileSync(join(dir, LEDGERS[2000]), ledger(2000));
@@ -228,18 +262,26 @@ function tool(name: string, input: Payload): Payload {
 }
 
 // Rounds go through every route in turn, so drift on the machine weighs on all of them alike. The
-// first round warms the page cache and is dropped.
-function measure(repo: Repo, all: Route[], runs: number): Map<string, number[]> {
-  const samples = new Map(all.map((r) => [r.name, [] as number[]]));
+// first round warms the page cache and is dropped. With two engines, each sample times both, and
+// the order alternates by round, so neither always runs second.
+function measure(arms: Arm[], runs: number): Map<string, number[]>[] {
+  const samples = arms.map((a) => new Map(a.routes.map((r) => [r.name, [] as number[]])));
+  const order = arms.map((_, i) => i);
   for (let round = 0; round <= runs; round++) {
-    for (const r of all) {
-      const session = `bench-${round}-${samples.get(r.name)!.length}-${r.name.replace(/\W+/g, "-")}`;
-      for (const p of r.prepare) hook(repo, envelope(repo.dir, session, p));
-      const ms = hook(repo, envelope(repo.dir, session, r.timed));
-      if (round > 0) samples.get(r.name)!.push(ms);
+    for (let k = 0; k < arms[0]!.routes.length; k++) {
+      for (const i of round % 2 === 0 ? order : [...order].reverse()) {
+        const ms = sample(arms[i]!.repo, arms[i]!.routes[k]!, round, samples[i]!.get(arms[i]!.routes[k]!.name)!.length);
+        if (round > 0) samples[i]!.get(arms[i]!.routes[k]!.name)!.push(ms);
+      }
     }
   }
   return samples;
+}
+
+function sample(repo: Repo, r: Route, round: number, taken: number): number {
+  const session = `bench-${round}-${taken}-${r.name.replace(/\W+/g, "-")}`;
+  for (const p of r.prepare) hook(repo, envelope(repo.dir, session, p));
+  return hook(repo, envelope(repo.dir, session, r.timed));
 }
 
 // What Claude Code sends around every event (test/payloads).
@@ -268,10 +310,7 @@ function hook(repo: Repo, payload: Payload): number {
 // ── Output ─────────────────────────────────────────────────────────────────────────
 
 // Nearest rank: the smallest sample with at least q % of them at or below it.
-function percentile(ms: number[], q: number): number {
-  const sorted = [...ms].sort((a, b) => a - b);
-  return sorted[Math.ceil((q / 100) * sorted.length) - 1]!;
-}
+const percentile = nearestRank;
 
 function table(stats: Stats[]): string {
   const width = Math.max(...stats.map((row) => row.name.length));

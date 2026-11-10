@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { dataHome } from "../src/consent.ts";
@@ -18,7 +19,7 @@ const driver = join(area, "guided-driver" + (WINDOWS ? ".exe" : ""));
 const old028 = join(dataHome(), "0.2.8", ENGINE_FILE);
 
 beforeAll(() => {
-  compileBinary(hostTarget(), binary);
+  engineAt(binary);
   const entry = join(area, "driver.ts");
   writeFileSync(entry, `import { updateAndContinue } from ${JSON.stringify(join(root, "src/guided-update.ts"))};
 import { VERSIONS } from ${JSON.stringify(join(root, "src/versions.ts"))};

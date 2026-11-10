@@ -2,7 +2,7 @@ import { expect, setDefaultTimeout, test, beforeAll, afterAll } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -88,7 +88,7 @@ beforeAll(() => {
   if (!ENABLED) return;
   mkdirSync(join(home, ".claude"), { recursive: true });
   mkdirSync(env.TMPDIR, { recursive: true });
-  compileBinary(hostTarget(), binary);
+  engineAt(binary);
   const setup = run(binary, ["setup"], home);
   if (setup.code !== 0) throw new Error(`setup exited ${setup.code}\n${setup.stdout}\n${setup.stderr}`);
 });

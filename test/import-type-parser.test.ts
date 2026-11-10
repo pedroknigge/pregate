@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { removeReleased } from "./remove-tree.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { BUILTIN, setUpGrammars } from "../src/assets.ts";
 import { compile } from "../src/compile.ts";
 import { VERSIONS, LOCK, PRESET } from "../src/gate.ts";
@@ -104,7 +104,7 @@ test("production audit and stdin checks accept inline import arrays and reject c
     const git = Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: root, stderr: "pipe" });
     if (git.exitCode !== 0) throw new Error(git.stderr.toString());
   }
-  compileBinary(hostTarget(), binary);
+  engineAt(binary);
   const invoke = (args: string[], stdin?: string) => Bun.spawnSync([binary, ...args], { cwd: root, env, stdin: stdin === undefined ? "ignore" : Buffer.from(stdin), stdout: "pipe", stderr: "pipe", timeout: 10_000 });
   for (const ext of ["ts", "tsx"]) {
     const path = join(root, `src/markers.${ext}`), baseline = "export const placeholder = 1;\n";

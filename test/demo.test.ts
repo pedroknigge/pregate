@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathKey } from "../src/paths.ts";
 import { tmpdir } from "node:os";
-import { compileBinary, hostTarget } from "../scripts/build.ts";
+import { engineAt } from "./compiled-engine.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { sha256 } from "../src/state.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -12,7 +12,7 @@ setDefaultTimeout(480_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-demo-controls-"));
 const binary = process.env.PREGATE_DEMO_BINARY ?? join(area, process.platform === "win32" ? "pregate.exe" : "pregate");
 beforeAll(() => {
-  if (process.env.PREGATE_DEMO_BINARY === undefined) return compileBinary(hostTarget(), binary, false);
+  if (process.env.PREGATE_DEMO_BINARY === undefined) return engineAt(binary, false);
   expect(isAbsolute(binary) && statSync(binary).isFile()).toBe(true);
   expect(Bun.spawnSync([binary, "--version"], { stdout: "pipe", stderr: "pipe" }).stdout.toString().trim()).toBe(`pregate ${VERSIONS.engine} (core ${VERSIONS.core})`);
 }, 120_000);
