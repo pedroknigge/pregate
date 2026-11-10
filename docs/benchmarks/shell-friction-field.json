@@ -1,0 +1,12 @@
+{
+  "session": "One Claude Code session developed this repository for several days on macOS, with the hooks of the installed engine (0.0.3) registered. Project consent was not active for the whole session, and while it is inactive only `protected-path` and `hook-switch` can refuse, so the sample understates an enabled project.",
+  "commands": 911,
+  "denied": 16,
+  "byCause": { "hook-switch": 9, "protected-path": 3, "shell-write": 3, "shell-admin": 1 },
+  "labels": [
+    { "count": 6, "verdict": "false positive", "cause": "hook-switch", "shape": "`bun scripts/<generator>.ts`: a repository script that prints documentation. Its text names control commands, so the scan of a literal script reads it as one that runs them." },
+    { "count": 5, "verdict": "intended", "cause": "hook-switch, shell-admin, protected-path", "shape": "An unattended approval, a second copy of the engine run with another `HOME`, a compiled engine binary named as an argument, a heredoc that writes a project file, and `rm -rf` of a contract folder." },
+    { "count": 3, "verdict": "by design, no harm intended", "cause": "shell-write", "shape": "A script or a write target named through a variable (`bun $S/tool.ts`, `cd $S/dir && echo … > file`). The guarantees page documents this refusal. All three touched a scratch folder outside the project." },
+    { "count": 2, "verdict": "unclear", "cause": "protected-path", "shape": "A read-only script that received the lock file of another project as an argument." }
+  ]
+}

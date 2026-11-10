@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Shell guard friction is measured.** `bun scripts/measure-shell-friction.ts` sends a committed corpus of routine git, npm, Bun, make, Python, shell and Pregate commands through the real pre hook in an enabled scratch project and records each decision. The page [Shell guard friction](docs/benchmarks/shell-guard-friction.md) publishes the result with the machine it depends on, a labeled field sample from one real session, and a keep, trim or hold reading. No anti-evasion rule was added.
+
 ## [0.0.6] - 2026-11-10
 
 What changed after the first trial on a production repository. A layer map can be complete, so no folder is left outside the layer rules. A rule made from a prose statement can carry the exception the statement names. One large generated file no longer stalls a check or an audit. First-run setup is one command, and `audit` says what its exit code means. The trial itself is published as a case study, with what was not measured. See the [0.0.6 notes](docs/releases/0.0.6.md).
