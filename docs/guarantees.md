@@ -63,7 +63,7 @@ These are heuristics over text, not a sandbox.
 | Encoded or compressed payloads the decoder does not recognize | Not read as a script | Same |
 | Write sinks only in a module the script imports (no sink token in the file text) | Not denied at Pre | Stop, pre-commit, CI |
 | `rsync`/`tar`/`prettier` with destinations built at runtime, not spelled on the command line | Not denied | Same |
-| MCP and other edit channels with no Pre matcher | Hook may not run | Stop, CI |
+| MCP and other edit channels with no Pre matcher | Hook may not run; in Cursor, Pre judges the absolute paths an MCP call names | Stop, CI |
 | Background/async writers (`&`, `nohup`, harness-specific delays) | May exit Pre before the write | Stop, CI |
 | Git `merge`/`rebase`/`pull`/`am` | Judged after the fact | Stop, pre-commit, CI |
 
