@@ -2,7 +2,7 @@
   "core": "0.0.1",
   "coreHash": "25f3b2bf8b0faa89a883f18b19d52e73f3cf112d436f88176f1c7a4ecd14c931",
   "enforcement": "enforce",
-  "engine": "0.0.6",
+  "engine": "0.0.7",
   "generatedMarkers": [],
   "layers": {
     "core": {
@@ -165,7 +165,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "bcbd5f62ecd6bab304b2228652860a643a1f05eedf3efbc94043245fd9599aab",
+  "presetHash": "c7542f82a7926db35e6e8919badab54c2aa4560a360669c20b7cb2c29e38c168",
   "ratchet": "no-new",
   "rules": [
     {
