@@ -11,7 +11,7 @@ import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, st
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./inertia.ts";
 import { readProposal } from "./proposal.ts";
-import { cliVersion } from "./harness/codex.ts";
+import { cliVersion, TESTED as CODEX_TESTED } from "./harness/codex.ts";
 import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
@@ -47,7 +47,7 @@ interface Out { exit: number | null; stdout: string; stderr: string }
 const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"], opencode: ["opencode"] };
 const SHARED: HarnessId[] = ["claude-code", "cursor", "grok"];
 // The event part of a Codex trust key (<file>:<event>:<group>:<hook>).
-const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
+const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const ok = (text: string, wired = false): Line => ({ level: "ok", text, ...(wired ? { wired: true } : {}) });
 const info = (text: string, wired = false): Line => ({ level: "info", text, ...(wired ? { wired: true } : {}) });
 const warn = (text: string): Line => ({ level: "warn", text });
@@ -566,6 +566,10 @@ export async function doctor(): Promise<Result> {
   const codexBin = machine.get("codex");
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !standalone.has("codex")) lines.push(codexOffPath(p));
+  const projectCodexBin = found.get("codex");
+  if (root !== null && projectCodexBin && registered(read(join(root, PROJECT_CODEX_HOOKS)), "project-codex", p.data)) {
+    lines.push(await projectCodexTrust(p, root, projectCodexBin));
+  }
   if (machine.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
   else if (found.has("agy") && !checked.has("agy") && !standalone.has("agy")) lines.push(agyOffPath(p));
   if (checked.has("opencode") && read(join(opencodePluginDir(p), "index.ts")) === null && read(opencodeConfigFile(p)) === null) {
@@ -636,7 +640,7 @@ function owned(text: string | null, t: Target, data: string): boolean {
 // read. `level` is the trust level the user's config.toml records for the project directory. The
 // review of the project hooks themselves is Codex's own record and is not read here: it is reported
 // as unknown, never as trusted. `present`: Codex was found on this machine.
-function codexScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; level: string | null; lines: Line[] } {
+function codexScope(p: Paths, root: string | null, present: boolean, inspectable = false): { local: boolean; global: boolean; level: string | null; lines: Line[] } {
   const text = root === null ? null : read(join(root, PROJECT_CODEX_HOOKS));
   const local = registered(text, "project-codex", p.data);
   const global = owned(read(join(p.codexHome, "hooks.json")), "codex", p.data);
@@ -644,7 +648,7 @@ function codexScope(p: Paths, root: string | null, present: boolean): { local: b
   const lines: Line[] = [];
   const fix = "pregate project hooks --harness codex --preview";
   const trust = level === "trusted" ? "Codex config.toml marks this project trusted." : `Codex config.toml does not mark this project trusted (trust_level: ${level ?? "no record"}).`;
-  const review = `${trust} Hook review state unknown: check \`/hooks\` in Codex.`;
+  const review = `${trust} ${inspectable ? "Effective project hook review is queried below through Codex app-server." : "Hook review state unknown: check `/hooks` in Codex."}`;
   if (!local && owned(text, "project-codex", p.data)) lines.push(fail(`${PROJECT_CODEX_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
   if (local && global) lines.push(warn(`Codex hooks: project-local and global. When Codex runs both registrations, every tool call is evaluated twice. Keep one: remove the PREGATE groups from ${PROJECT_CODEX_HOOKS}, or the global ones (pregate uninstall removes them for every harness). ${review}`));
   else if (local) lines.push((level === "trusted" ? info : warn)(`Codex hooks: project-local only. ${PROJECT_CODEX_HOOKS} runs the project launcher; no global registration is present. ${review}`));
@@ -694,7 +698,7 @@ export function cursorRegistration(root: string | null): "project" | "global" | 
 
 // Every scope for doctor. `standalone`: the harnesses whose only registration is the project's.
 function projectScopes(p: Paths, root: string | null, present: Map<HarnessId, string | null>): { standalone: Set<HarnessId>; lines: Line[] } {
-  const claude = claudeScope(p, root), codex = codexScope(p, root, present.has("codex")), cursor = cursorScope(p, root, present.has("cursor"));
+  const claude = claudeScope(p, root), codex = codexScope(p, root, present.has("codex"), present.get("codex") != null), cursor = cursorScope(p, root, present.has("cursor"));
   const standalone = new Set<HarnessId>();
   if (claude.local && !claude.global) standalone.add("claude-code");
   if (codex.local && !codex.global) standalone.add("codex");
@@ -813,6 +817,7 @@ function versionOf(h: HarnessId, bin: string | null): Line {
       );
     }
     if (cli !== null && compareVersions(cli, verified) >= 0 && cli === verified) return ok(`codex ${verified}.`);
+    if (cli === CODEX_TESTED) return ok(`codex ${cli} (native lifecycle tested; minimum ${verified}).`);
   }
   return v.includes(verified) ? ok(`${h} ${verified}.`)
     : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed contract may cause payload-unrecognized denials.`);
@@ -846,11 +851,37 @@ async function trustOf(p: Paths, bin: string): Promise<Line> {
 
 async function codexTrust(server: Server, ours: ReturnType<typeof owner>): Promise<Line> {
   try {
-    const trusted = (await hooksList(server)).filter((h) => ours(h.key) && h.trustStatus === "trusted").length;
+    const trusted = (await hooksList(server)).filter((h) => ours(h.key) && h.trustStatus === "trusted" && h.enabled).length;
     return trusted === Object.keys(SNAKE).length ? ok("Codex runs the PREGATE hooks (trusted).")
       : fail(`Codex runs ${trusted} of ${Object.keys(SNAKE).length} PREGATE hooks; run pregate setup or approve them in /hooks.`);
   } catch (e) {
     return fail(`Codex: ${(e as Error).message}.`);
+  } finally {
+    server.close();
+  }
+}
+
+// Read-only: ask Codex about the current directory's effective layers, including project trust.
+// This never records a hash or treats an unreviewed/disabled hook as protection.
+async function projectCodexTrust(p: Paths, root: string, bin: string): Promise<Line> {
+  const server = appServer(bin);
+  try {
+    const cwd = canonical(process.cwd());
+    const effective = await server.call("config/read", { cwd, includeLayers: false });
+    if (!isObject(effective) || !isObject(effective.config)) throw new Error("Codex config/read: unexpected response");
+    const features = effective.config.features;
+    if (isObject(features) && (features.hooks ?? features.codex_hooks) === false) return fail("Codex project hooks are disabled by the effective configuration; review Codex /hooks and its configuration.");
+    const file = join(root, PROJECT_CODEX_HOOKS);
+    const wanted = slots(read(file)!, p.data, "project-codex");
+    const target = canonical(file), ours = owner(file, target, wanted);
+    const listed = (await hooksList(server, [cwd])).filter((h) => ours(h.key));
+    const active = wanted.filter((slot) => listed.some((h) => owner(file, target, [slot])(h.key) && h.enabled && h.trustStatus === "trusted")).length;
+    const expected = Object.keys(SNAKE).length;
+    return active === expected ? ok(`Codex project hooks: ${active}/${expected} enabled and trusted for this directory (read-only app-server inspection).`)
+      : fail(`Codex project hooks: ${active}/${expected} enabled and trusted; ${listed.length} discovered. Trust the project and review its hooks in Codex /hooks. No trust was changed.`);
+  } catch (e) {
+    // fail-closed: failed discovery never establishes project hook trust.
+    return fail(`Codex project hook review could not be verified: ${(e as Error).message}. Check /hooks; no trust was changed.`);
   } finally {
     server.close();
   }
@@ -939,7 +970,7 @@ function runCanary(p: Paths, h: HarnessId, dir: string): Line {
 
 // ── Codex app-server (MH-24) ─────────────────────────────────────────────────────────
 
-interface Listed { key: string; trustStatus: string; currentHash: string }
+interface Listed { key: string; trustStatus: string; currentHash: string; enabled: boolean }
 interface Server { call(method: string, params: unknown): Promise<unknown>; close(): void }
 
 // JSON-RPC lines over `codex app-server` stdio, one call at a time, initialize first. A server that
@@ -985,11 +1016,12 @@ function appServer(bin: string): Server {
   };
 }
 
-async function hooksList(s: Server): Promise<Listed[]> {
-  const r = await s.call("hooks/list", { cwds: [] });
+async function hooksList(s: Server, cwds: string[] = []): Promise<Listed[]> {
+  const r = await s.call("hooks/list", { cwds });
   if (!isObject(r) || !Array.isArray(r.data)) throw new Error("codex app-server hooks/list: unexpected response");
+  if (r.data.some((d: unknown) => !isObject(d) || !Array.isArray(d.hooks) || (Array.isArray(d.errors) && d.errors.length > 0))) throw new Error("codex app-server hooks/list: hook discovery failed");
   return r.data.flatMap((d: unknown) => (isObject(d) && Array.isArray(d.hooks) ? d.hooks : [])).filter((h: unknown): h is Listed =>
-    isObject(h) && typeof h.key === "string" && typeof h.trustStatus === "string" && typeof h.currentHash === "string");
+    isObject(h) && typeof h.key === "string" && typeof h.trustStatus === "string" && typeof h.currentHash === "string" && typeof h.enabled === "boolean");
 }
 
 async function* linesOf(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
@@ -1027,11 +1059,11 @@ function oursKeys(file: string, target: string, text: string | null, data: strin
 }
 
 // <event>:<group>:<hook> of every group in a hooks.json text that is exactly what setup writes.
-function slots(text: string, data: string): string[] {
+function slots(text: string, data: string, target: "codex" | "project-codex" = "codex"): string[] {
   const hooks = parse(text)?.hooks;
   return Object.entries(SNAKE).flatMap(([event, snake]) => {
     const list = isObject(hooks) ? hooks[event] : null;
-    const g = Array.isArray(list) ? list.findIndex((x) => exact(x, "codex", data)) : -1;
+    const g = Array.isArray(list) ? list.findIndex((x) => exact(x, target, data)) : -1;
     return g < 0 ? [] : [`${snake}:${g}:0`];
   });
 }

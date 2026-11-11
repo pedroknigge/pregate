@@ -22,9 +22,10 @@ interface EngineRun {
 
 export function launcherFailure(kind: string, claude: boolean, raw: string, why: string, harness: HarnessId = claude ? "claude-code" : "codex"): Emission {
   const reason = `PREGATE could not evaluate: ${why}; report it to the user`;
-  if (kind === "session-start") return { exit: 0, stderr: "", stdout: claude ? JSON.stringify({ systemMessage: reason }) + "\n" : "" };
+  if (kind === "session-start") return { exit: 0, stderr: "", stdout: claude || harness === "codex" ? JSON.stringify({ systemMessage: reason }) + "\n" : "" };
   if (kind === "post-invocation") return { exit: 0, stderr: "", stdout: "" };
   if (kind === "stop") {
+    if (harness === "codex") return { exit: 0, stderr: "", stdout: JSON.stringify({ systemMessage: reason }) + "\n" };
     if (!claude) return { exit: 0, stderr: "", stdout: "" };
     if (parse(raw)?.stop_hook_active === true) return { exit: 0, stderr: "", stdout: JSON.stringify({ systemMessage: reason }) + "\n" };
     return { exit: 2, stderr: reason + "\n", stdout: JSON.stringify({ decision: "block", reason }) + "\n" };

@@ -34,6 +34,7 @@ export async function sessionStart(e: Extract<HookEvent, { kind: "session-start"
   if (e.session.harness === "agy") state.clearPostInvocation(state.key(e.session));
   const decision = onSessionStart(e);
   if (!decision.full.includes("PREGATE is active:")) return decision;
+  if (e.session.agentId !== null) return decision;
   const line = await promotionLine(e.cwd);
   return line === null ? decision : { ...decision, full: `${decision.full}\n${line}` };
 }

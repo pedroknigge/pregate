@@ -940,18 +940,20 @@ test("an agent's isolated worktree inside the project is protected by its own co
   expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).verdict).toBe("none");
 });
 
-test("Claude Code subagents: SubagentStop judges the agent's own files and the parent's Stop waits for agents still working", async () => {
-  const root = repo("subagents");
-  const parent = session("claude-code", "subagents");
+test.each(["claude-code", "codex"] as const)("%s subagents: child checks are scoped and the parent's existing backstop is retained", async (harness) => {
+  const root = repo(`subagents-${harness}`);
+  const parent = session(harness, `subagents-${harness}`);
   const agent = { ...parent, agentId: "worker" };
-  const stop = (s: Session) => onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+  let turn = 0;
+  const stop = (s: Session) => onStop({ kind: "stop", session: { ...s, turnId: `scope-${++turn}` }, cwd: root, reentry: false });
   onSessionStart({ kind: "session-start", session: parent, cwd: root });
   expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, agent)])).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
-  expect((await stop(parent)).verdict).toBe("none");
+  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
   expect((await stop({ ...parent, agentId: "reader" })).verdict).toBe("none");
   expect((await stop(agent)).cause).toBe("syntax");
-  expect((await stop(parent)).verdict).toBe("none");
+  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
+  if (harness === "codex") put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
   expect((await onPreEdit([change(root, "src/domain/c.ts", { form: "full", content: "export const c = 1;\n" }, parent)])).verdict).toBe("none");
   put(join(root, "src/domain/c.ts"), "export const c = ;\n");
   const own = await stop(parent);
@@ -962,9 +964,29 @@ test("Claude Code subagents: SubagentStop judges the agent's own files and the p
   expect((await stop(agent)).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
   expect((await stop(parent)).cause).toBe("syntax");
-  const codex = { ...session("codex", "subagents-codex"), agentId: "worker" };
-  expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 3;\n" }, codex)])).verdict).toBe("none");
-  expect((await onStop({ kind: "stop", session: { ...codex, agentId: null }, cwd: root, reentry: false })).cause).toBe("syntax");
+  // Harnesses without a verified SubagentStop still judge all files at the parent's Stop.
+  for (const other of ["cursor", "grok", "agy"] as const) {
+    const worker = { ...session(other, `subagents-${harness}-${other}`), agentId: "worker" };
+    expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 3;\n" }, worker)])).verdict).toBe("none");
+    expect((await stop({ ...worker, agentId: null })).cause).toBe("syntax");
+  }
+});
+
+test("Codex child commands review unattributed runtime changes without charging another agent's edits", async () => {
+  const root = repo("codex-child-command"), parent = session("codex", "child-command");
+  const child = { ...parent, agentId: "worker" };
+  onSessionStart({ kind: "session-start", session: parent, cwd: root });
+  expect(onPreCommand({ session: child, tool: "Bash", callId: "runtime", cwd: root, command: "git status --short" }).verdict).toBe("none");
+  expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, parent)])).verdict).toBe("none");
+  put(join(root, "src/domain/a.ts"), "export const a = ;\n");
+  put(join(root, "src/domain/runtime.ts"), "export const runtime = ;\n");
+  const blocked = await onStop({ kind: "stop", session: child, cwd: root, reentry: false });
+  expect(blocked.cause).toBe("syntax");
+  expect(blocked.full).toContain("runtime.ts");
+  expect(blocked.full).not.toContain("src/domain/a.ts");
+  put(join(root, "src/domain/runtime.ts"), "export const runtime = 1;\n");
+  expect((await onStop({ kind: "stop", session: child, cwd: root, reentry: false })).verdict).toBe("none");
+  expect((await onStop({ kind: "stop", session: parent, cwd: root, reentry: false })).cause).toBe("syntax");
 });
 
 test("Stop does not charge the session for a branch that existed before it; commits made during it stay its own", async () => {
@@ -1192,7 +1214,7 @@ test("Cursor Stop followups share the cap despite new generation IDs, and reset 
   expect((await stop("generation-5")).verdict).toBe("deny");
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop even when the adapter cannot display it", async (harness) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop and uses only its supported notice channel", async (harness) => {
   const root = repo();
   const s = session(harness);
   onSessionStart({ kind: "session-start", session: s, cwd: root });
@@ -1205,8 +1227,10 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s record
   expect(last.stopIncomplete).toEqual({ reason: "limit", cause: null });
   const emission = HARNESSES[harness].encode("stop", last);
   expect(emission.exit).toBe(0);
-  if (harness === "claude-code") expect(emission.stdout).toContain("pregate report --json");
-  else expect(emission.stdout).toBe("");
+  if (harness === "claude-code" || harness === "codex") {
+    expect(JSON.parse(emission.stdout)).toEqual({ systemMessage: last.notice });
+    expect(emission.stdout).toContain("pregate report --json");
+  } else expect(emission.stdout).toBe("");
   const result = JSON.parse(report(["--repo", root, "--json"]).text);
   expect(result.incompleteStops).toHaveLength(1);
   expect(result.incompleteStops[0]).toMatchObject({ session: state.key(s), reason: "limit", cause: null });

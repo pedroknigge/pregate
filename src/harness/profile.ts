@@ -11,7 +11,7 @@ import { parse } from "./wire.ts";
 interface Adapter {
   VERIFIED: string;                // the CLI version whose payloads are in test/payloads/<harness>/
   decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null;
-  encode(kind: HookEvent["kind"], d: Decision): Emission;
+  encode(kind: HookEvent["kind"], d: Decision, subagent?: boolean): Emission;
 }
 // The six adapters, for main (which one decodes a call) and doctor (each VERIFIED).
 export const HARNESSES = { "claude-code": claude, codex, cursor, grok, agy, opencode } satisfies Record<HarnessId, Adapter>;

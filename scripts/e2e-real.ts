@@ -554,6 +554,7 @@ async function codexProjectHooksScenario(w: World): Promise<undefined> {
   const files = [join(w.codexHome, "hooks.json"), join(w.codexHome, "config.toml")];
   const before = files.map(read);
   const repo = projectRepo(w, "codex");
+  captureProjectCodex(w);
   codexProjectUntouched(w, repo, before, files);
   // The unrelated user hook seed() registered is trusted first, as the user's own /hooks approval.
   const user = await codexTrust(w);
@@ -563,10 +564,14 @@ async function codexProjectHooksScenario(w: World): Promise<undefined> {
   const unreviewed = await codexProjectPhase(w, repo, "unreviewed", "project marked trusted, hooks not reviewed");
   await trustListed(w, unreviewed.listed);
   const reviewed = await codexProjectPhase(w, repo, "reviewed", "project marked trusted, listed hooks trusted through the app-server");
-  if (reviewed.listed.length === 3 && reviewed.listed.every((h) => h.trustStatus === "trusted")) {
-    check("codex project hooks: trusted hooks deny", [[reviewed.denied, "Codex lists the three project hooks as trusted and the forbidden write was not denied"]]);
+  if (reviewed.listed.length === 5 && reviewed.listed.every((h) => h.trustStatus === "trusted")) {
+    check("codex project hooks: trusted hooks deny", [[reviewed.denied, "Codex lists the five project hooks as trusted and the forbidden write was not denied"]]);
     report("MEASURE", "codex project hooks: the unrelated user hook beside trusted project hooks", `${user.foreign === "absent" ? "the user hook was not listed" : "trusted before the phases"}; called ${reviewed.foreign} times`);
   } else report("MEASURE", "codex project hooks: review through the app-server", `not applicable: Codex lists ${reviewed.listed.length} project hooks, ${reviewed.listed.filter((h) => h.trustStatus === "trusted").length} trusted`);
+  const config = join(w.codexHome, "config.toml"), beforeDoctor = read(config);
+  const doctor = run([join(w.data, pkg.version, "pregate"), "doctor"], join(repo, CODEX_BELOW), w.env);
+  check("codex project hooks: read-only native trust diagnosis", [[doctor.stdout.includes("Codex project hooks: 5/5 enabled and trusted"), doctor.stdout + doctor.stderr], [read(config) === beforeDoctor, "doctor changed Codex trust"]]);
+  await codexChildLifecycle(w, repo);
   const hooksFile = join(repo, ".codex/hooks.json"), text = read(hooksFile)!;
   writeFileSync(hooksFile, text.replace('"timeout": 120', '"timeout": 119'));
   await codexProjectPhase(w, repo, "changed", "definition changed after the review (PreToolUse timeout 120 to 119)");
@@ -627,6 +632,39 @@ async function cursorProjectHooksScenario(w: World): Promise<undefined> {
     : `${judged.length} gate event(s), verdicts ${judged.map((e) => `${e.verdict}${e.form === null ? "" : `/${e.form}`}`).join(", ") || "none"}; ${existsSync(join(repo, NOTE)) ? "file written" : "file not written"}`);
   report("MEASURE", "cursor project hooks: workspace trust", "given by --trust in a headless run; the interactive trust prompt and cloud agents were not exercised");
   return undefined;
+}
+
+
+// Capture the exact native input and output without changing any hook definition or trust hash.
+function captureProjectCodex(w: World): void {
+  const engine = join(w.data, pkg.version, "pregate");
+  renameSync(engine, `${engine}.real`);
+  writeFileSync(engine, `#!/bin/sh\nt=$(mktemp '${w.work}/tap/codex.XXXXXX') || exit 2\ncat > "$t.in"\n'${engine}.real' "$@" < "$t.in" > "$t.out" 2> "$t.err"\ns=$?\ncat "$t.out"\ncat "$t.err" >&2\nexit "$s"\n`);
+  chmodSync(engine, 0o755);
+}
+
+async function codexChildLifecycle(w: World, repo: string): Promise<void> {
+  const stage = join(w.work, "child-stage"), file = "src/core/child-lifecycle.ts", archive = join(w.work, "child-lifecycle.tar");
+  const good = "export function childValue(): number { return 1; }\n";
+  mkdirSync(join(stage, "src/core"), { recursive: true });
+  writeFileSync(join(stage, file), X_TEXT);
+  ok(run(["tar", "-cf", archive, file], stage, { ...w.env, COPYFILE_DISABLE: "1" }), "prepare child Stop fixture");
+  const prompt = `Controlled lifecycle test in this disposable project. Spawn exactly one subagent and give it this task: report the PREGATE context you received at startup, then run exactly tar -xf ${archive} -C ${repo} once to install a known invalid fixture. Attempt to finish with the fixture installed. If a Stop hook requests a repair, use apply_patch with the absolute path ${join(repo, file)} to replace the file with exactly ${JSON.stringify(good)}, then finish. Do not delete the file, change policy, disable hooks, use skills or spawn another agent. As parent, wait for the child to finish and report its result; do not edit the fixture yourself.`;
+  const result = await agent(w, { h: "codex", label: "codex-child-lifecycle", repo }, prompt, undefined, 180_000);
+  const exchanges = files(join(w.work, "tap")).filter((path) => path.endsWith(".in")).flatMap((path) => {
+    try { return [{ input: JSON.parse(read(join(w.work, "tap", path))!), output: read(join(w.work, "tap", path.replace(/\.in$/, ".out"))) ?? "" }]; }
+    catch { return []; }
+  });
+  const starts = exchanges.filter(({ input }) => input.hook_event_name === "SubagentStart");
+  const stops = result.events.filter((event) => event.kind === "stop" && event.agentId !== null);
+  check("codex native child context, Stop denial and repair", [
+    [result.out.code === 0, "model run did not complete"],
+    [starts.some(({ output }) => output.includes('"hookEventName":"SubagentStart"') && output.includes("PREGATE is active:")), "no native child briefing"],
+    [stops.some((event) => event.verdict === "deny" && event.violations.some((v) => v.rule.includes(RULE))), "child Stop did not deny the invalid fixture"],
+    [stops.some((event) => event.verdict === "none"), "child never completed after repair"],
+    [read(join(repo, file)) === good, "child repair is absent or differs"],
+  ]);
+  report("MEASURE", "codex child lifecycle evidence", `native SubagentStart calls: ${starts.length}; child Stop decisions: ${stops.map((event) => event.verdict).join(", ")}; captured hook input/output: ${w.work}/tap`);
 }
 
 function templates(w: World): void {

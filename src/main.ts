@@ -50,8 +50,9 @@ async function main(argv: string[]): Promise<number> {
   checkpoint("admission");
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
-  // A pinned engine of another version may not know the event: the subagent starts without a briefing.
-  if (pin !== null && subagent) return 0;
+  // Older pinned engines retain parent Stop; they may not understand the new child events.
+  const childLifecycle = harness === "codex" && e.kind !== "pre-edit" && e.kind !== "pre-command" && e.session?.agentId != null;
+  if (pin !== null && (subagent || childLifecycle)) return 0;
   if (pin !== null) {
     writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;

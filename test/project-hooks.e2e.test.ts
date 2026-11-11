@@ -542,10 +542,10 @@ describe("pregate project hooks --harness codex", () => {
     const hooks = codexHooksOf(project).hooks as Record<string, Json[]>;
     const global = (JSON.parse(codexGlobalRegistration(i)) as Json).hooks as Record<string, Json[]>;
     expect(Object.keys(hooks).sort()).toEqual(Object.keys(global).sort());
-    expect(Object.keys(hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop"]);
+    expect(Object.keys(hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop", "SubagentStart", "SubagentStop"]);
     expect(hooks.PreToolUse![0]!.matcher).toBe(global.PreToolUse![0]!.matcher);
     expect(hooks.PreToolUse![0]!.matcher).toBe("^(apply_patch|Bash)$");
-    for (const [event, kind] of [["PreToolUse", "pre"], ["Stop", "stop"], ["SessionStart", "session-start"]] as const) {
+    for (const [event, kind] of [["PreToolUse", "pre"], ["Stop", "stop"], ["SessionStart", "session-start"], ["SubagentStart", "session-start"], ["SubagentStop", "stop"]] as const) {
       expect(hooks[event]).toHaveLength(1);
       expect(hooks[event]![0]!.matcher).toBe(global[event]![0]!.matcher);
       expect(hooks[event]![0]!.hooks[0].timeout).toBe(global[event]![0]!.hooks[0].timeout);
@@ -718,7 +718,7 @@ describe("pregate project hooks --harness codex", () => {
     expect(uninstall.code, `${uninstall.stdout}\n${uninstall.stderr}`).toBe(0);
     expect(tree()).toEqual(before);
     // uninstall removes the cached engines, so the registration is read from the file, not rerun.
-    expect(Object.keys(codexHooksOf(project).hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop"]);
+    expect(Object.keys(codexHooksOf(project).hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop", "SubagentStart", "SubagentStop"]);
   });
 });
 

@@ -244,7 +244,8 @@ test("exact: an extra key, another timeout or another matcher is not ours", () =
 describe("drift", () => {
   const CODEX_FILE = "/Users/user/.codex/hooks.json";
   const HASH = { PreToolUse: "sha256:aa", Stop: "sha256:bb", SessionStart: "sha256:cc" };
-  const TRUST = { [`${CODEX_FILE}:pre_tool_use:1:0`]: HASH.PreToolUse, [`${CODEX_FILE}:stop:1:0`]: HASH.Stop, [`${CODEX_FILE}:session_start:1:0`]: HASH.SessionStart };
+  const TRUST = { [`${CODEX_FILE}:pre_tool_use:1:0`]: HASH.PreToolUse, [`${CODEX_FILE}:stop:1:0`]: HASH.Stop, [`${CODEX_FILE}:session_start:1:0`]: HASH.SessionStart,
+    [`${CODEX_FILE}:subagent_start:1:0`]: "sha256:dd", [`${CODEX_FILE}:subagent_stop:1:0`]: "sha256:ee" };
   const trusted = `${CODEX_TOML}${Object.entries(TRUST).map(([k, v]) => `\n[hooks.state."${k}"]\ntrusted_hash = "${v}"\n`).join("")}`;
   const gemini = (enabled: boolean): string => JSON.stringify({ plugins: { ...obj(GEMINI).plugins, "pregate-global": { enabled } } });
   const clean = (): MachineFiles => ({
@@ -277,12 +278,12 @@ describe("drift", () => {
   test("codex: registration missing, file gone after trust, trust removed or changed, index shifted", () => {
     const pre = (m: string[]) => m.filter((p) => p.includes("PreToolUse"));
     expect(pre(problems({ codexHooks: CODEX }))).toEqual(["Codex hooks.json: PREGATE PreToolUse hook missing or modified; run pregate setup."]);
-    expect(problems({ codexHooks: null })).toHaveLength(3);
+    expect(problems({ codexHooks: null })).toHaveLength(5);
     expect(problems({ codexHooks: null }, null, {})).toEqual([]);
     const lost = "Codex does not run PREGATE PreToolUse: setup trust was removed or its index changed. Run pregate setup.";
     expect(problems({ codexConfig: trusted.replace(HASH.PreToolUse, "sha256:ff") })).toEqual([lost]);
-    expect(problems({ codexConfig: CODEX_TOML })).toHaveLength(3);
-    expect(problems({}, null, {})).toHaveLength(3);
+    expect(problems({ codexConfig: CODEX_TOML })).toHaveLength(5);
+    expect(problems({}, null, {})).toHaveLength(5);
     const shifted = obj(merge(CODEX, "codex", DATA));
     shifted.hooks.PreToolUse.unshift({ hooks: [{ type: "command", command: "/usr/local/bin/first" }] });
     expect(problems({ codexHooks: JSON.stringify(shifted) })).toEqual([lost]);

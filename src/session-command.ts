@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { CAPABILITIES } from "./capabilities.ts";
 import { approve, humanApprovalInstructions, PENDING_MS } from "./approval.ts";
 import { dataHome, enabled } from "./consent.ts";
 import { pathLabel, sourceDiff, visible } from "./contract.ts";
@@ -321,16 +322,22 @@ function stopFingerprint(sid: string, results: RootResult[], deadline: number): 
   return state.sha256(JSON.stringify(identities));
 }
 
-// Claude Code checks a subagent at its own SubagentStop, on the files it edited. The parent's Stop
-// leaves out files a subagent is still editing, so a background agent's unfinished work never
-// blocks the parent; once that agent is released, its files are the parent's again.
+// Child edits are scoped to their owner. Codex also checks unattributed runtime writes in roots
+// its commands visited; its parent keeps the whole-session backstop, even with older hooks.
 function stopScope(sid: string, session: Session): StopScope {
-  if (session.harness !== "claude-code") return { agent: false, roots: () => true, files: () => true };
+  if (!CAPABILITIES[session.harness].subagentStop) return { agent: false, roots: () => true, files: () => true };
   const agents = state.agentEdits(sid);
   if (session.agentId !== null) {
     const mine = agents.get(state.H(session.agentId))?.paths ?? new Set<string>();
+    if (session.harness === "codex") {
+      const roots = state.history(sid, state.H(session.agentId), "-").flatMap((event) => event.root == null ? [] : [event.root]);
+      const tracked = state.editedPaths(sid);
+      return { agent: true, roots: (root) => roots.includes(root) || [...mine].some((path) => within(root, path)),
+        files: (abs) => mine.has(pathKey(abs)) || (!tracked.has(pathKey(abs)) && roots.some((root) => within(root, abs))) };
+    }
     return { agent: true, roots: (root) => [...mine].some((path) => within(root, path)), files: (abs) => mine.has(pathKey(abs)) };
   }
+  if (session.harness === "codex") return { agent: false, roots: () => true, files: () => true };
   const busy = new Set([...agents.values()].filter((a) => !a.finished).flatMap((a) => [...a.paths]));
   return { agent: false, roots: () => true, files: (abs) => !busy.has(pathKey(abs)) };
 }

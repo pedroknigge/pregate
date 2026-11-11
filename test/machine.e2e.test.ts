@@ -28,6 +28,7 @@ const CONFIGS = join(import.meta.dir, "fixtures/configs");
 const APP_SERVER = join(import.meta.dir, "fixtures/codex-app-server.ts");
 const ALL = Object.keys(HARNESSES) as HarnessId[];
 const EVENTS = ["PreToolUse", "Stop", "SessionStart"];
+const CODEX_EVENTS = [...EVENTS, "SubagentStart", "SubagentStop"];
 const TOOLS = ["cp", "git", "gzip", "mkdir", "rm", "sed", "tar"];
 
 beforeAll(() => engineAt(BIN));
@@ -187,7 +188,7 @@ describe("setup", () => {
     // Ours are trusted, and every foreign hook keeps the trust it had.
     const after = trust(m);
     for (const [k, s] of Object.entries(before.trust)) expect(after[k]).toBe(s);
-    const mine = EVENTS.map((e) => `${{ PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" }[e]}:${json(m.hooks).hooks[e].length - 1}:0`);
+    const mine = CODEX_EVENTS.map((e) => `${{ PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" }[e]}:${json(m.hooks).hooks[e].length - 1}:0`);
     for (const k of mine) expect(after[k]).toBe("trusted");
     expect(Object.keys(json(join(m.state, "codex-trust.json"))).sort()).toEqual(mine.map((k) => `${m.hooks}:${k}`).sort());
     for (const [f, text] of Object.entries(agyPlugin(m.data, pkg.version))) expect(read(join(m.plugin, f))).toBe(text);
@@ -411,7 +412,7 @@ describe("doctor", () => {
     expect(out.code).toBe(1);
     expect(out.stdout).toContain("ERROR: ~/.claude/settings.json: PREGATE hooks missing or modified (Stop)");
     expect(out.stdout).toContain("ERROR: agy: pregate-global is disabled");
-    expect(out.stdout).toContain("ERROR: Codex runs 0 of 3 PREGATE hooks");
+    expect(out.stdout).toContain("ERROR: Codex runs 0 of 5 PREGATE hooks");
     expect(out.stdout).toContain("WARNING: grok: version grok 9.9.9; hooks verified with 1.0.49.");
   });
 
@@ -745,6 +746,37 @@ describe("update", () => {
 });
 
 // gh serving one folder: `release view` names NEXT, `release download` copies the patterns to --dir.
+test("doctor queries effective project Codex trust without writing hooks or granting trust", () => {
+  const m = machine(["codex"]);
+  const project = join(m.root, "project"), below = join(project, "src/nested");
+  mkdirSync(below, { recursive: true });
+  const approved = { ...m, env: { ...m.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" } };
+  ok(run(["git", "init", "-q"], m, project), "git init");
+  ok(run([BIN, "init", "--yes"], approved, project), "init");
+  engineAt(join(m.data, pkg.version, "pregate"));
+  ok(run([BIN, "project", "launcher", "--yes"], approved, project), "launcher");
+  ok(run([BIN, "project", "hooks", "--harness", "codex", "--yes"], approved, project), "project hooks");
+  const config = join(m.codex, "config.toml"), hooks = join(project, ".codex/hooks.json");
+  const inspect = (extra: Record<string, string> = {}) => {
+    const before = [read(config), read(m.hooks), read(hooks)];
+    const result = run([BIN, "doctor"], { ...m, env: { ...m.env, ...extra } }, below);
+    expect([read(config), read(m.hooks), read(hooks)]).toEqual(before);
+    return result.stdout;
+  };
+  expect(inspect()).toContain("Codex project hooks: 0/5 enabled and trusted; 0 discovered");
+  put(config, `${read(config)}\n[projects.${JSON.stringify(project)}]\ntrust_level = "trusted"\n`);
+  expect(inspect()).toContain("Codex project hooks: 0/5 enabled and trusted; 5 discovered");
+  ok(run(["codex", "trust-all", below], m), "human hook review");
+  expect(inspect()).toContain("Codex project hooks: 5/5 enabled and trusted");
+  expect(inspect({ CODEX_FAKE_DISABLED_EVENT: "SubagentStop" })).toContain("Codex project hooks: 4/5 enabled and trusted");
+  expect(inspect({ CODEX_FAKE_HOOKS_OFF: "1" })).toContain("Codex project hooks are disabled by the effective configuration");
+  expect(inspect({ CODEX_FAKE_DIE_ON: "config/read" })).toContain("Codex project hook review could not be verified");
+  const changed = json(hooks);
+  changed.hooks.PreToolUse[0].hooks[0].timeout = 119;
+  put(hooks, JSON.stringify(changed));
+  expect(inspect()).toContain("PREGATE project hooks are missing, modified or written for another platform");
+});
+
 function ghOf(dir: string): string {
   return `#!/bin/sh\necho "gh $*" >> "$LOG"\ncase "$1 $2" in\n"release view") echo 'v9.9.9' ;;\n`
     + `"release download") prev=; for a; do [ "$prev" = --dir ] && out=$a; prev=$a; done\n`

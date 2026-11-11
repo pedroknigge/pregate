@@ -31,6 +31,30 @@ These p95 milliseconds are the gate in `bench/latency-baseline.json`. CI fails a
 
 <!-- END generated reference -->
 
+## Codex hook routes
+
+Run `bun scripts/bench.ts --harness codex --runs 25 --inform` to measure
+Codex's generated launcher command and native hook payloads. It covers Bash,
+200/2,000-line patches at first and second session contact, an explicitly cold
+compiled-lock cache, a two-file atomic patch, two Code Mode calls sharing an
+`exec` id, and a syntax denial. Every sample checks its expected verdict; a
+broken gate cannot produce a successful timing. Payloads are replayed through
+the compiled binary, rather than sent by a model during the measurement.
+
+The default benchmark remains Claude Code. The existing `--gate` baselines do
+not certify Codex, so Codex rejects that option until a separate measured
+baseline exists. JSON output identifies the harness, OS, architecture, sample
+count and route percentiles. Timings collected while other work runs are
+observations, not an isolated performance comparison or a claim of a speedup.
+
+One local observation on 2026-11-11 used macOS arm64, Apple M5 Pro (18 CPUs),
+Bun 1.4.4, 25 samples per route and one repeat while other verification ran.
+The shell p50/p95 was 60.9/202.8 ms; a warm 200-line second touch was
+113.3/212.5 ms; the two-file patch was 151.8/314.8 ms; and the second Code Mode
+call was 122.0/195.9 ms. These values exceed the reference target in that run.
+They are an initial observation, not a new gate baseline or an isolated
+before/after performance result.
+
 ## One hosted run
 
 [CI run 42265778062](https://github.com/pedroknigge/pregate/actions/runs/42265778062), commit `e2d42353`, 6 November 2026. These are compiled Pre-hook measurements on TypeScript fixtures, not whole-project audit times. Values are the median p95 across three repeats of 25 samples per route, in milliseconds.
