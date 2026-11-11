@@ -8,7 +8,7 @@ import { inlineSink, nodeFile, noNewNodeSinks } from "./inline-sinks.ts";
 // Help must exit before any command can inspect or change installation/project state.
 const HELP_COMMANDS = new Set([
   "check", "audit", "promote", "fitness", "init", "scan", "demo", "report", "feedback", "storage", "dispute", "issue", "pack", "explain",
-  "preset", "rules", "rules test", "rules draft", "rules add", "status", "approve", "enable", "disable", "install", "prepare", "project", "project launcher", "project hooks", "setup", "update", "uninstall", "doctor", "guide", "session", "session rebase",
+  "preset", "rules", "rules test", "rules draft", "rules add", "status", "approve", "enable", "disable", "install", "prepare", "project", "project launcher", "project hooks", "project setup", "setup", "update", "uninstall", "doctor", "guide", "session", "session rebase",
   "ci", "ci detect", "ci status", "ci wait",
   "preset apply", "preset compile", "preset diagnose", "preset show", "preset schema", "preset request-schema",
   "pack list", "pack show", "pack init", "pack add", "pack apply", "pack restore", "pack update", "pack enable", "pack disable", "pack remove",

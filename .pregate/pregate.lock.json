@@ -94,6 +94,7 @@
         "src/guided-update.ts",
         "src/status.ts",
         "src/install.ts",
+        "src/project-claude.ts",
         "src/machine.ts",
         "src/release-download.ts",
         "src/release-install.ts",
@@ -165,7 +166,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "c7542f82a7926db35e6e8919badab54c2aa4560a360669c20b7cb2c29e38c168",
+  "presetHash": "fac64b22743b6041a92efda4d58d64326ca73b588bf638cbf386d81544bea445",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5411,6 +5412,7 @@
           "src/guided-update.ts",
           "src/status.ts",
           "src/install.ts",
+          "src/project-claude.ts",
           "src/machine.ts",
           "src/release-download.ts",
           "src/release-install.ts",

@@ -184,7 +184,7 @@ pregate install --ci vercel
 
 ## Prepare an engine without global registration
 
-`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher` and `pregate project hooks`; `pregate setup` still performs the full machine registration.
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher`, `pregate project hooks` and `pregate project setup`; `pregate setup` still performs the full machine registration.
 
 ## Project launcher
 
@@ -211,6 +211,14 @@ pregate enable                                         # local consent, by the h
 - **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
 
 A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
+
+## Repository-owned Claude setup
+
+`pregate project setup` also merges Claude Code hooks into `.claude/settings.json`. Those hooks run the project launcher and the engine the lock pins. They do not call a `pregate` on PATH and they do not read a global launcher under `<DATA>/bin`. The events are PreToolUse, Stop, SubagentStop and SessionStart. This is a different registration from `pregate project hooks --harness claude-code`: that command is the one to commit (it includes SubagentStart and names no machine path), and this command is the merge `pregate doctor` treats as its own project scope.
+
+Run it only after `pregate prepare` and `pregate project launcher`. It does not download the engine, install the launcher, write anything under your home directory, accept Claude's workspace-trust dialog, or grant policy consent. `pregate enable` is still required before a hook denies an edit. Accepting the trust dialog in Claude Code is also required before Claude runs repository hooks. Those two acts are separate.
+
+A second run leaves `.claude/settings.json` byte for byte unchanged. Hook groups this command does not own stay in place, including their order. A file that is not a JSON object is left unchanged and the command fails. When this registration is the one in the file, `pregate doctor` reports the project scope on its own, runs a project-hook canary when policy consent is active, and reports workspace trust separately from policy consent. It does not treat a global Claude registration as a fallback for these hooks.
 
 ## Project-local Codex hooks
 

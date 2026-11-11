@@ -252,6 +252,8 @@ The full installer runs `pregate setup` globally. Setup installs the engine, lau
 
 Setup exits 0 when at least one detected harness was wired. A harness that could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: `hooks.json` is left unchanged, and the message says to approve the Pregate hooks in Codex with `/hooks`, then rerun `pregate setup`. Setup exits 1 when no harness was wired, or on a real error. `install.sh` and `install.ps1` stop only on that non-zero exit. `pregate guide` still applies a reviewed contract after a warning-only setup and says agent-edit protection stays degraded until a harness is wired.
 
+A repository can register Claude Code on its own, without a machine-wide setup. `pregate prepare` caches the engine the lock pins, `pregate project launcher` installs the reviewed launcher, and `pregate project setup` merges hooks into `.claude/settings.json` that run that launcher. The hooks do not fall back to a global installation. Claude's workspace-trust dialog and `pregate enable` stay separate.
+
 Project-rule hooks need local consent. A preset committed by someone else does not activate them. Read the [installation guide](docs/guides/installation.md) for exact paths, backups, updates, checksum verification, and signatures.
 
 - `pregate disable` revokes current-worktree consent and withdraws repository-wide consent after human confirmation. Global hooks remain. While a consent record exists, the shell guard can still reject changes to Pregate's installation and hook settings.
