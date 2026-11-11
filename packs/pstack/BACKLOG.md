@@ -26,7 +26,9 @@ PS-LEGACY-001 refuses an import whose specifier contains `.legacy` or `/legacy/`
 
 ### Minimize reader load
 
-PS-LET-001 refuses a module-level `let`. PS-COMMENT-001 refuses narration comments. Counting layers between a question and its answer, and deciding that a one-caller wrapper should collapse, are judgment. Deleting the comment without changing the structure wins PS-COMMENT-001, which is why the preset `pstack-way` shows it as `warn` rather than pretending it is ungameable.
+PS-LET-001 refuses a module-level `let`. PS-COMMENT-001 reports comments that may be narration. Counting layers between a question and its answer, and deciding that a one-caller wrapper should collapse, are judgment. Deleting the comment without changing the structure wins PS-COMMENT-001, which is why the preset `pstack-way` keeps it in shadow rather than pretending it is ungameable.
+
+PS-COMMENT-001 cannot decide that a comment restates the next line. A pattern matches one node by kind and text; it cannot compare the words of a comment with the identifiers of the statement after it. Before pack 1.2.0 the rule reported every comment outside a marker allowlist with default severity `deny`, and on the pinned public corpus five of six maintainer-labeled findings were false: two comments that explain why, a URL citation, a license banner and a JSDoc package description. The rule now also exempts a JSDoc block, a comment with an `http`/`https` URL, a comment that names a license, and a comment with a reason word (because, since, so, otherwise, instead of, rather than, in order to, to avoid, to prevent, to ensure, due to, workaround, why). A comment that carries `@deprecated` is still reported, as `maintainability/MAINT-DEPR-001` documents. What remains is every other comment, whether or not it restates code: a section label, a shell example, the second line of a two-line explanation. For that reason the default severity is `warn`. The measured sample after the change is in [rule precision](../../docs/guides/rule-precision.md), and the missing capability is in [engine requests](../ENGINE-REQUESTS.md).
 
 ### Model the domain
 

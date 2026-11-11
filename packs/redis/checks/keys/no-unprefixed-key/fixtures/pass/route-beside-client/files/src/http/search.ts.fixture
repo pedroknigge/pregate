@@ -1,0 +1,12 @@
+import express from "express";
+import { createClient } from "redis";
+
+const db = createClient();
+const seen = new Map<string, number>();
+
+export const app = express();
+
+app.get("/search", async (req, res) => {
+  seen.set("search", (seen.get("search") ?? 0) + 1);
+  res.send(await db.get("search:last"));
+});

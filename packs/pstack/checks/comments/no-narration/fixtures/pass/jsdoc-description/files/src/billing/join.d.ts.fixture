@@ -1,0 +1,4 @@
+/**
+ * A small utility for conditionally joining invoice labels together.
+ */
+export function joinLabels(...labels: Array<string | false>): string;

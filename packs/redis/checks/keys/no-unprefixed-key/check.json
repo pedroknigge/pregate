@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "redis/keys/no-unprefixed-key",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "keys",
   "cardinality": "singleton",
   "dimension": "redis.key-namespace",
@@ -13,16 +13,122 @@
       "typescript": [
         {
           "id": "bare-key",
+          "utils": {
+            "redis-receiver": {
+              "any": [
+                {
+                  "has": {
+                    "field": "object",
+                    "regex": "(?i)^[\\w$.()]*(redis|valkey)[\\w$.()]*$"
+                  }
+                },
+                {
+                  "all": [
+                    {
+                      "has": {
+                        "field": "object",
+                        "regex": "^(this\\.)?(client|cache|db|kv|store|pub|sub|publisher|subscriber)$"
+                      }
+                    },
+                    {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "program",
+                        "regex": "(?i)(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'][^\"'\\n]*(redis|valkey|@vercel/kv)[^\"'\\n]*[\"']"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
           "rule": {
             "kind": "call_expression",
-            "regex": "\\.(set|get|del|expire|exists)\\s*\\(\\s*[\"'][^\"':]+[\"']"
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "kind": "member_expression",
+                  "all": [
+                    {
+                      "has": {
+                        "field": "property",
+                        "regex": "^(set|get|del|expire|exists)$"
+                      }
+                    },
+                    {
+                      "matches": "redis-receiver"
+                    }
+                  ]
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "regex": "^\\(\\s*[\"'][^\"':]+[\"']"
+                }
+              }
+            ]
           }
         },
         {
           "id": "bare-template-key",
+          "utils": {
+            "redis-receiver": {
+              "any": [
+                {
+                  "has": {
+                    "field": "object",
+                    "regex": "(?i)^[\\w$.()]*(redis|valkey)[\\w$.()]*$"
+                  }
+                },
+                {
+                  "all": [
+                    {
+                      "has": {
+                        "field": "object",
+                        "regex": "^(this\\.)?(client|cache|db|kv|store|pub|sub|publisher|subscriber)$"
+                      }
+                    },
+                    {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "program",
+                        "regex": "(?i)(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'][^\"'\\n]*(redis|valkey|@vercel/kv)[^\"'\\n]*[\"']"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
           "rule": {
             "kind": "call_expression",
-            "regex": "\\.(set|get|del|expire|exists)\\s*\\(\\s*`[^`$:]+`"
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "kind": "member_expression",
+                  "all": [
+                    {
+                      "has": {
+                        "field": "property",
+                        "regex": "^(set|get|del|expire|exists)$"
+                      }
+                    },
+                    {
+                      "matches": "redis-receiver"
+                    }
+                  ]
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "regex": "^\\(\\s*`[^`$:]+`"
+                }
+              }
+            ]
           }
         }
       ]

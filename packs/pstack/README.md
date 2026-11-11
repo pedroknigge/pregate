@@ -33,7 +33,7 @@ Ready-made combinations live in `packs/presets/`.
 | `PS-PARTIAL-001` | An exported function whose parameter type contains Partial<...>. | A Partial patch hides which fields the operation is allowed to change. Callers invent combinations the domain never named. | deny |
 | `PS-LEGACY-001` | An import, re-export, `import()` or `require()` whose project-internal specifier (`./`, `../`, `@/`, `~/`, `#`) contains a `.legacy` suffix or a `/legacy` segment. | A compatibility path keeps two APIs alive. Callers of the old one never move, so the deletion the change was for does not happen. | deny |
 | `PS-LET-001` | A `let` binding that is not inside a function, method, class, for loop, or catch. | A module-level let is hidden state. A reader of one function cannot know who else writes it. | deny |
-| `PS-COMMENT-001` | A comment that is not a TODO/FIXME/HACK/XXX with an owner, a suppression the tools honor, a license, or a triple-slash reference. | A narration comment goes stale and splits the reader's attention. The code should carry the fact. An owned TODO is a tracked debt, not narration. | deny |
+| `PS-COMMENT-001` | A comment that is not a TODO/FIXME/HACK/XXX with an owner, a suppression the tools honor, a license, a triple-slash reference, a JSDoc block, a URL citation, or a comment with a reason word such as because, so or to avoid. A comment that carries `@deprecated` is always reported. The pattern cannot compare a comment with the code after it, so a finding is a candidate, not a proof of narration. | A narration comment goes stale and splits the reader's attention. The code should carry the fact. An owned TODO is a tracked debt, not narration. | warn |
 | `PS-COMMENTED-001` | A comment whose body starts with const, let, function, class, import, return, or if. | Commented-out code is a second implementation. Readers do not know whether it is the old behavior, a sample, or the one that should run. | deny |
 | `PS-WEAK-001` | toBeDefined, toBeTruthy, toBeFalsy, toBeUndefined, toHaveBeenCalled, or toHaveBeenCalledTimes in a test file. | Those matchers pass when the value is merely present or the function was merely called. A wrong total, a wrong argument, and undefined-returning fakes still go green. | deny |
 | `PS-EXPECT-001` | An it() or test() call whose body contains no expect() or assert() / assert.* call. | A test that never asserts stays green when the behavior is wrong. Running a function is not a proof of what it returned. | deny |
@@ -65,7 +65,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **process**. Version: `1.1.1`. 97 distinct check IDs.
+Category: **process**. Version: `1.2.0`. 97 distinct check IDs.
 
 Methodologies: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview).
 

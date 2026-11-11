@@ -99,8 +99,8 @@ test("the compiled library is discoverable and its fixtures run offline before i
   expect(Object.fromEntries(packs.map((pack: { ns: string; checks: number }) => [pack.ns, pack.checks]))).toEqual(authored);
   const documented = /(\d+) optional packs; (\d+) distinct check IDs/.exec(readFileSync(join(repo, "docs/packs.md"), "utf8"))!;
   expect([packs.length, Object.values(authored).reduce((n, c) => n + c, 0)]).toEqual([Number(documented[1]), Number(documented[2])]);
-  expect(packs.find((pack: { ns: string }) => pack.ns === "maintainability")).toMatchObject({ checks: 209, source: { version: "1.2.0" } });
-  expect(packs.find((pack: { ns: string }) => pack.ns === "pstack")).toMatchObject({ checks: 97, source: { version: "1.1.1" } });
+  expect(packs.find((pack: { ns: string }) => pack.ns === "maintainability")).toMatchObject({ checks: 209, source: { version: "1.2.1" } });
+  expect(packs.find((pack: { ns: string }) => pack.ns === "pstack")).toMatchObject({ checks: 97, source: { version: "1.2.0" } });
   expect(packs.find((pack: { ns: string }) => pack.ns === "mattpocock")).toMatchObject({ checks: 7, source: { version: "1.1.1" } });
   const languages = p.run(["pack", "list", "--library", "--category", "language", "--json"]);
   expect(languages.code).toBe(0);

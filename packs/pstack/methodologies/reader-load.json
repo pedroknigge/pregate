@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "pstack/reader-load",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -29,21 +29,21 @@
         {
           "with": "maintainability/MAINT-DEPR-001",
           "kind": "duplicates",
-          "why": "A bare @deprecated JSDoc tag is reported by both rules, and the written notice MAINT-DEPR-001 asks for is still a comment PS-COMMENT-001 denies.",
+          "why": "A bare @deprecated JSDoc tag is reported by both rules, and the written notice MAINT-DEPR-001 asks for is still a comment PS-COMMENT-001 reports.",
           "settle": "Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001."
         }
       ],
       "check": "pstack/comments/no-narration",
       "defaults": {},
-      "severity": "deny",
+      "severity": "warn",
       "source": {
         "work": "pstack principles (boundary, domain, reader load, idempotency, legacy deletion, proof)",
         "locator": "minimize reader load; ps-no-comments",
         "paraphrase": "Comments that restate the next line add a second text the reader must keep in sync. The workflow that deletes them is a process; this rule is the comment shapes that process can refuse."
       },
       "why": "A narration comment goes stale and splits the reader's attention. The code should carry the fact. An owned TODO is a tracked debt, not narration.",
-      "fixHint": "Delete the comment. If the debt is real, write TODO(owner) with an owner of at least two characters, matching the vibe-proof TODO rule.",
-      "avoid": "Allowlisted: TODO/FIXME/HACK/XXX(owner), @ts-expect-error, eslint-, biome-ignore, pregate-, istanbul, c8, SPDX-License-Identifier, Copyright, @license, and /// <reference. @ts-ignore and @ts-nocheck are not allowlisted. A fake owner satisfies the spelling; that is a social hole, not a structural one.",
+      "fixHint": "Delete the comment if it restates the code. If it records a reason, say the reason in the comment. If the debt is real, write TODO(owner) with an owner of at least two characters, matching the vibe-proof TODO rule.",
+      "avoid": "The pattern cannot compare a comment with the code after it, so this rule reports every comment that is not one of the exempt shapes, and the default severity is warn. Allowlisted: TODO/FIXME/HACK/XXX(owner), @ts-expect-error, eslint-, biome-ignore, pregate-, istanbul, c8, SPDX-License-Identifier, Copyright, @license, and /// <reference. Also exempt, unless the comment carries @deprecated: a JSDoc block, a comment with an http or https URL, a comment that names a license, and a comment with one of the reason words because, since, so, otherwise, instead of, rather than, in order to, to avoid, to prevent, to ensure, due to, workaround or why. @ts-ignore and @ts-nocheck are not allowlisted. A fake owner or an added reason word satisfies the spelling; that is a social hole, not a structural one.",
       "examples": {
         "pass": "pass/owned-todo",
         "fail": "fail/narration"
