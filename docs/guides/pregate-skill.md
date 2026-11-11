@@ -12,6 +12,9 @@ instructions. Setup writes `skills/pregate/SKILL.md` in the shared `.agents` dir
 and the Claude Code, Codex, Cursor, Grok and agy skill directories. `CODEX_HOME`
 and `GROK_HOME` are respected. `pregate doctor` reports missing or outdated copies.
 
+The skill folders are protected: an agent cannot write them. An agent can read an
+installed `SKILL.md` with a literal `cat <path>`; other shell forms on that file are denied.
+
 Enter your project in the coding harness and invoke `/pregate`. If the harness does
 not offer that slash command, ask it to load the installed `tlt` skill through
 its normal skill discovery. A new session may be needed after installation.
