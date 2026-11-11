@@ -63,6 +63,9 @@ interface Cli { bin: string; write: string; edit: string; headless: (p: string) 
 // itself has a temporary HOME. This path is never passed as HOME to a child.
 const REAL = process.env.PREGATE_AUTH_HOME ?? userInfo().homedir;
 const IDS = Object.keys(HARNESSES) as HarnessId[];
+// The live survey covers the harnesses whose hook file it can inspect. OpenCode has no hook file:
+// its plugin shim and its headless tool loop need their own captures (docs/MULTI-HARNESS.md).
+const DEFAULT = IDS.filter((h) => h !== "opencode");
 const GROK_MODEL = ["--effort", "low", "-m", "grok-4.7-build-fast"];
 const CLIS: Record<HarnessId, Cli> = {
   "claude-code": {
@@ -91,6 +94,11 @@ const CLIS: Record<HarnessId, Cli> = {
     bin: "agy", write: "the write_file tool", edit: "the edit_file tool",
     headless: (p) => ["-p", p, "--dangerously-skip-permissions", "--print-timeout", "240s", "--output-format", "json"],
     tty: (p) => ["--dangerously-skip-permissions", "--prompt-interactive", p],
+  },
+  opencode: {
+    bin: "opencode", write: "the write tool", edit: "the edit tool",
+    headless: (p) => ["run", "--standalone", "--auto", p],
+    tty: (p) => ["--auto", p],
   },
 };
 
@@ -126,9 +134,9 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
     || (adaptationOnly && (ptyOnly || only.length !== 1 || only[0] !== "codex"))
     || (process.argv.includes("--approval-only") && !["codex", "agy"].includes(only[0]!))
     || (process.argv.includes("--approval-shell-only") && (ptyOnly || process.argv.includes("--approval-only")))) {
-    console.error(`usage: PREGATE_REAL=1 bun run scripts/e2e-real.ts [--pty-only|--extras-only|--core-only] [${IDS.join("|")} …]\n`
+    console.error(`usage: PREGATE_REAL=1 bun run scripts/e2e-real.ts [--pty-only|--extras-only|--core-only] [${DEFAULT.join("|")} …]\n`
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-only [--pty-only] codex|agy\n"
-      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only ${IDS.join("|")}\n`
+      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only ${DEFAULT.join("|")}\n`
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy\n"
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex\n"
       + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code|codex\n`
@@ -170,7 +178,7 @@ async function runScenarios(w: World, s: NonNullable<ReturnType<typeof scenarios
     else if (s.issueOnly) await issueDedup(w, s.only[0] as "codex" | "agy");
     else if (process.argv.includes("--approval-shell-only")) await humanShell(w, s.only[0] as HarnessId);
     else if (s.approvalOnly) await (s.only[0] === "agy" ? agyApprovalScenarios(w, s.ptyOnly) : approvalScenarios(w, s.ptyOnly));
-    else await runHarnesses(w, (s.only.length > 0 ? s.only : IDS) as HarnessId[], s.ptyOnly ? "pty" : s.extrasOnly ? "extras" : s.coreOnly ? "core" : "all");
+    else await runHarnesses(w, (s.only.length > 0 ? s.only : DEFAULT) as HarnessId[], s.ptyOnly ? "pty" : s.extrasOnly ? "extras" : s.coreOnly ? "core" : "all");
     inventory(w);
     orca(w);
     uninstall(w);
@@ -737,6 +745,8 @@ async function agyApprovalScenarios(w: World, ptyOnly = false): Promise<void> {
 }
 
 async function humanShell(w: World, harness: HarnessId): Promise<void> {
+  // OpenCode's approval route is a separate human terminal with no native shell capture to observe.
+  if (harness === "opencode") throw new Error("OpenCode has no human-shell scenario; it has no native shell input.");
   for (const initial of [false, true]) for (const bypass of [false, true]) {
     copyAuth(w);
     const fixture = approvalFixture(w, "tui", initial, harness, bypass ? "-human-shell-skip" : "-human-shell");
@@ -1206,6 +1216,12 @@ const EXTRAS: Record<HarnessId, (w: World) => Promise<void>> = {
 
     const help = run([w.bins.agy, "plugin", "--help"], w.home, w.env);
     report("MEASURE", "agy plugin uninstall", /\buninstall\b/.test(help.stdout + help.stderr) ? "listed by `agy plugin --help`" : "not listed by `agy plugin --help`");
+  },
+
+  // The shim is a plugin folder, not a hook file: its own captures need a real OpenCode session with
+  // model credit. The live survey measures only what it can observe today.
+  opencode: async () => {
+    report("MEASURE", "opencode live survey", "not run: the plugin shim needs its own session captures (docs/MULTI-HARNESS.md)");
   },
 };
 

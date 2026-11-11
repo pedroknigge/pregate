@@ -45,7 +45,7 @@ export const FIXABLE_BY = Object.freeze({
 // session started with, and no human approval of it was recorded.
 
 // ── Normalized input (harness-agnostic) ──────────────────────────────────────────
-export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy";
+export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy" | "opencode";
 export type HookKind = "pre" | "stop" | "session-start";       // what a registration names: hook <kind> --harness <id>
 // What a hook call reads from its environment besides the payload (MULTI-HARNESS MH-03, MH-06).
 export interface HookEnv {

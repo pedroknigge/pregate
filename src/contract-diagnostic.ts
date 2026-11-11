@@ -294,6 +294,7 @@ export function machine(): string[] {
   };
   return machineGlobs(home, {
     codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+    opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"),
     claudeConfig: env.CLAUDE_CONFIG_DIR || null, data: engineHome(), state: state.stateDir(),
   }, real);
 }

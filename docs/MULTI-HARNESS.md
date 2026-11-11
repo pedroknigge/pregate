@@ -1,4 +1,4 @@
-# PREGATE on five harnesses, installed once
+# PREGATE on six harnesses, installed once
 
 **Current implementation references:** [commands/options](CLI.md),
 [approval routes](features/approval-in-harness.md), [capability guarantees](features/harness-and-shell-guarantees.md)
@@ -8,9 +8,9 @@ approved with an exact human `!` command inside supported harness shell input;
 they do not require an external-terminal round trip. Replay/native smoke is
 distinct from current real harness interaction evidence.
 
-**Status:** design to build (2026-10-02), reviewed in two adversarial reviews (fail-open and simplicity; §9 says what was applied and what was discarded). Implements D20: Codex CLI, Claude Code, Cursor (`cursor-agent`), Grok Build, and Antigravity (`agy`), with a global install, no per-repo configuration, plus update and uninstall.
+**Status:** design to build (2026-10-02), reviewed in two adversarial reviews (fail-open and simplicity; §9 says what was applied and what was discarded). Implements D20: Codex CLI, Claude Code, Cursor (`cursor-agent`), Grok Build, Antigravity (`agy`) and OpenCode 2.2.7, with a global install, no per-repo configuration, plus update and uninstall.
 
-**Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
+**Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. OpenCode's is [harness-opencode-live](research/harness-opencode-live.md), with `test/payloads/opencode/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
 
 0.0.7 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
 Under [D29/O60](ARCHITECTURE.md), human commands prompt on /dev/tty (or CONIN$ on Windows);
@@ -26,9 +26,9 @@ Grok and headless sessions deny contract edits and direct the human to
 
 ## 0. Overall shape on one screen
 
-- **Three registrations for five harnesses.** `~/.claude/settings.json` serves Claude Code, Cursor, and Grok, because Cursor and Grok always read it and pass it their native payload [V]. `~/.codex/hooks.json` serves Codex, and a global plugin serves agy. Each harness runs **exactly one** PREGATE registration, so there is no double evaluation to deduplicate (MH-04).
+- **Four registrations for six harnesses.** `~/.claude/settings.json` serves Claude Code, Cursor, and Grok, because Cursor and Grok always read it and pass it their native payload [V]. `~/.codex/hooks.json` serves Codex, a global plugin serves agy, and a plugin folder named in `~/.config/opencode/opencode.json` serves OpenCode. Each harness runs **exactly one** PREGATE registration, so there is no double evaluation to deduplicate (MH-04).
 - **One registered command, frozen across versions** (MH-22): an inline guard that `exec`s the global launcher. If the launcher is missing, it denies only when a preset is present.
-- **Global launcher** `<DATA>/bin/pregate` = the same `assets/launcher.sh` with `version=<x>`. It supervises the engine and turns every failure into exit 2 + stderr, which blocks on all five [V] (MH-15).
+- **Global launcher** `<DATA>/bin/pregate` = the same `assets/launcher.sh` with `version=<x>`. It supervises the engine and turns every failure into exit 2 + stderr, which blocks on all six [V] (MH-15).
 - **The engine chooses the profile by sniff** (MH-03), decodes, and if the repo lock pins another engine, it exits with exit 3 so the launcher re-executes it (MH-19).
 - **Outside a repo with a preset:** no state, no git, and no WASM. Only the machine protections run, which prevent turning PREGATE off from any repo (MH-17).
 
@@ -45,7 +45,7 @@ Grok and headless sessions deny contract edits and direct the human to
   VERIFIED: string                                   // CLI version whose contract is in test/payloads/<h>/
   ```
 - `Rejected` replaces the separate `fallback`: when decode fails, the same parse returns the deny channel (`kind`, `reentry`) and the envelope directories used to locate the root (`dirs`, MH-06). It is one parse per call instead of two.
-- **Why A17's data is not taken.** Extracting into data was intended for the second adapter. With five, what varies from one to another is structural: a multi-file patch (Codex), protojson without an event name (agy), camelCase keys with snake aliases (Grok), and `cursor_version` (Cursor). A declarative profile cannot express that without becoming a language (DD-51 already discarded that). What is data (tool names, matchers, timeouts, limits) stays as constants at the top of each module. That is the "profile" of SPEC §14.1.5. A17 and principle 8 of ARCHITECTURE are replaced where they say "there is no harness registry": the map `HARNESSES = { "claude-code", codex, cursor, grok, agy }` lives in `main.ts`, and `main` and `doctor` use it (two uses).
+- **Why A17's data is not taken.** Extracting into data was intended for the second adapter. With five, what varies from one to another is structural: a multi-file patch (Codex), protojson without an event name (agy), camelCase keys with snake aliases (Grok), and `cursor_version` (Cursor). A declarative profile cannot express that without becoming a language (DD-51 already discarded that). What is data (tool names, matchers, timeouts, limits) stays as constants at the top of each module. That is the "profile" of SPEC §14.1.5. A17 and principle 8 of ARCHITECTURE are replaced where they say "there is no harness registry": the map `HARNESSES = { "claude-code", codex, cursor, grok, agy, opencode }` lives in `main.ts`, and `main` and `doctor` use it (two uses).
 - Registration (file, events, matcher, timeouts) does not live in the adapters, because three harnesses share one registration: it lives in `src/register.ts` (MH-22).
 
 **MH-02. IDs and flag.** The IDs are `claude-code`, `codex`, `cursor`, `grok`, and `agy`. Every global registration carries `hook <event> --harness <id>`, where the event is `pre`, `stop`, or `session-start`. The shared registration in `~/.claude/settings.json` carries `--harness claude-code`, and Cursor and Grok are recognized by sniff (MH-03). agy does not send the event name in the payload, so the only thing that identifies it is argv [V]. `hook auto` remains for §13.7.
@@ -184,13 +184,14 @@ ignored; its session briefing remains unavailable. `/pregate` can load the contr
 | cursor | `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":full}}` exit 0: the Claude format, verified on a native hook **and** on an imported one [V] | `""` exit 0 (without `failClosed`, empty is "no decision" [C]) | ⇒ deny | does not exist | `{"followup_message":full}` exit 0 [V native; E2E imported] | `loop_count > 0` [V]: feeds `stop.reentry` in `decide`, which is neutral only for human causes; `maxStopBlocks` supplies the cap | `""` |
 | grok | JSON `hookSpecificOutput` deny with reason = `compact` on one line, stderr the same, exit 2 [V] | `""` exit 0 | ⇒ deny | ignored [V], not emitted | `{"decision":"block","reason"}` exit 0 [V behavior; E2E exit] | `stopHookActive` [V]; `reason:"shutdown"` ⇒ `null` | `""` |
 | agy | `{"decision":"deny","reason":full}` exit 0 [V] | `""` exit 0: verified neutral, because in run 4 the permission system kept deciding [V] | ⇒ deny | does not exist | `{"decision":"continue","reason":full}` exit 0 [V] | `executionNum > 0` [V] | not registered (MH-25) |
+| opencode | **empty stdout, stderr = `full`, exit 2**: the plugin throws that text and OpenCode fails the call [E2E: that the text reaches the model] | stdout = `full` as plain text, exit 0; the plugin appends it to the tool result [E2E] | ⇒ deny | does not exist | `{"decision":"block","reason":full}` exit 0; the plugin admits it with `session.synthetic` [E2E] | `stop_hook_active`, counted by the plugin | stdout = the briefing; the plugin stores it as an instruction entry [E2E] |
 
-- The reentry column is the **signal**, not the output: on all five, reentry enters `decide` as `stop.reentry`. A reentry is never neutral by itself.
+- The reentry column is the **signal**, not the output: on all six, reentry enters `decide` as `stop.reentry`. A reentry is never neutral by itself.
 - `Decision.notice`, the text for the human, has its own channel only in Claude Code (`systemMessage`). On the others, the deny text for a human cause already ends in "report it to the user: run …", and that reaches the human through the agent.
 - agy's `{"decision":"allow"}` is not emitted: it skips the permission prompt [D]. So agy's neutral is empty stdout, which in run 4 let the permission system act [V]. §6.3 checks it again without `--dangerously-skip-permissions`.
 
 **MH-15. Launcher fail-closed.**
-- **Pre, on all five: exit 2 + one non-empty stderr line of ≤ 256 characters, with empty stdout** ("PREGATE could not evaluate: <why>; report it to the user"). It blocks on all of them [V]: Claude, exit 2; Codex, exit 2 with non-empty stderr; Cursor, "Hook blocked with message: <stderr>"; Grok, the first stderr line; agy, hook failure. Because the output is a single one, Pre does not need to detect the dialect. Claude loses the `continue:false` of the current fail-closed: with the install broken, every following Pre also denies, so the agent still does not advance.
+- **Pre, on all six: exit 2 + one non-empty stderr line of ≤ 256 characters, with empty stdout** ("PREGATE could not evaluate: <why>; report it to the user"). It blocks on all of them [V]: Claude, exit 2; Codex, exit 2 with non-empty stderr; Cursor, "Hook blocked with message: <stderr>"; Grok, the first stderr line; agy, hook failure. Because the output is a single one, Pre does not need to detect the dialect. Claude loses the `continue:false` of the current fail-closed: with the install broken, every following Pre also denies, so the agent still does not advance.
 - **Invariant: every exit 2 carries non-empty stderr.** Codex lets the tool run on exit 2 without stderr [V]. So:
   - the `TERM`/`HUP` trap (the harness canceled the hook) writes "PREGATE was cancelled before deciding; report it to the user" to fd 4 before `exit 2`;
   - if the engine exits with exit 2 and its stderr is empty, the launcher applies `fail_closed`.
@@ -277,8 +278,9 @@ f='<DATA>/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook <ev> --harn
 | codex | `${CODEX_HOME:-~/.codex}/hooks.json` (never `config.toml`) | `PreToolUse` `^(apply_patch\|Bash)$`, 30; `Stop` 60; `SessionStart` 15. Groups **at the end** | The default is 600 s and fails open [V], so the timeout is explicit. Trust: MH-24 |
 | cursor, native Stop | `~/.cursor/hooks.json` | `version:1`, `hooks.stop`, plain command, timeout 60, `loop_limit:null`, `--harness cursor` | The TUI does not enter the Stop dispatcher if only the imported one exists. The shared Stop is omitted when this install owns the native one; followups share the counter even if `generation_id` changes. |
 | agy | plugin `pregate-global` (MH-25) | `PreToolUse` `^(write_to_file\|replace_file_content\|multi_replace_file_content\|write_file\|edit_file\|create_file\|delete_file\|rename_file\|notebook_edit\|run_command\|send_command_input)$`, 30; `Stop` 60 | Nothing is written to `~/.gemini/config/hooks.json`, which Orca administers [V] |
+| opencode (MH-25b) | `~/.config/opencode/pregate/index.ts`, named by the `plugins` array of `~/.config/opencode/opencode.json` (respects `OPENCODE_CONFIG_DIR`) | the whole file, one folder | OpenCode imports `<folder>/index.ts` at start. setup adds one absolute path to `plugins` and removes one on uninstall; every other entry stays. A leading `-` or `!` disables our entry, and setup never turns it back on |
 
-- **Closed tool lists.** An anchored matcher does not see a new write tool that a CLI update brings (Cursor and Grok update themselves). What was discarded (a `*` matcher with an allowlist in the launcher) cost a spawn on every read on the machine. What is done: `doctor` compares each CLI's version with `VERIFIED` and warns if it differs; the §6.3 E2E inventories the tools on each new version before raising `VERIFIED`. MCP tools that write files stay outside the gate on all five, the same as in the MVP; Stop, pre-commit, and CI see them.
+- **Closed tool lists.** An anchored matcher does not see a new write tool that a CLI update brings (Cursor and Grok update themselves). What was discarded (a `*` matcher with an allowlist in the launcher) cost a spawn on every read on the machine. What is done: `doctor` compares each CLI's version with `VERIFIED` and warns if it differs; the §6.3 E2E inventories the tools on each new version before raising `VERIFIED`. MCP tools that write files stay outside the gate on all six, the same as in the MVP; Stop, pre-commit, and CI see them.
 
 **MH-23. Merge.** `src/register.ts` generalizes `mergeHooks` and `mine` from `install.ts` as pure functions:
 - The file is parsed, our own groups are replaced **in place**, and the missing ones are appended at the end. Foreign order and keys are not touched (Orca, ArkGate, cmux, and any other).
@@ -304,6 +306,38 @@ Running it twice leaves the same bytes and the same mtime. `JSON.stringify` refo
 - **No SessionStart:** agy does not have it [V]. The snapshot is taken on the first Pre that reaches a root. Accepting an uncommitted preset follows the general revised A20 rule (MH-33).
 - **No PostToolUse that blocks** [D]. Stop, pre-commit, and CI cover the fuzzy matching of `replace_file_content`.
 
+**MH-25b. OpenCode plugin.** OpenCode 2.2.7 has no hook process. Its extension point is a plugin: an
+ES module with `export default { id, setup }`, imported from a folder that `plugins` in
+`opencode.json` names. So OpenCode gets a **shim, not a second gate**: the shim normalizes each event
+into the payload `src/harness/opencode.ts` reads and runs `pregate hook <event> --harness opencode`.
+Every verdict still comes from `src/gate.ts`.
+- **Channel.** `execute.before` may reject one call and only that call; the rejection message is the
+  text the model sees. A deny is therefore exit 2 with stderr, exactly as in Codex, and the shim
+  throws that text. Exit 0 stdout is advice: the shim appends it to the tool result in `execute.after`.
+  `experimental.idle` carries the Stop, and its block reason is admitted with `session.synthetic`.
+  The session briefing goes to `session.instructions.entry.put({ key: "pregate" })`.
+- **Inert.** The shim spawns nothing below a directory with no `.pregate/preset.json` above its nearest
+  `.git` entry. In a project with a preset, it runs the project launcher first and this installation's
+  launcher second; with neither, a pre call is denied instead of passing.
+- **Payload.** `{ hook_event_name, session_id, cwd, tool_name, tool_use_id, tool_input }`, plus
+  `agent_id` and `stop_hook_active` where the API has them. The shim resolves a relative `filePath` or
+  `workdir` against `ctx.location.directory` and fills a missing `workdir`, because the engine reads
+  absolute paths only.
+- **Tool names.** `write`, `edit`, `patch`, `shell` and `execute` are decoded; the read-only set is
+  ignored and every other name is refused as `payload-unrecognized`. The set is closed on purpose: a
+  built-in whose name differs is denied (fail closed) until a release adds it, and the observed names
+  are recorded in [harness-opencode-live](research/harness-opencode-live.md). `patch` uses the Codex
+  grammar plus OpenCode's optional `*** Environment ID:` header.
+- **`execute` (code mode) is denied in an enabled project.** Its nested tool calls run inside one
+  script, and no hook of 2.2.7 sees them. The adapter reports `cannot-reconstruct`, so the script
+  cannot write around the gate. This is the safe answer until a capture proves that nested calls reach
+  `execute.before`.
+- **`[E2E]`.** No model call reached this shim: that the thrown text reaches the model, that
+  `execute.after` content does, that an instruction entry arrives before the next request, and that a
+  synthetic message continues the turn are unverified. `test/payloads/opencode/README.md` lists them.
+- **Off switches.** Removing the `plugins` entry, deleting the folder, or writing `-<path>` in the
+  entry. `doctor` and `drift` report all three.
+
 **MH-26. Harness detection** (orderfield pattern): a harness counts as present if its home exists or if its binary is on the PATH.
 
 | Harness | Home | Binary | Registration |
@@ -313,6 +347,7 @@ Running it twice leaves the same bytes and the same mtime. `JSON.stringify` refo
 | grok | `$GROK_HOME` or `~/.grok` | `grok` | shared |
 | codex | `$CODEX_HOME` or `~/.codex` | `codex` | `hooks.json` |
 | agy | `~/.gemini/antigravity-cli` | `agy` | plugin |
+| opencode | `$OPENCODE_CONFIG_DIR` or `~/.config/opencode` | `opencode` | `plugins` entry + plugin folder |
 
 The shared registration is written if any of the three that read it is present, even if Claude Code is not installed. There is no `--harness` in setup: the tests use a temporary `HOME`.
 
@@ -332,7 +367,7 @@ The shared registration is written if any of the three that read it is present, 
 - **Drift** (`register.drift`, pure, two uses: `doctor` and `check --staged`, which runs in the pre-commit). It lists problems in human language, without changing the pre-commit exit code:
   - of the machine: our own entries are missing or differ from the expected ones in `~/.claude/settings.json`, `~/.codex/hooks.json`, or the agy plugin; `plugins.pregate.enabled = false`; `[compat.claude] hooks = false` in `~/.grok/config.toml`; the `trusted_hash` of our own keys in `~/.codex/config.toml` differs from `codex-trust.json`, or the key no longer points at our group (shifted index);
   - of the repo: `disableAllHooks` in `.claude/settings*.json`, `[features] hooks = false` in `.codex/config.toml`, and a project plugin or a `plugins.json` that names `pregate` under `.agents/`.
-  - The pre-commit is the only channel to the human that exists on all five harnesses, and it also works when the one that was turned off is the Codex hook, whose SessionStart also does not run without trust.
+  - The pre-commit is the only channel to the human that exists on all six harnesses, and it also works when the one that was turned off is the Codex hook, whose SessionStart also does not run without trust.
 
 **MH-28. `pregate install` (per repo) stops registering hooks and committing a launcher.** It remains for what belongs to the repo: `--git-hook`, `--ci github`, and `--ci vercel`. `--ci github,vercel` writes both. Vercel is a build recipe (`scripts/pregate-vercel-build.sh` and `vercel.json`), so a repository with no Actions workflow can still gate the deployment. `pregate ci status` and `pregate ci wait` read GitHub commit statuses and check runs for the providers that are configured and fail closed when a required one is missing or failing.
 - The pre-commit calls `pregate check --staged --ratchet` from the PATH (`command -v pregate || "$HOME/.local/bin/pregate"`). If it is missing, the commit fails with "install PREGATE". By MH-19, it runs the engine the lock asks for.
@@ -403,7 +438,7 @@ The shared registration is written if any of the three that read it is present, 
 1. The human writes `.pregate/preset.json` (the agent cannot: protected path; `pregate init` arrives in v1).
 2. `pregate preset compile` ⇒ `.pregate/pregate.lock.json`, with the engine that is running.
 3. Optional: `pregate install --git-hook --ci github`.
-4. Commit. From that moment, all five harnesses gate it; before the commit, too, from the session after it is created (MH-33).
+4. Commit. From that moment, all six harnesses gate it; before the commit, too, from the session after it is created (MH-33).
 
 To migrate a repo to a new engine: `pregate update`, `pregate preset compile`, and commit the lock. There are no more files to touch (MH-28).
 
@@ -426,7 +461,7 @@ To migrate a repo to a new engine: `pregate update`, `pregate preset compile`, a
   - Grok: reason ≤ 256 and without `\n`;
   - agy: the deny is never empty;
   - outside Claude, `ask` ⇒ deny and halt ⇒ no halt keys;
-  - Stop reentry (all five signals) reaches `decide` as `reentry`.
+  - Stop reentry (all six signals) reaches `decide` as `reentry`.
 - **Patch.** The grammar: captures plus the synthetic cases (`..`, `@@ ctx`, several hunks, `*** End of File`, heredoc ⇒ `unknown`). Application: exact, missing context ⇒ `cannot-reconstruct`, pure insertion ⇒ `unknown`, Move with `from`.
 - **`reconstruct`:** append, agy range, empty old that creates (MH-13).
 - **`gate` and `decide`:**
@@ -749,7 +784,7 @@ Launcher protocol in 0.0.7: exit 0 and 2 = the engine's output; exit 3 with firs
 | U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.7 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
 | U-2 | **Release downloads.** `pedroknigge/pregate` is public. Anonymous HTTPS downloads the release. `gh auth login` is only the fallback when that download fails | No extra repository grant. Use the installers in the [installation guide](guides/installation.md) |
 | U-3 | **Codex trust.** `setup` grants it through app-server **only to the PREGATE keys whose definition is exactly what it wrote**, which is the same as approving them in `/hooks`. I understand D20's "yes" covers it. If a foreign hook loses trust, setup restores and fails: it never touches foreign trust | Confirm. If not, `setup` leaves it pending and `doctor` fails until it is approved by hand |
-| U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all five harnesses. Never auto-update |
+| U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all six harnesses. Never auto-update |
 | U-5 | **Machine protections always on (MH-17).** No agent, in any repo, can edit `~/.claude/settings*.json`, `~/.codex/{hooks.json,config.toml}`, `~/.grok/{config.toml,hooks/**}`, `~/.gemini/config/{hooks.json,config.json}`, or the PREGATE install, or run `pregate uninstall` or `agy plugin disable pregate`. That includes asking Claude to add a permission to `~/.claude/settings.json` (for example, with `/update-config`): the human does it | Yes. Without this, any session opened outside a repo with a preset can turn PREGATE off on the whole machine, and on Codex silently |
 | U-6 | **Single registration for Claude, Cursor, and Grok (MH-04).** Cursor's `failClosed` is lost for failures where the inline `sh` does not even start, and Grok stays subject to its Claude compatibility switch (which the agent cannot touch and which the pre-commit detects). What is gained is not writing `~/.cursor/hooks.json` (Orca's, which a schema error invalidates entirely) and not having double evaluation | Yes |
 | U-7 | **No committed launcher (MH-28).** The pre-commit uses the global `pregate` and CI downloads the engine the lock asks for. Every machine that commits in a repo with PREGATE needs the global install | Yes: it removes version skew when migrating a repo |

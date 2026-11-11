@@ -25,6 +25,7 @@ hook configuration do not mean every project assertion has evidence.
 | Cursor | Deny JSON, exit 0 | Separate human terminal; tested Shell Mode has no trusted human-origin marker | Yes | No | No supported channel |
 | Grok | Compact deny JSON and stderr, exit 2 | Human command route | No | No | No supported channel |
 | agy | Deny JSON, exit 0 | Human Bash `!` route; agent approval is denied because parent context is unavailable | Yes | No | No supported channel |
+| OpenCode | stderr, exit 2, thrown by the plugin | Separate human terminal; the plugin hook has no trusted human-origin marker | Yes | Yes | No supported channel |
 
 A nonblocking Claude Stop emits no
 `hookSpecificOutput.additionalContext`: that channel continues the model's turn

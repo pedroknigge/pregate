@@ -9,6 +9,8 @@ other tools write there.
   for ArkGate projects, a bundled plugin and Orca); the hashes are stand-ins.
 - `grok-config.toml`: the head of `~/.grok/config.toml`, with a multi-line array.
 - `gemini-config.json`: `plugins` of `~/.gemini/config/config.json`.
+- `opencode.json`: `~/.config/opencode/opencode.json` with Orca's status plugin; setup must add its
+  own `plugins` entry and leave that one alone.
 - `arkgate/`: the per-repo hooks ArkGate writes (`.claude/settings.json`, `.codex/hooks.json`).
 
 cmux registers only in `~/.grok/hooks/`, a file PREGATE never writes (MULTI-HARNESS MH-04).

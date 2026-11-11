@@ -16,7 +16,7 @@ import { removeTree } from "./remove-tree.ts";
 
 // MULTI-HARNESS §6.2, the machine commands: the compiled binary runs `setup`, `update`, `uninstall`
 // and `doctor` on a machine that lives in one temporary folder (HOME, XDG_*, CODEX_HOME, GROK_HOME,
-// TMPDIR), with the five CLIs faked on a PATH of their own. The fake `codex app-server`
+// TMPDIR), with the six CLIs faked on a PATH of their own. The fake `codex app-server`
 // (fixtures/codex-app-server.ts) keeps Codex's trust rules; the configs already on the machine are
 // the real ones of test/fixtures/configs.
 
@@ -36,7 +36,7 @@ afterAll(() => removeTree(TMP));
 test("D25: setup installs versioned skills; doctor detects missing/stale copies; uninstall removes them", () => {
   const m = machine(["claude-code"]);
   ok(pregate(m, "setup"), "setup");
-  const folders = [".agents/skills", ".claude/skills", ".codex/skills", ".cursor/skills", ".grok/skills", ".gemini/antigravity-cli/skills"];
+  const folders = [".agents/skills", ".claude/skills", ".codex/skills", ".cursor/skills", ".grok/skills", ".gemini/antigravity-cli/skills", ".config/opencode/skills"];
   for (const folder of folders) {
     const file = join(m.home, folder, "pregate/SKILL.md");
     expect(read(file)).toContain(`description: "${pkg.version} — PREGATE:`);
@@ -90,10 +90,11 @@ function machine(found: HarnessId[], fakes: Partial<Record<string, string>> = {}
     "claude-code": [["claude-settings.json", m.settings]], cursor: [], grok: [["grok-config.toml", join(home, ".grok/config.toml")]],
     codex: [["codex-hooks.json", m.hooks], ["codex-config.toml", join(codex, "config.toml")]],
     agy: [["gemini-config.json", join(home, ".gemini/config/config.json")]],
+    opencode: [["opencode.json", join(home, ".config/opencode/opencode.json")]],
   };
   for (const h of found) {
     for (const [from, to] of configs[h]) put(to, readFileSync(join(CONFIGS, from), "utf8"));
-    const name = { "claude-code": "claude", codex: "codex", cursor: "cursor-agent", grok: "grok", agy: "agy" }[h];
+    const name = { "claude-code": "claude", codex: "codex", cursor: "cursor-agent", grok: "grok", agy: "agy", opencode: "opencode" }[h];
     put(join(bin, name), fakes[name] ?? FAKES[h], 0o755);
   }
   for (const [name, text] of Object.entries(fakes)) if (!existsSync(join(bin, name))) put(join(bin, name), text!, 0o755);
@@ -111,6 +112,8 @@ const FAKES: Record<HarnessId, string> = {
   agy: `#!/bin/sh\necho "agy $*" >> "$LOG"\ncase "$1 $2" in\n"--version ") echo '${HARNESSES.agy.VERIFIED}' ;;\n`
     + `"plugin install") p="$HOME/.gemini/config/plugins/\${3##*/}"; rm -rf "$p"; mkdir -p "\${p%/*}"; cp -R "$3" "$p" ;;\n`
     + `"plugin uninstall") rm -rf "$HOME/.gemini/config/plugins/$3" ;;\nesac\n`,
+  // `opencode --version` prints the bare semver.
+  opencode: version("opencode", "@"),
 };
 
 function put(path: string, text: string, mode = 0o644): void {
@@ -145,7 +148,8 @@ const foreign = (m: Machine, o: Json): Json => {
 // Every file setup may write, as bytes plus mtime: equal stamps mean nothing was written.
 function stamps(m: Machine): Record<string, string> {
   const files = [m.settings, m.hooks, join(m.codex, "config.toml"), join(m.plugin, "hooks.json"), join(m.plugin, "plugin.json"),
-    join(m.state, "codex-trust.json"), m.launcher, join(m.data, pkg.version, "pregate")];
+    join(m.state, "codex-trust.json"), m.launcher, join(m.data, pkg.version, "pregate"),
+    join(m.home, ".config/opencode/opencode.json"), join(m.home, ".config/opencode/pregate/index.ts")];
   return Object.fromEntries(files.map((f) => [f, existsSync(f) ? `${statSync(f).mtimeMs} ${createHash("sha256").update(readFileSync(f)).digest("hex")}` : "absent"]));
 }
 
@@ -159,7 +163,7 @@ function trust(m: Machine): Record<string, string> {
 }
 
 describe("setup", () => {
-  test("with the five found: every registration in place, foreign config untouched, Codex trusted; a second run writes nothing", () => {
+  test("with the six found: every registration in place, foreign config untouched, Codex trusted; a second run writes nothing", () => {
     const m = machine(ALL);
     const before = { settings: json(m.settings), hooks: json(m.hooks), trust: trust(m) };
     const out = ok(pregate(m, "setup"), "setup");
@@ -173,6 +177,13 @@ describe("setup", () => {
       for (const e of EVENTS) expect(exact(after.hooks[e].at(-1), t, m.data)).toBe(true);
       expect(read(`${file}.pregate.bak`)).toBe(readFileSync(join(CONFIGS, file === m.settings ? "claude-settings.json" : "codex-hooks.json"), "utf8"));
     }
+    // OpenCode: the plugin folder is ours, and its own `plugins` entry is added after the user's.
+    const opencode = join(m.home, ".config/opencode");
+    expect(read(join(opencode, "pregate/index.ts"))).toContain(`const LAUNCHER = "${m.data}/bin/pregate";`);
+    expect(json(join(opencode, "opencode.json")).plugins).toEqual([
+      "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui", join(opencode, "pregate"),
+    ]);
+    expect(read(join(opencode, "opencode.json.pregate.bak"))).toBe(readFileSync(join(CONFIGS, "opencode.json"), "utf8"));
     // Ours are trusted, and every foreign hook keeps the trust it had.
     const after = trust(m);
     for (const [k, s] of Object.entries(before.trust)) expect(after[k]).toBe(s);
@@ -321,7 +332,7 @@ describe("setup", () => {
     const m = machine([]);
     const out = pregate(m, "setup");
     expect(out.code).toBe(1);
-    expect(out.stdout).toContain("WARNING: No Claude Code, Codex, Cursor, Grok or agy found");
+    expect(out.stdout).toContain("WARNING: No Claude Code, Codex, Cursor, Grok, agy or OpenCode found");
     expect(out.stdout).not.toContain("ERROR:");
     expect(existsSync(join(m.data, pkg.version, "pregate"))).toBe(true);
     expect(existsSync(m.launcher)).toBe(true);
@@ -439,6 +450,7 @@ describe("uninstall", () => {
     const toml = read(join(m.codex, "config.toml"))!;
     const grok = read(join(m.home, ".grok/config.toml"));
     const gemini = read(join(m.home, ".gemini/config/config.json"));
+    const opencode = read(join(m.home, ".config/opencode/opencode.json"));
     ok(pregate(m, "setup"), "setup");
     const diagnosis = ok(pregate(m, "doctor"), "doctor");
     for (const h of ALL) expect(diagnosis.stdout).toContain(`${h}: canary denied in its native dialect.`);
@@ -448,6 +460,9 @@ describe("uninstall", () => {
     expect(read(join(m.codex, "config.toml"))).toBe(toml);
     expect(read(join(m.home, ".grok/config.toml"))).toBe(grok);
     expect(read(join(m.home, ".gemini/config/config.json"))).toBe(gemini);
+    // The plugins key was setup's only change: the user's list comes back, byte for byte.
+    expect(read(join(m.home, ".config/opencode/opencode.json"))).toBe(opencode);
+    expect(existsSync(join(m.home, ".config/opencode/pregate"))).toBe(false);
     expect(read(`${m.settings}.pregate.bak`)).toBe(settings);
     expect(read(`${m.hooks}.pregate.bak`)).toBe(hooks);
     for (const text of [settings, hooks]) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, type Sub, type Target, unmerge } from "../src/register.ts";
+import { agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, opencodePluginDir, opencodePluginSource, opencodeState, type Sub, type Target, unmerge } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -211,6 +211,7 @@ describe("drift", () => {
   const clean = (): MachineFiles => ({
     claude: [merge(CLAUDE, "shared", DATA)], cursorHooks: null, codexHooks: merge(CODEX, "codex", DATA), codexConfig: trusted,
     grokConfig: GROK_TOML, agyHooks: agyPlugin(DATA)["hooks.json"]!, agyConfig: gemini(true),
+    opencodeConfig: null, opencodePlugin: null,
   });
   const problems = (change: Partial<MachineFiles>, repo: Record<string, string> | null = null, trust: Record<string, string> = TRUST): string[] =>
     drift({ ...clean(), ...change }, repo, DATA, trust);
@@ -220,7 +221,7 @@ describe("drift", () => {
   });
 
   test("a machine without Codex, Grok or agy: nothing", () => {
-    expect(drift({ claude: [merge(CLAUDE, "shared", DATA)], cursorHooks: null, codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null }, null, DATA, {}))
+    expect(drift({ claude: [merge(CLAUDE, "shared", DATA)], cursorHooks: null, codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, opencodeConfig: null, opencodePlugin: null }, null, DATA, {}))
       .toEqual([]);
   });
 
@@ -382,4 +383,76 @@ describe("project", () => {
     expect(codexProjectTrust(config, "/home/user/other")).toBeNull();
     expect(codexProjectTrust(null, "/home/user/repo")).toBeNull();
   });
+});
+
+describe("opencode", () => {
+  const HOME = "/Users/user/.config/opencode";
+  const DIR = `${HOME}/pregate`;
+  const ORCA = "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui";
+  const withHome = <T>(run: () => T): T => {
+    const before = process.env.OPENCODE_CONFIG_DIR;
+    process.env.OPENCODE_CONFIG_DIR = HOME;
+    try { return run(); } finally {
+      if (before === undefined) delete process.env.OPENCODE_CONFIG_DIR; else process.env.OPENCODE_CONFIG_DIR = before;
+    }
+  };
+  const config = (plugins?: unknown[]): string => `${JSON.stringify(plugins === undefined ? { $schema: "https://opencode.ai/config.json" } : { $schema: "https://opencode.ai/config.json", plugins }, null, 2)}\n`;
+  const EMPTY: MachineFiles = {
+    claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null,
+    opencodeConfig: null, opencodePlugin: null,
+  };
+
+  test("setup adds one plugins entry and leaves every other entry and key alone", () => withHome(() => {
+    expect(opencodePluginDir()).toBe(DIR);
+    expect(merge(config(), "opencode", DATA)).toBe(config([DIR]));
+    expect(merge(config([ORCA]), "opencode", DATA)).toBe(config([ORCA, DIR]));
+    // A second run writes nothing: the entry is already there, in place.
+    const once = merge(config([ORCA]), "opencode", DATA)!;
+    expect(merge(once, "opencode", DATA)).toBe(once);
+    // A file that is not a JSON object, or whose plugins is not an array, is left alone.
+    expect(merge("{ not json", "opencode", DATA)).toBeNull();
+    expect(merge('{"plugins":"x"}', "opencode", DATA)).toBeNull();
+    expect(obj(merge(null, "opencode", DATA))).toEqual({ plugins: [DIR] });
+  }));
+
+  test("unmerge removes our entry and keeps the user's list; an empty key goes", () => withHome(() => {
+    const both = merge(config([ORCA]), "opencode", DATA)!;
+    expect(obj(unmerge(both, "opencode", DATA)!.text)).toEqual(obj(config([ORCA])));
+    expect(obj(unmerge(config([DIR]), "opencode", DATA)!.text)).toEqual({ $schema: "https://opencode.ai/config.json" });
+    expect(unmerge(config([ORCA]), "opencode", DATA)!.text).toBe(config([ORCA]));
+    expect(unmerge('{"plugins":"x"}', "opencode", DATA)).toBeNull();
+  }));
+
+  test("a disabled entry is the human's switch: setup never turns it back on, and drift names it", () => withHome(() => {
+    for (const marker of ["-", "!"]) {
+      const off = config([`${marker}${DIR}`]);
+      expect(merge(off, "opencode", DATA)).toBe(off);
+      expect(opencodeState(off)).toBe("disabled");
+      expect(drift({ ...EMPTY, opencodeConfig: off, opencodePlugin: opencodePluginSource(DATA) }, null, DATA, {}))
+        .toEqual([`${HOME}/opencode.json: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`]);
+    }
+  }));
+
+  test("drift: the plugin and its entry are both needed, and the plugin must be the reviewed one", () => withHome(() => {
+    expect(drift({ ...EMPTY, opencodeConfig: config([DIR]), opencodePlugin: opencodePluginSource(DATA) }, null, DATA, {})).toEqual([]);
+    expect(drift({ ...EMPTY, opencodeConfig: config([DIR]), opencodePlugin: null }, null, DATA, {})).toEqual([
+      `${DIR}/index.ts: the PREGATE plugin is missing; run pregate setup.`,
+    ]);
+    expect(drift({ ...EMPTY, opencodeConfig: config([DIR]), opencodePlugin: "export default {}" }, null, DATA, {})).toEqual([
+      `${DIR}/index.ts: the PREGATE plugin differs from the reviewed one; run pregate setup.`,
+    ]);
+    expect(drift({ ...EMPTY, opencodeConfig: config([ORCA]), opencodePlugin: opencodePluginSource(DATA) }, null, DATA, {})).toEqual([
+      `${HOME}/opencode.json: the PREGATE plugin is not listed in plugins; run pregate setup.`,
+    ]);
+    expect(drift({ ...EMPTY, opencodeConfig: null, opencodePlugin: null }, null, DATA, {})).toEqual([]);
+  }));
+
+  test("the plugin names this installation's launcher", () => withHome(() => {
+    const source = opencodePluginSource(DATA);
+    expect(source).toContain(`const LAUNCHER = "${DATA}/bin/pregate";`);
+    expect(source).not.toContain("@PREGATE_LAUNCHER@");
+    // Reviewed, not captured: the shim reads no machine path and imports no OpenCode package.
+    expect(source).toContain('from "node:child_process"');
+    expect(source).not.toContain("@opencode/plugin");
+  }));
 });

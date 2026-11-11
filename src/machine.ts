@@ -16,7 +16,7 @@ import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
-import { AGY_PLUGIN, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, ownedCommand, registered, type Target, unmerge } from "./register.ts";
+import { AGY_PLUGIN, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, opencodeConfigFile, opencodePluginDir, opencodePluginSource, opencodeState, ownedCommand, registered, type Target, unmerge } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
 import { powershellCommand, PS_MODULES, psQuote } from "./windows-command.ts";
 import { slash } from "./paths.ts";
@@ -35,7 +35,7 @@ import { PROJECT_CODEX_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./i
 type Result = { code: 0 | 1; text: string };
 type Line = { level: "ok" | "info" | "warn" | "fail"; text: string; wired?: boolean };
 interface Paths {
-  home: string; data: string; state: string; codexHome: string; grokHome: string;
+  home: string; data: string; state: string; codexHome: string; grokHome: string; opencodeHome: string;
   shared: string[];   // ~/.claude/settings.json, then $CLAUDE_CONFIG_DIR/settings.json when it is another file
   launcher: string; link: string; plugin: string; trust: string;
 }
@@ -43,7 +43,7 @@ interface Paths {
 interface Out { exit: number | null; stdout: string; stderr: string }
 
 // MH-26: a harness is present when its home exists or its binary is on the PATH.
-const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"] };
+const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"], opencode: ["opencode"] };
 const SHARED: HarnessId[] = ["claude-code", "cursor", "grok"];
 // The event part of a Codex trust key (<file>:<event>:<group>:<hook>).
 const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
@@ -65,7 +65,7 @@ export async function setup(): Promise<Result> {
   saveLauncher(p, VERSIONS.engine);
   lines.push(ok(`Launcher at ${p.launcher}.`), link(p));
   const found = detect(p);
-  if (found.size === 0) lines.push(warn("No Claude Code, Codex, Cursor, Grok or agy found; no hooks registered. Install a harness and rerun pregate setup."));
+  if (found.size === 0) lines.push(warn("No Claude Code, Codex, Cursor, Grok, agy or OpenCode found; no hooks registered. Install a harness and rerun pregate setup."));
   if (SHARED.some((h) => found.has(h))) lines.push(...p.shared.map((f) => register(f, "shared", p.data)));
   if (found.has("cursor")) lines.push(register(join(p.home, ".cursor/hooks.json"), "cursor", p.data));
   // An IDE may run Codex from a bundled binary that reads ~/.codex/hooks.json: its hooks are
@@ -74,6 +74,7 @@ export async function setup(): Promise<Result> {
   const agyBin = found.get("agy");
   if (agyBin === null) lines.push(info("agy: binary not on PATH; skipped. Install it and rerun pregate setup."));
   else if (agyBin !== undefined) lines.push(agy(p, agyBin));
+  if (found.has("opencode")) lines.push(opencode(p));
   installSkill();
   lines.push(ok("Installed /pregate skills. Global hooks remain inert until local worktree consent."));
   return finishSetup(lines);
@@ -178,6 +179,22 @@ function agy(p: Paths, bin: string): Line {
     done = `pregate-global plugin installed at ${p.plugin}.`;
   }
   return agyDisabled(p) ? fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.") : ok(done, true);
+}
+
+// OpenCode reads a plugin folder named by its own `plugins` array. setup writes the shim and adds
+// that one entry; every other entry of the file, and every other key, stays. A disabled entry (a
+// leading - or !) is the human's switch and is never turned back on here.
+function opencode(p: Paths): Line {
+  const dir = opencodePluginDir(), file = join(dir, "index.ts");
+  save(file, opencodePluginSource(p.data));
+  const target = canonical(opencodeConfigFile(p.opencodeHome));
+  const before = read(target), after = merge(before, "opencode", p.data);
+  if (after === null) return fail(`${target} must be a JSON object whose "plugins" is an array; left unchanged. Fix it and rerun pregate setup.`);
+  rewrite(target, before, after);
+  const state = opencodeState(read(target));
+  if (state === "disabled") return warn(`OpenCode: the PREGATE plugin entry in ${target} is disabled; remove the leading - or ! to gate OpenCode.`);
+  if (state !== "ready") return fail(`OpenCode: ${target} does not list ${dir} in plugins; run pregate setup.`);
+  return ok(`OpenCode: PREGATE plugin at ${file}, listed in ${target}.`, true);
 }
 
 // ~/.local/bin/pregate → the launcher. Anything else already there is not ours to replace.
@@ -363,6 +380,11 @@ export async function uninstall(purge: boolean): Promise<Result> {
     rmSync(p.plugin, { recursive: true, force: true });   // agy plugin uninstall is [E2E]
     lines.push(ok(`agy plugin removed from ${p.plugin}.`));
   }
+  lines.push(unregister(opencodeConfigFile(p.opencodeHome), "opencode", p));
+  if (existsSync(opencodePluginDir())) {
+    rmSync(opencodePluginDir(), { recursive: true, force: true });
+    lines.push(ok(`OpenCode plugin removed from ${opencodePluginDir()}.`));
+  }
   const s = stats(p.link, false);
   if (s?.isSymbolicLink() === true && readlinkSync(p.link) === p.launcher) rmSync(p.link);
   lines.push(unpath(p));
@@ -371,7 +393,7 @@ export async function uninstall(purge: boolean): Promise<Result> {
   rmSync(p.trust, { force: true });
   if (purge) rmSync(p.state, { recursive: true, force: true });
   lines.push(ok(`Removed ${p.data}${purge ? ` and ${p.state}` : ""}. Repo .pregate/ directories are preserved.`));
-  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json")].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
+  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json"), opencodeConfigFile(p.opencodeHome)].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
   if (kept.length > 0) lines.push(ok(`Backups from before the first setup remain: ${kept.join(", ")}.`));
   return report(lines.filter((l): l is Line => l !== null));
 }
@@ -406,6 +428,11 @@ function unregister(file: string, t: Target, p: Paths): Line | null {
   if (t === "cursor" && bak === null && sameJson(r.text, '{"version":1,"hooks":{}}')) {
     save(target, null);
     return ok(`PREGATE hooks removed from ${file}.`);
+  }
+  // The plugins key was the only content setup wrote: the file goes with it.
+  if (t === "opencode" && bak === null && sameJson(r.text, "{}")) {
+    save(target, null);
+    return ok(`PREGATE plugin entry removed from ${file}.`);
   }
   const after = bak !== null && sameJson(r.text, bak) ? bak : r.text;
   if (!rewrite(target, before, after)) return null;
@@ -451,6 +478,7 @@ export async function doctor(): Promise<Result> {
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !scope.standalone.has("codex")) lines.push(codexOffPath(p));
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
+  if (checked.has("opencode") && m.opencodePlugin === null && m.opencodeConfig === null) lines.push(fail("OpenCode has no PREGATE plugin; run pregate setup."));
   if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
   lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
@@ -568,6 +596,8 @@ function machineFiles(p: Paths, checked: Map<HarnessId, string | null>): Machine
     grokConfig: read(join(p.grokHome, "config.toml")),
     agyHooks: agy ? read(join(p.plugin, "hooks.json")) : null, agyConfig: agy ? read(join(p.home, ".gemini/config/config.json")) : null,
     cursorHooks: read(join(p.home, ".cursor/hooks.json")),
+    opencodeConfig: checked.has("opencode") ? read(opencodeConfigFile(p.opencodeHome)) : null,
+    opencodePlugin: checked.has("opencode") ? read(join(opencodePluginDir(), "index.ts")) : null,
   };
 }
 
@@ -669,6 +699,14 @@ const CANARY: Record<HarnessId, { exit: number; env: (dir: string) => Record<str
     },
     payload: (dir, file) => ({ conversationId: SID, workspacePaths: [dir], stepIdx: 0, toolCall: { name: "write_to_file", args: { TargetFile: file, CodeContent: "{}\n" } } }),
   },
+  // The plugin sends the payload this adapter reads; the deny is stderr with exit 2, as Codex's.
+  opencode: {
+    exit: 2, env: () => ({}), reason: (o) => (o.stdout === "" ? o.stderr : null),
+    payload: (dir, file) => ({
+      hook_event_name: "PreToolUse", session_id: SID, cwd: dir, tool_name: "write", tool_use_id: SID,
+      tool_input: { filePath: file, content: "{}\n" },
+    }),
+  },
 };
 
 function canary(p: Paths, h: HarnessId): Line {
@@ -683,7 +721,7 @@ function runCanary(p: Paths, h: HarnessId, dir: string): Line {
     if (initialized.exit !== 0) return fail("Cannot initialize the isolated doctor canary repository.");
     enable(dir);
     const c = CANARY[h];
-    const flag = h === "codex" || h === "agy" ? h : "claude-code";
+    const flag = h === "cursor" ? "claude-code" : h;
     const command = WINDOWS ? ["cmd.exe", "/d", "/s", "/c", hookCommand(p.data, "pre", flag)]
       : [process.env.SHELL || "/bin/sh", "-c", hookCommand(p.data, "pre", flag)];
     const env = { ...process.env, XDG_STATE_HOME: join(dir, "state"), ...c.env(dir) };
@@ -839,6 +877,7 @@ function paths(): Paths {
   const moved = env.CLAUDE_CONFIG_DIR ? join(env.CLAUDE_CONFIG_DIR, "settings.json") : null;
   return {
     home, data, state: stateDir(), codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+    opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"),
     shared: moved === null || canonical(moved) === canonical(own) ? [own] : [own, moved],
     launcher: join(data, WINDOWS ? "bin/launcher.ps1" : "bin/pregate"), link: WINDOWS ? join(data, "bin/pregate.cmd") : join(home, ".local/bin/pregate"),
     plugin: join(home, `.gemini/config/plugins/${AGY_PLUGIN}`), trust: join(stateDir(), "codex-trust.json"),
@@ -853,6 +892,7 @@ export function gatedHarnesses(root: string | null): Set<string> {
     claude: p.shared.map(read), codexHooks: read(join(p.codexHome, "hooks.json")), codexConfig: read(join(p.codexHome, "config.toml")),
     grokConfig: read(join(p.grokHome, "config.toml")), agyHooks: read(join(p.plugin, "hooks.json")),
     agyConfig: read(join(p.home, ".gemini/config/config.json")), cursorHooks: read(join(p.home, ".cursor/hooks.json")),
+    opencodeConfig: read(opencodeConfigFile(p.opencodeHome)), opencodePlugin: read(join(opencodePluginDir(), "index.ts")),
   }, repo, p.data, trusts(p));
   if (process.env.GROK_CLAUDE_HOOKS_ENABLED === "0") ids.delete("grok");
   // The project's own registration gates Claude Code here without a global one.
@@ -864,7 +904,7 @@ export function gatedHarnesses(root: string | null): Set<string> {
 function detect(p: Paths): Map<HarnessId, string | null> {
   const homes: Record<HarnessId, string> = {
     "claude-code": join(p.home, ".claude"), cursor: join(p.home, ".cursor"), grok: p.grokHome, codex: p.codexHome,
-    agy: join(p.home, ".gemini/antigravity-cli"),
+    agy: join(p.home, ".gemini/antigravity-cli"), opencode: p.opencodeHome,
   };
   const found = new Map<HarnessId, string | null>();
   for (const h of Object.keys(HARNESSES) as HarnessId[]) {

@@ -152,6 +152,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.5.md](releases/0.0.5.md) | Product/reference |
 | [releases/0.0.6.md](releases/0.0.6.md) | Product/reference |
 | [releases/0.0.7.md](releases/0.0.7.md) | Product/reference |
+| [research/harness-opencode-live.md](research/harness-opencode-live.md) | Dated research/evidence |
 | [ROADMAP.md](ROADMAP.md) | Product/reference |
 | [SPEC.md](SPEC.md) | Product/reference |
 <!-- END generated reference -->

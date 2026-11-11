@@ -1,0 +1,6 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui"
+  ]
+}
