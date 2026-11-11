@@ -1229,7 +1229,9 @@ function untouched(w: World, repo: string): [boolean, string] {
 // --trust). The formats: Codex's from harness-codex-live §1, agy's from its settings.json; Claude
 // Code's ~/.claude.json keys are an assumption that a FAIL screen would expose.
 function trustDir(w: World, h: HarnessId, repo: string): void {
-  if (h === "codex") writeFileSync(join(w.codexHome, "config.toml"), `${read(join(w.codexHome, "config.toml"))}\n[projects."${repo}"]\ntrust_level = "trusted"\n`);
+  // A second table with the same key is a TOML error, and Codex then exits before its first turn.
+  const config = read(join(w.codexHome, "config.toml")) ?? "";
+  if (h === "codex" && !config.includes(`[projects."${repo}"]`)) writeFileSync(join(w.codexHome, "config.toml"), `${config}\n[projects."${repo}"]\ntrust_level = "trusted"\n`);
   if (h === "claude-code") {
     const file = join(w.home, ".claude.json");
     const doc = JSON.parse(read(file)!) as { projects?: Record<string, object> };
