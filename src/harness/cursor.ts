@@ -1,11 +1,12 @@
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
+import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, ProposedChange, Rejected, Session } from "../types.ts";
 import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
 
 // The Cursor (cursor-agent) adapter. Cursor runs the hooks of ~/.claude/settings.json with its own
 // payload (MULTI-HARNESS MH-04), and every file mutation reaches preToolUse as a Write carrying the
-// whole resulting file, or as a Delete [V]: nothing here needs reconstruction (MH-13).
+// whole resulting file, or as a Delete [V]: nothing here needs reconstruction (MH-13). The same
+// decode serves the project's native .cursor/hooks.json (MH-28c).
 
-export const VERIFIED = "2026.09.26-dd393fe";
+export const VERIFIED = "2026.11.11-043ef28";
 
 const BAD: Cause = "payload-unrecognized";
 const NAMES: Record<HookKind, string> = { pre: "preToolUse", stop: "stop", "session-start": "sessionStart" };
@@ -16,7 +17,7 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   // The shared registration's SubagentStop: Cursor has no subagent Stop the gate judges.
   if (event === "stop" && p !== null && /^subagent/i.test(String(p.hook_event_name))) return null;
   if (p === null || session === null || p.hook_event_name !== NAMES[event]) return refuse(event, p, env);
-  if (event === "pre") return tool(p, session) ?? refuse(event, p, env);
+  if (event === "pre") return typeof p.tool_name === "string" && p.tool_name.startsWith("MCP:") ? mcp(p, session, env) : tool(p, session) ?? refuse(event, p, env);
   // Stop and SessionStart carry no cwd: the workspace is where the session works (MH-05).
   const cwd = Array.isArray(p.workspace_roots) ? p.workspace_roots[0] : undefined;
   if (!absolute(cwd)) return refuse(event, p, env);
@@ -68,6 +69,29 @@ function editOf(tool: string, i: Payload): Edit | null {
   if (tool === "Delete") return keys(i, ["file_path"], []) ? { form: "delete" } : { form: "unknown", cause: tool };
   if (tool !== "Write") return null;
   return keys(i, ["file_path", "content"], []) && typeof i.content === "string" ? { form: "full", content: i.content } : { form: "unknown", cause: tool };
+}
+
+// MH-35. The arguments of an MCP tool belong to its server: no key set says what it writes. A call that
+// names no local absolute path is not one the gate judges; every path it names is judged where it
+// lands, by its path only, so a protected file is denied and an in-scope one cannot be evaluated.
+// A path that is not normalized may land anywhere: it denies wherever the session reaches a root.
+function mcp(p: Payload, session: Session, env: HookEnv): HookEvent | Rejected | null {
+  const input = p.tool_input;
+  if (typeof p.tool_use_id !== "string" || !isObject(input)) return refuse("pre", p, env);
+  const named = [...new Set(locations(input, 0))];
+  if (named.length === 0) return null;
+  if (!named.every(absolute)) return { cause: "cannot-reconstruct", kind: "pre-edit", reentry: false, session, dirs: named };
+  const base: Omit<ProposedChange, "path" | "edit" | "from"> = { session, callId: p.tool_use_id, tool: p.tool_name as string };
+  return { kind: "pre-edit", changes: named.map((path) => ({ ...base, path, edit: { form: "unknown", cause: base.tool }, from: null })) };
+}
+
+const MCP_DEPTH = 4;
+
+function locations(v: unknown, depth: number): string[] {
+  if (absoluteLocation(v)) return [v];
+  if (depth >= MCP_DEPTH) return [];
+  if (Array.isArray(v)) return v.flatMap((x) => locations(x, depth + 1));
+  return isObject(v) ? Object.values(v).flatMap((x) => locations(x, depth + 1)) : [];
 }
 
 // The target path counts among the directories: a session opened outside any root may still write
