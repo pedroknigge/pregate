@@ -9,8 +9,8 @@ contract.
 
 The normal installer, `pregate setup` and `pregate update` install the companion
 instructions. Setup writes `skills/pregate/SKILL.md` in the shared `.agents` directory
-and the Claude Code, Codex, Cursor, Grok and agy skill directories. `CODEX_HOME`
-and `GROK_HOME` are respected. `pregate doctor` reports missing or outdated copies.
+and the Claude Code, Codex, Cursor, Grok, agy and OpenCode skill directories.
+`CODEX_HOME`, `GROK_HOME` and `OPENCODE_CONFIG_DIR` are respected. `pregate doctor` reports missing or outdated copies.
 
 The skill folders are protected: an agent cannot write them. An agent can read an
 installed `SKILL.md` with a literal `cat <path>`, alone or as one step of a `;` or `&&`

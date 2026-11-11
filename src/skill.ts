@@ -16,6 +16,7 @@ export function skillFiles(): string[] {
     join(process.env.CODEX_HOME || join(home, ".codex"), "skills/pregate/SKILL.md"),
     join(home, ".cursor/skills/pregate/SKILL.md"), join(process.env.GROK_HOME || join(home, ".grok"), "skills/pregate/SKILL.md"),
     join(home, ".gemini/antigravity-cli/skills/pregate/SKILL.md"),
+    join(process.env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"), "skills/pregate/SKILL.md"),
   ])];
 }
 

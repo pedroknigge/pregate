@@ -85,7 +85,7 @@ exec 3<&0 4>&2 2>/dev/null
 
 # $1 = agent reason, $2 = human reason, $3 = what the human should
 # check (default: the installation). Prints the event's fail-closed output and exits. Pre is the same
-# in the five harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
+# in the six harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
 # cut at 256 characters).
 fail_closed() {
   trap '' USR1 USR2 TERM HUP

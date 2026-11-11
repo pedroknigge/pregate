@@ -49,7 +49,7 @@ test("Windows command wrappers keep administrative and launcher protections", ()
   const machine = { ...ctx, isProtected: (p: string) => pathKey(p).includes("/.codex/") };
   for (const command of ['type "%CODEX_HOME%\\config.toml"', 'Get-Content "$env:CODEX_HOME/config.toml"']) expect(guard(command, "C:/repo", machine)).toBe("protected-path");
   const home = "C:\\Users\\Pedro";
-  const globs = machineGlobs(home, { codexHome: `${home}\\.codex`, grokHome: `${home}\\.grok`, claudeConfig: null, data: `${home}\\AppData\\Local\\pregate`, state: `${home}\\AppData\\Local\\State\\pregate` }, slash);
+  const globs = machineGlobs(home, { codexHome: `${home}\\.codex`, grokHome: `${home}\\.grok`, opencodeHome: `${home}\\AppData\\Roaming\\opencode`, claudeConfig: null, data: `${home}\\AppData\\Local\\pregate`, state: `${home}\\AppData\\Local\\State\\pregate` }, slash);
   for (const command of ['type "%LOCALAPPDATA%\\pregate\\bin\\launcher.ps1"', 'Get-Content "$env:LOCALAPPDATA/State/pregate/consent.json"']) expect(guard(command, "C:/repo", { ...ctx, isProtected: (p) => protects(p, globs) })).toBe("protected-path");
 });
 
@@ -159,13 +159,14 @@ test.skipIf(!WINDOWS)("Windows PowerShell uses its own utility module despite an
   }, () => { removeTree(area); });
 }, 35_000);
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s decodes native Windows targets from its captured envelope", (h) => {
-  const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json" };
+test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const)("%s decodes native Windows targets from its captured envelope", (h) => {
+  const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json", opencode: "opencode/pre-write.json" };
   const p = JSON.parse(readFileSync(join(import.meta.dir, "payloads", names[h]), "utf8"));
   const path = "C:\\repo\\src\\a.ts";
   if (h === "agy") { p.workspacePaths = ["C:\\repo"]; p.toolCall.args.TargetFile = path; }
   else if (h === "grok") { p.cwd = p.workspaceRoot = "C:\\repo"; p.toolInput.file_path = path; }
   else if (h === "codex") { p.cwd = "C:\\repo"; p.tool_input = { command: `*** Begin Patch\n*** Add File: ${path}\n+export {};\n*** End Patch\n` }; }
+  else if (h === "opencode") { p.cwd = "C:\\repo"; p.tool_input = { filePath: path, content: "export {};" }; }
   else { p.cwd = "C:\\repo"; p.workspace_roots = [p.cwd]; p.tool_input = { file_path: path, content: "export {};" }; }
   const event = HARNESSES[h].decode("pre", JSON.stringify(p), { projectDir: "C:\\repo", grokEvent: null, remote: false });
   expect(event).toMatchObject({ kind: "pre-edit", changes: [{ path }] });

@@ -82,12 +82,13 @@ request that was applied, and any request that can no longer apply to the new pr
 is removed from `.pregate/requests/`.
 
 The preview names Claude Code, Codex, Grok and agy beside the `!` command and
-prints Cursor's separate-human-terminal command with the same digest. It does
-not offer Cursor an unsupported in-harness approval path.
+prints Cursor's and OpenCode's separate-human-terminal command with the same digest.
+It does not offer Cursor or OpenCode an unsupported in-harness approval path.
 The user types that command in supported human shell input after reviewing it.
 Current controlled observations pass in Claude Code, Codex, Grok and agy.
 Cursor's tested Shell Mode invokes the same gated Pre without a trusted human
-origin marker; use a separate human terminal there. Do not bypass its guard or
+origin marker, and the OpenCode plugin hook has none either; use a separate human
+terminal in both. Do not bypass its guard or
 disable PREGATE. See native observations.
 With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI job; `CI` alone does not count), `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Every harness, Claude Code included,
 rejects the agent's attempt to run the approval command and explains the human route: a
@@ -98,7 +99,7 @@ the reviewed proposal. It expires 24 hours after preparation.
 `pregate approve` retains its direct terminal prompt for existing users. A bare
 `--yes` is an unattended automation interface (`PREGATE_UNATTENDED_APPROVAL=1`), not a way around the terminal; the recommended
 harness workflow always supplies the digest. Protected shell calls reject every
-approval command an agent issues and name the human `!` route (a separate terminal in Cursor).
+approval command an agent issues and name the human `!` route (a separate terminal in Cursor and OpenCode).
 
 The automation verifies source diffs, altered/stale candidates, exact application,
 no-TTY native hook output, known Claude Code headless/subagent rejection, CI

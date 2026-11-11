@@ -1,4 +1,5 @@
 import { isObject, parse, type Payload } from "./harness/wire.ts";
+import { pathKey, slash } from "./paths.ts";
 import type { HarnessId, HookKind } from "./types.ts";
 import { commandScript, powershellCommand, psQuote, windowsHook } from "./windows-command.ts";
 
@@ -12,6 +13,8 @@ export type Sub = HookKind;
 // own .codex/hooks.json, with the Codex events and matcher, on the same launcher. "project-cursor":
 // the project's own .cursor/hooks.json in Cursor's native format, on the same launcher.
 // "project-agy": the project's own .agents/hooks.json.
+// OpenCode is not a target: its registration is the `plugins` array of opencode.json, which no hook
+// group describes (opencodeState, mergeOpencode and unmergeOpencode below).
 export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex" | "project-cursor" | "project-agy";
 // The machine files drift reads; null: absent. `claude` holds every shared registration setup
 // writes: ~/.claude/settings.json, and ${CLAUDE_CONFIG_DIR}/settings.json when it is elsewhere.
@@ -152,6 +155,63 @@ export function codexProjectTrust(config: string | null, root: string): string |
 function windowsData(data: string): boolean {
   return /^[a-z]:|^(?:\\\\|\/\/)/i.test(data);
 }
+
+// ── OpenCode (MH-05, MH-25b) ─────────────────────────────────────────────────────────
+// OpenCode has no hook file: a plugin folder exports the hook handlers, and the `plugins` array of
+// opencode.json names that folder. The folder is ours alone, the list is the user's, and setup adds
+// one entry and removes one. This module stays pure: the caller passes the folder it resolved.
+
+// An entry of `plugins`; a leading - or ! disables it.
+function pluginEntry(entry: unknown): { dir: string; off: boolean } | null {
+  if (typeof entry !== "string" || entry === "") return null;
+  const off = entry.startsWith("-") || entry.startsWith("!");
+  return { dir: slash(off ? entry.slice(1) : entry), off };
+}
+
+function namesDir(entry: unknown, dir: string): boolean {
+  const e = pluginEntry(entry);
+  // One folder has one spelling for this comparison: a trailing slash names the same place.
+  return e !== null && folder(e.dir) === folder(dir);
+}
+
+function folder(path: string): string {
+  return pathKey(slash(path).replace(/\/+$/, ""));
+}
+
+// "ready": one enabled entry names `dir`. "disabled": the entry is there, switched off.
+export function opencodeState(text: string | null, dir: string): "ready" | "disabled" | "missing" | "invalid" {
+  const root = text === null ? {} : parse(text);
+  if (root === null || (root.plugins !== undefined && !Array.isArray(root.plugins))) return "invalid";
+  const list = Array.isArray(root.plugins) ? root.plugins : [];
+  const ours = list.filter((entry) => namesDir(entry, dir)).map(pluginEntry);
+  if (ours.length === 0) return "missing";
+  return ours.every((e) => e!.off) ? "disabled" : "ready";
+}
+
+// null: the text is not a JSON object whose `plugins` is an array; nothing is written then.
+export function mergeOpencode(text: string | null, dir: string): string | null {
+  const root = text === null ? {} : parse(text);
+  if (root === null || (root.plugins !== undefined && !Array.isArray(root.plugins))) return null;
+  const list = Array.isArray(root.plugins) ? root.plugins : [];
+  // A disabled entry is the user's switch: it stays off until the human removes the marker.
+  const entry = list.find((candidate) => namesDir(candidate, dir));
+  if (entry !== undefined && opencodeState(text, dir) === "disabled") return text;
+  root.plugins = entry === undefined ? [...list, dir] : list;
+  return settled(text, root);
+}
+
+export function unmergeOpencode(text: string, dir: string): { text: string; shifted: string[] } | null {
+  const root = parse(text);
+  if (root === null) return null;
+  if (root.plugins !== undefined && !Array.isArray(root.plugins)) return null;
+  const list = Array.isArray(root.plugins) ? root.plugins : [];
+  const kept = list.filter((entry) => !namesDir(entry, dir));
+  if (kept.length === list.length) return { text, shifted: [] };
+  if (kept.length === 0) delete root.plugins; else root.plugins = kept;
+  return { text: settled(text, root), shifted: [] };
+}
+
+// ── merge ───────────────────────────────────────────────────────────────────────────
 
 // null: the text is not a JSON object, or an event is not an array; nothing is written then.
 export function merge(text: string | null, t: Target, data: string): string | null {

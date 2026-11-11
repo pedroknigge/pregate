@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, registered, type Sub, type Target, unmerge } from "../src/register.ts";
+import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, registered, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -458,5 +458,46 @@ describe("project", () => {
     expect(codexProjectTrust(config, "C:/Users/user/repo")).toBe("untrusted");
     expect(codexProjectTrust(config, "/home/user/other")).toBeNull();
     expect(codexProjectTrust(null, "/home/user/repo")).toBeNull();
+  });
+});
+
+describe("opencode", () => {
+  // register.ts stays pure (it is a core module): the caller resolves the folder and passes it in.
+  const DIR = "/Users/user/.config/opencode/pregate";
+  const ORCA = "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui";
+  const config = (plugins?: unknown[]): string => `${JSON.stringify(plugins === undefined ? { $schema: "https://opencode.ai/config.json" } : { $schema: "https://opencode.ai/config.json", plugins }, null, 2)}\n`;
+
+  test("setup adds one plugins entry and leaves every other entry and key alone", () => {
+    expect(mergeOpencode(config(), DIR)).toBe(config([DIR]));
+    expect(mergeOpencode(config([ORCA]), DIR)).toBe(config([ORCA, DIR]));
+    // A second run writes nothing: the entry is already there, in place.
+    const once = mergeOpencode(config([ORCA]), DIR)!;
+    expect(mergeOpencode(once, DIR)).toBe(once);
+    // A file that is not a JSON object, or whose plugins is not an array, is left alone.
+    expect(mergeOpencode("{ not json", DIR)).toBeNull();
+    expect(mergeOpencode('{"plugins":"x"}', DIR)).toBeNull();
+    expect(obj(mergeOpencode(null, DIR))).toEqual({ plugins: [DIR] });
+  });
+
+  test("unmerge removes our entry and keeps the user's list; an empty key goes", () => {
+    const both = mergeOpencode(config([ORCA]), DIR)!;
+    expect(obj(unmergeOpencode(both, DIR)!.text)).toEqual(obj(config([ORCA])));
+    expect(obj(unmergeOpencode(config([DIR]), DIR)!.text)).toEqual({ $schema: "https://opencode.ai/config.json" });
+    expect(unmergeOpencode(config([ORCA]), DIR)!.text).toBe(config([ORCA]));
+    expect(unmergeOpencode('{"plugins":"x"}', DIR)).toBeNull();
+  });
+
+  test("a disabled entry is the human's switch: setup never turns it back on", () => {
+    for (const marker of ["-", "!"]) {
+      const off = config([`${marker}${DIR}`]);
+      expect(mergeOpencode(off, DIR)).toBe(off);
+      expect(opencodeState(off, DIR)).toBe("disabled");
+    }
+    expect(opencodeState(config([DIR]), DIR)).toBe("ready");
+    expect(opencodeState(config([ORCA]), DIR)).toBe("missing");
+    expect(opencodeState(config(), DIR)).toBe("missing");
+    expect(opencodeState('{"plugins":"x"}', DIR)).toBe("invalid");
+    // A different spelling of the same folder is still ours.
+    expect(opencodeState(config([`${DIR}/`]), DIR)).toBe("ready");
   });
 });

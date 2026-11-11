@@ -140,6 +140,7 @@ Supported harnesses, from `src/capabilities.ts`. A harness that is not in this t
 | Cursor | `cursor` | yes | yes |
 | Grok Build | `grok` | no | yes |
 | Antigravity (agy) | `agy` | yes | yes |
+| OpenCode | `opencode` | yes | yes |
 
 Grok Build has no session-start context.
 
@@ -248,7 +249,7 @@ npx skills add pedroknigge/pregate
 
 ## What install touches and how to remove it
 
-The full installer runs `pregate setup` globally. Setup installs the engine, launcher, and companion skill. For detected agents, it registers owned hooks in Claude settings, Cursor hooks, Codex hooks, or the Antigravity `pregate-global` plugin. Claude Code, Cursor, and Grok share the Claude settings registration. Setup does not create a repository contract or repository CI workflow.
+The full installer runs `pregate setup` globally. Setup installs the engine, launcher, and companion skill. For detected agents, it registers owned hooks in Claude settings, Cursor hooks, Codex hooks, the Antigravity `pregate-global` plugin, or the OpenCode plugin folder named by `~/.config/opencode/opencode.json`. Claude Code, Cursor, and Grok share the Claude settings registration. Setup does not create a repository contract or repository CI workflow.
 
 Setup exits 0 when at least one detected harness was wired. A harness that could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: `hooks.json` is left unchanged, and the message says to approve the Pregate hooks in Codex with `/hooks`, then rerun `pregate setup`. Setup exits 1 when no harness was wired, or on a real error. `install.sh` and `install.ps1` stop only on that non-zero exit. `pregate guide` still applies a reviewed contract after a warning-only setup and says agent-edit protection stays degraded until a harness is wired.
 

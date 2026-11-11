@@ -89,16 +89,17 @@ beforeAll(() => {
 afterAll(() => removeTree(area));
 
 function writePayload(h: HarnessId, target: string): string {
-  const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json" };
+  const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json", opencode: "opencode/pre-write.json" };
   const p = JSON.parse(readFileSync(join(import.meta.dir, "payloads", names[h]), "utf8"));
   if (h === "agy") { p.workspacePaths = [repo]; p.toolCall.args.TargetFile = target; }
   else if (h === "grok") { p.cwd = p.workspaceRoot = repo; p.toolInput.file_path = target; }
   else if (h === "codex") { p.cwd = repo; p.tool_input = { command: `*** Begin Patch\n*** Add File: ${target}\n+{}\n*** End Patch\n` }; }
+  else if (h === "opencode") { p.cwd = repo; p.tool_input = { filePath: target, content: "{}" }; }
   else { p.cwd = repo; p.workspace_roots = [repo]; p.tool_input = { file_path: target, content: "{}" }; }
   return JSON.stringify(p);
 }
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("compiled repository admission rejects altered locks in %s with all core requirements active", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const)("compiled repository admission rejects altered locks in %s with all core requirements active", (h) => {
   const root = join(area, `admission-${h}`);
   mkdirSync(join(root, ".pregate"), { recursive: true });
   mkdirSync(join(root, "src"));

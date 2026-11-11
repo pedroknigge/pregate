@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_0a1b2c3d4e5f6a7b",
+  "cwd": "/home/user/project",
+  "tool_name": "patch",
+  "tool_use_id": "call_0000000000000003",
+  "tool_input": {
+    "patchText": "*** Begin Patch\n*** Add File: /home/user/project/src/b.ts\n+export const two = 2;\n*** Update File: /home/user/project/src/a.ts\n@@\n-export const one = 1;\n+export const one = 3;\n*** End Patch\n"
+  }
+}

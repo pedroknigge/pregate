@@ -56,17 +56,18 @@ function tree(glob: string): string[] {
   return [glob, `${glob}/**`];
 }
 
-// The hook registrations and configs of the five harnesses, in any folder (MH-30): the user's and
+// The hook registrations and configs of the six harnesses, in any folder (MH-30): the user's and
 // a project's own. Each can switch off or bypass the gate.
 const AGENTS = "{.agents,.agent,_agents,_agent}";
 const HARNESS_FILES = [
   "**/.claude/settings*.json", "**/.codex/hooks.json", "**/.codex/config.toml", "**/.cursor/hooks.json",
   "**/.cursor/cli-config.json", "**/.grok/config.toml", `**/${AGENTS}/{hooks,plugins}.json`,
+  "**/opencode.json", "**/opencode.jsonc",
 ];
-const HARNESS_TREES = ["**/.cursor/managed", "**/.grok/hooks", `**/${AGENTS}/plugins`];
+const HARNESS_TREES = ["**/.cursor/managed", "**/.grok/hooks", `**/${AGENTS}/plugins`, "**/.opencode/plugins"];
 
 // Only fixed configuration files are inspection inputs; never a harness directory or wildcard.
-export function harnessConfigFiles(home: string, env: { codexHome: string; grokHome: string; claudeConfig: string | null }, root: string | null): string[] {
+export function harnessConfigFiles(home: string, env: { codexHome: string; grokHome: string; opencodeHome: string; claudeConfig: string | null }, root: string | null): string[] {
   const claude = [join(home, ".claude"), ...(env.claudeConfig === null ? [] : [env.claudeConfig])];
   const global = [
     ...claude.flatMap(dir => ["settings.json", "settings.local.json"].map(file => join(dir, file))),
@@ -75,11 +76,13 @@ export function harnessConfigFiles(home: string, env: { codexHome: string; grokH
     ...["hooks.json", "cli-config.json"].map(file => join(home, ".cursor", file)),
     ...["hooks.json", "config.json"].map(file => join(home, ".gemini/config", file)),
     ...["settings.json", "antigravity-cli/settings.json", "antigravity/settings.json"].map(file => join(home, ".gemini", file)),
+    ...["opencode.json", "opencode.jsonc"].map(file => join(env.opencodeHome, file)),
     ...[".agents", ".agent", "_agents", "_agent"].flatMap(dir => ["hooks.json", "plugins.json"].map(file => join(home, dir, file))),
   ];
   const local = root === null ? [] : [
     ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml",
     ".cursor/hooks.json", ".cursor/cli-config.json", ".grok/config.toml",
+    "opencode.json", "opencode.jsonc", ".opencode/plugins",
     ...[".agents", ".agent", "_agents", "_agent"].flatMap(dir => ["hooks.json", "plugins.json"].map(file => `${dir}/${file}`)),
   ].map(file => join(root, file));
   return [...new Set([...global, ...local])];
@@ -87,9 +90,11 @@ export function harnessConfigFiles(home: string, env: { codexHome: string; grokH
 
 // The folder and file names the globs above and machineGlobs protect: a glob in a command that can
 // expand to one of them is read as naming it (shell.ts). `_agents` and `_agent` are left out: a bare
-// `*` would reach them, and `ls src/*/*` would deny.
+// `*` would reach them, and `ls src/*/*` would deny. `opencode.json(c)` is left out for the same
+// reason: OpenCode's config is a bare name at a project root, so a bare `*` in any folder would match
+// it and `ls src/*` would deny. A literal path is still denied by the glob in HARNESS_FILES.
 export const PROTECTED_NAMES = [
-  ".pregate", ".git", ".claude", ".codex", ".cursor", ".grok", ".gemini", ".agents", ".agent", ".local",
+  ".pregate", ".git", ".claude", ".codex", ".cursor", ".grok", ".gemini", ".agents", ".agent", ".local", ".opencode",
   "pregate", "settings.json", "settings.local.json", "hooks.json", "plugins.json", "config.toml", "config.json",
   "cli-config.json", "requirements.toml", "managed_config.toml", "hooks-paths", "hooks", "plugins", "managed", "config",
 ];
@@ -118,7 +123,7 @@ export function protectedGlobs(root: string | null, sourceDirs: string[], dirs: 
 interface Spot { dir: string; spelled: string; files: string[]; trees: string[] }
 
 // Where this machine keeps the harness homes and PREGATE's own data and state.
-interface MachineDirs { codexHome: string; grokHome: string; claudeConfig: string | null; data: string; state: string }
+interface MachineDirs { codexHome: string; grokHome: string; opencodeHome: string; claudeConfig: string | null; data: string; state: string }
 
 // MH-17: the machine's own protections, with or without a root: the harness registrations, the
 // PREGATE installation and `**/.pregate/**` (the agent does not create roots, A20). Each holds under
@@ -136,6 +141,8 @@ export function machineGlobs(home: string, env: MachineDirs, real: (p: string) =
     { dir: join(home, ".gemini"), spelled: "~/.gemini", files: ["settings.json"], trees: [] },
     { dir: join(home, ".cursor"), spelled: "~/.cursor", files: ["hooks.json", "cli-config.json"], trees: ["skills/pregate", "managed"] },
     { dir: join(home, ".gemini/config"), spelled: "~/.gemini/config", files: ["hooks.json", "config.json"], trees: ["plugins/pregate", "plugins/pregate-global"] },
+    // The plugin folder and the config that lists it: either can switch the gate off.
+    { dir: env.opencodeHome, spelled: "~/.config/opencode", files: ["opencode.json", "opencode.jsonc"], trees: ["pregate", "plugins"] },
     { dir: env.data, spelled: "~/.local/share/pregate", files: [], trees: [""] },
     { dir: env.state, spelled: "~/.local/state/pregate", files: [], trees: [""] },
     { dir: join(home, ".local/bin"), spelled: "~/.local/bin", files: ["pregate", "pregate.cmd", "pregate.exe"], trees: [] },

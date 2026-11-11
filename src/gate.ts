@@ -147,8 +147,9 @@ function administrativeApproval(root: string | null, c: ProposedCommand): Decisi
   const reason = c.session.harness === "agy"
     ? "agy approval uses human shell input because its hook cannot identify an interactive parent."
     : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
+    : c.session.harness === "opencode" ? "the OpenCode plugin hook has no trusted human-origin marker."
     : "an approval command needs the human's confirmation on a terminal, which the agent's shell tool does not have.";
-  const route = c.session.harness === "cursor" ? `run ${c.command} in a separate human terminal`
+  const route = c.session.harness === "cursor" || c.session.harness === "opencode" ? `run ${c.command} in a separate human terminal`
     : `type ! ${c.command} inside the harness`;
   const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
   return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
@@ -247,7 +248,8 @@ function harnessConfigurationRead(sid: string, root: string | null, path: string
     // The skill is the text setup wrote for the agent to read. Its tree is protected against writes,
     // so a read of that one file discloses only what the installation gave the agent.
     const files = skill ? skillFiles() : harnessConfigFiles(home, {
-      codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
+      codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+      opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
     }, root);
     if (!files.some(file => pathKey(actual) === pathKey(canonical(file))) || !statSync(actual).isFile()) return false;
     const targetRoot = findRoot(dirname(actual), enabled);

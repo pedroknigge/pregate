@@ -795,6 +795,11 @@ const denied: [string, Cause][] = [
   ["cat .gi?/config", "protected-path"],
   ["ln -s .pre* t", "protected-path"],
   ["cat .claude/s*", "protected-path"],
+  // OpenCode's config is a bare name at a project root: a literal path is protected, a bare `*` is
+  // not read as it, so `ls src/*` stays allowed (paths.ts PROTECTED_NAMES).
+  ["cat opencode.json", "protected-path"],
+  ["jq '.plugins = []' ./opencode.jsonc", "protected-path"],
+  ["rm -rf .opencode/plugins", "protected-path"],
   ["cat .c*/config.toml", "protected-path"],
   ["rm -rf .ag*/plugins", "protected-path"],
   ["rm -rf ~/.local/state/pregate", "protected-path"],
@@ -1163,7 +1168,7 @@ test("captured shell commands of every harness pass", () => {
 describe("without a root only the machine is protected", () => {
   const HOME = "/home/u";
   const machine = machineGlobs(HOME, {
-    codexHome: `${HOME}/.codex`, grokHome: `${HOME}/.grok`, claudeConfig: null,
+    codexHome: `${HOME}/.codex`, grokHome: `${HOME}/.grok`, opencodeHome: `${HOME}/.config/opencode`, claudeConfig: null,
     data: `${HOME}/.local/share/pregate`, state: `${HOME}/.local/state/pregate`,
   }, (p) => p);
   const rootless = (harness: HarnessId = "claude-code") => {

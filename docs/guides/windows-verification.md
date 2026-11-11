@@ -237,7 +237,7 @@ if ($LASTEXITCODE -eq 0 -or $result -notmatch 'PREGATE DENY core/EVA-SUP-001') {
 
 The command exits non-zero and prints `PREGATE DENY core/EVA-SUP-001`. That is the same decision
 the pre-edit hook applies to a proposed file. A coding agent that is actually
-installed (Claude Code, Cursor, Codex, Grok, or agy) is wired by `setup`; an
+installed (Claude Code, Cursor, Codex, Grok, agy, or OpenCode) is wired by `setup`; an
 agent write of that suppression is denied there too. `doctor` says when a
 harness was not found, in which case there is no agent UI to click.
 `check --stdin` still shows the engine's decision. Input must be UTF-8, at

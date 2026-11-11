@@ -48,7 +48,7 @@ export function withholdApprovalCode(text: string): string {
 // otherwise the human opens a terminal of their own.
 export function humanApprovalInstructions(command: string): string[] {
   return [`After reviewing, the human runs in a terminal: ${command}`,
-    "Inside Claude Code, Codex, Grok or agy, the ! prefix works only when that harness gives the command an interactive stdin; Cursor needs a separate terminal. The command then asks for y on the terminal.",
+    "Inside Claude Code, Codex, Grok or agy, the ! prefix works only when that harness gives the command an interactive stdin; Cursor needs a separate terminal and so does OpenCode. The command then asks for y on the terminal.",
     "The agent must not run the approval command. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in the environment (an unattended CI job)."];
 }
 
