@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pregate project hooks --harness claude-code [--preview|--yes]` registers the Claude Code hooks in the project's own `.claude/settings.json`. The hooks are the ones the global registration holds (PreToolUse with the same tool matcher, Stop, SubagentStop, SessionStart) and they run the project launcher through `$CLAUDE_PROJECT_DIR`, so the command names no machine path and no `pregate setup` is needed. Other hooks, permissions and unknown keys are kept, and a second run changes no byte. The file goes through the same review and approval as the launcher; under the user's home only this project's approval record changes. A missing pinned engine denies the write and names `pregate prepare`. On Windows the command starts `project-launcher.ps1` from PowerShell; one settings file holds one platform's command. `pregate doctor` reports the Claude Code scope as project-local only, global only, both (every call is evaluated twice) or neither, and does not report a missing global installation as an error in a project-local setup; `pregate status` counts the project registration and names the double case. Not established: no real Claude Code session was run, so that Claude Code loads these hooks after workspace trust and denies there is proven only by a live run. See [the installation guide](docs/guides/installation.md#project-local-claude-code-hooks).
+
+### Fixed
+
+- `pregate install` deleted a project launcher that was not byte-identical to the template of the running engine: one written by another engine version, or checked out with CRLF line ends. It now keeps any file at `.pregate/bin/pregate` that is a project launcher and removes only the launcher that 0.1.0 committed. Its removal of 0.1.0 hook handlers does not touch the project registration.
+
 ## [0.0.7] - 2026-11-11
 
 A small release. A project can carry its own reviewed launcher, which runs the engine its lock pins. Maintenance, a reproducible build and rollback are documented, and the upgrade and the rollback run as a test. The rest is how the project tests itself: CI takes about half the time, and hook latency is also read against the last release on the same runner. No rule and no contract format changed. See the [0.0.7 notes](docs/releases/0.0.7.md).

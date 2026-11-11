@@ -162,6 +162,7 @@ describe("D24 gated harness invocation", () => {
     "pregate pack disable acme/team --preview", "pregate pack update acme --preview", "pregate pack remove acme --preview",
     "pregate pack apply plan.json --preview", "pregate pack restore", "pregate scan", "pregate scan --json", "pregate scan --plan",
     "pregate promote --preview", "pregate promote --rule CC-FN-001 --preview",
+    "pregate project launcher --preview", "pregate project hooks --harness claude-code --preview",
     "pregate ci detect", "pregate ci detect --json", "pregate ci status", "pregate ci status --json --sha abcdef1",
     "pregate ci wait --sha abcdef1 --require vercel --timeout 5 --interval 0",
   ])("allows %s only with a gated target", (command) => {
@@ -820,6 +821,8 @@ const denied: [string, Cause][] = [
   ["pregate enable --yes", "shell-admin"],
   ["pregate disable --yes", "shell-admin"],
   ["pregate init --yes --preset functional-ts", "shell-admin"],
+  ["pregate project hooks --harness claude-code --yes", "shell-admin"],
+  ["pregate project hooks --harness claude-code", "shell-admin"],
   ["pregate pack add url@ref --yes", "shell-admin"],
   ["pregate pack update acme --yes", "shell-admin"],
   ["pregate install --git-hook", "shell-admin"],
