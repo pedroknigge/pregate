@@ -35,7 +35,18 @@ jobs:
         with:
           bun-version-file: .bun-version
       - name: Install test shells
-        run: sudo apt-get update && sudo apt-get install -y zsh
+        run: |
+          set -eu
+          # GitHub-hosted Ubuntu has failed this step when azure.archive.ubuntu.com did not resolve.
+          # Retry before the suite, which never starts if zsh is missing.
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get update && sudo apt-get install -y zsh; then
+              exit 0
+            fi
+            echo "apt attempt ${attempt} failed; retrying"
+            sleep $((attempt * 10))
+          done
+          exit 1
       - name: Isolate runtime homes
         run: |
           root=/private/tmp/claude-501/pregate-ci
