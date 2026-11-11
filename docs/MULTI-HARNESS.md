@@ -84,7 +84,7 @@ Grok and headless sessions deny contract edits and direct the human to
 - `interactive` is `false` on every harness other than Claude Code. So `decide` never emits `ask` where it cannot be trusted: Codex treats it as fail-open [D], Cursor does not apply it [D], Grok approves it with `--always-approve` [V], and headless agy has no one to ask [S].
 
 **MH-06. `decode` returns `HookEvent | Rejected | null`.**
-- `null` is an event that is recognized and ignored, with a neutral output: today, only Grok's shutdown Stop (`reason:"shutdown"`) [V].
+- `null` is an event that is recognized and ignored, with a neutral output: only Grok's shutdown Stop (`reason:"shutdown"`) [V]. Grok SubagentStop is a Stop of the child session.
 - `Rejected` is an envelope or a tool that is not recognized (`payload-unrecognized`), or a case that is recognized but cannot be judged (`BAD`). It carries `dirs`: the envelope directories (`cwd`, `workspace_roots`, `workspacePaths`, `workspaceRoot`, the environment project dir).
 - **A contract change does not break the machine.** `main` answers "no objection" to a `Rejected` if **none** of its `dirs` reaches a root and the session registered none. Otherwise, it denies. If the envelope is not JSON or carries no directory, it always denies. Without this, a `cursor-agent update` that changes the payload would deny every write in every repo on the machine.
 - **Ambiguous directory ⇒ `BAD`:** Cursor Shell with `cwd:""` and `workspace_roots` empty or with more than one element; a non-empty `cwd` that is not absolute; an agy `run_command` without `Cwd` and with `workspacePaths` empty. Today those cases would resolve against the hook cwd (`~/.claude`) and pass with no root.
@@ -415,7 +415,7 @@ To migrate a repo to a new engine: `pregate update`, `pregate preset compile`, a
 - **Contract per real payload.** For each harness, a test walks `test/payloads/<h>/*.json` and **fails if a file has no expectation**. So a new capture forces it to be classified. The expectation is the expected `HookEvent`, `Rejected`, or `null`. Cases it must cover:
   - Codex: add+update, move, delete, subagent, and the `callId` with a hash.
   - Cursor: create, strreplace, applypatch-gpt, delete, shell (cwd `""` with one root), task, `claude-import-pre-write`, and stop/loop.
-  - Grok: write, search_replace (without `replace_all`), create with empty old, hashline ⇒ unknown, subagent, shutdown ⇒ `null`, and reentry via `stopHookActive`.
+  - Grok: write, search_replace (without `replace_all`), create with empty old, hashline ⇒ unknown, subagent write, SubagentStop ⇒ the child session's Stop, shutdown ⇒ `null`, and reentry via `stopHookActive`.
   - agy: write, append, replace, multiline, run_command, stop and reentry, and the read and subagent tools ⇒ outside the matcher.
 - **Mutations.** An extra key in the edit ⇒ `unknown`; the top-level key removed ⇒ `BAD`; `"cursor_version"` inside the content of a Claude `Write` ⇒ it is still Claude; `GROK_HOOK_EVENT` without `hookEventName` ⇒ the flag; `toolInputTruncated` absent or `true` on any Grok tool ⇒ deny; Cursor Shell with `cwd:""` and two roots ⇒ `BAD`; a relative path in a patch ⇒ `unknown`.
 - **`Rejected` outside a root:** a valid envelope with an unknown tool and `dirs` with no root ⇒ neutral and no state; with a root ⇒ deny; an envelope that is not JSON ⇒ deny.
@@ -560,7 +560,7 @@ Local evidence, without credentials: `/private/tmp/claude-501/finish-pregate/{re
 
 What the session gate does not see and is left for Stop (where it exists), pre-commit, and CI:
 - Writes by commands the guard lets through by design (`rsync`, `tar x`, `unzip -o`, `make`, `prettier --write`, `git stash pop`…), background processes that write after Stop (`&`, `nohup`, agy's `WaitMsBeforeAsync`, Grok's `backgroundTasks`), and MCP tools that write files.
-- Sessions without an effective Stop: Cursor `-p` [V], Cursor subagents (`subagentStop` did not fire [V]) and Grok subagents (their session has no Stop of its own), and the agy parent's Stop that arrives with `fullyIdle:false` [V].
+- Sessions without an effective Stop: Cursor `-p` [V], Cursor subagents (`subagentStop` did not fire [V]), and the agy parent's Stop that arrives with `fullyIdle:false` [V]. A Grok subagent has its own session. Its SubagentStop is that session's Stop, on every file of the child session.
 - Outside Claude, Stop stops blocking after `maxStopBlocks` with no channel to the human.
 - Cursor and Grok depend on reading `~/.claude/settings.json` (MH-04); Codex, on trust (detected by drift and `doctor`); all of them, on an orchestrator not launching them without the user config (§6.3, Orca).
 - Availability, not fail-open: a `.zshenv` that prints or a non-POSIX `$SHELL` makes Cursor receive invalid JSON and block everything [V]. The `doctor` canary detects it.
@@ -598,7 +598,7 @@ Two reviews of the previous version of this document: **FO** (fail-open paths, F
 | FO-F5: empty launcher or engine | **Partial:** `[ -s ]` in the inline guard and in the launcher, tmp + fsync + rename writes. The ack handshake and the deny `trap EXIT` are discarded: with rename after verification and the warm-up, a partial engine cannot be left installed | MH-15, MH-22 |
 | FO-F6, SI-B5: agy with the launcher missing exited neutral | **Applied**, with a single preset search (SI-A6) | MH-22 |
 | FO-F7: relative paths on Codex | **Applied:** patch with absolute paths only; in `Bash`, a relative destination ⇒ deny until the E2E says otherwise | MH-08, MH-29 |
-| FO-F8: no effective Stop | **Discarded** (SubagentStop, sticky Stop, TDD-DEL in Pre): they are new mechanisms for a secondary net. It remains a declared residue. The root is already registered on the first call | §7 |
+| FO-F8: no effective Stop | **Partial.** A new per-file SubagentStop split, a sticky Stop and TDD-DEL in Pre stay discarded. Grok's SubagentStop, which the shared registration already delivers, is the child session's Stop. Cursor subagents, Cursor `-p`, and the agy parent Stop with `fullyIdle:false` stay residues. The root is already registered on the first call | §7 |
 | FO-F9: interactive shell with stdin and no hook | **Applied** | MH-29 |
 | FO-F10: truncated Grok payload on any tool | **Applied.** Deep-equal between `toolInput` and `tool_input` discarded: they are aliases of the same serializer [V] | MH-12 |
 | FO-F11: timeouts that fail open, and PATH | **Applied:** Pre 30 s on the three registrations; the launcher's own PATH | MH-15, MH-22 |

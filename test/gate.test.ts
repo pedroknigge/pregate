@@ -1056,14 +1056,17 @@ describe("#62: merge attribution", () => {
   });
 });
 
-test("Claude Code SubagentStop payloads decode as the subagent's Stop", () => {
+test("SubagentStop: Claude Code scopes the agent, Grok judges the child session, Cursor stays ignored", () => {
   const env = { grokEvent: null, projectDir: null, remote: false };
   const base = { session_id: "s", cwd: "/repo", stop_hook_active: false };
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "SubagentStop", agent_id: "a1", agent_type: "general-purpose" }), env))
     .toMatchObject({ kind: "stop", session: { agentId: "a1", interactive: false }, reentry: false });
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "SubagentStop" }), env)).toMatchObject({ cause: "payload-unrecognized" });
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "Stop", agent_id: "a1" }), env)).toMatchObject({ cause: "payload-unrecognized" });
-  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo" }), env)).toBeNull();
+  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo" }), env))
+    .toMatchObject({ cause: "payload-unrecognized" });
+  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo", stopHookActive: false }), env))
+    .toMatchObject({ kind: "stop", session: { id: "s", harness: "grok", agentId: null }, cwd: "/repo", reentry: false });
   expect(HARNESSES.cursor.decode("stop", JSON.stringify({ hook_event_name: "subagentStop", conversation_id: "s" }), env)).toBeNull();
 });
 

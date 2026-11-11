@@ -25,8 +25,10 @@ finishes. A subagent that leaves broken code is told to repair it before it retu
 The parent's Stop leaves out files a subagent is still editing, so a background agent's
 unfinished work never blocks the parent. Once the subagent has finished, its files
 count as the parent's again. Pre checks still run on every edit, whichever agent
-makes it. Other harnesses have no subagent Stop: their parent Stop judges all of the
-session's files, as before.
+makes it. Cursor, Codex and agy have no subagent Stop: their parent Stop judges all of the
+session's files, as before. In Grok, SubagentStop is the child session's Stop. The child
+has its own session id, so the check covers every file of that session. The parent's
+Stop does not see the child's files.
 
 `pregate update` registers `SubagentStop`; `pregate doctor` reports an older
 registration. A live session checked this on 2026-10-12. A subagent's isolated worktree
