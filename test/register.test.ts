@@ -229,7 +229,7 @@ describe("drift", () => {
     noStop.hooks.Stop.pop();
     expect(problems({ claude: [JSON.stringify(noStop)] })).toEqual(["~/.claude/settings.json: PREGATE hooks missing or modified (Stop); run pregate setup."]);
     expect(problems({ claude: [merge(CLAUDE, "shared", DATA), null] })).toEqual([
-      "$CLAUDE_CONFIG_DIR/settings.json: PREGATE hooks missing or modified (PreToolUse, Stop, SubagentStop, SessionStart); run pregate setup.",
+      "$CLAUDE_CONFIG_DIR/settings.json: PREGATE hooks missing or modified (PreToolUse, Stop, SubagentStop, SessionStart, SubagentStart); run pregate setup.",
     ]);
     const off = { ...obj(merge(CLAUDE, "shared", DATA)), disableAllHooks: true };
     expect(problems({ claude: [JSON.stringify(off)] })).toEqual(["~/.claude/settings.json: disableAllHooks disables all hooks, including PREGATE."]);
