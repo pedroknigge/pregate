@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A runner for a trial with real agent sessions. No real session has been run yet.** `scripts/session-trial.ts` gives each task of a committed manifest ([`session-trial-tasks.json`](docs/benchmarks/session-trial-tasks.json): 12 neutral feature and bug-fix requests on three public repositories pinned by commit) to Claude Code and Codex, headless, in two arms: with Pregate installed and the contract that `pregate guide --preview --enforcement enforce` proposes for the repository, and without Pregate. Every CLI runs in an isolated machine under a temporary folder. Per session it records the engine's own hook decisions (event, tool, path, rule ids, denial message, evaluation time), classifies each denied file and rule as repaired, abandoned, worked-around or unknown, runs `pregate check --ratchet --base <pinned commit>` on the final tree of both arms, runs the task's `verify` command, and saves the final diff. A person labels the denials in [`session-trial-labels.json`](docs/benchmarks/session-trial-labels.json); the script never writes a label. `--plan` prints the sessions and their count and runs nothing, `--page` writes [the results page](docs/benchmarks/session-trial.md), and `--self-check` runs the whole pipeline with the real compiled engine, `pregate setup` and the registered hook commands against a scripted stand-in for the CLIs, which is what the tests run. Real sessions need `PREGATE_REAL=1` and spend model calls. The page says that no real session has been run, and self-check evidence is refused as published results.
+
 ## [0.0.7] - 2026-11-11
 
 A small release. A project can carry its own reviewed launcher, which runs the engine its lock pins. Maintenance, a reproducible build and rollback are documented, and the upgrade and the rollback run as a test. The rest is how the project tests itself: CI takes about half the time, and hook latency is also read against the last release on the same runner. No rule and no contract format changed. See the [0.0.7 notes](docs/releases/0.0.7.md).

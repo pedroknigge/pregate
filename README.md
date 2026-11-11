@@ -355,6 +355,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Hook latency](docs/benchmarks/hook-latency.md)
 - [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
 - [Shell guard friction](docs/benchmarks/shell-guard-friction.md): which routine commands the guard refuses
+- [Session trial](docs/benchmarks/session-trial.md): the method for a trial with real agent sessions; no real session has been run yet
 - [Guarantees and residual limits](docs/guarantees.md)
 - [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
