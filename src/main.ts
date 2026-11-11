@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
-import { HARNESSES, profile } from "./harness/profile.ts";
+import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./inertia.ts";
@@ -102,15 +102,6 @@ function cursorHooksOwned(owned: (text: string, data: string) => boolean): boole
   try {
     const text = readFileSync(join(homeDir(), ".cursor/hooks.json"), "utf8");
     return owned(text, dirname(dirname(process.execPath)));
-  } catch {
-    return false;
-  }
-}
-
-function subagentEvent(raw: string): boolean {
-  try {
-    const p = JSON.parse(raw) as Record<string, unknown> | null;
-    return typeof p === "object" && p !== null && [p.hook_event_name, p.hookEventName].some((name) => typeof name === "string" && /^subagent/i.test(name));
   } catch {
     return false;
   }
