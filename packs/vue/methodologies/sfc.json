@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "vue/sfc",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -89,7 +89,7 @@
       },
       "why": "Global document queries fail during SSR, match elements from sibling component instances, and run before Vue mounts the template when called during setup.",
       "fixHint": "Bind a ref attribute in the template and read it with useTemplateRef('name') or ref(null) inside onMounted.",
-      "avoid": "Direct calls on document, window.document, and globalThis.document for getElementById, querySelector, querySelectorAll, getElementsByClassName, and getElementsByTagName are matched. Queries on local Element or XMLDocument receivers pass.",
+      "avoid": "Direct calls on document, window.document, and globalThis.document for getElementById, querySelector, querySelectorAll, getElementsByClassName, and getElementsByTagName are matched. Queries on local Element or XMLDocument receivers pass. The call is matched when the file imports vue, a vue- or @vue/ package, nuxt, #imports or a .vue file, or when the call is inside a function. A query at the top level of a script with no such import is not matched. A function in a file that has no Vue code is still matched.",
       "examples": {
         "pass": "pass/template-ref",
         "fail": "fail/direct-getelement"

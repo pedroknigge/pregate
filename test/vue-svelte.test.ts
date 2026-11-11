@@ -81,7 +81,7 @@ test("Svelte component with module and instance scripts evaluates TypeScript and
     sources: [
       { ns: "core", kind: "builtin", version: VERSIONS.core },
       { ns: "typescript", kind: "library", version: "1.3.0" },
-      { ns: "vue", kind: "library", version: "1.2.0" },
+      { ns: "vue", kind: "library", version: "1.2.1" },
     ],
     methodologies: ["core/pregate-integrity", "typescript/strict-types", "typescript/anti-evasion", "vue/reactivity"],
     overrides: { "TS-ANY-001": { severity: "deny" } },

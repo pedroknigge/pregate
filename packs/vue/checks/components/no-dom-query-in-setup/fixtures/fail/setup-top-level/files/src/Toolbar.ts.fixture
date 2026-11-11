@@ -1,0 +1,5 @@
+import { ref } from "vue";
+
+const toolbar = document.getElementById("toolbar");
+
+export const open = ref(toolbar !== null);

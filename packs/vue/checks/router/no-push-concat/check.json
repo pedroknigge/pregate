@@ -1,1 +1,60 @@
-{"$schema": "../../../../../schema/check.v1.json","area": "router","cardinality": "singleton","dimension": "vue.push-concat","feedback": {"message": "{symbol} builds a route with string concatenation. Push a named route with params so renames stay checkable."},"id": "vue/router/no-push-concat","impl": {"kind": "pattern","patterns": {"typescript": [{"id": "push-concat","rule": {"all": [{"has": {"field": "function","regex": "\\.push$"}}, {"has": {"field": "arguments","regex": "\\+"}}],"kind": "call_expression"}}]}},"minSeverity": null,"params": {},"phase": ["pre", "stop", "commit", "ci"],"version": "1.0.0"}
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "area": "router",
+  "cardinality": "singleton",
+  "dimension": "vue.push-concat",
+  "feedback": {
+    "message": "{symbol} builds a route with string concatenation. Push a named route with params so renames stay checkable."
+  },
+  "id": "vue/router/no-push-concat",
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "push-concat",
+          "rule": {
+            "kind": "call_expression",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "kind": "member_expression",
+                  "all": [
+                    {
+                      "has": {
+                        "field": "property",
+                        "regex": "^push$"
+                      }
+                    },
+                    {
+                      "has": {
+                        "field": "object",
+                        "regex": "(?i)router(\\(\\))?$"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "regex": "\\+"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "minSeverity": null,
+  "params": {},
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "version": "1.0.1"
+}

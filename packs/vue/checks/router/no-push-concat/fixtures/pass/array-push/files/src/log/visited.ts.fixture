@@ -1,0 +1,5 @@
+const urls: string[] = [];
+
+export function record(baseUrl: string): void {
+  urls.push("0@" + baseUrl);
+}

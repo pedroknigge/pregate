@@ -12,7 +12,7 @@ Fixtures are `.ts` files with realistic Composition-API code. There is no `.vue`
 | `VUE-DEST-001` | `const { x } = reactive(...)`, including factory arguments. | Primitives lose reactivity, but nested object proxies remain reactive; value types are unresolved. | off |
 | `VUE-PROP-001` | Writes to `props.x` or `props["x"]`, plain or augmented assignment. | Props flow one way down; a child write snaps back on the next render. | deny |
 | `VUE-PINIA-001` | `const { x } = useXStore(...)`, including with an explicit pinia argument. | State requires refs, while bound actions can be extracted directly; the matcher cannot distinguish them. | off |
-| `VUE-PUSH-001` | `router.push` with `+` in its arguments. | Concatenated paths hide renames until a user reaches that screen. | deny |
+| `VUE-PUSH-001` | `push` with `+` in its arguments, on a receiver that ends in `router` (`router`, `this.$router`, `useRouter()`). An array `push` is not matched. | Concatenated paths hide renames until a user reaches that screen. | deny |
 | `VUE-REF-001` | `ref(null)` or `ref(undefined)` with no type argument. | The inferred type holds nothing, so the first real assignment fails far from the cause. | deny |
 | `VUE-TICK-001` | Zero-argument `nextTick()` that is neither awaited nor returned, including on a branch; callback calls pass. | Review whether later code needs to wait for the DOM update. | warn |
 | `VUE-THIS-001` | `this` in `**/composables/**`: `this.x`, `this["x"]`, or bare `this`. | Composables run with no instance; `this` breaks the moment the function is reused. | deny |
@@ -30,7 +30,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 11 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 11 distinct check IDs.
 
 Methodologies: `vue/reactivity` (complete), `vue/sfc` (complete).
 

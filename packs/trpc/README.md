@@ -23,7 +23,7 @@ Ready-made combinations live in `packs/presets/`.
 | `TRPC-OUTPUT-001` | A `publicProcedure` `.mutation(` chain with no `.output(` before the mutation. | tRPC infers resolver output types; validation is optional. | off |
 | `TRPC-MUT-001` | A `.query(` chain whose resolver calls create, update, delete, insert, upsert, or save. | Clients refetch queries freely; a hidden write runs again on every refetch. | deny |
 | `TRPC-BATCH-001` | An `httpBatchLink(` call with no `maxURLLength`. | URL limits depend on transport and inputs. | off |
-| `TRPC-ERR-001` | `throw new Error(` (or `throw new AggregateError`) inside a procedure file. | A plain Error crosses the boundary as an untyped internal failure. | deny |
+| `TRPC-ERR-001` | `throw new Error(` (or `throw new AggregateError`) in a file that imports a tRPC module, or inside a `.query`/`.mutation`/`.subscription` call on a procedure builder. | A plain Error crosses the boundary as an untyped internal failure. | deny |
 | `TRPC-CTX-001` | A `.use(` middleware chain that calls bare `next()`. | Forwarding an unchanged context is valid. | off |
 | `TRPC-CALLER-001` | A `.subscription(` chain with no `observable(` or `yield` in it. | The subscribing caller gets no stream contract: no iteration, no cleanup. | deny |
 | `TRPC-SELFCALL-001` | `createCaller(...)` (or `createCallerFactory(router)(...)`) inside a `.query`, `.mutation` or `.subscription` resolver. | The nested caller rebuilds context and reruns middleware; share a function instead. | warn |
@@ -44,7 +44,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 12 distinct check IDs.
 
 Methodologies: `trpc/client` (complete), `trpc/router` (complete).
 

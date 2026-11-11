@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## tailwind/classes
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **complete**.
 
 ### tailwind/TW-DYN-001
 
-Check: [`tailwind/classes/no-dynamic-class-concat@1.0.0`](checks/classes/no-dynamic-class-concat/check.json). Default severity: **warn**.
+Check: [`tailwind/classes/no-dynamic-class-concat@1.0.1`](checks/classes/no-dynamic-class-concat/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Write the full class names as literals, or pass literals to clsx/cn with a boolean condition.
 
-**Scope and limits:** clsx with a prebuilt dynamic string is still dynamic. Only literal arguments count.
+**Scope and limits:** clsx with a prebuilt dynamic string is still dynamic. Only literal arguments count. The expression must be inside a className or class attribute, or the value of a className or class property. A string built in a helper function or a variable and passed in later is not matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

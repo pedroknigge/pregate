@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "trpc/server/no-throw-in-procedure",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "server",
   "cardinality": "singleton",
   "dimension": "trpc.procedure-error",
@@ -14,12 +14,52 @@
         {
           "id": "untyped-throw",
           "rule": {
-            "any": [
+            "kind": "throw_statement",
+            "all": [
               {
-                "regex": "^throw\\s+new\\s+Error\\s*\\("
+                "any": [
+                  {
+                    "regex": "^throw\\s+new\\s+Error\\s*\\("
+                  },
+                  {
+                    "regex": "^throw\\s+new\\s+AggregateError"
+                  }
+                ]
               },
               {
-                "regex": "^throw\\s+new\\s+AggregateError"
+                "any": [
+                  {
+                    "inside": {
+                      "stopBy": "end",
+                      "kind": "program",
+                      "regex": "(?i)(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'][^\"'\\n]*trpc[^\"'\\n]*[\"']"
+                    }
+                  },
+                  {
+                    "inside": {
+                      "stopBy": "end",
+                      "kind": "call_expression",
+                      "has": {
+                        "field": "function",
+                        "kind": "member_expression",
+                        "all": [
+                          {
+                            "has": {
+                              "field": "property",
+                              "regex": "^(query|mutation|subscription)$"
+                            }
+                          },
+                          {
+                            "has": {
+                              "field": "object",
+                              "regex": "[Pp]rocedure"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
               }
             ]
           }

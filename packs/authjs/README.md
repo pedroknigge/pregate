@@ -1,6 +1,6 @@
 # authjs
 
-Data-only rule pack for Auth.js / NextAuth v5 configuration shapes (NextAuth config, callbacks, providers, middleware session access). Source version **1.2.0** in engine **0.0.7**. TypeScript only: the engine parses TS/JS, so provider-side OAuth behavior and adapter SQL stay in BACKLOG.md.
+Data-only rule pack for Auth.js / NextAuth v5 configuration shapes (NextAuth config, callbacks, providers, middleware session access). Source version **1.2.1** in engine **0.0.7**. TypeScript only: the engine parses TS/JS, so provider-side OAuth behavior and adapter SQL stay in BACKLOG.md.
 
 ## User control
 
@@ -18,7 +18,7 @@ Ready-made combinations live in `packs/presets/` (see `solana-hackathon.json`).
 
 | ID | Flags | Why | Default severity |
 | --- | --- | --- | --- |
-| `AUTH-SECRET-001` | `secret: "..."` hardcoded literal in the NextAuth config. | A committed secret forges every session token. | deny |
+| `AUTH-SECRET-001` | `secret: "..."` hardcoded literal in a file that imports `next-auth` or an `@auth/` package. | A committed secret forges every session token. | deny |
 | `AUTH-PROVIDER-001` | `Credentials(...)` provider call without `authorize` in its text. | A login form with no verification step behind it. | deny |
 | `AUTH-DEBUG-001` | `debug: true` (or truthy `debug: 1`) in the NextAuth config. | Debug logs the OAuth flow into log storage. | deny |
 | `AUTH-PAGES-001` | `signIn:` pointing at an absolute or template URL. | An external login URL hands credentials to another origin. | deny |
@@ -38,7 +38,7 @@ Ready-made combinations live in `packs/presets/` (see `solana-hackathon.json`).
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/authjs` runs **67** real fixtures. Every check has at least two passing
+`pregate rules test packs/authjs` runs **68** real fixtures. Every check has at least two passing
 fixtures, two failing fixtures, and one failing trap with exact lines: placeholder
 secrets, empty Credentials options, truthy non-boolean debug, template sign-in URLs,
 block-form `return true`, `require` of the client module, unguarded token passthrough,
@@ -60,7 +60,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 12 distinct check IDs.
 
 Methodologies: `authjs/config` (complete), `authjs/session` (complete).
 

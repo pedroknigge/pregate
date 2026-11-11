@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "express/requests/no-next-route-string",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "requests",
   "cardinality": "singleton",
   "dimension": "express.next-route-string",
@@ -15,7 +15,20 @@
           "id": "next-string-skip",
           "rule": {
             "kind": "call_expression",
-            "regex": "\\bnext\\s*\\(\\s*[\"']router?[\"']"
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "regex": "^next$"
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "regex": "^\\(\\s*[\"']router?[\"']"
+                }
+              }
+            ]
           }
         }
       ]

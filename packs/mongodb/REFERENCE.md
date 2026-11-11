@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## mongodb/models
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **complete**.
 
 ### mongodb/MONGO-SCHEMA-001
 
-Check: [`mongodb/models/no-schema-any@1.0.0`](checks/models/no-schema-any/check.json). Default severity: **deny**.
+Check: [`mongodb/models/no-schema-any@1.0.1`](checks/models/no-schema-any/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Declare the paths on the schema, or use strict: "throw" so undeclared paths fail loudly instead of persisting.
 
-**Scope and limits:** Extra options beside strict do not cancel it. This rule complements mass-assignment: that one guards the write call, this one guards the schema.
+**Scope and limits:** Extra options beside strict do not cancel it. The file must import mongoose; strict: false in a body-parser or other options object in a file with no such import is not matched. This rule complements mass-assignment: that one guards the write call, this one guards the schema.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ### mongodb/MONGO-CONNECT-001
 
-Check: [`mongodb/models/no-connect-without-options@1.0.0`](checks/models/no-connect-without-options/check.json). Default severity: **deny**.
+Check: [`mongodb/models/no-connect-without-options@1.0.1`](checks/models/no-connect-without-options/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -56,7 +56,7 @@ Default parameters: `{}`.
 
 **Repair:** Pass maxPoolSize and serverSelectionTimeoutMS in the connect() options for the workload this service runs.
 
-**Scope and limits:** An empty options object sets nothing. Unrelated options such as dbName do not satisfy this rule.
+**Scope and limits:** An empty options object sets nothing. Unrelated options such as dbName do not satisfy this rule. The file must import mongoose or mongodb. A connect call on a Redis or other client in a file with no such import is not matched. Any other connect call in a file that does import one is still matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

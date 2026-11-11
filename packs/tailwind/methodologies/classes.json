@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "tailwind/classes",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "Constructing fragments can hide utility candidates, but concatenating complete literal class names leaves those candidates visible to the scanner.",
       "fixHint": "Write the full class names as literals, or pass literals to clsx/cn with a boolean condition.",
-      "avoid": "clsx with a prebuilt dynamic string is still dynamic. Only literal arguments count.",
+      "avoid": "clsx with a prebuilt dynamic string is still dynamic. Only literal arguments count. The expression must be inside a className or class attribute, or the value of a className or class property. A string built in a helper function or a variable and passed in later is not matched.",
       "examples": {
         "pass": "pass/clsx-literals",
         "fail": "fail/plus-concat"

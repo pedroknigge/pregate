@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/app/param-skip.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 7
+      }
+    ]
+  },
+  "trap": {
+    "family": "enclosing-call",
+    "origin": "corpus",
+    "discovered": "2026-11-11",
+    "note": "The finding belongs to the next call on line 7. The describe, it and app.param calls that contain it are not next calls and must not be reported on lines 4 to 6."
+  }
+}

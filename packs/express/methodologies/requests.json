@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "express/requests",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -71,7 +71,7 @@
       },
       "why": "String-skipping hides control flow in a magic value: readers cannot see which handlers are bypassed, and a misspelling changes routing without an error.",
       "fixHint": "Call next() to continue or next(err) to fail. If a route must be skipped, restructure the middleware order instead.",
-      "avoid": "Quote style does not matter: next('route') skips exactly like next(\"route\"). Passing an error object is the legitimate sibling and stays allowed.",
+      "avoid": "Quote style does not matter: next('route') skips exactly like next(\"route\"). Passing an error object is the legitimate sibling and stays allowed. The finding is the next call itself, not a call that contains it. The callee must be named next; a callback under another name is not matched.",
       "examples": {
         "pass": "pass/bare-next",
         "fail": "fail/next-route"

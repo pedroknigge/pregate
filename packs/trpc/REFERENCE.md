@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## trpc/client
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### trpc/TRPC-BATCH-001
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ### trpc/TRPC-ERR-001
 
-Check: [`trpc/server/no-throw-in-procedure@1.0.0`](checks/server/no-throw-in-procedure/check.json). Default severity: **deny**.
+Check: [`trpc/server/no-throw-in-procedure@1.0.1`](checks/server/no-throw-in-procedure/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -56,7 +56,7 @@ Default parameters: `{}`.
 
 **Repair:** Throw new TRPCError({ code: 'NOT_FOUND' }) (or the code the caller should handle) instead of new Error.
 
-**Scope and limits:** This rule sees throw statements in router files only. AggregateError and other built-ins are still untyped throws.
+**Scope and limits:** This rule sees a throw only in a tRPC context: the file imports a module whose specifier contains trpc, or the throw is inside a query, mutation or subscription call on a receiver whose text contains procedure. A throw in an Express handler or a test with neither is not matched. AggregateError and other built-ins are still untyped throws.
 
 **Interactions when active together:**
 

@@ -1,6 +1,6 @@
 # tailwind
 
-Data-only rule pack for Tailwind class hygiene in TSX. Source version **1.0.0**.
+Data-only rule pack for Tailwind class hygiene in TSX. Source version **1.2.1**.
 The engine parses TS/JS, so every rule matches syntax shapes in `.tsx` files; no
 executable code, no resolvers, no config reads.
 
@@ -22,7 +22,7 @@ equivalent; no rule in this pack currently defaults to `deny`.
 
 | ID | Flags | Why | Severity |
 | --- | --- | --- | --- |
-| `TW-DYN-001` | String concat (`+`) or `${}` interpolation inside `className`. | Fragments may be invisible; complete literal utilities remain visible. | warn |
+| `TW-DYN-001` | String concat (`+`) or `${}` interpolation inside a `className`/`class` attribute, or in the value of a `className`/`class` property. | Fragments may be invisible; complete literal utilities remain visible. | warn |
 | `TW-IMP-001` | `!` important prefix in `className`. | Importance is supported but can complicate the cascade. | warn |
 | `TW-HEX-001` | Hardcoded hex in a `className`/`class` string or a `cn`/`clsx` call (`bg-[#1a2b3c]`). | Arbitrary values are supported but may diverge from theme tokens. Data and non-class attributes are not class values. | warn |
 | `TW-JOIN-001` | `[...].join(" ")` for classes. | Complete literal utilities in the array are still scanned. | off |
@@ -37,7 +37,7 @@ equivalent; no rule in this pack currently defaults to `deny`.
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/tailwind` runs **41** real fixtures (at least 2 pass + 2 fail +
+`pregate rules test packs/tailwind` runs **52** real fixtures (at least 2 pass + 2 fail +
 1 trap per check). Literal-only class concatenation now passes because both
 complete utilities are visible in the source. Traps cover coerced fragments,
 multi-important strings, 3-digit hex, variable-array joins, CSS
@@ -52,7 +52,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 9 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 9 distinct check IDs.
 
 Methodologies: `tailwind/classes` (complete).
 
