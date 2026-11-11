@@ -770,6 +770,7 @@ usage:
   pregate ci wait [--sha <sha>] [--timeout <seconds>] [--interval <seconds>] [--require github-actions|vercel] [--json]
   pregate prepare [--version <v> | --engine <v>]
   pregate project launcher [--preview|--yes]
+  pregate project hooks --harness claude-code [--preview|--yes]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]

@@ -28,6 +28,7 @@ import { agyApprovalEvidence, agyApprovalPrompt, agyShellOutput, claudeFitnessIn
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only <harness>
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex
+//   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code
 // Approval scenarios test model denials and controller-driven human shell input, not actual user consent.
 //
 // Nothing real is written: HOME, XDG_*, CODEX_HOME, GROK_HOME and TMPDIR of every child point into one
@@ -106,16 +107,20 @@ const HANG = "9.9.9-hang";
 
 const results: string[] = [];
 
-function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issueOnly:boolean;approvalOnly:boolean;adaptationOnly:boolean;only:string[]} | null {
+const PROJECT_HOOKS = "--project-hooks-only";
+
+function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issueOnly:boolean;approvalOnly:boolean;adaptationOnly:boolean;projectHooksOnly:boolean;only:string[]} | null {
+  const projectHooksOnly = process.argv.includes(PROJECT_HOOKS);
   const ptyOnly = process.argv.includes("--pty-only");
   const extrasOnly = process.argv.includes("--extras-only");
   const coreOnly = process.argv.includes("--core-only");
   const issueOnly = process.argv.includes("--issue-dedup-only");
   const approvalOnly = process.argv.includes("--approval-only") || process.argv.includes("--approval-shell-only");
   const adaptationOnly = process.argv.includes("--adaptation-only");
-  const only = process.argv.slice(2).filter((a) => !["--pty-only", "--extras-only", "--core-only", "--approval-only", "--approval-shell-only", "--issue-dedup-only", "--adaptation-only"].includes(a));
+  const only = process.argv.slice(2).filter((a) => !["--pty-only", "--extras-only", "--core-only", "--approval-only", "--approval-shell-only", "--issue-dedup-only", "--adaptation-only", PROJECT_HOOKS].includes(a));
   if (process.env.PREGATE_REAL !== "1" || process.platform !== "darwin" || only.some((h) => !(IDS as string[]).includes(h))
-    || [ptyOnly && !approvalOnly, extrasOnly, coreOnly, approvalOnly, issueOnly, adaptationOnly].filter(Boolean).length > 1
+    || [ptyOnly && !approvalOnly, extrasOnly, coreOnly, approvalOnly, issueOnly, adaptationOnly, projectHooksOnly].filter(Boolean).length > 1
+    || (projectHooksOnly && (ptyOnly || only.length !== 1 || only[0] !== "claude-code"))
     || (issueOnly && (ptyOnly || only.length !== 1 || !["codex", "agy"].includes(only[0]!)))
     || (approvalOnly && only.length !== 1)
     || (adaptationOnly && (ptyOnly || only.length !== 1 || only[0] !== "codex"))
@@ -126,19 +131,21 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
       + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only ${IDS.join("|")}\n`
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy\n"
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex\n"
+      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code\n`
       + "Runs MULTI-HARNESS §6.3 against the real CLIs (macOS: their credentials live in the keychain). It spends model calls.");
     return null;
   }
-  return {ptyOnly,extrasOnly,coreOnly,issueOnly,approvalOnly,adaptationOnly,only};
+  return {ptyOnly,extrasOnly,coreOnly,issueOnly,approvalOnly,adaptationOnly,projectHooksOnly,only};
 }
 
 async function main(): Promise<number> {
   const selected = scenarios();
   if (selected === null) return 2;
   // setup registers all five whatever the selection, and the gate before D20 needs every one.
+  // The project-mode scenario runs no setup and needs Claude Code only.
   const parentPath = process.env.PATH ?? "/usr/bin:/bin";
   const found = IDS.map((h) => [h, Bun.which(CLIS[h].bin, { PATH: parentPath })] as const);
-  const missing = found.filter(([, b]) => b === null).map(([h]) => CLIS[h].bin);
+  const missing = found.filter(([h, b]) => b === null && (!selected.projectHooksOnly || h === "claude-code")).map(([h]) => CLIS[h].bin);
   if (missing.length > 0) {
     console.error(`not on the PATH: ${missing.join(", ")}`);
     return 2;
@@ -153,6 +160,7 @@ async function runScenarios(w: World, s: NonNullable<ReturnType<typeof scenarios
   try {
     seed(w);
     compileBinary(hostTarget(), join(w.work, "dist/pregate"));
+    if (s.projectHooksOnly) return await projectHooksScenario(w);
     if (!(await install(w))) return finish(w);
     templates(w);
     tapIn(w);
@@ -402,14 +410,66 @@ async function* linesOf(stream: ReadableStream<Uint8Array>): AsyncGenerator<stri
 // The repos every scenario copies: the preset enforced, the same preset in shadow (the gate keeps
 // `after` only for a deny, an ask or a shadowed violation, and the clean-edit check compares it with
 // the disk), no preset, and a lock that pins an engine that hangs (MH-19 + MH-15).
+const preset = (enforcement: string): string => JSON.stringify({
+  name: "e2e-real", version: "1.0.0", engine: pkg.version, sources: [{ ns: "core", kind: "builtin", version: VERSIONS.core }, { ns: "architecture", kind: "library", version: architecture.version }],
+  methodologies: ["architecture/functional-core-imperative-shell"], scope: { include: ["src/**"] }, enforcement,
+  // Keep all core requirements active. Unbound fitness remains explicitly UNVERIFIED.
+  layers: { core: { paths: ["src/core/**"], mayImport: [], kind: "core" }, shell: { paths: ["src/shell/**"], mayImport: ["core"], kind: "adapter" } },
+  ratchet: { mode: "no-new" },
+}, null, 2);
+
+// Project mode (MULTI-HARNESS MH-28a): no `pregate setup`. The engine is in the cache, the project
+// carries the reviewed launcher and its own .claude/settings.json, and the home holds no PREGATE
+// registration and no global launcher. A real Claude Code session has to deny the forbidden write
+// and allow the clean one from the project hooks alone. Workspace trust is accepted in ~/.claude.json
+// before the run (trustDir) and the run is headless: the interactive trust prompt is not exercised.
+function projectRepo(w: World): string {
+  const engine = join(w.data, pkg.version, "pregate");
+  mkdirSync(dirname(engine), { recursive: true });
+  copyFileSync(join(w.work, "dist/pregate"), engine);
+  chmodSync(engine, 0o755);
+  const repo = join(w.work, "repos/claude-code-project-hooks");
+  const human = { ...w.env, PREGATE_UNATTENDED_APPROVAL: "1" };
+  mkdirSync(join(repo, "src/core"), { recursive: true });
+  mkdirSync(join(repo, ".pregate"));
+  writeFileSync(join(repo, SUM), SUM_TEXT);
+  writeFileSync(join(repo, ".pregate/preset.json"), preset("enforce"));
+  ok(run(["git", "init", "-q", "-b", "main"], repo, w.env), "git init project");
+  ok(run([engine, "preset", "compile"], repo, w.env), "preset compile project");
+  enable(repo, w.data);
+  ok(run(["git", "add", "-A"], repo, w.env), "git add project");
+  ok(run(["git", "commit", "-q", "-m", "contract"], repo, w.env), "git commit project");
+  ok(run([engine, "project", "launcher", "--yes"], repo, human), "project launcher");
+  ok(run([engine, "project", "hooks", "--harness", "claude-code", "--yes"], repo, human), "project hooks");
+  run(["git", "add", "-A"], repo, w.env);
+  run(["git", "commit", "-q", "-m", "project launcher and hooks"], repo, w.env);
+  return repo;
+}
+
+async function projectHooksScenario(w: World): Promise<undefined> {
+  const global = join(w.home, ".claude/settings.json");
+  const before = read(global);
+  const repo = projectRepo(w);
+  const local = read(join(repo, ".claude/settings.json")) ?? "";
+  trustDir(w, "claude-code", repo);
+  const r = await agent(w, { h: "claude-code", label: "claude-code-project-hooks", repo },
+    `Use Write twice, in order: ${OK} containing exactly:\n${quoted(OK_TEXT)}\nthen ${X} containing exactly:\n${quoted(X_TEXT)}\nThe second should be blocked. No retries, shell, or workarounds. Quote the error and stop.`);
+  check("claude-code project hooks: no global installation", [
+    [read(global) === before && !(before ?? "").includes(".pregate/bin"), "~/.claude/settings.json changed or names a project launcher"],
+    [!existsSync(join(w.data, "bin")) && !lexists(w.pregate), "a global launcher or ~/.local/bin/pregate exists"],
+    [local.includes(".pregate/bin/pregate") && !local.includes(w.home), "the project settings lack the launcher command or name the home"],
+  ]);
+  check("claude-code project hooks: allow", [[read(join(repo, OK)) === OK_TEXT, "the clean write differs or is missing"]]);
+  check("claude-code project hooks: deny", [
+    [!existsSync(join(repo, X)), "the forbidden file was written"],
+    [r.events.some((e) => e.path === join(repo, X) && e.verdict === "deny"), "no deny event: Claude Code did not run the project hooks, or the project had no consent"],
+    [r.trace.includes(RULE), "rule never reached the model"],
+  ]);
+  report("MEASURE", "claude-code project hooks: workspace trust", "accepted in ~/.claude.json before a headless run; the interactive trust prompt was not exercised");
+  return undefined;
+}
+
 function templates(w: World): void {
-  const preset = (enforcement: string) => JSON.stringify({
-    name: "e2e-real", version: "1.0.0", engine: pkg.version, sources: [{ ns: "core", kind: "builtin", version: VERSIONS.core }, { ns: "architecture", kind: "library", version: architecture.version }],
-    methodologies: ["architecture/functional-core-imperative-shell"], scope: { include: ["src/**"] }, enforcement,
-    // Keep all core requirements active. Unbound fitness remains explicitly UNVERIFIED.
-    layers: { core: { paths: ["src/core/**"], mayImport: [], kind: "core" }, shell: { paths: ["src/shell/**"], mayImport: ["core"], kind: "adapter" } },
-    ratchet: { mode: "no-new" },
-  }, null, 2);
   for (const [t, dir] of Object.entries(w.templates)) {
     mkdirSync(join(dir, "src/core"), { recursive: true });
     writeFileSync(join(dir, SUM), SUM_TEXT);

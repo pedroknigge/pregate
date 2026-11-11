@@ -184,11 +184,33 @@ pregate install --ci vercel
 
 ## Prepare an engine without global registration
 
-`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to warm the cache for a pinned engine before project-local hook setup lands; `pregate setup` still performs full machine registration today.
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher` and `pregate project hooks`; `pregate setup` still performs the full machine registration.
 
 ## Project launcher
 
-`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. No harness hook names this launcher yet; `pregate setup` still registers the global one.
+`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. `pregate install` keeps this launcher. It removes only a `.pregate/bin/pregate` that is not a project launcher, which is the file that 0.1.0 committed.
+
+## Project-local Claude Code hooks
+
+`pregate project hooks --harness claude-code [--preview|--yes]` registers the Claude Code hooks in the project's own `.claude/settings.json`. The hooks run the project launcher, so the project needs no `pregate setup` on the machine and the command writes no harness home. Run `pregate prepare` and `pregate project launcher` first; the command refuses a project without the reviewed launcher.
+
+```sh
+pregate prepare
+pregate project launcher --preview                     # review, then the human approves
+pregate project hooks --harness claude-code --preview  # review, then the human approves
+pregate enable                                         # local consent, by the human
+```
+
+- **What it writes.** PreToolUse (the same tool matcher as the global registration), Stop, SubagentStop and SessionStart. Each command is `"${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate" hook <event> --harness claude-code` behind a test that the launcher is there. It holds no path of this machine, so it can be committed.
+- **What it keeps.** Other hooks, `permissions` and unknown keys stay. Only the groups that run the project launcher are replaced. A file that already holds the registration is not rewritten: a second run changes no byte. The first write re-serializes the file with two-space indentation, so the formatting of the other entries can change; their content does not.
+- **Review.** The file is a reviewed change. `--preview` prepares the review and a human approves it, as for a contract proposal. Under the user's home, the approval rewrites this project's record in `<DATA>/contract-approvals/`. Nothing else there is created or changed.
+- **Consent is separate.** The registration does not enable the project. Without `pregate enable` in the worktree the hooks run and allow. Claude Code's workspace trust is a third, independent step that Claude Code asks for.
+- **Failure.** A missing or empty pinned engine denies the write (exit 2) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
+- **Windows.** The command is `powershell.exe -EncodedCommand …`, the form of the global registration, and it runs `.pregate\bin\project-launcher.ps1`. `pregate.cmd` in the same folder only starts that script. One settings file holds one command form: a repository that Windows and POSIX machines share is not supported by this registration.
+- **With a global setup.** If `pregate setup` also registered Claude Code, Claude Code runs both registrations and every tool call is evaluated twice. `pregate doctor` reports the scope as project-local only, global only, both or neither, and `pregate status` names the project-local and the double case. In a project-local setup with no other harness, `doctor` states the missing global launcher, skills and PATH entry as information, not as errors. It checks the files; it runs no canary for the project hooks.
+- **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
+
+Not established: a real Claude Code session was not run. That Claude Code loads these hooks from the project file after its workspace trust prompt, and that a forbidden edit is denied there, is proven only by a live run (`scripts/e2e-real.ts --project-hooks-only claude-code`, with credentials). The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
 
 ## Updates and removal
 

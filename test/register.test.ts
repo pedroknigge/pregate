@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { agyPlugin, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, type Sub, type Target, unmerge } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
+import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
 import { posixShell } from "./host-command.ts";
 
@@ -286,5 +287,56 @@ describe("drift", () => {
       ".agents/plugins/pregate/plugin.json: names pregate and may disable its agy plugin in this repo.",
       "_agent/plugins.json: names pregate and may disable its agy plugin in this repo.",
     ]);
+  });
+});
+
+// The project registration (`pregate project hooks`): the same merge, on the project launcher.
+describe("project", () => {
+  const WINDOWS_DATA = "C:/Users/user/AppData/Local/pregate";
+  const commands = (text: string | null): string[] => Object.values(obj(text).hooks as Record<string, Json[]>).flatMap((groups) => groups.flatMap((g) => g.hooks.map((h: Json) => h.command as string)));
+
+  test("holds the events, matcher and timeouts of the global registration, and no machine path", () => {
+    const project = obj(merge(null, "project", DATA)), shared = obj(merge(null, "shared", DATA));
+    expect(Object.keys(project.hooks)).toEqual(Object.keys(shared.hooks));
+    expect(project.hooks.PreToolUse[0].matcher).toBe(shared.hooks.PreToolUse[0].matcher);
+    for (const event of Object.keys(shared.hooks)) expect(project.hooks[event][0].hooks[0].timeout).toBe(shared.hooks[event][0].hooks[0].timeout);
+    expect(project.hooks.PreToolUse[0].hooks[0].command).toBe(
+      `f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness claude-code; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
+    expect(project.hooks.Stop[0].hooks[0].command).toBe(`f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness claude-code; exit 0`);
+    for (const command of [...commands(merge(null, "project", DATA)), ...commands(merge(null, "project", WINDOWS_DATA))]) {
+      expect(commandScript(command)).not.toContain(DATA);
+      expect(commandScript(command)).not.toContain("AppData");
+    }
+  });
+
+  test("the Windows form runs project-launcher.ps1 from PowerShell and fits a cmd.exe line", () => {
+    for (const command of commands(merge(null, "project", WINDOWS_DATA))) {
+      expect(command).toMatch(/^powershell\.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/);
+      expect(command.length).toBeLessThan(8191);
+      expect(commandScript(command)).toContain("$f=Join-Path $d '.pregate/bin/project-launcher.ps1'; if (Test-Path -LiteralPath $f -PathType Leaf) { $raw | & $f hook ");
+    }
+    const pre = commandScript(obj(merge(null, "project", WINDOWS_DATA)).hooks.PreToolUse[0].hooks[0].command);
+    expect(pre).toEndWith("the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user'); exit 2");
+  });
+
+  test("is idempotent, keeps foreign groups in place, and is undone by unmerge", () => {
+    const merged = merge(CLAUDE, "project", DATA)!;
+    expect(merge(merged, "project", DATA)).toBe(merged);
+    expect(obj(merged).hooks.PreToolUse.slice(0, -1)).toEqual(obj(CLAUDE).hooks.PreToolUse);
+    expect(obj(unmerge(merged, "project", DATA)!.text)).toEqual(obj(CLAUDE));
+    expect(merge("[]", "project", DATA)).toBeNull();
+  });
+
+  test("replaces a registration of the other platform and of 0.1.0; the two scopes do not own each other", () => {
+    const windows = merge(null, "project", WINDOWS_DATA)!;
+    expect(merge(windows, "project", DATA)).toBe(merge(null, "project", DATA)!);
+    const old = { hooks: { PreToolUse: [{ matcher: "Write", hooks: [{ type: "command", command: `f="$CLAUDE_PROJECT_DIR/.pregate/bin/pregate"; [ -f "$f" ] && exec "$f" hook pre` }] }] } };
+    expect(obj(merge(JSON.stringify(old), "project", DATA)).hooks.PreToolUse).toEqual(obj(merge(null, "project", DATA)).hooks.PreToolUse);
+    // A file that holds both scopes keeps both: each merge and unmerge touches its own groups only.
+    const both = merge(merge(null, "shared", DATA), "project", DATA)!;
+    expect(obj(both).hooks.PreToolUse).toHaveLength(2);
+    expect(merge(both, "shared", DATA)).toBe(both);
+    expect(obj(unmerge(both, "shared", DATA)!.text)).toEqual(obj(merge(null, "project", DATA)));
+    expect(obj(unmerge(both, "project", DATA)!.text)).toEqual(obj(merge(null, "shared", DATA)));
   });
 });

@@ -59,7 +59,7 @@ Grok and headless sessions deny contract edits and direct the human to
 
 | Harness | Registration it runs | How the rest is discarded |
 |---|---|---|
-| Claude Code | `~/.claude/settings.json` | MH-28 removes the per-repo hooks from 0.1.0 |
+| Claude Code | `~/.claude/settings.json` | MH-28 removes the per-repo hooks from 0.1.0. A project can carry its own registration (MH-28a); with both, each call is evaluated twice |
 | Cursor | `~/.claude/settings.json` imported [V] | PREGATE does not write `~/.cursor/hooks.json` |
 | Grok | `~/.claude/settings.json` [V] | PREGATE does not write `~/.grok/hooks/` |
 | Codex | `~/.codex/hooks.json` | does not read Claude hooks [V] |
@@ -339,6 +339,15 @@ The shared registration is written if any of the three that read it is present, 
 - The CI template reads `"engine"` from the lock and downloads that version, verified against `SHA256SUMS` (`sha256sum -c --ignore-missing`).
 - If it finds our own 0.1.0 groups in `.claude/settings.json`, or a committed `.pregate/bin/pregate`, it removes them and warns.
 - With that, the double evaluation on Claude Code, the total deny from Cursor and Grok on a 0.1.0 engine, and the skew between `lock.engine`, the committed launcher's `version=`, and CI's `VERSION` when migrating a repo all disappear. `--harness` is removed. There is a single path for the hooks, the global one, and one for the engine, the lock.
+
+**MH-28a. Project-local Claude Code registration (opt-in).** `pregate project hooks --harness claude-code [--preview|--yes]` writes the Claude Code groups into the project's own `.claude/settings.json`. It is the repository-owned alternative to the global registration for that one harness, and it is a reviewed change like the project launcher it names.
+- The groups are the ones MH-22 registers globally for Claude Code: PreToolUse with the same closed tool matcher, Stop, SubagentStop and SessionStart, with the same timeouts. `register.merge` writes them with the target `project`, so the merge rules of MH-23 hold: only owned groups change, foreign groups keep their index, and unchanged content keeps its bytes.
+- The command is `f="${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook <sub> --harness claude-code`, followed by a denial (exit 2, one line on stderr) for `pre` and `exit 0` for `stop` and `session-start`. It holds no machine path. On Windows the command is `powershell.exe -EncodedCommand …`, as the global one is, and it runs `.pregate/bin/project-launcher.ps1`; `pregate.cmd` beside it only starts that same script. A group is owned when its handler names `CLAUDE_PROJECT_DIR` and one of those two launcher paths, so a registration written on the other platform, or by 0.1.0, is replaced and not duplicated.
+- One `.claude/settings.json` holds one command form. A repository that Windows and POSIX machines share is not supported by this registration: the last platform that ran the command owns the file.
+- MH-04 holds only when one registration exists. With the project registration and the global one, Claude Code runs both and every call is evaluated twice; `doctor` and `status` say so. `pregate install` no longer removes the project's files: it removes the 0.1.0 handlers, which carry an inline `[ -f "$f" ]` guard, and a `.pregate/bin/pregate` that is not a reviewed project launcher. `setup` and `uninstall` write only the machine files.
+- `doctor` reports the scope as project-local only, global only, both or neither. Project-local only with no other harness present is not an error: the missing global launcher, companion skills and PATH entry are stated as information, and the Claude Code canary does not run. `doctor` checks the files (registration exact, hooks not disabled, launcher equal to the template, pinned engine cached). It runs no project canary.
+- Policy consent is unchanged and stays outside the repository: without `pregate enable` for the worktree, the hooks run and allow. The approval of the registration rewrites this project's record under `<DATA>/contract-approvals/`; nothing else under the user's home changes.
+- **Not established [E2E]:** that a Claude Code session loads these hooks from the project file after the workspace trust prompt and denies there; the Windows form in any real shell; Cursor and Grok reading a project `.claude/settings.json`. The automated tests run the registered command as a shell command with the payload on stdin.
 
 **MH-29. Pre-check and shell guard.**
 - `message.ts` cites `pregate check --stdin --path <file> --format agent`.
