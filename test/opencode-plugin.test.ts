@@ -58,7 +58,7 @@ function launcherFile(root: string): string {
   return join(root, ".pregate/bin", process.platform === "win32" ? "pregate.cmd" : "pregate");
 }
 
-function installLauncher(root: string, kind: "engine" | "boom"): void {
+function installLauncher(root: string, kind: "engine" | "boom" | "quiet"): void {
   const dir = join(root, ".pregate/bin");
   mkdirSync(dir, { recursive: true });
   const file = launcherFile(root);
@@ -67,11 +67,22 @@ function installLauncher(root: string, kind: "engine" | "boom"): void {
       writeFileSync(file, "@echo off\r\necho boom 1>&2\r\nexit /b 1\r\n");
       return;
     }
+    if (kind === "quiet") {
+      writeFileSync(file, [
+        "@echo off",
+        '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0quiet.ps1" %*',
+        "exit /b %errorlevel%",
+        "",
+      ].join("\r\n"));
+      writeFileSync(join(dir, "quiet.ps1"), "[IO.File]::AppendAllText($env:LOG, [string]$args[1])\nexit 0\n");
+      return;
+    }
     writeFileSync(file, ENGINE_CMD);
     writeFileSync(join(dir, "engine.ps1"), ENGINE_PS1);
     return;
   }
-  writeFileSync(file, kind === "boom" ? "#!/bin/sh\necho 'boom' >&2\nexit 1\n" : ENGINE);
+  const text = kind === "boom" ? "#!/bin/sh\necho 'boom' >&2\nexit 1\n" : kind === "quiet" ? "#!/bin/sh\nprintf '%s' \"$2\" >> \"$LOG\"\nexit 0\n" : ENGINE;
+  writeFileSync(file, text);
   chmodSync(file, 0o755);
 }
 
@@ -242,8 +253,7 @@ describe("session and Stop", () => {
 
   test("an empty Stop reply admits nothing", async () => {
     const p = project();
-    writeFileSync(join(p.root, ".pregate/bin/pregate"), `#!/bin/sh\nprintf '%s' "$2" >> "$LOG"\nexit 0\n`);
-    chmodSync(join(p.root, ".pregate/bin/pregate"), 0o755);
+    installLauncher(p.root, "quiet");
     const { hooks, side } = await plugin(p.root);
     await hooks.idle({ sessionID: "ses_1", background: [] });
     expect(side.synthetic).toEqual([]);
