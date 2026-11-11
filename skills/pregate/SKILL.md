@@ -40,6 +40,10 @@ imports from this project instead of concepts. Keep a summary under eight lines.
 1. Look first, without changing anything: `pregate guide --json`,
    `pregate layers --json`, and `pregate compile <file>` for each instruction
    file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
+   Run each `pregate` command as one shell command of its own. The hooks deny
+   `pregate guide` when it is joined to another command with `;`, `&&` or a
+   pipe. A denial of an inspection command is not a reason to stop the user's
+   task: run the command alone, or continue the task without it.
 2. The project has no contract: prepare `pregate guide --preview`. Tell the user what will be watched in their own terms, for example
    "code in `src/domain` may not import `src/infra`; 3 files already do and
    are kept as they are; a new one gets a warning with the repair". Say that

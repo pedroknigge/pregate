@@ -15,6 +15,7 @@ import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
 import { gitChanges } from "./git-changes.ts";
 import { guard, type GuardContext } from "./shell.ts";
+import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
 import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand } from "./types.ts";
 
@@ -172,7 +173,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
-    configurationRead: (p) => configurationRead(sid, root, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);
@@ -199,15 +200,18 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   };
 }
 
-function configurationRead(sid: string, root: string | null, path: string): boolean {
+// `skill`: the question is about the installed skill file, not about a harness configuration file.
+function configurationRead(sid: string, root: string | null, path: string, skill: boolean): boolean {
   if (path.includes("\0") || /^\/dev\//.test(path)) return false;
-  return harnessConfigurationRead(sid, root, path);
+  return harnessConfigurationRead(sid, root, path, skill);
 }
 
-function harnessConfigurationRead(sid: string, root: string | null, path: string): boolean {
+function harnessConfigurationRead(sid: string, root: string | null, path: string, skill: boolean): boolean {
   try {
     const actual = canonical(path), env = process.env, home = homeDir();
-    const files = harnessConfigFiles(home, {
+    // The skill is the text setup wrote for the agent to read. Its tree is protected against writes,
+    // so a read of that one file discloses only what the installation gave the agent.
+    const files = skill ? skillFiles() : harnessConfigFiles(home, {
       codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
     }, root);
     if (!files.some(file => pathKey(actual) === pathKey(canonical(file))) || !statSync(actual).isFile()) return false;
@@ -216,7 +220,7 @@ function harnessConfigurationRead(sid: string, root: string | null, path: string
     const sources = roots.flatMap(r => sourceDirs(readText(join(r, PRESET)) ?? "").map(dir => canonical(resolve(r, dir))));
     // Configuration symlinks cannot turn private state, installation or rule sources into inputs.
     return ![canonical(state.stateDir()), canonical(engineHome()), ...sources].some(dir => within(dir, actual))
-      && !["**/.pregate", "**/.git", "**/skills/pregate", "**/.gemini/config/plugins/pregate"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
+      && !["**/.pregate", "**/.git", ...(skill ? [] : ["**/skills/pregate"]), "**/.gemini/config/plugins/pregate"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
       && !matches("**/.local/bin/pregate", actual);
   } catch (error) {
     if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return false;
