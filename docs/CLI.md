@@ -57,6 +57,7 @@ usage:
   pregate prepare [--version <v> | --engine <v>]
   pregate project launcher [--preview|--yes]
   pregate project hooks --harness claude-code [--preview|--yes]
+  pregate project hooks --harness codex [--preview|--yes]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
@@ -88,6 +89,8 @@ Project migration: `update --project --preview` and `pack update --all --preview
 `init --preview`, `preset apply <request.json> --preview` and pack operations with `--preview` prepare a reviewed pending candidate without changing the active contract or consent. Request preview validates the patch and full candidate, displays the diff and binds approval to its digest. Invalid requests preserve any existing pending candidate. Codex 0.166 reports the command working directory. A relative request path resolves there; name a file outside that directory with an absolute path. Pack fetching may populate a local cache. Draft commands and `pack init` write local drafts/scaffolds.
 
 `project launcher` and `project hooks --harness claude-code` write reviewed files into the project and nothing into a harness home: `--preview` prepares the review and a human approves it. The launcher at `.pregate/bin/` runs the engine the lock pins from the cache. The hooks go into the project's own `.claude/settings.json`, run that launcher through `$CLAUDE_PROJECT_DIR`, keep every other entry of the file and leave an already registered file byte for byte. They need the launcher first, and they do not enable the project: consent stays `pregate enable`. `doctor` reports the Claude Code scope as project-local only, global only, both (each call is evaluated twice) or neither. A real Claude Code session is not part of the automated tests. See the [installation guide](guides/installation.md#project-local-claude-code-hooks).
+
+`project hooks --harness codex` writes the Codex hooks into the project's own `.codex/hooks.json` through the same review. It grants no Codex trust and writes no file in the Codex home: the human reviews the hooks in Codex with `/hooks`. The command finds the launcher by walking up from its working directory, so it works when Codex starts below the repository root. `doctor` and `status` report the Codex scope and the hook review state as unknown, never as trusted. No real Codex session has run these project hooks; see the [installation guide](guides/installation.md#project-local-codex-hooks).
 
 Help prints the command reference without a preset, request file, stdin or approval. Each known public command path accepts a trailing `--help` or `-h`, including `preset apply --help`, `check --help`, `update --help`, `pack update --help` and `fitness bind --help`. Output writes remain subject to the shell guard.
 

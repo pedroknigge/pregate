@@ -10,7 +10,7 @@ import { LOCK, PRESET, readText, VERSIONS, within } from "./inertia.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
 import { HARNESSES } from "./harness/profile.ts";
-import { claudeRegistration, gatedHarnesses } from "./machine.ts";
+import { claudeRegistration, codexRegistration, gatedHarnesses } from "./machine.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { inScope, relativePath } from "./paths.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
@@ -168,6 +168,8 @@ export function protectionStatus(root: string | null) {
   const data = dataHome();
   // A project that registers its own Claude Code hooks runs its own launcher: no global one is needed.
   const claudeCode = claudeRegistration(root);
+  // A project Codex registration does not make Codex configured: its review in Codex is not readable here.
+  const codex = codexRegistration(root);
   const launcherPresent = present(join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate")) || claudeCode.projectLauncher;
   const enginePresent = present(join(data, VERSIONS.engine, ENGINE_FILE));
   const servedLock = contract.valid || root === null ? null : pinnedServedLock(root, data);
@@ -192,6 +194,7 @@ export function protectionStatus(root: string | null) {
     engine: VERSIONS.engine, core: VERSIONS.core, project: diagnosis?.project ?? null,
     servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent }, claudeCodeHooks: claudeCode.scope,
+    codexHooks: codex.scope, codexProjectTrust: codex.projectTrust, codexHookReview: codex.scope === "project" || codex.scope === "both" ? "unknown" as const : null,
     languages: LANGUAGE_COVERAGE, unsupportedInScope: unsupported, uncoveredInScope: uncovered, uncommittedSources: uncommittedSources(root), globWarnings, tsconfig: root === null ? null : tsconfigNotice((rel) => readText(join(root, rel))), rules, harnesses, fitnessCoverage, git: root === null ? null : backstops(root),
     limits: ["Shell inspection is heuristic; encoded/runtime writes need Stop and commit/CI backstops.",
       "Active describes consent and hook configuration, not complete project proof; unverified requirements are not protected assertions.",
@@ -240,7 +243,10 @@ function harnessLine(s: Status): string {
   const open = s.harnesses.filter((h) => !h.configured).map((h) => h.id);
   const scope = s.claudeCodeHooks === "project" ? " Claude Code hooks are project-local (.claude/settings.json of this project)."
     : s.claudeCodeHooks === "both" ? " Claude Code hooks are registered in this project and globally: every tool call is evaluated twice." : "";
-  return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.${scope}`;
+  const review = " Codex review state unknown: check `/hooks` in Codex.";
+  const codex = s.codexHooks === "project" ? ` Codex hooks are project-local (.codex/hooks.json of this project).${review}`
+    : s.codexHooks === "both" ? ` Codex hooks are registered in this project and globally: when Codex runs both, every tool call is evaluated twice.${review}` : "";
+  return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.${scope}${codex}`;
 }
 
 function unverifiedLine(s: Status): string {

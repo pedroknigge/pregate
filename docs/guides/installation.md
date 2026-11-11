@@ -212,6 +212,28 @@ pregate enable                                         # local consent, by the h
 
 A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
 
+## Project-local Codex hooks
+
+`pregate project hooks --harness codex [--preview|--yes]` registers the Codex hooks in the project's own `.codex/hooks.json`. The hooks run the project launcher. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview               # review, then the human approves
+pregate project hooks --harness codex --preview  # review, then the human approves
+pregate enable                                   # local consent, by the human
+# then, in Codex, in this project: /hooks, and review the three Pregate hooks
+```
+
+- **What it writes.** PreToolUse with the matcher `^(apply_patch|Bash)$`, Stop and SessionStart, with the timeouts of the global Codex registration. It holds no path of this machine, so it can be committed.
+- **It grants no trust.** Codex runs a hook only after its own review. This command does not record that review, does not mark the project trusted, and writes no file in the Codex home (`config.toml`, `hooks.json`). The human reviews the hooks in Codex with `/hooks`. Expect a changed definition to need the review again: Codex binds trust to a hash of the definition.
+- **What it keeps.** Other hooks and unknown keys stay, and other groups keep their index, which is how Codex addresses a hook. A second run changes no byte. The first write re-serializes the file with two-space indentation.
+- **Starting below the root.** Codex gives a hook no project variable. The command walks up from its working directory to the first directory that holds `.pregate/bin`, stops at the first `.git` entry, and runs the launcher from there. A working directory outside the repository finds no launcher and the write is denied.
+- **Failure.** A missing or empty pinned engine denies the write (exit 2, one line on stderr) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
+- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. For a project registration, `doctor` reads whether the Codex `config.toml` marks the project trusted, and always adds "Hook review state unknown: check `/hooks` in Codex". Pregate does not read the review state, so it never reports the project hooks as trusted, and `status` does not list Codex as gated by a project registration alone.
+- **With a global setup.** If `pregate setup` also registered Codex, both registrations exist and, when Codex runs both, every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
+
+Not established: no real Codex session has run these project hooks. The repository's own captures show that Codex 0.159.2 ran a project `.codex/hooks.json` under `--dangerously-bypass-hook-trust`, and that the hook process starts in the session directory. They do not show whether Codex loads the project file without that flag, whether it needs the project marked trusted, whether an unreviewed hook is skipped with a visible notice, or whether hooks of the user keep running beside it. `scripts/e2e-real.ts --project-hooks-only codex` measures these with real credentials. Until its result is recorded, do not rely on a project-only Codex registration: keep `pregate setup` for Codex. The automated tests run the registered command as a shell command with the payload on stdin, from a directory below the root.
+
 ## Updates and removal
 
 `pregate update` selects the latest published release. `update --version <v>` selects

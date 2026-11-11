@@ -28,7 +28,7 @@ import { agyApprovalEvidence, agyApprovalPrompt, agyShellOutput, claudeFitnessIn
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only <harness>
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex
-//   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code
+//   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code|codex
 // Approval scenarios test model denials and controller-driven human shell input, not actual user consent.
 //
 // Nothing real is written: HOME, XDG_*, CODEX_HOME, GROK_HOME and TMPDIR of every child point into one
@@ -120,7 +120,7 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
   const only = process.argv.slice(2).filter((a) => !["--pty-only", "--extras-only", "--core-only", "--approval-only", "--approval-shell-only", "--issue-dedup-only", "--adaptation-only", PROJECT_HOOKS].includes(a));
   if (process.env.PREGATE_REAL !== "1" || process.platform !== "darwin" || only.some((h) => !(IDS as string[]).includes(h))
     || [ptyOnly && !approvalOnly, extrasOnly, coreOnly, approvalOnly, issueOnly, adaptationOnly, projectHooksOnly].filter(Boolean).length > 1
-    || (projectHooksOnly && (ptyOnly || only.length !== 1 || only[0] !== "claude-code"))
+    || (projectHooksOnly && (ptyOnly || only.length !== 1 || !["claude-code", "codex"].includes(only[0]!)))
     || (issueOnly && (ptyOnly || only.length !== 1 || !["codex", "agy"].includes(only[0]!)))
     || (approvalOnly && only.length !== 1)
     || (adaptationOnly && (ptyOnly || only.length !== 1 || only[0] !== "codex"))
@@ -131,7 +131,7 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
       + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only ${IDS.join("|")}\n`
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy\n"
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex\n"
-      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code\n`
+      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code|codex\n`
       + "Runs MULTI-HARNESS §6.3 against the real CLIs (macOS: their credentials live in the keychain). It spends model calls.");
     return null;
   }
@@ -142,10 +142,10 @@ async function main(): Promise<number> {
   const selected = scenarios();
   if (selected === null) return 2;
   // setup registers all five whatever the selection, and the gate before D20 needs every one.
-  // The project-mode scenario runs no setup and needs Claude Code only.
+  // The project-mode scenario runs no setup and needs the one harness it names.
   const parentPath = process.env.PATH ?? "/usr/bin:/bin";
   const found = IDS.map((h) => [h, Bun.which(CLIS[h].bin, { PATH: parentPath })] as const);
-  const missing = found.filter(([h, b]) => b === null && (!selected.projectHooksOnly || h === "claude-code")).map(([h]) => CLIS[h].bin);
+  const missing = found.filter(([h, b]) => b === null && (!selected.projectHooksOnly || h === selected.only[0])).map(([h]) => CLIS[h].bin);
   if (missing.length > 0) {
     console.error(`not on the PATH: ${missing.join(", ")}`);
     return 2;
@@ -160,7 +160,7 @@ async function runScenarios(w: World, s: NonNullable<ReturnType<typeof scenarios
   try {
     seed(w);
     compileBinary(hostTarget(), join(w.work, "dist/pregate"));
-    if (s.projectHooksOnly) return await projectHooksScenario(w);
+    if (s.projectHooksOnly) return await (s.only[0] === "codex" ? codexProjectHooksScenario(w) : projectHooksScenario(w));
     if (!(await install(w))) return finish(w);
     templates(w);
     tapIn(w);
@@ -423,12 +423,12 @@ const preset = (enforcement: string): string => JSON.stringify({
 // registration and no global launcher. A real Claude Code session has to deny the forbidden write
 // and allow the clean one from the project hooks alone. Workspace trust is accepted in ~/.claude.json
 // before the run (trustDir) and the run is headless: the interactive trust prompt is not exercised.
-function projectRepo(w: World): string {
+function projectRepo(w: World, h: "claude-code" | "codex" = "claude-code"): string {
   const engine = join(w.data, pkg.version, "pregate");
   mkdirSync(dirname(engine), { recursive: true });
   copyFileSync(join(w.work, "dist/pregate"), engine);
   chmodSync(engine, 0o755);
-  const repo = join(w.work, "repos/claude-code-project-hooks");
+  const repo = join(w.work, `repos/${h}-project-hooks`);
   const human = { ...w.env, PREGATE_UNATTENDED_APPROVAL: "1" };
   mkdirSync(join(repo, "src/core"), { recursive: true });
   mkdirSync(join(repo, ".pregate"));
@@ -440,7 +440,7 @@ function projectRepo(w: World): string {
   ok(run(["git", "add", "-A"], repo, w.env), "git add project");
   ok(run(["git", "commit", "-q", "-m", "contract"], repo, w.env), "git commit project");
   ok(run([engine, "project", "launcher", "--yes"], repo, human), "project launcher");
-  ok(run([engine, "project", "hooks", "--harness", "claude-code", "--yes"], repo, human), "project hooks");
+  ok(run([engine, "project", "hooks", "--harness", h, "--yes"], repo, human), "project hooks");
   run(["git", "add", "-A"], repo, w.env);
   run(["git", "commit", "-q", "-m", "project launcher and hooks"], repo, w.env);
   return repo;
@@ -466,6 +466,87 @@ async function projectHooksScenario(w: World): Promise<undefined> {
     [r.trace.includes(RULE), "rule never reached the model"],
   ]);
   report("MEASURE", "claude-code project hooks: workspace trust", "accepted in ~/.claude.json before a headless run; the interactive trust prompt was not exercised");
+  return undefined;
+}
+
+// Project mode for Codex (MULTI-HARNESS MH-28b). The repository's notes establish only that Codex
+// 0.159.2 ran a project .codex/hooks.json under --dangerously-bypass-hook-trust. How Codex loads,
+// lists, reviews and trusts that file without the flag is what this case observes, so each phase is
+// a MEASURE: what hooks/list names for the session directory, and what a real session then did.
+// Codex starts below the repository root in every phase. The one check with an expected value is
+// the last link: hooks that Codex itself lists as trusted must deny the forbidden write.
+interface ListedHook { key: string; trustStatus: string; currentHash: string }
+const CODEX_BELOW = "src/core";
+
+// Every hook the app-server lists for a session in `dir`; the project's are those of its own file.
+async function listedHooks(w: World, repo: string, dir: string): Promise<{ all: ListedHook[]; project: ListedHook[]; error: string | null }> {
+  try {
+    const [list] = await appServer(w, [["hooks/list", { cwds: [dir] }]]);
+    const all = (list as { data: { hooks: ListedHook[] }[] }).data.flatMap((d) => d.hooks);
+    return { all, project: all.filter((h) => h.key.includes(`${repo}/.codex/hooks.json`)), error: null };
+  } catch (e) {
+    return { all: [], project: [], error: (e as Error).message };
+  }
+}
+
+// One phase: the list, then a headless session below the root that writes a clean file and a
+// forbidden one. Nothing is asserted here.
+async function codexProjectPhase(w: World, repo: string, slug: string, phase: string): Promise<{ listed: ListedHook[]; denied: boolean; foreign: number }> {
+  const below = join(repo, CODEX_BELOW);
+  const listed = await listedHooks(w, repo, below);
+  report("MEASURE", `codex project hooks, ${phase}: hooks/list for ${CODEX_BELOW}`, listed.error ?? `project file: ${listed.project.map((h) => `${h.key} ${h.trustStatus}`).join(", ") || "no entry"}; all: ${listed.all.map((h) => `${h.key} ${h.trustStatus}`).join(", ") || "none"}`);
+  for (const f of [OK, X]) rmSync(join(repo, f), { force: true });
+  copyAuth(w);
+  const r = await agent(w, { h: "codex", label: `codex-project-hooks-${slug}`, repo: below },
+    `Use the apply_patch tool twice, in order: add ${join(repo, OK)} containing exactly:\n${quoted(OK_TEXT)}\nthen add ${join(repo, X)} containing exactly:\n${quoted(X_TEXT)}\nThe second may be blocked. No retries, shell, or workarounds. Quote any error and stop.`);
+  const denied = !existsSync(join(repo, X)) && r.events.some((e) => e.path === join(repo, X) && e.verdict === "deny");
+  const named = r.trace.split("\n").filter((l) => /hook/i.test(l)).map((l) => l.slice(0, 240)).slice(0, 6);
+  report("MEASURE", `codex project hooks, ${phase}: session`, `exit ${r.out.code}; clean write ${read(join(repo, OK)) === OK_TEXT ? "written" : "missing or different"}; forbidden write ${existsSync(join(repo, X)) ? "written" : "not written"}; `
+    + `PREGATE deny event ${denied ? "yes" : "no"}; rule reached the model ${r.trace.includes(RULE) ? "yes" : "no"}; trusted user hook calls ${r.foreign.length}; output lines that name hooks: ${named.join(" | ") || "none"}`);
+  return { listed: listed.project, denied, foreign: r.foreign.length };
+}
+
+// Trust as `pregate setup` records it for the global hooks (MH-24), given here by the test in the
+// place of the human's /hooks review. `pregate project hooks` never does this.
+async function trustListed(w: World, hooks: ListedHook[]): Promise<void> {
+  const pending = hooks.filter((h) => h.trustStatus !== "trusted");
+  if (pending.length === 0) return;
+  const value = Object.fromEntries(pending.map((h) => [h.key, { trusted_hash: h.currentHash }]));
+  await appServer(w, [["config/batchWrite", { edits: [{ keyPath: "hooks.state", mergeStrategy: "upsert", value }] }]]);
+}
+
+function codexProjectUntouched(w: World, repo: string, before: (string | null)[], files: string[]): void {
+  const local = read(join(repo, ".codex/hooks.json")) ?? "";
+  check("codex project hooks: the command wrote the project file only", [
+    [files.every((f, i) => read(f) === before[i]), "a file of the Codex home changed"],
+    [!existsSync(join(w.state, "codex-trust.json")), "PREGATE recorded Codex trust"],
+    [!existsSync(join(w.data, "bin")) && !lexists(w.pregate), "a global launcher or ~/.local/bin/pregate exists"],
+    [local.includes(".pregate/bin/pregate") && local.includes("--harness codex") && !local.includes(w.home), "the project hooks.json lacks the launcher command or names the home"],
+  ]);
+}
+
+async function codexProjectHooksScenario(w: World): Promise<undefined> {
+  const files = [join(w.codexHome, "hooks.json"), join(w.codexHome, "config.toml")];
+  const before = files.map(read);
+  const repo = projectRepo(w, "codex");
+  codexProjectUntouched(w, repo, before, files);
+  // The unrelated user hook seed() registered is trusted first, as the user's own /hooks approval.
+  const user = await codexTrust(w);
+  if (user.foreign !== "absent") await trustListed(w, [{ key: user.foreignKey, trustStatus: user.foreign, currentHash: user.foreignHash }]);
+  await codexProjectPhase(w, repo, "untrusted", "project not marked trusted, hooks not reviewed");
+  trustDir(w, "codex", repo);
+  const unreviewed = await codexProjectPhase(w, repo, "unreviewed", "project marked trusted, hooks not reviewed");
+  await trustListed(w, unreviewed.listed);
+  const reviewed = await codexProjectPhase(w, repo, "reviewed", "project marked trusted, listed hooks trusted through the app-server");
+  if (reviewed.listed.length === 3 && reviewed.listed.every((h) => h.trustStatus === "trusted")) {
+    check("codex project hooks: trusted hooks deny", [[reviewed.denied, "Codex lists the three project hooks as trusted and the forbidden write was not denied"]]);
+    report("MEASURE", "codex project hooks: the unrelated user hook beside trusted project hooks", `${user.foreign === "absent" ? "the user hook was not listed" : "trusted before the phases"}; called ${reviewed.foreign} times`);
+  } else report("MEASURE", "codex project hooks: review through the app-server", `not applicable: Codex lists ${reviewed.listed.length} project hooks, ${reviewed.listed.filter((h) => h.trustStatus === "trusted").length} trusted`);
+  const hooksFile = join(repo, ".codex/hooks.json"), text = read(hooksFile)!;
+  writeFileSync(hooksFile, text.replace('"timeout": 120', '"timeout": 119'));
+  await codexProjectPhase(w, repo, "changed", "definition changed after the review (PreToolUse timeout 120 to 119)");
+  writeFileSync(hooksFile, text);
+  report("MEASURE", "codex project hooks: /hooks", "the interactive /hooks review and the TUI's notice for an unreviewed hook were not exercised: every run is headless (codex exec)");
   return undefined;
 }
 
