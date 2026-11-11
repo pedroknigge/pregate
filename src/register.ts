@@ -300,8 +300,11 @@ function ours(t: Target, data: string): Record<string, object> {
     return { PreToolUse: pre, PostInvocation: run("post-invocation", 15), Stop: run("stop", 60), SessionStart: run("session-start", 15) };
   }
   const stop = { hooks: [run("stop", 60)] };
-  if (t === "shared" || t === "project") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
-  return { PreToolUse: pre, Stop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
+  const start = { hooks: [run("session-start", 15)] };
+  // SubagentStart runs the session-start command: a Claude Code subagent starts without the context
+  // its parent received, so the briefing goes to it there. The event is the payload's, not argv's.
+  if (t === "shared" || t === "project") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: start, SubagentStart: start };
+  return { PreToolUse: pre, Stop: stop, SessionStart: start };
 }
 
 function named(t: "agy" | "project-agy", data: string): Payload {

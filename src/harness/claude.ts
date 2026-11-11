@@ -8,7 +8,8 @@ export const VERIFIED = "2.1.287";
 
 const BAD: Cause = "payload-unrecognized";
 // SubagentStop is a Stop of one subagent: the gate judges only the files that agent edited.
-const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SubagentStop: "stop", SessionStart: "session-start" };
+// SubagentStart is the session start of one subagent: it receives no context from its parent.
+const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SubagentStop: "stop", SessionStart: "session-start", SubagentStart: "session-start" };
 const EDITS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 const COMMANDS = new Set(["Bash", "PowerShell", "Monitor"]);
 // The camelCase twins another harness sends (Grok Build): this profile does not describe that payload.
@@ -25,7 +26,9 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   if (p === null || FOREIGN.some((k) => Object.hasOwn(p, k)) || named(p) !== event) return refuse(event, p, env);
   const session = sessionOf(p, env);
   if (session === null || !absolute(p.cwd)) return refuse(event, p, env);
-  if (event === "session-start") return { kind: "session-start", session, cwd: p.cwd };
+  if (event === "session-start") {
+    return (p.hook_event_name === "SessionStart") === (session.agentId === null) ? { kind: "session-start", session, cwd: p.cwd } : refuse(event, p, env);
+  }
   if (event === "stop") {
     const valid = typeof p.stop_hook_active === "boolean" && (p.hook_event_name === "Stop") === (session.agentId === null);
     return valid ? { kind: "stop", session, cwd: p.cwd, reentry: p.stop_hook_active as boolean } : refuse(event, p, env);
@@ -35,8 +38,11 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 
 // SPEC §4.5. Every deny is exit 2 with the same text in the JSON and on stderr: exit 2 blocks even
 // when the JSON does not reach Claude Code intact. SessionStart can only inform.
-export function encode(e: HookEvent["kind"], d: Decision): Emission {
+// `subagent`: the event is a SubagentStart. Its reply names that event and carries only the briefing:
+// the human already has the session's notices.
+export function encode(e: HookEvent["kind"], d: Decision, subagent = false): Emission {
   const told = d.notice === null ? {} : { systemMessage: d.notice };
+  if (e === "session-start" && subagent) return quiet(context("SubagentStart", d.verdict === "none" ? d.full : ""));
   if (e === "session-start") return quiet({ ...context("SessionStart", d.verdict === "none" ? d.full : ""), ...told });
   if (e === "post-invocation") return quiet({});
   // Stop.additionalContext continues Claude's turn even on exit 0. Observations stay in the report.

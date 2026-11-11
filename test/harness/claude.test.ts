@@ -27,6 +27,11 @@ describe("decode: captured payloads", () => {
       event: "session-start",
       out: { kind: "session-start", session: { ...main, turnId: null, interactive: false }, cwd: PROJECT },
     },
+    // A subagent's start is its session start: the session is the parent's and the agent is named.
+    "subagent-start.json": {
+      event: "session-start",
+      out: { kind: "session-start", session: { ...main, id: sid(5), agentId: "a0000000000000001", turnId: prompt(5), interactive: false }, cwd: PROJECT },
+    },
     "pre-write.json": {
       event: "pre", out: {
         kind: "pre-edit", changes: [{
@@ -95,6 +100,7 @@ describe("decode: captured payloads", () => {
   test("hook auto: the event the payload names", () => {
     expect(eventOf(payload("stop-reentry.json"))).toBe("stop");
     expect(eventOf(payload("session-start.json"))).toBe("session-start");
+    expect(eventOf(payload("subagent-start.json"))).toBe("session-start");
     expect(eventOf(payload("pre-monitor.json"))).toBe("pre");
     for (const text of ["garbage", raw({ hook_event_name: "PostToolUse" }), raw({ hookEventName: "PreToolUse" })]) expect(eventOf(text)).toBeNull();
   });

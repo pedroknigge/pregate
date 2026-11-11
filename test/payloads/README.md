@@ -22,6 +22,7 @@ Contract inputs for `claude.test.ts`. Each file is the exact stdin a hook receiv
 | `pre-bash.json` | PreToolUse `Bash` | `{command}` only |
 | `pre-monitor.json` | PreToolUse `Monitor` | `{description, timeout_ms, command}`; captured in a separate session with a `Monitor` matcher |
 | `pre-write-subagent.json` | PreToolUse `Write` from a subagent | adds `agent_id` and `agent_type` |
+| `subagent-start.json` | SubagentStart | Claude Code **2.1.322**, captured 2026-11-11 with a hook that stored stdin while a `general-purpose` subagent started. `agent_id`, `agent_type` and `prompt_id`; no `source`, `permission_mode` or `effort` |
 | `stop.json` | Stop | `stop_hook_active: false`, plus `last_assistant_message`, `background_tasks`, `session_crons` |
 | `stop-reentry.json` | Stop | `stop_hook_active: true` |
 | `grok-pre-write.fabricated.json` | — | **Not captured.** Built from `docs/research/harnesses-grok-2026-10-01.json` (camelCase keys plus snake_case aliases, `toolInputTruncated`); `timestamp` format is a guess |
