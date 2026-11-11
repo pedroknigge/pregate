@@ -16,7 +16,7 @@ import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
-import { AGY_PLUGIN, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, opencodeConfigFile, opencodePluginDir, opencodePluginSource, opencodeState, ownedCommand, registered, type Target, unmerge } from "./register.ts";
+import { AGY_PLUGIN, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, registered, type Target, unmerge, unmergeOpencode } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
 import { powershellCommand, PS_MODULES, psQuote } from "./windows-command.ts";
 import { slash } from "./paths.ts";
@@ -184,17 +184,73 @@ function agy(p: Paths, bin: string): Line {
 // OpenCode reads a plugin folder named by its own `plugins` array. setup writes the shim and adds
 // that one entry; every other entry of the file, and every other key, stays. A disabled entry (a
 // leading - or !) is the human's switch and is never turned back on here.
+
+// OpenCode's plugin folder. register.ts stays pure: the path, the environment and the asset live here.
+function opencodePluginDir(p: Paths): string {
+  return slash(join(p.opencodeHome, "pregate"));
+}
+
+// opencode.json, or opencode.jsonc when that is the file the user keeps. Neither: opencode.json.
+function opencodeConfigFile(p: Paths): string {
+  const json = join(p.opencodeHome, "opencode.json"), jsonc = join(p.opencodeHome, "opencode.jsonc");
+  return existsSync(json) || !existsSync(jsonc) ? json : jsonc;
+}
+
+// What setup writes at <opencodeHome>/pregate/index.ts: the shim that runs this installation.
+function opencodePluginSource(p: Paths): string {
+  return ASSETS["opencode/pregate/index.ts"]!.replaceAll("@PREGATE_LAUNCHER@", slash(`${p.data}/bin/${WINDOWS ? "pregate.cmd" : "pregate"}`));
+}
+
+// The plugin and its entry are both needed: one without the other gates nothing.
+function opencodeDrift(p: Paths): string[] {
+  const dir = opencodePluginDir(p), file = join(dir, "index.ts"), target = opencodeConfigFile(p);
+  const plugin = read(file), config = read(target);
+  const out: string[] = [];
+  if (plugin === null && config !== null) out.push(`${file}: the PREGATE plugin is missing; run pregate setup.`);
+  else if (plugin !== null && plugin !== opencodePluginSource(p)) out.push(`${file}: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
+  if (config !== null) {
+    const state = opencodeState(config, dir);
+    if (state === "invalid") out.push(`${target}: plugins must be an array; fix it and rerun pregate setup.`);
+    else if (state === "missing") out.push(`${target}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
+    else if (state === "disabled") out.push(`${target}: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`);
+  }
+  return out;
+}
+
+// Registered and unchanged: the folder is ours and the entry names it.
+function opencodeGated(p: Paths): boolean {
+  return read(join(opencodePluginDir(p), "index.ts")) === opencodePluginSource(p) && opencodeState(read(opencodeConfigFile(p)), opencodePluginDir(p)) === "ready";
+}
+
 function opencode(p: Paths): Line {
-  const dir = opencodePluginDir(), file = join(dir, "index.ts");
-  save(file, opencodePluginSource(p.data));
-  const target = canonical(opencodeConfigFile(p.opencodeHome));
-  const before = read(target), after = merge(before, "opencode", p.data);
+  const dir = opencodePluginDir(p), file = join(dir, "index.ts");
+  save(file, opencodePluginSource(p));
+  const target = canonical(opencodeConfigFile(p));
+  const before = read(target), after = mergeOpencode(before, dir);
   if (after === null) return fail(`${target} must be a JSON object whose "plugins" is an array; left unchanged. Fix it and rerun pregate setup.`);
   rewrite(target, before, after);
-  const state = opencodeState(read(target));
+  const state = opencodeState(read(target), dir);
   if (state === "disabled") return warn(`OpenCode: the PREGATE plugin entry in ${target} is disabled; remove the leading - or ! to gate OpenCode.`);
   if (state !== "ready") return fail(`OpenCode: ${target} does not list ${dir} in plugins; run pregate setup.`);
   return ok(`OpenCode: PREGATE plugin at ${file}, listed in ${target}.`, true);
+}
+
+// The mirror of unregister for the `plugins` array: our entry goes, the user's list stays.
+function unregisterOpencode(p: Paths): Line | null {
+  const target = canonical(opencodeConfigFile(p));
+  const before = read(target);
+  if (before === null) return null;
+  const r = unmergeOpencode(before, opencodePluginDir(p));
+  if (r === null) return fail(`${target} must be a JSON object whose "plugins" is an array; the PREGATE entry was left unchanged. Fix it and rerun pregate uninstall.`);
+  const bak = read(`${target}.pregate.bak`);
+  // The plugins key was setup's only change: the file goes with it.
+  if (bak === null && sameJson(r.text, "{}")) {
+    save(target, null);
+    return ok(`PREGATE plugin entry removed from ${target}.`);
+  }
+  const after = bak !== null && sameJson(r.text, bak) ? bak : r.text;
+  if (!rewrite(target, before, after)) return null;
+  return ok(`PREGATE plugin entry removed from ${target}.`);
 }
 
 // ~/.local/bin/pregate → the launcher. Anything else already there is not ours to replace.
@@ -380,10 +436,11 @@ export async function uninstall(purge: boolean): Promise<Result> {
     rmSync(p.plugin, { recursive: true, force: true });   // agy plugin uninstall is [E2E]
     lines.push(ok(`agy plugin removed from ${p.plugin}.`));
   }
-  lines.push(unregister(opencodeConfigFile(p.opencodeHome), "opencode", p));
-  if (existsSync(opencodePluginDir())) {
-    rmSync(opencodePluginDir(), { recursive: true, force: true });
-    lines.push(ok(`OpenCode plugin removed from ${opencodePluginDir()}.`));
+  lines.push(unregisterOpencode(p));
+  const pluginDir = opencodePluginDir(p);
+  if (existsSync(pluginDir)) {
+    rmSync(pluginDir, { recursive: true, force: true });
+    lines.push(ok(`OpenCode plugin removed from ${pluginDir}.`));
   }
   const s = stats(p.link, false);
   if (s?.isSymbolicLink() === true && readlinkSync(p.link) === p.launcher) rmSync(p.link);
@@ -393,7 +450,7 @@ export async function uninstall(purge: boolean): Promise<Result> {
   rmSync(p.trust, { force: true });
   if (purge) rmSync(p.state, { recursive: true, force: true });
   lines.push(ok(`Removed ${p.data}${purge ? ` and ${p.state}` : ""}. Repo .pregate/ directories are preserved.`));
-  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json"), opencodeConfigFile(p.opencodeHome)].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
+  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json"), opencodeConfigFile(p)].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
   if (kept.length > 0) lines.push(ok(`Backups from before the first setup remain: ${kept.join(", ")}.`));
   return report(lines.filter((l): l is Line => l !== null));
 }
@@ -429,11 +486,6 @@ function unregister(file: string, t: Target, p: Paths): Line | null {
     save(target, null);
     return ok(`PREGATE hooks removed from ${file}.`);
   }
-  // The plugins key was the only content setup wrote: the file goes with it.
-  if (t === "opencode" && bak === null && sameJson(r.text, "{}")) {
-    save(target, null);
-    return ok(`PREGATE plugin entry removed from ${file}.`);
-  }
   const after = bak !== null && sameJson(r.text, bak) ? bak : r.text;
   if (!rewrite(target, before, after)) return null;
   const moved = r.shifted.map((k) => `${target}:${k}`);
@@ -466,11 +518,12 @@ export async function doctor(): Promise<Result> {
   for (const [h, bin] of found) lines.push(versionOf(h, bin));
   lines.push(...scope.lines);
   const m = machineFiles(p, global);
-  const hookTrust = global.has("codex") ? trusts(p) : {}, hookDrift = drift(m, null, p.data, hookTrust);
+  const hookTrust = global.has("codex") ? trusts(p) : {}, hookDrift = [...drift(m, null, p.data, hookTrust), ...(checked.has("opencode") ? opencodeDrift(p) : [])];
   lines.push(...hookDrift.map(fail));
   const supervisionLimit = "Direct engine hook calls have no launcher crash/timeout protection. Runtime canaries below exercise the launcher route; they do not override registration errors.";
   const registered = gated(m, null, p.data, hookTrust);
   if (scope.standalone.has("claude-code")) registered.add("claude-code");
+  if (checked.has("opencode") && opencodeGated(p)) registered.add("opencode");
   lines.push((checked.size === 0 && !local) || [...checked.keys()].some(h => !registered.has(h))
     ? warn(`Hook supervision is not established for every detected harness. ${supervisionLimit} Run pregate setup and review the registrations.`)
     : ok(`Hook supervision: required launcher commands are registered. ${supervisionLimit}`));
@@ -478,7 +531,9 @@ export async function doctor(): Promise<Result> {
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !scope.standalone.has("codex")) lines.push(codexOffPath(p));
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
-  if (checked.has("opencode") && m.opencodePlugin === null && m.opencodeConfig === null) lines.push(fail("OpenCode has no PREGATE plugin; run pregate setup."));
+  if (checked.has("opencode") && read(join(opencodePluginDir(p), "index.ts")) === null && read(opencodeConfigFile(p)) === null) {
+    lines.push(fail("OpenCode has no PREGATE plugin; run pregate setup."));
+  }
   if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
   lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
@@ -596,8 +651,6 @@ function machineFiles(p: Paths, checked: Map<HarnessId, string | null>): Machine
     grokConfig: read(join(p.grokHome, "config.toml")),
     agyHooks: agy ? read(join(p.plugin, "hooks.json")) : null, agyConfig: agy ? read(join(p.home, ".gemini/config/config.json")) : null,
     cursorHooks: read(join(p.home, ".cursor/hooks.json")),
-    opencodeConfig: checked.has("opencode") ? read(opencodeConfigFile(p.opencodeHome)) : null,
-    opencodePlugin: checked.has("opencode") ? read(join(opencodePluginDir(), "index.ts")) : null,
   };
 }
 
@@ -892,8 +945,8 @@ export function gatedHarnesses(root: string | null): Set<string> {
     claude: p.shared.map(read), codexHooks: read(join(p.codexHome, "hooks.json")), codexConfig: read(join(p.codexHome, "config.toml")),
     grokConfig: read(join(p.grokHome, "config.toml")), agyHooks: read(join(p.plugin, "hooks.json")),
     agyConfig: read(join(p.home, ".gemini/config/config.json")), cursorHooks: read(join(p.home, ".cursor/hooks.json")),
-    opencodeConfig: read(opencodeConfigFile(p.opencodeHome)), opencodePlugin: read(join(opencodePluginDir(), "index.ts")),
   }, repo, p.data, trusts(p));
+  if (opencodeGated(p)) ids.add("opencode");
   if (process.env.GROK_CLAUDE_HOOKS_ENABLED === "0") ids.delete("grok");
   // The project's own registration gates Claude Code here without a global one.
   if (registered(repo[PROJECT_SETTINGS] ?? null, "project", p.data) && !Object.keys(repo).some((f) => f.startsWith(".claude/") && parse(repo[f]!)?.disableAllHooks === true)) ids.add("claude-code");

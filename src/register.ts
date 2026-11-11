@@ -1,9 +1,5 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { ASSETS } from "./assets.ts";
 import { isObject, parse, type Payload } from "./harness/wire.ts";
 import { pathKey, slash } from "./paths.ts";
-import { homeDir, WINDOWS } from "./platform.ts";
 import type { HarnessId, HookKind } from "./types.ts";
 import { commandScript, powershellCommand, psQuote, windowsHook } from "./windows-command.ts";
 
@@ -12,19 +8,17 @@ import { commandScript, powershellCommand, psQuote, windowsHook } from "./window
 
 export type Sub = HookKind;
 // "shared": ~/.claude/settings.json, read by Claude Code, Cursor and Grok; "codex": its hooks.json;
-// "agy": the hooks.json of the pregate plugin. "opencode": the `plugins` array of ~/.config/opencode/
-// opencode.json, which names the folder of the PREGATE plugin. "project": the project's own
-// .claude/settings.json, whose handlers run the project launcher and name no machine path.
-// "project-codex": the project's own .codex/hooks.json, with the Codex events and matcher, on the
-// same launcher.
-export type Target = "shared" | "codex" | "agy" | "cursor" | "opencode" | "project" | "project-codex";
+// "agy": the hooks.json of the pregate plugin. "project": the project's own .claude/settings.json,
+// whose handlers run the project launcher and name no machine path. "project-codex": the project's
+// own .codex/hooks.json, with the Codex events and matcher, on the same launcher.
+// OpenCode is not a target: its registration is the `plugins` array of opencode.json, which no hook
+// group describes (opencodeState, mergeOpencode and unmergeOpencode below).
+export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex";
 // The machine files drift reads; null: absent. `claude` holds every shared registration setup
 // writes: ~/.claude/settings.json, and ${CLAUDE_CONFIG_DIR}/settings.json when it is elsewhere.
-// `opencodeConfig` is opencode.json(c); `opencodePlugin` is the source of the plugin setup writes.
 export interface MachineFiles {
   claude: (string | null)[]; codexHooks: string | null; codexConfig: string | null;
   grokConfig: string | null; agyHooks: string | null; agyConfig: string | null; cursorHooks: string | null;
-  opencodeConfig: string | null; opencodePlugin: string | null;
 }
 // Repo-relative path → text of the repo files that can switch hooks off (.claude/settings*.json,
 // .codex/config.toml, .agents/**).
@@ -33,7 +27,7 @@ export type RepoFiles = Record<string, string>;
 // Closed tool lists (MH-22): `*` would spawn the hook on every read the agent makes.
 const SHARED_TOOLS = "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command";
 const CODEX_TOOLS = "^(apply_patch|Bash)$";
-const MATCHER: Record<Exclude<Target, "cursor" | "opencode">, string> = {
+const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   shared: SHARED_TOOLS,
   project: SHARED_TOOLS,
   codex: CODEX_TOOLS,
@@ -122,29 +116,10 @@ function windowsData(data: string): boolean {
   return /^[a-z]:|^(?:\\\\|\/\/)/i.test(data);
 }
 
-// ── OpenCode (MH-05) ─────────────────────────────────────────────────────────────────
-// OpenCode has no hook file: a plugin folder exports the hook handlers, and opencode.json lists it.
-// The folder is ours alone; the list is the user's, and setup adds one entry to it and removes one.
-
-export function opencodeHome(): string {
-  return process.env.OPENCODE_CONFIG_DIR || join(homeDir(), ".config/opencode");
-}
-
-// The absolute folder `plugins` names. OpenCode imports <folder>/index.ts at start.
-export function opencodePluginDir(): string {
-  return slash(join(opencodeHome(), "pregate"));
-}
-
-// opencode.json, or opencode.jsonc when that is the file the user keeps. Neither: opencode.json.
-export function opencodeConfigFile(home = opencodeHome()): string {
-  const json = join(home, "opencode.json"), jsonc = join(home, "opencode.jsonc");
-  return existsSync(json) || !existsSync(jsonc) ? json : jsonc;
-}
-
-// What setup writes at <opencodeHome>/pregate/index.ts: the shim that runs this installation.
-export function opencodePluginSource(data: string): string {
-  return ASSETS["opencode/pregate/index.ts"]!.replaceAll("@PREGATE_LAUNCHER@", slash(`${data}/bin/${WINDOWS ? "pregate.cmd" : "pregate"}`));
-}
+// ── OpenCode (MH-05, MH-25b) ─────────────────────────────────────────────────────────
+// OpenCode has no hook file: a plugin folder exports the hook handlers, and the `plugins` array of
+// opencode.json names that folder. The folder is ours alone, the list is the user's, and setup adds
+// one entry and removes one. This module stays pure: the caller passes the folder it resolved.
 
 // An entry of `plugins`; a leading - or ! disables it.
 function pluginEntry(entry: unknown): { dir: string; off: boolean } | null {
@@ -153,36 +128,53 @@ function pluginEntry(entry: unknown): { dir: string; off: boolean } | null {
   return { dir: slash(off ? entry.slice(1) : entry), off };
 }
 
-function oursPlugin(entry: unknown): boolean {
+function namesDir(entry: unknown, dir: string): boolean {
   const e = pluginEntry(entry);
-  return e !== null && pathKey(e.dir) === pathKey(opencodePluginDir());
+  // One folder has one spelling for this comparison: a trailing slash names the same place.
+  return e !== null && folder(e.dir) === folder(dir);
 }
 
-// "ready": one enabled entry names our folder. "disabled": the entry is there, switched off.
-export function opencodeState(text: string | null): "ready" | "disabled" | "missing" | "invalid" {
+function folder(path: string): string {
+  return pathKey(slash(path).replace(/\/+$/, ""));
+}
+
+// "ready": one enabled entry names `dir`. "disabled": the entry is there, switched off.
+export function opencodeState(text: string | null, dir: string): "ready" | "disabled" | "missing" | "invalid" {
   const root = text === null ? {} : parse(text);
   if (root === null || (root.plugins !== undefined && !Array.isArray(root.plugins))) return "invalid";
   const list = Array.isArray(root.plugins) ? root.plugins : [];
-  const ours = list.filter(oursPlugin).map(pluginEntry);
+  const ours = list.filter((entry) => namesDir(entry, dir)).map(pluginEntry);
   if (ours.length === 0) return "missing";
   return ours.every((e) => e!.off) ? "disabled" : "ready";
+}
+
+// null: the text is not a JSON object whose `plugins` is an array; nothing is written then.
+export function mergeOpencode(text: string | null, dir: string): string | null {
+  const root = text === null ? {} : parse(text);
+  if (root === null || (root.plugins !== undefined && !Array.isArray(root.plugins))) return null;
+  const list = Array.isArray(root.plugins) ? root.plugins : [];
+  // A disabled entry is the user's switch: it stays off until the human removes the marker.
+  const entry = list.find((candidate) => namesDir(candidate, dir));
+  if (entry !== undefined && opencodeState(text, dir) === "disabled") return text;
+  root.plugins = entry === undefined ? [...list, dir] : list;
+  return settled(text, root);
+}
+
+export function unmergeOpencode(text: string, dir: string): { text: string; shifted: string[] } | null {
+  const root = parse(text);
+  if (root === null) return null;
+  if (root.plugins !== undefined && !Array.isArray(root.plugins)) return null;
+  const list = Array.isArray(root.plugins) ? root.plugins : [];
+  const kept = list.filter((entry) => !namesDir(entry, dir));
+  if (kept.length === list.length) return { text, shifted: [] };
+  if (kept.length === 0) delete root.plugins; else root.plugins = kept;
+  return { text: settled(text, root), shifted: [] };
 }
 
 // ── merge ───────────────────────────────────────────────────────────────────────────
 
 // null: the text is not a JSON object, or an event is not an array; nothing is written then.
 export function merge(text: string | null, t: Target, data: string): string | null {
-  if (t === "opencode") {
-    const root = text === null ? {} : parse(text);
-    if (root === null || (root.plugins !== undefined && !Array.isArray(root.plugins))) return null;
-    const list = Array.isArray(root.plugins) ? root.plugins : [];
-    const dir = opencodePluginDir();
-    // A disabled entry is the user's switch: it stays off until the human removes the marker.
-    const entry = list.find(oursPlugin);
-    if (entry !== undefined && opencodeState(text) === "disabled") return text;
-    root.plugins = entry === undefined ? [...list, dir] : list;
-    return settled(text, root);
-  }
   const root = text === null ? {} : parse(text);
   if (root === null) return null;
   if (t === "cursor") {
@@ -211,14 +203,6 @@ export function merge(text: string | null, t: Target, data: string): string | nu
 export function unmerge(text: string, t: Target, data: string): { text: string; shifted: string[] } | null {
   const root = parse(text);
   if (root === null) return null;
-  if (t === "opencode") {
-    if (root.plugins !== undefined && !Array.isArray(root.plugins)) return null;
-    const list = Array.isArray(root.plugins) ? root.plugins : [];
-    const kept = list.filter((entry) => !oursPlugin(entry));
-    if (kept.length === list.length) return { text, shifted: [] };
-    if (kept.length === 0) delete root.plugins; else root.plugins = kept;
-    return { text: settled(text, root), shifted: [] };
-  }
   if (t === "agy") {
     delete root[AGY_PLUGIN];
     return { text: settled(text, root), shifted: [] };
@@ -301,19 +285,6 @@ export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, tru
   if (m.agyHooks !== null ? !Bun.deepEquals(parse(m.agyHooks), { [AGY_PLUGIN]: named(data) }, true) : state !== undefined) {
     out.push("agy: pregate-global plugin missing or modified; run pregate setup.");
   }
-  // OpenCode: the plugin folder is ours, and its `plugins` entry is the registration. An absent
-  // folder and an absent entry mean setup has not run; one without the other is drift.
-  const where = opencodeConfigFile();
-  if (m.opencodePlugin !== null && m.opencodePlugin !== opencodePluginSource(data)) {
-    out.push(`${opencodePluginDir()}/index.ts: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
-  }
-  if (m.opencodePlugin === null && m.opencodeConfig !== null) out.push(`${opencodePluginDir()}/index.ts: the PREGATE plugin is missing; run pregate setup.`);
-  if (m.opencodeConfig !== null) {
-    const s = opencodeState(m.opencodeConfig);
-    if (s === "invalid") out.push(`${where}: plugins must be an array; fix it and rerun pregate setup.`);
-    else if (s === "missing") out.push(`${where}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
-    else if (s === "disabled") out.push(`${where}: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`);
-  }
   for (const [path, text] of Object.entries(repo ?? {})) {
     if (/(^|\/)\.claude\/settings[^/]*\.json$/.test(path) && hooksOff(text)) out.push(`${path}: disableAllHooks disables PREGATE hooks in this repo.`);
     if (/(^|\/)\.codex\/config\.toml$/.test(path) && toml(text, ["features", "hooks"]) === "false") {
@@ -328,7 +299,7 @@ export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, tru
 
 // Use the same exact-registration and trust checks as doctor, independently for each harness.
 export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, trust: Record<string, string>): Set<HarnessId> {
-  const empty: MachineFiles = { claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null, opencodeConfig: null, opencodePlugin: null };
+  const empty: MachineFiles = { claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null };
   const shared = m.claude.length > 0 && m.claude.every((text) => text !== null);
   const variants: [HarnessId, boolean, MachineFiles][] = [
     ["claude-code", shared, { ...empty, claude: m.claude }],
@@ -336,15 +307,12 @@ export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, tru
     ["grok", shared, { ...empty, claude: m.claude, grokConfig: m.grokConfig }],
     ["codex", m.codexHooks !== null && Object.keys(trust).length > 0, { ...empty, codexHooks: m.codexHooks, codexConfig: m.codexConfig }],
     ["agy", m.agyHooks !== null, { ...empty, agyHooks: m.agyHooks, agyConfig: m.agyConfig }],
-    ["opencode", m.opencodeConfig !== null, { ...empty, opencodeConfig: m.opencodeConfig, opencodePlugin: m.opencodePlugin }],
   ];
   return new Set(variants.filter(([h, present, files]) => present && drift(files, repo, data, h === "codex" ? trust : {}).length === 0).map(([h]) => h));
 }
 
-// What setup registers, by event: a group; agy's Stop takes a bare handler. OpenCode registers no
-// hook of its own: its plugin is the registration, and `plugins` is the only file (see above).
+// What setup registers, by event: a group; agy's Stop takes a bare handler.
 function ours(t: Target, data: string): Record<string, object> {
-  if (t === "opencode") return {};
   const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t;
   const local = h === "claude-code" || h === "codex" ? h : null;
   const run = (sub: Sub, timeout: number) => ({

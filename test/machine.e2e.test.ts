@@ -411,6 +411,37 @@ describe("doctor", () => {
     expect(out.stdout).toContain("WARNING: grok: version grok 9.9.9; hooks verified with 1.0.49.");
   });
 
+  test("OpenCode drift: a disabled entry, a changed plugin and a missing entry", () => {
+    const m = machine(["opencode"]);
+    const config = join(m.home, ".config/opencode/opencode.json");
+    const dir = join(m.home, ".config/opencode/pregate");
+    const plugin = () => readFileSync(join(dir, "index.ts"), "utf8");
+    ok(pregate(m, "setup"), "setup");
+    const clean = ok(pregate(m, "doctor"), "doctor");
+    expect(clean.stdout).toContain("Harnesses gated: opencode.");
+    expect(clean.stdout).toContain("opencode: canary denied in its native dialect.");
+
+    // The human's switch: setup left it off, and doctor names it.
+    put(config, JSON.stringify({ ...json(config), plugins: [`-${dir}`] }));
+    const disabled = pregate(m, "doctor");
+    expect(disabled.code).toBe(1);
+    expect(disabled.stdout).toContain(`${config}: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`);
+
+    // A plugin that is not the reviewed one is drift; setup puts it back.
+    const source = plugin();
+    put(config, JSON.stringify({ ...json(config), plugins: [dir] }));
+    put(join(dir, "index.ts"), "export default {};\n");
+    expect(pregate(m, "doctor").stdout).toContain(`${dir}/index.ts: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
+    ok(pregate(m, "setup"), "setup repairs the plugin");
+    expect(plugin()).toBe(source);
+
+    // The folder is there and the list lost the entry: neither half gates on its own.
+    put(config, JSON.stringify({ plugins: [] }));
+    const missing = pregate(m, "doctor");
+    expect(missing.code).toBe(1);
+    expect(missing.stdout).toContain(`${config}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
+  });
+
   test("a launcher that is gone: the installation and the canary fail", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");
