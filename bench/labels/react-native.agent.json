@@ -1,0 +1,16 @@
+{
+  "labeler": "agent",
+  "pack": "react-native",
+  "items": [
+    {
+      "corpus": "react-markdown",
+      "pack": "react-native",
+      "rule": "react-native/RN-PLAT-001",
+      "path": "test.jsx",
+      "line": 537,
+      "symbol": "p",
+      "verdict": "true-positive",
+      "note": "return <div {...rest} /> returns a DOM tag, which is the stated condition. react-markdown renders to the web, so the pack does not fit this repository; the label does not judge that."
+    }
+  ]
+}

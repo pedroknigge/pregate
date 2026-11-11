@@ -1,0 +1,26 @@
+{
+  "labeler": "agent",
+  "pack": "mongodb",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "mongodb",
+      "rule": "mongodb/MONGO-CONNECT-001",
+      "path": "examples/search/index.js",
+      "line": 33,
+      "symbol": "initializeRedis",
+      "verdict": "false-positive",
+      "note": "db is the Redis client from redis.createClient(). db.connect() is not a MongoDB connection, so maxPoolSize does not apply to it."
+    },
+    {
+      "corpus": "express",
+      "pack": "mongodb",
+      "rule": "mongodb/MONGO-SCHEMA-001",
+      "path": "test/express.json.js",
+      "line": 243,
+      "symbol": "strict",
+      "verdict": "false-positive",
+      "note": "strict: false is an option of the express.json body parser in a test. It is not a Mongoose schema option."
+    }
+  ]
+}

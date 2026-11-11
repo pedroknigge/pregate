@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "trpc",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "trpc",
+      "rule": "trpc/TRPC-ERR-001",
+      "path": "examples/error/index.js",
+      "line": 31,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "throw new Error('something broke!') is in an Express route handler. The file defines no tRPC procedure, so it is not a procedure file."
+    },
+    {
+      "corpus": "express",
+      "pack": "trpc",
+      "rule": "trpc/TRPC-ERR-001",
+      "path": "test/app.param.js",
+      "line": 204,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "throw new Error('err!') is in an app.param callback of an Express test. The file is not a tRPC procedure file."
+    },
+    {
+      "corpus": "express",
+      "pack": "trpc",
+      "rule": "trpc/TRPC-ERR-001",
+      "path": "test/express.json.js",
+      "line": 479,
+      "symbol": "app.verify",
+      "verdict": "false-positive",
+      "note": "throw new Error('no arrays') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file."
+    },
+    {
+      "corpus": "express",
+      "pack": "trpc",
+      "rule": "trpc/TRPC-ERR-001",
+      "path": "test/express.urlencoded.js",
+      "line": 533,
+      "symbol": "app.verify",
+      "verdict": "false-positive",
+      "note": "throw new Error('no leading space') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file."
+    },
+    {
+      "corpus": "express",
+      "pack": "trpc",
+      "rule": "trpc/TRPC-ERR-001",
+      "path": "test/Route.js",
+      "line": 252,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "throw new Error('boom!') is in a route.all handler of an Express test. The file is not a tRPC procedure file."
+    }
+  ]
+}

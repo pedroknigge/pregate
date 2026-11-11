@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "mattpocock",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "examples/params/index.js",
+      "line": 23,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The app.param callback takes req, res, next, num and name. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "express",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "test/res.location.js",
+      "line": 141,
+      "symbol": "testRequestedRedirect",
+      "verdict": "true-positive",
+      "note": "testRequestedRedirect takes app, inputUrl, expected, expectedHost and done. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.js",
+      "line": 371,
+      "symbol": "__rewriteRelativeImportExtension",
+      "verdict": "true-positive",
+      "note": "The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.mjs",
+      "line": 370,
+      "symbol": "__rewriteRelativeImportExtension",
+      "verdict": "true-positive",
+      "note": "The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.js",
+      "line": 115,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The function assigned to __esDecorate takes ctor, descriptorIn, decorators, contextIn, initializers and extraInitializers. That is six inputs and the limit is four."
+    }
+  ]
+}

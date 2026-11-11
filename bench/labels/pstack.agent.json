@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "pstack",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "index.d.ts",
+      "line": 2,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The comment is an empty // line inside the license banner. It has no words, so it does not restate the Copyright line after it."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/mvc/db.js",
+      "line": 3,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "faux database says the module is a stand-in for a real store. The next statement, var pets = exports.pets = [], does not say that."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/vhost/index.js",
+      "line": 11,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The block comment tells the reader which lines to add to /etc/hosts before the example runs. It does not restate the code after it."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "lib/application.js",
+      "line": 373,
+      "symbol": "set",
+      "verdict": "false-positive",
+      "note": "trust proxy inherit back-compat gives the purpose of the Object.defineProperty call that follows. The call itself does not name back-compat."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "lib/view.js",
+      "line": 93,
+      "symbol": "View",
+      "verdict": "true-positive",
+      "note": "lookup path sits on this.path = this.lookup(fileName) and repeats the two names in that statement."
+    }
+  ]
+}

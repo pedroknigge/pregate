@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "node",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "node",
+      "rule": "node/NODE-VM-001",
+      "path": "tests/index.js",
+      "line": 113,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "vm.runInContext(code, context) evaluates a string in a vm context, which is the call this rule names. The string is a fixed literal in a test."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-ENV-001",
+      "path": "test/app.js",
+      "line": 97,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "process.env.NODE_ENV = this.env assigns to the environment at runtime. The assignment restores the value after a test."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-SYNC-001",
+      "path": "lib/view.js",
+      "line": 201,
+      "symbol": "tryStat",
+      "verdict": "true-positive",
+      "note": "fs.statSync(path) is a synchronous filesystem call in library code."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "node",
+      "rule": "node/NODE-EXEC-001",
+      "path": "test/runTests.js",
+      "line": 45,
+      "symbol": "results",
+      "verdict": "true-positive",
+      "note": "spawnSync(\"npm\", [\"test\"], ...) is a synchronous subprocess call, which is the call this rule names."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "node",
+      "rule": "node/NODE-PREFIX-001",
+      "path": "test/webpack-modules/webpack.config.js",
+      "line": 1,
+      "symbol": "path",
+      "verdict": "true-positive",
+      "note": "require('path') loads the builtin without the node: prefix."
+    }
+  ]
+}

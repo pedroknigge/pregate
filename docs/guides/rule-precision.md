@@ -1,22 +1,42 @@
 # Rule precision
 
-Two measurements are recorded here. Sample precision says how many maintainer-labeled findings match the rule that produced them. Hook latency is the compiled Pre hook on 200-line and 2,000-line files. A pack with no labels has no precision, and a latency number from one OS is not the number for another.
+Two measurements are recorded here. Sample precision says how many labeled findings match the rule that produced them, and who wrote each label: the maintainer or an AI coding agent. Hook latency is the compiled Pre hook on 200-line and 2,000-line files. A pack with no labels has no precision, and a latency number from one OS is not the number for another.
+
+## Rule changes since the 0.0.7 measurement
+
+The 0.0.7 measurement had 28 maintainer labels in five packs. `redis` was 0 of 6 correct on 3,039 findings and `pstack` was 1 of 6 correct on 827 findings. Three rules were changed and the measurement was run again on the same pinned corpus.
+
+| Pack | Before: findings | Before: sample | After: findings | After: sample | Labels after |
+| --- | ---: | --- | ---: | --- | --- |
+| redis | 3,039 | 0/6 | 0 | unmeasured | 6 maintainer false positives resolved |
+| pstack | 827 | 1/6 | 516 | 2/6 | 1 maintainer, 5 agent; 5 maintainer false positives resolved |
+| senior | 3,420 | 6/6 | 3,420 | 6/6 | 6 maintainer |
+| clean-code | 565 | 5/5 | 565 | 5/5 | 5 maintainer |
+| javascript | 512 | 5/5 | 512 | 5/5 | 5 maintainer |
+
+- **`redis/REDIS-KEY-001` and `redis/REDIS-SCAN-001`** matched any `.get(`, `.set(` or `.keys(` call. They now match a call only on a Redis client receiver: a name that contains `redis` or `valkey`, or a name such as `client`, `cache` or `db` in a file that imports a Redis module. All six false positives are gone, and so is every other `redis` finding on this corpus. No file in the corpus has a Redis call these rules should report, so `redis` has no precision here. The pack's `fail` fixtures are the evidence that the rules still report a real call.
+- **`pstack/PS-COMMENT-001`** reported every comment outside a marker allowlist. It now also exempts a JSDoc block, a URL citation, a comment that names a license, and a comment with a reason word. The five measured false positives are gone and 311 fewer comments are reported. The pattern language cannot compare a comment with the code after it, so the rule still reports comments that do not restate code: four of the five agent-sampled findings are false. Its default severity is now `warn`, not `deny`. The limit is recorded in [engine requests](../../packs/ENGINE-REQUESTS.md).
+
+The 15 packs that had findings and no label now have agent labels: five findings each, or every finding when the pack has fewer than five. The agent that wrote them is the same agent session that changed the three rules above. Read an agent fraction as a first look that a person can check row by row, not as a reviewed result. Seven packs have a sample with a false positive: `pstack` 2/6, `express` 3/5, `trpc` 0/5, `vue` 0/5, `tailwind` 0/5, `authjs` 0/5 and `mongodb` 0/2. Their rules were not changed here. A pack for one framework (`trpc`, `vue`, `tailwind`, `authjs`, `mongodb`) reports code of other libraries on this corpus, which has no project of that framework; the labels judge each site against the rule's stated condition.
 
 <!-- BEGIN measured precision -->
 
 ## Measured sample precision
 
-This run audited 46 packs on 8 pinned trees (238 source files) and recorded **8951 findings**. Sample precision is shown for 5 maintainer-labeled packs. Every other pack is unmeasured.
+This run audited 49 packs on 8 pinned trees (238 source files) and recorded **5601 findings**. Sample precision is shown for 19 labeled packs. Every other pack is unmeasured.
 
 Engine 0.0.7, core 0.0.1.
 
-Maintainer-labeled sample: 17 true-positive, 11 false-positive. Packs that do not appear in that sample are unmeasured.
+Labeled sample: 60 true-positive, 28 false-positive. Packs that do not appear in that sample are unmeasured.
+
+The maintainer wrote 17 of these labels and an AI coding agent wrote 71. Agent labels are not an independent human review. 11 earlier false-positive labels no longer match a finding and are listed as resolved.
 
 ## Method
 
 1. Shallow-fetch each git entry at its pinned commit into `.cache/precision` (or `--cache`). Reuse a clean cache whose HEAD is that commit. Check the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves the written report untouched. A path entry must already be a checkout of its commit.
 2. For each pack, compile a shadow preset of the builtin core plus that pack's methodologies. If those methodologies do not compile together, compile each one on its own. Count static findings from the same file audit `pregate audit` uses. One finding is one site: corpus, pack, rule, path, line, and symbol.
-3. Read `bench/labels/<pack>.json`. Each file is a maintainer-labeled sample: `true-positive` or `false-positive`, plus a note. A label that does not match a finding is an error. Precision is `true-positive / (true-positive + false-positive)` for packs with at least one matching label.
+3. Read every file in `bench/labels`. Each file names one pack and one labeler, `maintainer` or `agent`, and holds labels: `true-positive` or `false-positive`, plus a note. A `true-positive` label that does not match a finding is an error. A `false-positive` label that does not match a finding is recorded as resolved: the rules no longer report that site. Precision is `true-positive / (true-positive + false-positive)` for packs with at least one matching label.
+4. An agent does not choose the findings it labels. Take the findings of one pack in the order of the `--findings` file (sorted as text by corpus, pack, rule, path, line and symbol). With n findings and k the smaller of 5 and n, the sample is the findings at positions floor(i × n / k) for i from 0 to k − 1. An agent label for any other site is an error. `--sample <file>` writes these sites for every pack.
 
 Engine and core versions are recorded on the report. Re-running the command on the same pins and the same engine reproduces the counts.
 
@@ -44,56 +64,65 @@ Engine and core versions are recorded on the report. Re-running the command on t
 
 ## Per-pack counts
 
-A fraction is the maintainer-labeled sample only. Unmeasured means this report states no precision for that pack.
+A fraction is the labeled sample only. Labeled by says how many of those labels the maintainer wrote and how many an agent wrote. Unmeasured means this report states no precision for that pack.
 
-| Pack | Findings | Labeled | True positives | False positives | Sample precision |
-| --- | ---: | ---: | ---: | ---: | --- |
-| senior | 3420 | 6 | 6 | 0 | 6/6 |
-| redis | 3039 | 6 | 0 | 6 | 0/6 |
-| pstack | 827 | 6 | 1 | 5 | 1/6 |
-| clean-code | 565 | 5 | 5 | 0 | 5/5 |
-| javascript | 512 | 5 | 5 | 0 | 5/5 |
-| maintainability | 105 | 0 | 0 | 0 | unmeasured |
-| go | 101 | 0 | 0 | 0 | unmeasured |
-| typescript | 91 | 0 | 0 | 0 | unmeasured |
-| express | 77 | 0 | 0 | 0 | unmeasured |
-| vibe-proof | 55 | 0 | 0 | 0 | unmeasured |
-| trpc | 51 | 0 | 0 | 0 | unmeasured |
-| musk | 40 | 0 | 0 | 0 | unmeasured |
-| node | 31 | 0 | 0 | 0 | unmeasured |
-| mattpocock | 12 | 0 | 0 | 0 | unmeasured |
-| vue | 8 | 0 | 0 | 0 | unmeasured |
-| tailwind | 6 | 0 | 0 | 0 | unmeasured |
-| authjs | 5 | 0 | 0 | 0 | unmeasured |
-| python | 3 | 0 | 0 | 0 | unmeasured |
-| mongodb | 2 | 0 | 0 | 0 | unmeasured |
-| react-native | 1 | 0 | 0 | 0 | unmeasured |
-| agent-practices | 0 | 0 | 0 | 0 | unmeasured |
-| angular | 0 | 0 | 0 | 0 | unmeasured |
-| architecture | 0 | 0 | 0 | 0 | unmeasured |
-| consumer-saas | 0 | 0 | 0 | 0 | unmeasured |
-| core | 0 | 0 | 0 | 0 | unmeasured |
-| dcouplr | 0 | 0 | 0 | 0 | unmeasured |
-| ddd | 0 | 0 | 0 | 0 | unmeasured |
-| design-invariants | 0 | 0 | 0 | 0 | unmeasured |
-| drizzle | 0 | 0 | 0 | 0 | unmeasured |
-| enterprise-ready | 0 | 0 | 0 | 0 | unmeasured |
-| firebase | 0 | 0 | 0 | 0 | unmeasured |
-| nestjs | 0 | 0 | 0 | 0 | unmeasured |
-| next-website | 0 | 0 | 0 | 0 | unmeasured |
-| nextjs | 0 | 0 | 0 | 0 | unmeasured |
-| nuxt | 0 | 0 | 0 | 0 | unmeasured |
-| postgres | 0 | 0 | 0 | 0 | unmeasured |
-| prisma | 0 | 0 | 0 | 0 | unmeasured |
-| react | 0 | 0 | 0 | 0 | unmeasured |
-| rust | 0 | 0 | 0 | 0 | unmeasured |
-| security-audit | 0 | 0 | 0 | 0 | unmeasured |
-| solana | 0 | 0 | 0 | 0 | unmeasured |
-| supabase | 0 | 0 | 0 | 0 | unmeasured |
-| svelte | 0 | 0 | 0 | 0 | unmeasured |
-| sveltekit | 0 | 0 | 0 | 0 | unmeasured |
-| testing | 0 | 0 | 0 | 0 | unmeasured |
-| vercel | 0 | 0 | 0 | 0 | unmeasured |
+| Pack | Findings | Labeled | True positives | False positives | Sample precision | Labeled by |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| senior | 3420 | 6 | 6 | 0 | 6/6 | maintainer 6 |
+| clean-code | 565 | 5 | 5 | 0 | 5/5 | maintainer 5 |
+| pstack | 516 | 6 | 2 | 4 | 2/6 | maintainer 1, agent 5 |
+| javascript | 512 | 5 | 5 | 0 | 5/5 | maintainer 5 |
+| maintainability | 105 | 5 | 5 | 0 | 5/5 | agent 5 |
+| go | 101 | 5 | 5 | 0 | 5/5 | agent 5 |
+| typescript | 91 | 5 | 5 | 0 | 5/5 | agent 5 |
+| express | 77 | 5 | 3 | 2 | 3/5 | agent 5 |
+| vibe-proof | 55 | 5 | 5 | 0 | 5/5 | agent 5 |
+| trpc | 51 | 5 | 0 | 5 | 0/5 | agent 5 |
+| musk | 40 | 5 | 5 | 0 | 5/5 | agent 5 |
+| node | 31 | 5 | 5 | 0 | 5/5 | agent 5 |
+| mattpocock | 12 | 5 | 5 | 0 | 5/5 | agent 5 |
+| vue | 8 | 5 | 0 | 5 | 0/5 | agent 5 |
+| tailwind | 6 | 5 | 0 | 5 | 0/5 | agent 5 |
+| authjs | 5 | 5 | 0 | 5 | 0/5 | agent 5 |
+| python | 3 | 3 | 3 | 0 | 3/3 | agent 3 |
+| mongodb | 2 | 2 | 0 | 2 | 0/2 | agent 2 |
+| react-native | 1 | 1 | 1 | 0 | 1/1 | agent 1 |
+| agent-practices | 0 | 0 | 0 | 0 | unmeasured | - |
+| angular | 0 | 0 | 0 | 0 | unmeasured | - |
+| architecture | 0 | 0 | 0 | 0 | unmeasured | - |
+| astro | 0 | 0 | 0 | 0 | unmeasured | - |
+| consumer-saas | 0 | 0 | 0 | 0 | unmeasured | - |
+| core | 0 | 0 | 0 | 0 | unmeasured | - |
+| dcouplr | 0 | 0 | 0 | 0 | unmeasured | - |
+| ddd | 0 | 0 | 0 | 0 | unmeasured | - |
+| design-invariants | 0 | 0 | 0 | 0 | unmeasured | - |
+| drizzle | 0 | 0 | 0 | 0 | unmeasured | - |
+| enterprise-ready | 0 | 0 | 0 | 0 | unmeasured | - |
+| firebase | 0 | 0 | 0 | 0 | unmeasured | - |
+| hono | 0 | 0 | 0 | 0 | unmeasured | - |
+| nestjs | 0 | 0 | 0 | 0 | unmeasured | - |
+| next-website | 0 | 0 | 0 | 0 | unmeasured | - |
+| nextjs | 0 | 0 | 0 | 0 | unmeasured | - |
+| nuxt | 0 | 0 | 0 | 0 | unmeasured | - |
+| postgres | 0 | 0 | 0 | 0 | unmeasured | - |
+| prisma | 0 | 0 | 0 | 0 | unmeasured | - |
+| react | 0 | 0 | 0 | 0 | unmeasured | - |
+| redis | 0 | 0 | 0 | 0 | unmeasured | - |
+| rust | 0 | 0 | 0 | 0 | unmeasured | - |
+| security-audit | 0 | 0 | 0 | 0 | unmeasured | - |
+| solana | 0 | 0 | 0 | 0 | unmeasured | - |
+| supabase | 0 | 0 | 0 | 0 | unmeasured | - |
+| svelte | 0 | 0 | 0 | 0 | unmeasured | - |
+| sveltekit | 0 | 0 | 0 | 0 | unmeasured | - |
+| tanstack-query | 0 | 0 | 0 | 0 | unmeasured | - |
+| testing | 0 | 0 | 0 | 0 | unmeasured | - |
+| vercel | 0 | 0 | 0 | 0 | unmeasured | - |
+
+## Unmeasured packs
+
+Packs with findings and no matching label: none.
+
+Packs with no finding on this corpus, so there is nothing to label (30): `agent-practices`, `angular`, `architecture`, `astro`, `consumer-saas`, `core`, `dcouplr`, `ddd`, `design-invariants`, `drizzle`, `enterprise-ready`, `firebase`, `hono`, `nestjs`, `next-website`, `nextjs`, `nuxt`, `postgres`, `prisma`, `react`, `redis`, `rust`, `security-audit`, `solana`, `supabase`, `svelte`, `sveltekit`, `tanstack-query`, `testing`, `vercel`. A zero here is not evidence that those rules are precise.
 
 ## Maintainer-labeled sample
 
@@ -103,12 +132,6 @@ These notes were written by the maintainer after reading the pinned source at th
 | --- | --- | --- | --- | --- |
 | true-positive | clean-code | `clean-code/CC-FN-001` | classnames `bind.js:16` `parseValue` | parseValue runs from line 16 through the return on line 42, past the limit of 20. |
 | true-positive | clean-code | `clean-code/CC-FN-001` | classnames `tests/bind.js:16` `<module>` | The describe callback starts at line 16 and still contains further tests past line 35, so it is over the 20-line limit. |
-| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:1` `<module>` | The comment explains why StorageObject must not inherit from Object. The next line is only the constructor, so the comment does not restate it. |
-| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:65` `appendObject` | The comment records why the code assigns false instead of deleting a key. The assignment on the following line does not say that. |
-| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:66` `appendObject` | The line is a URL citation. It does not restate classSet[k] = !!object[k]. |
-| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `index.d.ts:1` `<module>` | LICENSE is MIT is a license banner. It does not restate the types below, and it is not the Copyright line that the allowlist already names. |
-| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `index.d.ts:15` `<module>` | The JSDoc sentence describes the package. It does not restate the classNames signature on the next line. |
-| false-positive | redis | `redis/REDIS-SCAN-001` | classnames `benchmarks/benchmarks.js:72` `printTable.headers` | Object.keys lists the columns of a benchmark row. It is not the Redis KEYS command. |
 | true-positive | senior | `senior/SR-BRACE-001` | classnames `dedupe.js:21` `appendValue` | if (!arg) return has no braces. The rule requires braces on an if. |
 | true-positive | senior | `senior/SR-CHAIN-001` | classnames `bind.js:29` `parseValue` | arg.toString.toString().includes walks three member or call hops, which is the chain this rule rejects. |
 | true-positive | clean-code | `clean-code/CC-FN-001` | express `examples/mvc/lib/boot.js:11` `<module>` | The exported boot function starts at line 11 and is still loading controllers past line 40, over the 20-line limit. |
@@ -118,11 +141,6 @@ These notes were written by the maintainer after reading the pinned source at th
 | true-positive | javascript | `javascript/JS-REQ-001` | express `examples/auth/index.js:10` `session` | require('express-session') loads that module with require, which is the call this rule names. |
 | true-positive | javascript | `javascript/JS-REQ-001` | express `examples/auth/index.js:9` `path` | require('node:path') is a require call. The rule asks for an import statement. |
 | true-positive | pstack | `pstack/PS-COMMENT-001` | express `examples/auth/index.js:109` `<module>` | Regenerate session when signing in restates the req.session.regenerate call it sits on. |
-| false-positive | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:100` `<module>` | app.get registers an HTTP route. The call is not a Redis GET of a key. |
-| false-positive | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:119` `<module>` | req.get reads the Referrer header. It is not a Redis GET. |
-| false-positive | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:16` `<module>` | app.set stores the Express view engine. It is not a Redis SET of a key. |
-| false-positive | redis | `redis/REDIS-SCAN-001` | express `lib/response.js:578` `keys` | Object.keys copies header names. It is not a Redis KEYS scan. |
-| false-positive | redis | `redis/REDIS-SCAN-001` | express `test/app.router.js:308` `keys` | Object.keys(req.params) reads route parameters in a test. It is not Redis KEYS. |
 | true-positive | senior | `senior/SR-BRACE-001` | express `examples/auth/index.js:36` `<module>` | if (err) assigns res.locals.message with no braces around the branch. |
 | true-positive | senior | `senior/SR-CHAIN-001` | express `examples/downloads/index.js:27` `<module>` | req.params.file.join walks params, file, and join. That is three member hops. |
 | true-positive | senior | `senior/SR-VAR-001` | express `examples/auth/index.js:10` `<module>` | var session declares the express-session binding with var, which is the declaration this rule names. |
@@ -130,10 +148,109 @@ These notes were written by the maintainer after reading the pinned source at th
 | true-positive | clean-code | `clean-code/CC-FN-002` | ms `src/index.ts:236` `plural` | plural takes ms, msAbs, n, and name. That is four parameters and the limit is three. |
 | true-positive | javascript | `javascript/JS-REQ-001` | tslib `test/runTests.js:2` `<module>` | require("child_process") is a require call in the test runner. |
 
+## Agent-labeled sample
+
+These notes were written by an AI coding agent after reading the pinned source at that line. The agent did not choose the sites (Method, step 4). They are not an independent human review, and the maintainer has not confirmed them.
+
+| Verdict | Pack | Rule | Location | Note |
+| --- | --- | --- | --- | --- |
+| true-positive | node | `node/NODE-VM-001` | classnames `tests/index.js:113` `<module>` | vm.runInContext(code, context) evaluates a string in a vm context, which is the call this rule names. The string is a fixed literal in a test. |
+| false-positive | pstack | `pstack/PS-COMMENT-001` | classnames `index.d.ts:2` `<module>` | The comment is an empty // line inside the license banner. It has no words, so it does not restate the Copyright line after it. |
+| false-positive | tailwind | `tailwind/TW-DYN-001` | classnames `bind.js:49` `appendClass` | value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute, which is the stated condition. |
+| false-positive | tailwind | `tailwind/TW-DYN-001` | classnames `dedupe.js:13` `classNames` | ' ' + key builds the library's return string in a function named classNames. No className attribute contains the expression. |
+| false-positive | tailwind | `tailwind/TW-DYN-001` | classnames `index.js:49` `appendClass` | value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute. |
+| true-positive | typescript | `typescript/TS-DEFAULT-001` | classnames `bind.d.ts:3` `<module>` | export default function classNames declares a default export. |
+| true-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | classnames `benchmarks/benchmarks.js:46` `runBenchmarks` | console.log prints the benchmark name. The file is a benchmark script, not a test file, so the stated condition holds. |
+| false-positive | vue | `vue/VUE-DOM-001` | classnames `benchmarks/runInBrowser.js:3` `startButton` | document.getElementById('start') is at the top of a plain browser script. No Vue component or setup function owns the element, which is what the rule's condition requires. |
+| true-positive | go | `go/GO-FN-001` | errors `format_test.go:161` `TestFormatWithStack` | TestFormatWithStack runs from line 161 to line 228. That is 68 lines and the limit is 50. |
+| false-positive | authjs | `authjs/AUTH-SECRET-001` | express `examples/auth/index.js:25` `secret` | secret: 'shhhh, very secret' is an option of express-session. The rule's condition is a literal secret in the NextAuth config, and this file has none. |
+| false-positive | authjs | `authjs/AUTH-SECRET-001` | express `examples/cookie-sessions/index.js:13` `secret` | The literal secret is passed to cookieSession, the cookie-session middleware. It is not a NextAuth config. |
+| false-positive | authjs | `authjs/AUTH-SECRET-001` | express `examples/mvc/index.js:43` `secret` | secret: 'some secret here' configures express-session. No NextAuth config is in this file. |
+| false-positive | authjs | `authjs/AUTH-SECRET-001` | express `examples/session/index.js:19` `secret` | secret: 'keyboard cat' is an express-session option. The literal is hardcoded, but the object is not the NextAuth config the rule names. |
+| false-positive | authjs | `authjs/AUTH-SECRET-001` | express `examples/session/redis.js:23` `secret` | secret: 'keyboard cat' sits beside store: new RedisStore in an express-session call. It is not a NextAuth config. |
+| true-positive | express | `express/EX-NEXT-001` | express `examples/mvc/controllers/pet/index.js:13` `<module>` | return next('route') passes the string route to next, which is the call this rule names. |
+| false-positive | express | `express/EX-NEXT-001` | express `test/app.param.js:294` `<module>` | Line 294 is the it(...) call of a test. The next('route') call is seven lines below, inside its callback, so the reported line is not the call the rule names. |
+| false-positive | express | `express/EX-NEXT-001` | express `test/app.router.js:873` `<module>` | Line 873 is the it(...) call of a test. The next('router') call is six lines below, inside a nested function, so the reported line is not the call the rule names. |
+| true-positive | express | `express/EX-STATUS-001` | express `test/app.route.js:101` `handleError` | res.status(500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line, so the request does not stay open. |
+| true-positive | express | `express/EX-STATUS-001` | express `test/express.urlencoded.js:635` `<module>` | res.status(err.status \|\| 500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line. |
+| true-positive | maintainability | `maintainability/MAINT-NEST-001` | express `examples/route-map/index.js:24` `<module>` | if (verbose) is inside a switch, which is inside a for-in loop. That is a third level and the limit is two. |
+| true-positive | mattpocock | `mattpocock/MP-PARAMS-001` | express `examples/params/index.js:23` `<module>` | The app.param callback takes req, res, next, num and name. That is five inputs and the limit is four. |
+| true-positive | mattpocock | `mattpocock/MP-PARAMS-001` | express `test/res.location.js:141` `testRequestedRedirect` | testRequestedRedirect takes app, inputUrl, expected, expectedHost and done. That is five inputs and the limit is four. |
+| false-positive | mongodb | `mongodb/MONGO-CONNECT-001` | express `examples/search/index.js:33` `initializeRedis` | db is the Redis client from redis.createClient(). db.connect() is not a MongoDB connection, so maxPoolSize does not apply to it. |
+| false-positive | mongodb | `mongodb/MONGO-SCHEMA-001` | express `test/express.json.js:243` `strict` | strict: false is an option of the express.json body parser in a test. It is not a Mongoose schema option. |
+| true-positive | musk | `musk/MUSK-FAST-001` | express `examples/mvc/lib/boot.js:14` `<module>` | fs.readdirSync(dir) is a synchronous filesystem call, and boot.js is not a test file. |
+| true-positive | node | `node/NODE-ENV-001` | express `test/app.js:97` `<module>` | process.env.NODE_ENV = this.env assigns to the environment at runtime. The assignment restores the value after a test. |
+| true-positive | node | `node/NODE-SYNC-001` | express `lib/view.js:201` `tryStat` | fs.statSync(path) is a synchronous filesystem call in library code. |
+| false-positive | pstack | `pstack/PS-COMMENT-001` | express `examples/mvc/db.js:3` `<module>` | faux database says the module is a stand-in for a real store. The next statement, var pets = exports.pets = [], does not say that. |
+| false-positive | pstack | `pstack/PS-COMMENT-001` | express `examples/vhost/index.js:11` `<module>` | The block comment tells the reader which lines to add to /etc/hosts before the example runs. It does not restate the code after it. |
+| false-positive | pstack | `pstack/PS-COMMENT-001` | express `lib/application.js:373` `set` | trust proxy inherit back-compat gives the purpose of the Object.defineProperty call that follows. The call itself does not name back-compat. |
+| true-positive | pstack | `pstack/PS-COMMENT-001` | express `lib/view.js:93` `View` | lookup path sits on this.path = this.lookup(fileName) and repeats the two names in that statement. |
+| false-positive | trpc | `trpc/TRPC-ERR-001` | express `examples/error/index.js:31` `<module>` | throw new Error('something broke!') is in an Express route handler. The file defines no tRPC procedure, so it is not a procedure file. |
+| false-positive | trpc | `trpc/TRPC-ERR-001` | express `test/Route.js:252` `<module>` | throw new Error('boom!') is in a route.all handler of an Express test. The file is not a tRPC procedure file. |
+| false-positive | trpc | `trpc/TRPC-ERR-001` | express `test/app.param.js:204` `<module>` | throw new Error('err!') is in an app.param callback of an Express test. The file is not a tRPC procedure file. |
+| false-positive | trpc | `trpc/TRPC-ERR-001` | express `test/express.json.js:479` `app.verify` | throw new Error('no arrays') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file. |
+| false-positive | trpc | `trpc/TRPC-ERR-001` | express `test/express.urlencoded.js:533` `app.verify` | throw new Error('no leading space') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file. |
+| true-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | express `examples/error/index.js:52` `<module>` | console.log('Express started on port 3000') is a console.log call in an example server, not in a test file. |
+| true-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | express `examples/route-map/index.js:24` `<module>` | if (verbose) console.log('%s %s', key, route) is a console.log call outside a test file. The verbose guard does not change the call. |
+| true-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | express `examples/static-files/index.js:43` `<module>` | console.log('  GET /css/style.css') is a console.log call in an example server, not in a test file. |
+| false-positive | vue | `vue/VUE-DOM-001` | express `examples/search/public/client.js:3` `search` | document.querySelector('[type=search]') is at the top of a plain browser script. The file has no Vue component, so there is no setup to run before mount. |
+| false-positive | vue | `vue/VUE-PUSH-001` | express `test/req.baseUrl.js:60` `<module>` | urls is an array and urls.push('0@' + req.baseUrl) appends a string to it. It is not router.push. |
+| false-positive | vue | `vue/VUE-PUSH-001` | express `test/req.baseUrl.js:65` `<module>` | urls.push('1@' + req.baseUrl) appends to an array in a test. It is not router.push. |
+| false-positive | vue | `vue/VUE-PUSH-001` | express `test/req.baseUrl.js:74` `<module>` | urls.push('3@' + req.baseUrl) appends to an array in a test. It is not router.push. |
+| true-positive | python | `python/PY-CLASS-001` | markupsafe `src/markupsafe/__init__.py:84` `Markup` | Markup declares 29 methods whose names do not start with an underscore, from join to format_map. The limit is 10. |
+| true-positive | python | `python/PY-NEST-001` | markupsafe `src/markupsafe/__init__.py:213` `Markup.striptags` | The if on line 213 is inside if value.startswith("<!--", start), which is inside the while loop. That is a third level and the limit is two. |
+| true-positive | python | `python/PY-NEST-001` | markupsafe `src/markupsafe/__init__.py:220` `Markup.striptags` | The if on line 220 is in the else branch of the if on line 211, inside the while loop. That is a third level and the limit is two. |
+| true-positive | musk | `musk/MUSK-REQ-001` | ms `src/index.test.ts:344` `<module>` | @ts-expect-error - We expect this to throw. names no owner and no ticket, which is the directive this rule reports. |
+| true-positive | musk | `musk/MUSK-REQ-001` | ms `src/parse-strict.test.ts:168` `<module>` | @ts-expect-error - We expect this to throw. gives a reason and no owner or ticket. The rule asks for an owner or a ticket. |
+| true-positive | musk | `musk/MUSK-REQ-001` | ms `src/parse-strict.test.ts:55` `<module>` | The @ts-expect-error comment explains that JS users can still pass the value. It names no owner and no ticket. |
+| true-positive | musk | `musk/MUSK-REQ-001` | ms `src/parse.test.ts:162` `<module>` | @ts-expect-error - We expect this to throw. has no owner and no ticket. |
+| true-positive | react-native | `react-native/RN-PLAT-001` | react-markdown `test.jsx:537` `p` | return <div {...rest} /> returns a DOM tag, which is the stated condition. react-markdown renders to the web, so the pack does not fit this repository; the label does not judge that. |
+| false-positive | tailwind | `tailwind/TW-DYN-001` | react-markdown `lib/index.js:298` `createFile` | The concatenation builds the message of an unreachable(...) error about the children prop. It is not a class name. |
+| false-positive | tailwind | `tailwind/TW-DYN-001` | react-markdown `lib/index.js:329` `post` | The concatenation builds the message of an unreachable(...) error about a deprecated prop. It is not a class name. |
+| true-positive | typescript | `typescript/TS-DEFAULT-001` | react-markdown `index.js:10` `<module>` | The export list contains Markdown as default, which the rule names as a default export. |
+| true-positive | vibe-proof | `vibe-proof/VP-CONSOLE-001` | react-markdown `script/load-jsx.js:98` `createLoader.transformSource` | console.log(warning.text) prints a build warning from a loader script. The file is not a test file. |
+| true-positive | go | `go/GO-FN-001` | toml `decode.go:231` `MetaData.unify` | unify runs from line 231 to line 303. That is 73 lines and the limit is 50. |
+| true-positive | go | `go/GO-FN-001` | toml `toml_test.go:262` `TestToml` | TestToml runs from line 262 to line 393. That is 132 lines and the limit is 50. |
+| true-positive | go | `go/GO-NEST-001` | toml `encode.go:491` `Encoder.eStruct` | The if on line 491 is inside if isEmbed, which is inside the for loop over the struct fields. That is a third level and the limit is two. |
+| true-positive | go | `go/GO-NEST-001` | toml `lex.go:740` `lexMultilineString` | The if on line 740 is inside if lx.peek(), which is inside two nested if lx.accept blocks. That is a fourth level and the limit is two. |
+| true-positive | maintainability | `maintainability/MAINT-NEST-001` | tslib `tslib.es6.js:143` `__generator.step` | The if on line 143 is in the default branch of a switch, inside a try, inside a while loop. That is more than two levels. |
+| true-positive | maintainability | `maintainability/MAINT-NEST-001` | tslib `tslib.es6.js:82` `__esDecorate` | The if on line 82 is inside if (kind === "accessor"), which is inside the for loop over the decorators. That is a third level and the limit is two. |
+| true-positive | maintainability | `maintainability/MAINT-NEST-001` | tslib `tslib.es6.mjs:345` `__disposeResources.next` | if (r.async) is inside if (r.dispose), inside a try, inside a while loop. That is more than two levels. |
+| true-positive | maintainability | `maintainability/MAINT-NEST-001` | tslib `tslib.js:183` `step` | The switch on line 183 is inside a try, which is the body of a while loop. That is a third level and the limit is two. |
+| true-positive | mattpocock | `mattpocock/MP-PARAMS-001` | tslib `tslib.es6.js:371` `__rewriteRelativeImportExtension` | The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four. |
+| true-positive | mattpocock | `mattpocock/MP-PARAMS-001` | tslib `tslib.es6.mjs:370` `__rewriteRelativeImportExtension` | The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four. |
+| true-positive | mattpocock | `mattpocock/MP-PARAMS-001` | tslib `tslib.js:115` `<module>` | The function assigned to __esDecorate takes ctor, descriptorIn, decorators, contextIn, initializers and extraInitializers. That is six inputs and the limit is four. |
+| true-positive | node | `node/NODE-EXEC-001` | tslib `test/runTests.js:45` `results` | spawnSync("npm", ["test"], ...) is a synchronous subprocess call, which is the call this rule names. |
+| true-positive | node | `node/NODE-PREFIX-001` | tslib `test/webpack-modules/webpack.config.js:1` `path` | require('path') loads the builtin without the node: prefix. |
+| true-positive | typescript | `typescript/TS-THROW-001` | tslib `tslib.es6.js:178` `__values` | throw new TypeError(...) is the last statement of export function __values. |
+| true-positive | typescript | `typescript/TS-THROW-001` | tslib `tslib.es6.js:76` `__esDecorate` | The throw is in the addInitializer function expression, which is declared inside export function __esDecorate. |
+| true-positive | typescript | `typescript/TS-THROW-001` | tslib `tslib.es6.mjs:310` `__addDisposableResource` | throw new TypeError("Symbol.asyncDispose is not defined.") is in the body of export function __addDisposableResource. |
+
+## Resolved false positives
+
+Each row is a false-positive label whose site the rules no longer report. These rows are not in any count above.
+
+| Labeled by | Pack | Rule | Location | Note |
+| --- | --- | --- | --- | --- |
+| maintainer | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:1` `<module>` | The comment explains why StorageObject must not inherit from Object. The next line is only the constructor, so the comment does not restate it. |
+| maintainer | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:65` `appendObject` | The comment records why the code assigns false instead of deleting a key. The assignment on the following line does not say that. |
+| maintainer | pstack | `pstack/PS-COMMENT-001` | classnames `dedupe.js:66` `appendObject` | The line is a URL citation. It does not restate classSet[k] = !!object[k]. |
+| maintainer | pstack | `pstack/PS-COMMENT-001` | classnames `index.d.ts:1` `<module>` | LICENSE is MIT is a license banner. It does not restate the types below, and it is not the Copyright line that the allowlist already names. |
+| maintainer | pstack | `pstack/PS-COMMENT-001` | classnames `index.d.ts:15` `<module>` | The JSDoc sentence describes the package. It does not restate the classNames signature on the next line. |
+| maintainer | redis | `redis/REDIS-SCAN-001` | classnames `benchmarks/benchmarks.js:72` `printTable.headers` | Object.keys lists the columns of a benchmark row. It is not the Redis KEYS command. |
+| maintainer | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:100` `<module>` | app.get registers an HTTP route. The call is not a Redis GET of a key. |
+| maintainer | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:119` `<module>` | req.get reads the Referrer header. It is not a Redis GET. |
+| maintainer | redis | `redis/REDIS-KEY-001` | express `examples/auth/index.js:16` `<module>` | app.set stores the Express view engine. It is not a Redis SET of a key. |
+| maintainer | redis | `redis/REDIS-SCAN-001` | express `lib/response.js:578` `keys` | Object.keys copies header names. It is not a Redis KEYS scan. |
+| maintainer | redis | `redis/REDIS-SCAN-001` | express `test/app.router.js:308` `keys` | Object.keys(req.params) reads route parameters in a test. It is not Redis KEYS. |
+
 ## Limits
 
-- Sample precision is true positives divided by the maintainer-labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.
-- A pack with no matching maintainer label is unmeasured. This report does not give it a precision.
+- Sample precision is true positives divided by the labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.
+- A pack with no matching label is unmeasured. This report does not give it a precision.
+- A sample of five or six findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings match the rule.
+- Agent labels were written by an AI coding agent. They are not an independent human review, and the maintainer has not confirmed them. The Labeled by column separates them from maintainer labels.
+- A resolved false positive says the rule no longer reports that site. It is not evidence about the findings that remain.
 - A label says whether the finding matches the rule's stated condition. It is not a judgment that a project should adopt the rule.
 - The corpus is the pinned commits in the manifest. It is not a random sample of public code.
 - The audit records static matches in the checked-out tree. It is not the no-new ratchet used on an edit, and it does not run fitness, diff, or placement checks.

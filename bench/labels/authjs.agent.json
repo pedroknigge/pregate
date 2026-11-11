@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "authjs",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/auth/index.js",
+      "line": 25,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "secret: 'shhhh, very secret' is an option of express-session. The rule's condition is a literal secret in the NextAuth config, and this file has none."
+    },
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/cookie-sessions/index.js",
+      "line": 13,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "The literal secret is passed to cookieSession, the cookie-session middleware. It is not a NextAuth config."
+    },
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/mvc/index.js",
+      "line": 43,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "secret: 'some secret here' configures express-session. No NextAuth config is in this file."
+    },
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/session/index.js",
+      "line": 19,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "secret: 'keyboard cat' is an express-session option. The literal is hardcoded, but the object is not the NextAuth config the rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "authjs",
+      "rule": "authjs/AUTH-SECRET-001",
+      "path": "examples/session/redis.js",
+      "line": 23,
+      "symbol": "secret",
+      "verdict": "false-positive",
+      "note": "secret: 'keyboard cat' sits beside store: new RedisStore in an express-session call. It is not a NextAuth config."
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "go",
+  "items": [
+    {
+      "corpus": "errors",
+      "pack": "go",
+      "rule": "go/GO-FN-001",
+      "path": "format_test.go",
+      "line": 161,
+      "symbol": "TestFormatWithStack",
+      "verdict": "true-positive",
+      "note": "TestFormatWithStack runs from line 161 to line 228. That is 68 lines and the limit is 50."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-FN-001",
+      "path": "decode.go",
+      "line": 231,
+      "symbol": "MetaData.unify",
+      "verdict": "true-positive",
+      "note": "unify runs from line 231 to line 303. That is 73 lines and the limit is 50."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-FN-001",
+      "path": "toml_test.go",
+      "line": 262,
+      "symbol": "TestToml",
+      "verdict": "true-positive",
+      "note": "TestToml runs from line 262 to line 393. That is 132 lines and the limit is 50."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "encode.go",
+      "line": 491,
+      "symbol": "Encoder.eStruct",
+      "verdict": "true-positive",
+      "note": "The if on line 491 is inside if isEmbed, which is inside the for loop over the struct fields. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "lex.go",
+      "line": 740,
+      "symbol": "lexMultilineString",
+      "verdict": "true-positive",
+      "note": "The if on line 740 is inside if lx.peek(), which is inside two nested if lx.accept blocks. That is a fourth level and the limit is two."
+    }
+  ]
+}

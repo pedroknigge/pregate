@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "maintainability",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "examples/route-map/index.js",
+      "line": 24,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "if (verbose) is inside a switch, which is inside a for-in loop. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.es6.js",
+      "line": 143,
+      "symbol": "__generator.step",
+      "verdict": "true-positive",
+      "note": "The if on line 143 is in the default branch of a switch, inside a try, inside a while loop. That is more than two levels."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.es6.js",
+      "line": 82,
+      "symbol": "__esDecorate",
+      "verdict": "true-positive",
+      "note": "The if on line 82 is inside if (kind === \"accessor\"), which is inside the for loop over the decorators. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.es6.mjs",
+      "line": 345,
+      "symbol": "__disposeResources.next",
+      "verdict": "true-positive",
+      "note": "if (r.async) is inside if (r.dispose), inside a try, inside a while loop. That is more than two levels."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.js",
+      "line": 183,
+      "symbol": "step",
+      "verdict": "true-positive",
+      "note": "The switch on line 183 is inside a try, which is the body of a while loop. That is a third level and the limit is two."
+    }
+  ]
+}

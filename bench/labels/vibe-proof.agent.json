@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "vibe-proof",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "benchmarks/benchmarks.js",
+      "line": 46,
+      "symbol": "runBenchmarks",
+      "verdict": "true-positive",
+      "note": "console.log prints the benchmark name. The file is a benchmark script, not a test file, so the stated condition holds."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/error/index.js",
+      "line": 52,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "console.log('Express started on port 3000') is a console.log call in an example server, not in a test file."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/route-map/index.js",
+      "line": 24,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "if (verbose) console.log('%s %s', key, route) is a console.log call outside a test file. The verbose guard does not change the call."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/static-files/index.js",
+      "line": 43,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "console.log('  GET /css/style.css') is a console.log call in an example server, not in a test file."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "script/load-jsx.js",
+      "line": 98,
+      "symbol": "createLoader.transformSource",
+      "verdict": "true-positive",
+      "note": "console.log(warning.text) prints a build warning from a loader script. The file is not a test file."
+    }
+  ]
+}

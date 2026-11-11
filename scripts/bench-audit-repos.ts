@@ -9,7 +9,7 @@ import { compileBinary, hostTarget } from "./build.ts";
 import { measurePrecision, parsePrecisionArgs, writeReport } from "./pack-audit.ts";
 
 // Two measurements. With --precision, audit every pack on the pinned corpus and
-// compute sample precision for maintainer-labeled packs only.
+// compute sample precision for labeled packs only (maintainer and agent labels are counted apart).
 // Without it, time `pregate audit` on local checkouts. No project dependencies,
 // application code, verifiers or network calls are run in that timing mode.
 const ROOT = join(import.meta.dir, "..");

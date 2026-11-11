@@ -1,4 +1,5 @@
-// Audit every pack on a pinned corpus and attach maintainer-labeled sample precision.
+// Audit every pack on a pinned corpus and attach labeled sample precision. A label names its
+// labeler: the maintainer or an agent. An agent label must be in the stride sample of its pack.
 // A failed offline fetch with --skip-offline returns null and writes nothing.
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -10,15 +11,15 @@ import { readTree } from "../src/disk.ts";
 import type { Files, Host, Lock, Preset } from "../src/types.ts";
 import { VERSIONS } from "../src/versions.ts";
 import {
-  applyLabels, assertUniqueLabels, LIMITS, parseLabelFile, renderPrecision, siteKey,
-  type CorpusRow, type FindingSite, type PrecisionReport, type SampleLabel,
+  applyLabels, assertAgentSample, assertUniqueLabels, labelCounts, LIMITS, parseLabelFile, renderPrecision, siteKey, strideSample,
+  type CorpusRow, type FindingSite, type LabeledSample, type PrecisionReport,
 } from "./precision.ts";
 
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|svelte|py|go|rs)$/i;
 const CONFIG = /(^|\/)(package\.json|tsconfig.*\.json)$/;
 const EXCLUDE = new Set(["node_modules", "vendor", "dist", "build", "coverage", ".next", "target", ".git"]);
 const MAX_SOURCE_BYTES = 32 * 1024 * 1024;
-const USAGE = "usage: bench-audit-repos.ts --precision [--corpus <file>] [--labels <dir>] [--packs <dir>] [--catalog <dir>] [--cache <dir>] [--out <file>] [--markdown <file>] [--findings <file>] [--skip-offline]";
+const USAGE = "usage: bench-audit-repos.ts --precision [--corpus <file>] [--labels <dir>] [--packs <dir>] [--catalog <dir>] [--cache <dir>] [--out <file>] [--markdown <file>] [--findings <file>] [--sample <file>] [--skip-offline]";
 
 interface Options {
   corpus: string;
@@ -29,6 +30,7 @@ interface Options {
   out: string | null;
   markdown: string | null;
   findings: string | null;
+  sample: string | null;
   skipOffline: boolean;
 }
 
@@ -60,21 +62,31 @@ export async function measurePrecision(options: Options): Promise<PrecisionRepor
   const prepared = prepareAll(options.packs, options.catalog);
   const labels = loadLabels(options.labels);
   const found = distinct(repos.flatMap((repo) => findingsFor(repo, prepared)));
-  const applied = applyLabels(prepared.map((pack) => pack.ns), found, labels);
-  if (applied.unmatched.length) {
-    const sample = applied.unmatched.slice(0, 8).map((label) => `${label.pack} ${label.path}:${label.line}`).join("; ");
-    throw new Error(`${applied.unmatched.length} labels did not match a finding: ${sample}`);
-  }
-  const report = reportOf(repos, applied.packs, applied.matched);
   if (options.findings) writeFileSync(options.findings, stableJson(found));
-  return report;
+  if (options.sample) writeFileSync(options.sample, stableJson(agentSample(found)));
+  const applied = applyLabels(prepared.map((pack) => pack.ns), found, labels);
+  const lost = applied.unmatched.filter((label) => label.verdict === "true-positive");
+  if (lost.length) {
+    const sample = lost.slice(0, 8).map((label) => `${label.pack} ${label.path}:${label.line}`).join("; ");
+    throw new Error(`${lost.length} labels did not match a finding: ${sample}`);
+  }
+  assertAgentSample(found, applied.matched);
+  const resolved = applied.unmatched.filter((label) => label.verdict === "false-positive");
+  return reportOf(repos, applied.packs, applied.matched, resolved);
+}
+
+// The sites an agent may label, pack by pack, in the stable order of the findings.
+function agentSample(found: FindingSite[]): FindingSite[] {
+  const byPack = new Map<string, FindingSite[]>();
+  for (const site of found) byPack.set(site.pack, [...(byPack.get(site.pack) ?? []), site]);
+  return [...byPack.values()].flatMap((rows) => strideSample(rows)).sort(bySite);
 }
 
 export function parsePrecisionArgs(argv: string[], root: string): Options {
   const options: Options = {
     corpus: resolve(root, "bench/corpus.json"), labels: resolve(root, "bench/labels"),
     packs: resolve(root, "packs"), catalog: resolve(root, "catalog"), cache: resolve(root, ".cache/precision"),
-    out: null, markdown: null, findings: null, skipOffline: false,
+    out: null, markdown: null, findings: null, sample: null, skipOffline: false,
   };
   const args = [...argv];
   while (args.length) takePrecision(options, args, root);
@@ -88,7 +100,8 @@ export function writeReport(report: PrecisionReport, options: Options): void {
   else process.stdout.write(json);
   if (options.markdown) writeFileSync(options.markdown, markdown);
   const measured = report.packs.filter((pack) => pack.precision !== null).length;
-  console.error(`precision: ${report.packs.length} packs, ${report.sample.length} maintainer labels, ${measured} packs with sample precision`);
+  const counts = report.labels;
+  console.error(`precision: ${report.packs.length} packs, ${counts.maintainer} maintainer labels, ${counts.agent} agent labels, ${counts.resolved} resolved false positives, ${measured} packs with sample precision`);
 }
 
 function takePrecision(options: Options, args: string[], root: string): void {
@@ -106,14 +119,14 @@ function takePrecision(options: Options, args: string[], root: string): void {
   else if (flag === "--out") options.out = path;
   else if (flag === "--markdown") options.markdown = path;
   else if (flag === "--findings") options.findings = path;
+  else if (flag === "--sample") options.sample = path;
   else throw new Error(USAGE);
 }
 
-function reportOf(repos: Loaded[], packs: PrecisionReport["packs"], sample: SampleLabel[]): PrecisionReport {
-  const labeler = sample.length ? "maintainer" : null;
+function reportOf(repos: Loaded[], packs: PrecisionReport["packs"], sample: LabeledSample[], resolved: LabeledSample[]): PrecisionReport {
   return {
-    schemaVersion: 1, engine: VERSIONS.engine, core: VERSIONS.core, labeler,
-    corpus: repos.map(corpusRow), packs, sample: [...sample].sort(bySite), limits: LIMITS,
+    schemaVersion: 2, engine: VERSIONS.engine, core: VERSIONS.core, labels: labelCounts(sample, resolved),
+    corpus: repos.map(corpusRow), packs, sample: [...sample].sort(bySite), resolved: [...resolved].sort(bySite), limits: LIMITS,
   };
 }
 
@@ -214,7 +227,7 @@ function packDirs(root: string): string[] {
     .sort((a, b) => basename(a) < basename(b) ? -1 : 1);
 }
 
-function loadLabels(dir: string): SampleLabel[] {
+function loadLabels(dir: string): LabeledSample[] {
   if (!existsSync(dir)) return [];
   const labels = readdirSync(dir).filter((name) => name.endsWith(".json")).sort()
     .flatMap((name) => parseLabelFile(readFileSync(resolve(dir, name), "utf8"), name));
