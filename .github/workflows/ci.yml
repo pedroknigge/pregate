@@ -35,7 +35,15 @@ jobs:
         with:
           bun-version-file: .bun-version
       - name: Install test shells
-        run: sudo apt-get update && sudo apt-get install -y zsh
+        # The image may already carry zsh. When it does not, the package index comes from a mirror
+        # that has failed to resolve for more than twenty minutes at a time; retry before failing.
+        run: |
+          if command -v zsh >/dev/null; then exit 0; fi
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get update && sudo apt-get install -y zsh; then break; fi
+            sleep 30
+          done
+          command -v zsh
       - name: Isolate runtime homes
         run: |
           root=/private/tmp/claude-501/pregate-ci
