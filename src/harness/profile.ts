@@ -25,3 +25,9 @@ export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId {
   if (env.grokEvent !== null && Object.hasOwn(p, "hookEventName")) return "grok";
   return Object.hasOwn(p, "cursor_version") ? "cursor" : flag;
 }
+
+// Whether a payload names a subagent event, in the snake case of Cursor or the camel case of Grok.
+export function subagentEvent(raw: string): boolean {
+  const p = parse(raw);
+  return p !== null && [p.hook_event_name, p.hookEventName].some((name) => typeof name === "string" && /^subagent/i.test(name));
+}

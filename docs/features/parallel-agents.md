@@ -51,6 +51,30 @@ SubagentStop, repaired the file and completed. Captured native hook input/output
 and state events distinguish the child's deny and successful completion. This
 does not establish the interactive trust UI or native Windows harness behavior.
 
+## Subagents start with the project's rules
+
+A Claude Code subagent starts with the task its parent wrote and nothing else. The
+context that the session received at its start does not reach it, so a subagent learned
+of a rule only when a write was denied. `SubagentStart` now gives each subagent the same
+briefing the session gets: the active preset, the checks, the layers and how to inspect
+the contract. The briefing informs. It grants nothing, and every write of the subagent
+is still checked.
+
+The subagent gets no briefing in three cases: the project has no contract, the contract
+has a problem (the session already has that notice), or the project pins an engine of
+another version than the installed one.
+
+`pregate update` registers `SubagentStart`; `pregate doctor` reports an older
+registration. Two live sessions with Claude Code 2.1.322 checked this on 2026-11-11.
+Without a reply to the event, a subagent reported no injected context. With the project
+registration (`scripts/e2e-real.ts --project-hooks-only claude-code`), a subagent quoted
+the first line of the briefing, and its task did not carry that line.
+
+Cursor and Grok read the same settings file. Whether they dispatch this event from it
+is not established. If one does, the command exits 0 with no output, and that harness
+behaves as before. Codex and Antigravity have their own registrations; this Claude
+Code event does not alter them.
+
 ## Branch switches, pulls and merges
 
 Checking out or merging a branch that already existed when the session started does

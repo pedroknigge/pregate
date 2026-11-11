@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
-import { HARNESSES, profile } from "./harness/profile.ts";
+import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./inertia.ts";
@@ -39,18 +39,20 @@ async function main(argv: string[]): Promise<number> {
     && flag !== undefined && Object.hasOwn(HARNESSES, flag);
   const harness = profile(ours ? flag as HarnessId : "claude-code", raw, env);
   if (ours && harness === "cursor" && (kind === "stop" || kind === "session-start") && flag === "claude-code" && await nativeCursorOwned(kind)) return 0;
+  // The shared registration's SubagentStart is Claude Code's: another harness that reads that file
+  // and dispatches the event gets no reply.
+  if (ours && flag === "claude-code" && harness !== "claude-code" && kind === "session-start" && subagentEvent(raw)) return 0;
   const adapter = HARNESSES[harness];
   const decoded = ours && KINDS.has(kind) ? adapter.decode(kind as HookKind, raw, env) : refused(kind);
   const e = input.invalid ? inputRejection(decoded, kind) : decoded;
-  const subagent = harness === "codex" && e !== null && e.kind === "session-start" && (e.session?.agentId ?? null) !== null;
-  if (subagent && inert(e)) return 0;
-  if (e === null || inert(e)) return dormant(e, adapter);
+  const subagent = e !== null && e.kind === "session-start" && (e.session?.agentId ?? null) !== null;
+  if (e === null || inert(e)) return subagent ? 0 : dormant(e, adapter);
   checkpoint("admission");
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
-  // Older pinned engines keep their parent Stop; they may not understand either child event.
+  // Older pinned engines retain parent Stop; they may not understand the new child events.
   const childLifecycle = harness === "codex" && e.kind !== "pre-edit" && e.kind !== "pre-command" && e.session?.agentId != null;
-  if (pin !== null && childLifecycle) return 0;
+  if (pin !== null && (subagent || childLifecycle)) return 0;
   if (pin !== null) {
     writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;

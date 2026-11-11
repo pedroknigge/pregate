@@ -201,7 +201,7 @@ pregate project hooks --harness claude-code --preview  # review, then the human 
 pregate enable                                         # local consent, by the human
 ```
 
-- **What it writes.** PreToolUse (the same tool matcher as the global registration), Stop, SubagentStop and SessionStart. Each command is `"${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate" hook <event> --harness claude-code` behind a test that the launcher is there. It holds no path of this machine, so it can be committed.
+- **What it writes.** PreToolUse (the same tool matcher as the global registration), Stop, SubagentStop, SessionStart and SubagentStart. Each command is `"${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate" hook <event> --harness claude-code` behind a test that the launcher is there. It holds no path of this machine, so it can be committed.
 - **What it keeps.** Other hooks, `permissions` and unknown keys stay. Only the groups that run the project launcher are replaced. A file that already holds the registration is not rewritten: a second run changes no byte. The first write re-serializes the file with two-space indentation, so the formatting of the other entries can change; their content does not.
 - **Review.** The file is a reviewed change. `--preview` prepares the review and a human approves it, as for a contract proposal. Under the user's home, the approval rewrites this project's record in `<DATA>/contract-approvals/`. Nothing else there is created or changed.
 - **Consent is separate.** The registration does not enable the project. Without `pregate enable` in the worktree the hooks run and allow. Claude Code's workspace trust is a third, independent step that Claude Code asks for.

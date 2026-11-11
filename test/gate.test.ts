@@ -342,6 +342,24 @@ test("a literal cat call reads the installed skill file, alone or in a sequence,
   for (const file of skills.filter(f => !f.startsWith(linked))) expect(readFileSync(file, "utf8")).toBe("name: pregate\n");
 });
 
+test("Claude Code SubagentStart payloads decode as the subagent's session start and reply under that event name", () => {
+  const env = { grokEvent: null, projectDir: null, remote: false };
+  const base = { session_id: "s", cwd: "/repo", transcript_path: "/t.jsonl", prompt_id: "p" };
+  expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" }), env))
+    .toMatchObject({ kind: "session-start", cwd: "/repo", session: { id: "s", agentId: "a1", interactive: false } });
+  expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart" }), env)).toMatchObject({ cause: "payload-unrecognized" });
+  expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SessionStart", agent_id: "a1" }), env)).toMatchObject({ cause: "payload-unrecognized" });
+  expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SessionStart", source: "startup" }), env)).toMatchObject({ kind: "session-start", session: { agentId: null } });
+  const briefing = { verdict: "none", full: "PREGATE is active", compact: "", notice: "for the human", halt: false } as unknown as Parameters<typeof HARNESSES["claude-code"]["encode"]>[1];
+  const reply = HARNESSES["claude-code"].encode("session-start", briefing, true);
+  expect(reply.exit).toBe(0);
+  expect(JSON.parse(reply.stdout)).toEqual({ hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: "PREGATE is active" } });
+  // A problem with the contract is the session's notice, not a subagent's context.
+  expect(HARNESSES["claude-code"].encode("session-start", { ...briefing, verdict: "deny" } as typeof briefing, true)).toEqual({ stdout: "", stderr: "", exit: 0 });
+  expect(JSON.parse(HARNESSES["claude-code"].encode("session-start", briefing).stdout)).toEqual({
+    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "PREGATE is active" }, systemMessage: "for the human" });
+});
+
 function change(root: string, rel: string, edit: Edit, s = session(), from: string | null = null): ProposedChange {
   return { session: s, callId: "one-call", tool: "Write", path: join(root, rel), edit, from };
 }

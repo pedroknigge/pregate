@@ -466,6 +466,23 @@ async function projectHooksScenario(w: World): Promise<undefined> {
     [r.trace.includes(RULE), "rule never reached the model"],
   ]);
   report("MEASURE", "claude-code project hooks: workspace trust", "accepted in ~/.claude.json before a headless run; the interactive trust prompt was not exercised");
+  // A subagent starts without the session's context. The SubagentStart registration has to put the
+  // briefing in the subagent's own context: its reply is read from the tool result, and the task the
+  // parent gave it must not carry the answer.
+  const task = "Do not use any tool. Reply with the exact first line of your context that begins with 'PREGATE is active', or with NONE if no such line is in your context.";
+  const s = await agent(w, { h: "claude-code", label: "claude-code-subagent-briefing", repo },
+    `Start one general-purpose subagent with the Agent tool. Give it exactly this task and no other text:\n${quoted(task)}\nAfter it returns, print its reply verbatim and stop.`);
+  const blocks = s.out.stdout.split("\n").flatMap((line) => {
+    try { return ((JSON.parse(line) as { message?: { content?: unknown } }).message?.content ?? []) as { type?: string; name?: string; input?: { prompt?: string }; content?: unknown }[]; }
+    catch { return []; }
+  }).filter((b) => typeof b === "object" && b !== null);
+  const given = blocks.filter((b) => b.type === "tool_use" && typeof b.input?.prompt === "string").map((b) => b.input!.prompt!);
+  const replies = blocks.filter((b) => b.type === "tool_result").map((b) => JSON.stringify(b.content));
+  check("claude-code project hooks: subagent briefing", [
+    [given.length > 0, "no subagent was started"],
+    [!given.some((text) => text.includes("e2e-real")), "the parent gave the subagent the answer"],
+    [replies.some((text) => text.includes("PREGATE is active: preset e2e-real")), "the subagent's reply does not quote the briefing: SubagentStart did not reach it"],
+  ]);
   return undefined;
 }
 
