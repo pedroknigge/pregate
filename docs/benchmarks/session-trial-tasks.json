@@ -1,0 +1,83 @@
+{
+  "about": "The tasks of the session trial (scripts/session-trial.ts). Each prompt is given to the agent CLI exactly as written. `verify` is a shell command run in the repository after the session; it needs bun, no network and no dependency install, and exits 0 when the behavior that the prompt names is there. `verify` is null where the module cannot be loaded without installed dependencies; the page then reports the task as not verified.",
+  "selection": "The project wrote the tasks, with its coding assistant, and committed them before the first session ran. Each task is a small feature or bug fix written from the public API of the repository at the pinned commit. No task was tried against the gate before it was committed, and no prompt names Pregate, a rule or a code style. The repositories come from the corpus of the precision report, where they are pinned by commit: two libraries without runtime dependencies, so that a `verify` command can load the changed module, and one larger framework, whose tasks have no `verify` command. The set is not a sample of what developers ask agents to do.",
+  "repositories": [
+    { "id": "ms", "url": "https://github.com/vercel/ms.git", "commit": "4ff48cec099f0514c3e9bbca18706c9c21122bfb" },
+    { "id": "classnames", "url": "https://github.com/JedWatson/classnames.git", "commit": "abd6314010de053a09df5acc53e474ff65cea470" },
+    { "id": "express", "url": "https://github.com/expressjs/express.git", "commit": "1c6f1b0fe4000977b9a7b4f34097e4d527dd9824" }
+  ],
+  "tasks": [
+    {
+      "id": "ms-parse-compound",
+      "repo": "ms",
+      "prompt": "Add an exported function `parseCompound(str)` to `src/index.ts`. It parses a duration made of several parts separated by spaces, such as `1h 30m` or `2d 4h 15m`, and returns the total in milliseconds. Each part uses the same syntax that `parse` accepts. It returns `NaN` when any part cannot be parsed. Add tests for it next to the existing tests.",
+      "verify": "bun -e 'import { parseCompound } from \"./src/index.ts\"; const ok = parseCompound(\"1h 30m\") === 5400000 && parseCompound(\"2d 4h 15m\") === 188100000 && Number.isNaN(parseCompound(\"1h nope\")); process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "ms-trim-whitespace",
+      "repo": "ms",
+      "prompt": "`parse(' 1h ')` returns `NaN` because of the spaces around the value. Fix `parse` in `src/index.ts` so that leading and trailing whitespace is ignored: `parse(' 1h ')` returns `3600000`. Input that is invalid for another reason still returns `NaN`. Add tests for the fix.",
+      "verify": "bun -e 'import { parse } from \"./src/index.ts\"; const ok = parse(\" 1h \") === 3600000 && parse(\"1h\") === 3600000 && Number.isNaN(parse(\" 1 h h \")); process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "ms-format-decimals",
+      "repo": "ms",
+      "prompt": "Add an optional `decimals` option to `format` in `src/index.ts` (it also applies when `ms` is called with a number). It is the maximum number of decimal places in the formatted value: `format(5400000, { decimals: 1 })` returns `1.5h`, and `format(5400000, { long: true, decimals: 1 })` returns `1.5 hours`. Without the option the result is unchanged: `format(5400000)` still returns `2h`. Add tests.",
+      "verify": "bun -e 'import { format } from \"./src/index.ts\"; const ok = format(5400000, { decimals: 1 }) === \"1.5h\" && format(5400000, { long: true, decimals: 1 }) === \"1.5 hours\" && format(5400000) === \"2h\"; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "ms-week-aliases",
+      "repo": "ms",
+      "prompt": "Add `wk` and `wks` as unit names for weeks in `src/index.ts`, next to `w`, `week` and `weeks`: `parse('2wk')` returns `1209600000` and `parse('1 wks')` returns `604800000`. Like the other units they are case-insensitive, and the `StringValue` type accepts them. Add tests.",
+      "verify": "bun -e 'import { ms, parse } from \"./src/index.ts\"; const ok = parse(\"2wk\") === 1209600000 && parse(\"1 wks\") === 604800000 && ms(\"3WK\") === 1814400000; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "classnames-number-arguments",
+      "repo": "classnames",
+      "prompt": "`classNames('a', 1, 0, 5)` returns `a`: number arguments are ignored. Change `index.js` so that a non-zero number is included as a class name and the call returns `a 1 5`. `0` and `NaN` stay ignored. Update the tests, and the type declarations if they need it.",
+      "verify": "bun -e 'import classNames from \"./index.js\"; const ok = classNames(\"a\", 1, 0, 5) === \"a 1 5\" && classNames(NaN, \"b\") === \"b\"; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "classnames-prefix",
+      "repo": "classnames",
+      "prompt": "Add a new module `prefix.js` with a default export `withPrefix(prefix)`. It returns a function that takes the same arguments as `classNames` and puts the prefix before every class name of the result: `withPrefix('btn-')('a', { b: true, c: false }, ['d'])` returns `btn-a btn-b btn-d`. Add a type declaration file and tests, as the existing modules have.",
+      "verify": "bun -e 'import withPrefix from \"./prefix.js\"; const ok = withPrefix(\"btn-\")(\"a\", { b: true, c: false }, [\"d\"]) === \"btn-a btn-b btn-d\"; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "classnames-normalize-whitespace",
+      "repo": "classnames",
+      "prompt": "`classNames(' a  b ', 'c')` returns a string that keeps the extra spaces of its first argument. Fix `index.js` so that whitespace inside string arguments is normalized: the result has single spaces between class names and no leading or trailing space, so the call returns `a b c`. Tabs and newlines count as whitespace. Add tests.",
+      "verify": "bun -e 'import classNames from \"./index.js\"; const ok = classNames(\" a  b \", \"c\") === \"a b c\" && classNames(\"a\\tb\") === \"a b\"; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "classnames-map-and-set",
+      "repo": "classnames",
+      "prompt": "Support `Set` and `Map` arguments in `index.js`. A `Set` contributes each of its members as if they were passed in an array. A `Map` contributes each key whose value is truthy. `classNames(new Set(['a', 'b']), new Map([['c', true], ['d', false]]), 'e')` returns `a b c e`. Update the type declarations and add tests.",
+      "verify": "bun -e 'import classNames from \"./index.js\"; const ok = classNames(new Set([\"a\", \"b\"]), new Map([[\"c\", true], [\"d\", false]]), \"e\") === \"a b c e\"; process.exit(ok ? 0 : 1)'"
+    },
+    {
+      "id": "express-res-no-store",
+      "repo": "express",
+      "prompt": "Add a `res.noStore()` method in `lib/response.js`. It sets the `Cache-Control` header to `no-store` and returns the response, so that calls can be chained: `res.noStore().send('ok')`. Document it with a comment like the other response methods and add a test file `test/res.noStore.js` like the existing response tests.",
+      "verify": null
+    },
+    {
+      "id": "express-req-bearer-token",
+      "repo": "express",
+      "prompt": "Add a `req.bearerToken` getter in `lib/request.js`. It returns the token of an `Authorization: Bearer <token>` request header, with the scheme matched case-insensitively, and `undefined` when the header is missing or uses another scheme. Add a test file `test/req.bearerToken.js` like the existing request tests.",
+      "verify": null
+    },
+    {
+      "id": "express-res-links-attributes",
+      "repo": "express",
+      "prompt": "Extend `res.links` in `lib/response.js` so that a link can carry extra attributes. A value may be an object with a `url` and any other string properties: `res.links({ preload: { url: '/app.woff2', as: 'font' } })` adds `</app.woff2>; rel=\"preload\"; as=\"font\"` to the `Link` header. String values and arrays keep working, and an array may mix strings and objects. Add tests to `test/res.links.js`.",
+      "verify": null
+    },
+    {
+      "id": "express-req-is-json",
+      "repo": "express",
+      "prompt": "Add a `req.isJson` getter in `lib/request.js`. It is `true` when the request has a body whose content type is `application/json` or any type with a `+json` suffix, and `false` otherwise, including when the request has no body. Add a test file `test/req.isJson.js` like the existing request tests.",
+      "verify": null
+    }
+  ]
+}

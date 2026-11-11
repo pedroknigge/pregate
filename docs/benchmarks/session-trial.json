@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "run": null,
+  "selection": "The project wrote the tasks, with its coding assistant, and committed them before the first session ran. Each task is a small feature or bug fix written from the public API of the repository at the pinned commit. No task was tried against the gate before it was committed, and no prompt names Pregate, a rule or a code style. The repositories come from the corpus of the precision report, where they are pinned by commit: two libraries without runtime dependencies, so that a `verify` command can load the changed module, and one larger framework, whose tasks have no `verify` command. The set is not a sample of what developers ask agents to do.",
+  "sessions": [],
+  "denials": [],
+  "labelsForAnotherRun": 0
+}
