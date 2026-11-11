@@ -142,7 +142,7 @@ application code there or edit lock bytes.
 
 ## Start and compose a project
 
-The guided coordinator is included in 0.0.6.
+The guided coordinator is included in 0.0.7.
 Check installed help before relying on a flag. The human
 can run `pregate` in an interactive terminal or `! pregate guide` where the harness
 provides one. Bare no-argument input redirected by a hook retains hook-auto;
@@ -581,7 +581,7 @@ never type. Full library coverage remains incomplete.
 
 For an existing project, inspect installed versus project/lock versions rather
 than assuming `--version` identifies the engine used by every hook. Unified
-migration forms are in 0.0.6; check `--help` when the installed engine is older.
+migration forms are in 0.0.7; check `--help` when the installed engine is older.
 Prepare `update --project --preview` or
 `pack update --all --preview`: engine, core and every registered pack enter one
 candidate and one digest-bound human approval. A single-pack update uses the

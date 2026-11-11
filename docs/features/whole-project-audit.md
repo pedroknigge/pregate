@@ -110,7 +110,7 @@ audit after the verified change. `check --ratchet --base <sha>` continues to
 prevent new debt; `audit` shows existing debt left to repair. Use
 `pregate explain <rule>` to understand each selected rule.
 
-0.0.6 implements content-based incremental reuse and
+0.0.7 implements content-based incremental reuse and
 checkpoint resume and streaming output described below. Parallel workers and model
 classification remain pending in the [bulk-audit plan](maintainability-and-bulk-audit.md).
 Timing is reported for the actual invocation; large-project speed claims need

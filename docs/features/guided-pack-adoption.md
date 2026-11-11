@@ -1,6 +1,6 @@
 # Guided pack adoption and one reviewed batch
 
-Included in 0.0.6. `scan` prepares
+Included in 0.0.7. `scan` prepares
 advisory recommendations and `pack apply` validates all selected sources and
 methodologies as one proposal. The human reviews one digest; no member activates
 before approval. `pack restore` restores committed Git pins without consent or

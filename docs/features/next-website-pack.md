@@ -1,6 +1,6 @@
 # Next.js website pack
 
-Included in 0.0.6. The optional preview pack
+Included in 0.0.7. The optional preview pack
 contains 54 distinct `NEXT-WEBSITE-NNN` project evidence gates through
 `next-website/readiness`. No deployment, browser performance or complete Next.js product
 coverage is established merely by selecting the pack.
