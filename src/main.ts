@@ -39,18 +39,24 @@ async function main(argv: string[]): Promise<number> {
     && flag !== undefined && Object.hasOwn(HARNESSES, flag);
   const harness = profile(ours ? flag as HarnessId : "claude-code", raw, env);
   if (ours && harness === "cursor" && (kind === "stop" || kind === "session-start") && flag === "claude-code" && await nativeCursorOwned(kind)) return 0;
+  // The shared registration's SubagentStart is Claude Code's: another harness that reads that file
+  // and dispatches the event gets no reply.
+  if (ours && flag === "claude-code" && harness !== "claude-code" && kind === "session-start" && subagentEvent(raw)) return 0;
   const adapter = HARNESSES[harness];
   const decoded = ours && KINDS.has(kind) ? adapter.decode(kind as HookKind, raw, env) : refused(kind);
   const e = input.invalid ? inputRejection(decoded, kind) : decoded;
-  if (e === null || inert(e)) return dormant(e, adapter);
+  const subagent = e !== null && e.kind === "session-start" && (e.session?.agentId ?? null) !== null;
+  if (e === null || inert(e)) return subagent ? 0 : dormant(e, adapter);
   checkpoint("admission");
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
+  // A pinned engine of another version may not know the event: the subagent starts without a briefing.
+  if (pin !== null && subagent) return 0;
   if (pin !== null) {
     writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;
   }
-  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut)) : adapter.encode(e.kind, await dispatch(e, gate));
+  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut), subagent) : adapter.encode(e.kind, await dispatch(e, gate), subagent);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -96,6 +102,15 @@ function cursorHooksOwned(owned: (text: string, data: string) => boolean): boole
   try {
     const text = readFileSync(join(homeDir(), ".cursor/hooks.json"), "utf8");
     return owned(text, dirname(dirname(process.execPath)));
+  } catch {
+    return false;
+  }
+}
+
+function subagentEvent(raw: string): boolean {
+  try {
+    const p = JSON.parse(raw) as Record<string, unknown> | null;
+    return typeof p === "object" && p !== null && [p.hook_event_name, p.hookEventName].some((name) => typeof name === "string" && /^subagent/i.test(name));
   } catch {
     return false;
   }

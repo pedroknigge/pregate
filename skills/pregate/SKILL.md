@@ -499,7 +499,8 @@ empty search retains uncertainty and does not authorize another create.
 
 Subagents and isolated worktrees need no setup. A worktree of a consenting repository
 is protected by its own committed contract; do not ask the human to enable it again.
-In Claude Code each subagent is checked on its own files at SubagentStop, and the
+In Claude Code each subagent gets the project's briefing when it starts, so do not
+repeat the rules in the task you give it. Each subagent is checked on its own files at SubagentStop, and the
 parent's Stop leaves out files a running subagent is editing. Checking out or merging a
 branch that existed before the session is not charged to it; commits made or pulled
 during the session still are (adopt them with a reviewed session rebase). One proposal is pending per
