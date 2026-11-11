@@ -14,7 +14,7 @@ import { blank, NO_COMMAND } from "./product.ts";
 // `hook auto` protocol (§13.7). There is no
 // last-resort try/catch: anything unforeseen exits 1 and the launcher emits the event's deny (A6).
 
-const KINDS: ReadonlySet<string> = new Set<HookKind>(["pre", "stop", "session-start"]);
+const KINDS: ReadonlySet<string> = new Set<HookKind>(["pre", "stop", "session-start", "post-invocation"]);
 type Gate = typeof import("./gate.ts");
 
 async function main(argv: string[]): Promise<number> {
@@ -108,7 +108,8 @@ function cursorHooksOwned(owned: (text: string, data: string) => boolean): boole
 }
 
 function refused(kind: string): Rejected {
-  return { cause: "payload-unrecognized", kind: kind === "stop" || kind === "session-start" ? kind : "pre-edit", reentry: false, session: null, dirs: [] };
+  const mapped = kind === "stop" || kind === "session-start" || kind === "post-invocation" ? kind : "pre-edit";
+  return { cause: "payload-unrecognized", kind: mapped, reentry: false, session: null, dirs: [] };
 }
 
 function inputRejection(e: HookEvent | Rejected | null, kind: string): Rejected {
@@ -130,6 +131,7 @@ function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolea
 function dispatch(e: HookEvent, gate: Gate): Decision | Promise<Decision> {
   switch (e.kind) {
     case "session-start": return gate.sessionStart(e);
+    case "post-invocation": return gate.onPostInvocation(e);
     case "pre-edit": return gate.onPreEdit(e.changes);
     case "pre-command": return gate.onPreCommand(e.command);
     case "stop": return gate.onStop(e);

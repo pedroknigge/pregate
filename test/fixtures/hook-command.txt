@@ -7,3 +7,4 @@ stop agy f='/home/user/.local/share/pregate/bin/pregate'; [ -x "$f" ] && [ -s "$
 session-start claude-code [ -x '/home/user/.local/share/pregate/bin/pregate' ] && [ -s '/home/user/.local/share/pregate/bin/pregate' ] && exec '/home/user/.local/share/pregate/bin/pregate' hook session-start --harness claude-code; exit 0
 session-start codex f='/home/user/.local/share/pregate/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook session-start --harness codex; exit 0
 session-start agy f='/home/user/.local/share/pregate/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook session-start --harness agy; exit 0
+post-invocation agy f='/home/user/.local/share/pregate/bin/pregate'; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook post-invocation --harness agy; exit 0

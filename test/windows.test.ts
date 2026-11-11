@@ -66,6 +66,8 @@ test("Windows registrations round-trip and keep foreign groups; the command is s
   expect(command.length).toBeLessThan(8191);
   expect(commandScript(command)).toContain("Pedro''s $home →");
   expect(commandScript(command)).toContain("workspacePaths");
+  expect(commandScript(command)).toContain("$p.toolCall.args.Path");
+  expect(commandScript(windowsHook(data, "pre", "codex"))).not.toContain("$p.toolCall.args.Path");
   // Registrations written before the script was deflated are still recognized as ours.
   const plain = powershellCommand(`$raw | & ${psQuote(`${data}/bin/launcher.ps1`)} hook pre --harness codex`);
   expect(ownedCommand(plain, data)).toBe(true);
@@ -74,7 +76,8 @@ test("Windows registrations round-trip and keep foreign groups; the command is s
 test("the Windows hook fits cmd.exe's 8191-character line for long installation paths", () => {
   // Before deflating, a data path past 43 characters (a 14-letter user name) exceeded it.
   const data = `C:/Users/${"a-long-windows-user-name-".repeat(8)}/AppData/Local/pregate`;
-  for (const kind of ["pre", "stop", "session-start"] as const) for (const h of ["claude-code", "codex", "cursor", "grok", "agy"] as const) {
+  for (const kind of ["pre", "stop", "session-start", "post-invocation"] as const) for (const h of ["claude-code", "codex", "cursor", "grok", "agy"] as const) {
+    if (kind === "post-invocation" && h !== "agy") continue;
     const command = windowsHook(data, kind, h);
     expect(command).toMatch(/^powershell.exe [A-Za-z0-9 +/=.-]+$/);
     expect(command.length).toBeLessThan(8191);

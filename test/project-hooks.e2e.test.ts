@@ -9,7 +9,7 @@ import pkg from "../package.json" with { type: "json" };
 import { engineAt } from "./compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
-import { merge } from "../src/register.ts";
+import { AGY_PROJECT_HOOK, agyPlugin, merge } from "../src/register.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -795,6 +795,7 @@ describe("doctor and status name the scope of the Codex registration", () => {
   });
 });
 
+
 // Project-local Cursor registration (`pregate project hooks --harness cursor`): the project's own
 // .cursor/hooks.json, in Cursor's native format, runs the project launcher. No Cursor session runs
 // here: the registered command is run the way Cursor runs a project hook, from the project root with
@@ -983,5 +984,150 @@ describe("doctor and status name the scope of the Cursor registration", () => {
     expect(modified.code).toBe(1);
     expect(modified.stdout).toContain("ERROR: .cursor/hooks.json: PREGATE project hooks are missing, modified or written for another platform");
     expect(modified.stdout).not.toContain("project-local only");
+  });
+});
+
+// ── Project-local Antigravity registration (`pregate project hooks --harness agy`) ───────
+
+const AGY = ["project", "hooks", "--harness", "agy"];
+const AGY_HOOKS = ".agents/hooks.json";
+
+function agyHooksOf(project: string): Json {
+  return JSON.parse(readFileSync(join(project, AGY_HOOKS), "utf8")) as Json;
+}
+
+function agyRegistered(i: Isolated, name: string, existing?: string): string {
+  const project = gitProject(i, name);
+  if (existing !== undefined) {
+    put(join(project, AGY_HOOKS), existing);
+    gitCommit(i, project, "agy hooks of the team");
+  }
+  const out = pregate(i, join(project, BELOW), ...AGY, "--yes");
+  expect(out.code, `${out.stdout}\n${out.stderr}`).toBe(0);
+  return project;
+}
+
+function agyHandler(project: string, event: "PreToolUse" | "PostInvocation" | "Stop" | "SessionStart"): string {
+  const entry = agyHooksOf(project)[AGY_PROJECT_HOOK];
+  return event === "PreToolUse" ? entry.PreToolUse[0].hooks[0].command : entry[event][0].command;
+}
+
+function agyWritePayload(project: string, file: string, content: string, stepIdx = 2, sid = "00000000-0000-4000-8000-000000000099"): string {
+  return JSON.stringify({
+    conversationId: sid,
+    cwd: project,
+    hookEventName: "PreToolUse",
+    stepIdx,
+    toolCall: { id: `call_${stepIdx}`, name: "write_file", args: { Path: join(project, file), Content: content, Overwrite: true } },
+    workspacePaths: [project],
+  });
+}
+
+function agyPostInvocationPayload(project: string, sid = "00000000-0000-4000-8000-000000000099"): string {
+  return JSON.stringify({
+    conversationId: sid,
+    cwd: project,
+    hookEventName: "PostInvocation",
+    invocationNum: 0,
+    workspacePaths: [project],
+  });
+}
+
+describe("pregate project hooks --harness agy", () => {
+  test("registers pregate-project in .agents/hooks.json after a review, keeps foreign named hooks, and is idempotent", () => {
+    const i = isolated();
+    const foreign = { "team-audit": { enabled: true, PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "sh scripts/audit.sh" }] }] } };
+    const project = gitProject(i, "repo");
+    put(join(project, AGY_HOOKS), JSON.stringify(foreign, null, 4));
+    gitCommit(i, project, "foreign agy hook");
+    const preview = pregate(i, join(project, BELOW), ...AGY, "--preview");
+    expect(preview.code, `${preview.stdout}\n${preview.stderr}`).toBe(0);
+    expect(preview.stdout).toContain("Digest: ");
+    expect(JSON.parse(readFileSync(join(project, AGY_HOOKS), "utf8"))).toEqual(foreign);
+    const applied = pregate(i, join(project, BELOW), ...AGY, "--yes");
+    expect(applied.code, `${applied.stdout}\n${applied.stderr}`).toBe(0);
+    const once = readFileSync(join(project, AGY_HOOKS), "utf8");
+    const parsed = JSON.parse(once) as Json;
+    expect(parsed["team-audit"]).toEqual(foreign["team-audit"]);
+    expect(Object.keys(parsed[AGY_PROJECT_HOOK]).sort()).toEqual(["PostInvocation", "PreToolUse", "SessionStart", "Stop", "enabled"]);
+    expect(parsed[AGY_PROJECT_HOOK].PreToolUse[0].matcher).toContain("manage_task");
+    for (const event of ["PreToolUse", "PostInvocation", "Stop", "SessionStart"] as const) {
+      const script = commandScript(agyHandler(project, event));
+      for (const machine of [i.home, i.data, project]) {
+        expect(script).not.toContain(machine);
+        expect(script).not.toContain(machine.replaceAll("\\", "/"));
+      }
+    }
+    const again = pregate(i, project, ...AGY, "--yes");
+    expect(again.code).toBe(0);
+    expect(again.stdout).toContain("nothing changed");
+    expect(readFileSync(join(project, AGY_HOOKS), "utf8")).toBe(once);
+  });
+
+  test("executes PreToolUse from .agents/ cwd and from outside via workspacePaths, and delivers warnings and halts on PostInvocation", () => {
+    const i = isolated();
+    const project = agyRegistered(i, "repo");
+    const pre = agyHandler(project, "PreToolUse");
+    const post = agyHandler(project, "PostInvocation");
+    const agentsDir = join(project, ".agents");
+
+    // Denied from .agents/ (Antigravity's workspace hook working directory) and from outside via workspacePaths[0].
+    const deniedFromAgents = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER), null);
+    expect(deniedFromAgents.code).toBe(0);
+    expect(JSON.parse(deniedFromAgents.stdout)).toMatchObject({ decision: "deny" });
+    expect(deniedFromAgents.stdout).toContain("ddd/DDD-ENT-001");
+
+    const deniedFromOutside = hook(i, pre, join(i.root, "tmp"), agyWritePayload(project, INVOICE_REL, SETTER, 3), null);
+    expect(deniedFromOutside.code).toBe(0);
+    expect(JSON.parse(deniedFromOutside.stdout)).toMatchObject({ decision: "deny" });
+
+    const allowed = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, QUERY, 4), null);
+    expect(allowed.code).toBe(0);
+    expect(allowed.stdout).toBe("");
+
+    // Repeated denials reach maxDenialsPerTurn -> PostInvocation emits errorMessage + terminationBehavior: "terminate".
+    const haltSid = "00000000-0000-4000-8000-0000000000aa";
+    for (let step = 1; step <= 4; step++) {
+      hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER, step, haltSid), null);
+    }
+    const halted = hook(i, post, agentsDir, agyPostInvocationPayload(project, haltSid), null);
+    expect(halted.code).toBe(0);
+    const haltedJson = JSON.parse(halted.stdout) as Json;
+    expect(haltedJson.terminationBehavior).toBe("terminate");
+    expect(haltedJson.injectSteps[0].errorMessage.userMessage).toContain("PREGATE stopped the turn");
+
+    // Advisor mode: PreToolUse stays silent (stdout === "") and PostInvocation injects systemMessage warning.
+    const presetPath = join(project, ".pregate/preset.json");
+    put(presetPath, JSON.stringify({ ...JSON.parse(readFileSync(presetPath, "utf8")), enforcement: "advisor" }));
+    expect(pregate(i, project, "preset", "compile", "--yes").code).toBe(0);
+    gitCommit(i, project, "advisor");
+    const warnSid = "00000000-0000-4000-8000-0000000000bb";
+    const warnPre = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER, 1, warnSid), null);
+    expect(warnPre.code).toBe(0);
+    expect(warnPre.stdout).toBe("");
+    const warnPost = hook(i, post, agentsDir, agyPostInvocationPayload(project, warnSid), null);
+    expect(warnPost.code).toBe(0);
+    expect(JSON.parse(warnPost.stdout).injectSteps[0].systemMessage.systemMessage).toContain("ddd/DDD-ENT-001");
+  });
+
+  test("doctor and status report Antigravity scope across none, project, both, and global", () => {
+    const i = isolated();
+    const project = gitProject(i, "repo");
+    const status = (cwd: string) => JSON.parse(pregate(i, cwd, "status", "--json").stdout) as Json;
+    expect(status(project).agyHooks).toBe("none");
+
+    expect(pregate(i, project, ...AGY, "--yes").code).toBe(0);
+    expect(status(project).agyHooks).toBe("project");
+    expect(status(project).harnesses.find((h: Json) => h.id === "agy").configured).toBe(true);
+    expect(pregate(i, project, "doctor").stdout).toContain("Antigravity hooks: project-local only.");
+
+    const pluginDir = join(i.home, ".gemini/config/plugins/pregate-global");
+    for (const [f, text] of Object.entries(agyPlugin(i.data.replaceAll("\\", "/"), pkg.version))) put(join(pluginDir, f), text);
+    expect(status(project).agyHooks).toBe("both");
+    expect(pregate(i, project, "doctor").stdout).toContain("WARNING: Antigravity hooks: project-local and global.");
+
+    const other = gitProject(i, "other");
+    expect(status(other).agyHooks).toBe("global");
+    expect(pregate(i, other, "doctor").stdout).toContain("INFO: Antigravity hooks: global only");
   });
 });

@@ -23,7 +23,7 @@ if ($args.Count -eq 0 -or $args[0] -eq 'hook') {
     $process = [Diagnostics.Process]::Start($info)
     $stdout = $process.StandardOutput.ReadToEndAsync()
     $stderr = $process.StandardError.ReadToEndAsync()
-    $deadline = if ($args[1] -eq 'stop') { 50000 } elseif ($args[1] -eq 'session-start') { 12000 } else { 110000 }
+    $deadline = if ($args[1] -eq 'stop') { 50000 } elseif ($args[1] -eq 'session-start' -or $args[1] -eq 'post-invocation') { 12000 } else { 110000 }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $bytes = [Text.Encoding]::UTF8.GetBytes($raw)
     $inputTask = $process.StandardInput.BaseStream.WriteAsync($bytes, 0, $bytes.Length)

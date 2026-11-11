@@ -8,7 +8,7 @@ import { WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { pendingRoot, readBatch } from "./proposal.ts";
 import { guideCommandMention } from "./shell.ts";
-import { key, roots } from "./state.ts";
+import { hasPostInvocation, key, roots } from "./state.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { VERSIONS } from "./versions.ts";
 import type { Cause, Clock, Decision, Form, HookEvent, Lock, Rejected, Session, Violation } from "./types.ts";
@@ -88,6 +88,7 @@ export function inert(event: HookEvent | Rejected): boolean {
     const here = findRoot(canonical(event.cwd), enabled);
     return here === null || repositoryFailure(here) === null;
   }
+  if (event.kind === "post-invocation") return !hasPostInvocation(key(event.session));
   if (event.kind === "pre-command") return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
   return !accepted(event.session) && !active(event.cwd);
 }

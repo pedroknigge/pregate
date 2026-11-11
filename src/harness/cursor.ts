@@ -9,7 +9,7 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 export const VERIFIED = "2026.11.11-043ef28";
 
 const BAD: Cause = "payload-unrecognized";
-const NAMES: Record<HookKind, string> = { pre: "preToolUse", stop: "stop", "session-start": "sessionStart" };
+const NAMES: Partial<Record<HookKind, string>> = { pre: "preToolUse", stop: "stop", "session-start": "sessionStart" };
 
 export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null {
   const p = parse(raw);
@@ -32,8 +32,8 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 // no ask, has no halt and no channel to the human, so ask leaves as a deny and halt and notice drop:
 // the deny text already tells the agent to stop and report. A Stop blocks by starting another turn.
 export function encode(kind: HookEvent["kind"], d: Decision): Emission {
-  if (kind !== "stop" && d.verdict === "none" && d.full !== "") return { stdout: json({ additional_context: d.full }), stderr: "", exit: 0 };
-  if (d.verdict === "none" || kind === "session-start") return { stdout: "", stderr: "", exit: 0 };
+  if (kind !== "stop" && kind !== "post-invocation" && d.verdict === "none" && d.full !== "") return { stdout: json({ additional_context: d.full }), stderr: "", exit: 0 };
+  if (d.verdict === "none" || kind === "session-start" || kind === "post-invocation") return { stdout: "", stderr: "", exit: 0 };
   if (kind === "stop") return { stdout: json({ followup_message: d.full }), stderr: "", exit: 0 };
   const deny = { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: d.full };
   return { stdout: json({ hookSpecificOutput: deny }), stderr: "", exit: 0 };

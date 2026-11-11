@@ -20,6 +20,7 @@ export const HARNESSES = { "claude-code": claude, codex, cursor, grok, agy } sat
 // that spells "cursor_version" inside a Write cannot switch the profile. GROK_HOOK_EVENT alone does
 // not either: harnesses inherit their parent's environment.
 export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId {
+  if (flag === "codex" || flag === "agy") return flag;
   const p = parse(raw);
   if (p === null) return flag;
   if (env.grokEvent !== null && Object.hasOwn(p, "hookEventName")) return "grok";

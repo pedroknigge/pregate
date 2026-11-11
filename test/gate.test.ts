@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
 import { enable, disable, enabled } from "../src/consent.ts";
-import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
+import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPostInvocation, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { decode as claude } from "../src/harness/claude.ts";
 import { decode as codex } from "../src/harness/codex.ts";
 import * as state from "../src/state.ts";
@@ -1698,4 +1698,59 @@ test("SessionStart raises a promotion once a day when advisor rules stayed clean
   expect(nudged).toContain("`pregate promote --preview`");
   expect((await sessionStart(start)).full).not.toContain("Promotion ready");
   expect(onSessionStart(start).full).not.toContain("Promotion ready");
+});
+
+test("agy queues Pre warnings and halt notices for PostInvocation, clears stale entries on Stop, and protects Antigravity configs", async () => {
+  const root = repo("agy-post"), s = session("agy", "agy-conv");
+  const postEvent = { kind: "post-invocation" as const, session: s, cwd: root };
+  onSessionStart({ kind: "session-start", session: s, cwd: root });
+  expect(inert(postEvent)).toBe(true);
+
+  const advisorText = JSON.stringify({ ...JSON.parse(readFileSync(join(root, PRESET), "utf8")), enforcement: "advisor" });
+  const advisorCompiled = compile(advisorText, sourcesOf(root), VERSIONS);
+  if ("errors" in advisorCompiled) throw new Error(advisorCompiled.errors.join("\n"));
+  put(join(root, PRESET), advisorText); put(join(root, LOCK), advisorCompiled.text);
+  git(root, "add", "."); git(root, "commit", "-qm", "advisor");
+
+  const setterViolation = "export class Invoice {\n  constructor(readonly id: string, private customer: string) {}\n  setCustomer(c: string): void { this.customer = c; }\n}\n";
+  const preWarn = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: "1" }]);
+  expect(preWarn.verdict).toBe("none");
+  expect(inert(postEvent)).toBe(false);
+  const drainedWarn = onPostInvocation(postEvent);
+  expect(drainedWarn.verdict).toBe("none");
+  expect(drainedWarn.halt).toBe(false);
+  expect(drainedWarn.full).toContain("ddd/DDD-ENT-001");
+  expect(inert(postEvent)).toBe(true);
+  expect(onPostInvocation(postEvent).full).toBe("");
+
+  // Restore enforce mode and trigger file-rule retry limit halt.
+  preset(root);
+  git(root, "add", "."); git(root, "commit", "-qm", "enforce");
+  let halted = false;
+  for (let i = 1; i <= 5; i++) {
+    const d = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: `deny-${i}` }]);
+    if (d.halt) { halted = true; break; }
+  }
+  expect(halted).toBe(true);
+  const drainedHalt = onPostInvocation(postEvent);
+  expect(drainedHalt.halt).toBe(true);
+  expect(drainedHalt.notice).toContain("PREGATE stopped the turn");
+
+  // Stale PostInvocation items are cleared when Stop completes a turn.
+  await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: "stale-halt" }]);
+  await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+  expect(inert(postEvent)).toBe(true);
+
+  // Mutating Antigravity plugin or IDE settings (and even reading pregate-global) is denied as protected-path.
+  const pluginHooks = join(process.env.HOME!, ".gemini/config/plugins/pregate-global/hooks.json");
+  put(pluginHooks, "{}\n");
+  expect(onPreCommand({ session: s, callId: "cmd-read", tool: "run_command", command: `cat "${pluginHooks}"`, cwd: root })).toMatchObject({ verdict: "deny", cause: "protected-path" });
+  for (const rel of [".gemini/config/plugins/pregate-global/hooks.json", ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json"]) {
+    const target = join(process.env.HOME!, rel);
+    put(target, "{}\n");
+    const edit = await onPreEdit([change(dirname(target), target.slice(target.lastIndexOf("/") + 1), { form: "full", content: "{}\n" }, s)]);
+    expect(edit).toMatchObject({ verdict: "deny", cause: "protected-path" });
+    const cmd = onPreCommand({ session: s, callId: "cmd", tool: "run_command", command: `echo '{}' > "${target}"`, cwd: root });
+    expect(cmd).toMatchObject({ verdict: "deny", cause: "protected-path" });
+  }
 });

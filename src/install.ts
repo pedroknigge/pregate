@@ -254,16 +254,19 @@ export async function projectLauncher(args: string[]): Promise<{ code: number; t
 //
 // `--harness cursor` writes Cursor's native groups into the project's .cursor/hooks.json. Cursor
 // runs them only in a trusted workspace, and its cloud agents load that file from the repository.
-const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]\n       pregate project hooks --harness cursor [--preview|--yes]";
+// `--harness agy` writes the `pregate-project` named hook into the project's .agents/hooks.json.
+const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]\n       pregate project hooks --harness cursor [--preview|--yes]\n       pregate project hooks --harness agy [--preview|--yes]";
 export const PROJECT_SETTINGS = ".claude/settings.json";
 export const PROJECT_CODEX_HOOKS = ".codex/hooks.json";
 export const PROJECT_CURSOR_HOOKS = ".cursor/hooks.json";
+export const PROJECT_AGY_HOOKS = ".agents/hooks.json";
 const CODEX_REVIEW = "No Codex trust is recorded and the Codex home is not written. Codex runs a hook only after its own review: start Codex in this project and review the hooks with /hooks. A changed definition needs that review again. Until then, treat Codex as not gated in this project.";
 const CURSOR_REVIEW = "Cursor runs project hooks only in a trusted workspace. Its cloud agents load this file from the repository too: there the hooks deny every write until the pinned engine is cached (pregate prepare), and enforce nothing without a local consent record on that machine.";
-const PROJECT_HOOKS: Record<string, { target: "project" | "project-codex" | "project-cursor"; file: string; name: string; note: string }> = {
+const PROJECT_HOOKS: Record<string, { target: "project" | "project-codex" | "project-cursor" | "project-agy"; file: string; name: string; note: string }> = {
   "claude-code": { target: "project", file: PROJECT_SETTINGS, name: "Claude Code", note: "" },
   codex: { target: "project-codex", file: PROJECT_CODEX_HOOKS, name: "Codex", note: ` ${CODEX_REVIEW}` },
   cursor: { target: "project-cursor", file: PROJECT_CURSOR_HOOKS, name: "Cursor", note: ` ${CURSOR_REVIEW}` },
+  agy: { target: "project-agy", file: PROJECT_AGY_HOOKS, name: "Antigravity", note: "" },
 };
 
 // "ready": every launcher file is the reviewed template. "differs": a launcher is there and is not.
@@ -288,7 +291,8 @@ export async function projectHooks(args: string[]): Promise<{ code: number; text
   const { name, note } = harness;
   const before = readText(path);
   const after = merge(before, harness.target, dataHome());
-  if (after === null) return { code: 1, text: `${path} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate project hooks.` };
+  const shape = harness.target === "project-agy" ? "a JSON object" : "a JSON object with event arrays";
+  if (after === null) return { code: 1, text: `${path} must be ${shape}; left unchanged. Fix it and rerun pregate project hooks.` };
   if (after === before) return { code: 0, text: `${name} hooks in ${path} already run the project launcher; nothing changed.${note}` };
   const header = `Register the ${name} hooks in ${path}. They run the project launcher in ${LAUNCHER_DIR}; no file under the user's home is written. Other entries of the file are kept.${note}`;
   return reviewedWrites(root, [{ path, before, after }], header, flags);

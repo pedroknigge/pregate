@@ -269,6 +269,22 @@ A live run on 2026-11-11 with cursor-agent 2026.11.11 on macOS (`scripts/e2e-rea
 
 Not established: the interactive trust prompt, cloud agents, and the Windows form in a real Cursor session.
 
+## Project-local Antigravity hooks
+
+`pregate project hooks --harness agy [--preview|--yes]` registers the Antigravity hooks in the project's own `.agents/hooks.json`. The hooks run the project launcher, so the project needs no global `pregate setup` on the machine and the command writes no harness home. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview             # review, then the human approves
+pregate project hooks --harness agy --preview  # review, then the human approves
+pregate enable                                 # local consent, by the human
+```
+
+- **What it writes.** One named hook `pregate-project` (`enabled: true`) with `PreToolUse` (including `write_file`, `edit_file`, `run_command` and `manage_task`), `PostInvocation`, `Stop` and `SessionStart`. It holds no path of this machine, so it can be committed.
+- **Working directory.** Antigravity runs workspace hooks from `<repo>/.agents`. The command walks up from its working directory first (reaching `<repo>/.pregate/bin` without reading stdin beforehand), and falls back to `workspacePaths[0]` from stdin when started outside the repository.
+- **What it keeps.** Foreign named hooks stay untouched, and a second run changes no byte.
+- **With a global setup.** Antigravity merges workspace `.agents/hooks.json` and global plugins (`~/.gemini/config/plugins/pregate-global`), so if both exist every tool call is evaluated twice. `pregate doctor` and `pregate status` report the scope as project-local only, global only, both or neither.
+
 ## Updates and removal
 
 `pregate update` selects the latest published release. `update --version <v>` selects

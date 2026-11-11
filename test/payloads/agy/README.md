@@ -58,6 +58,20 @@ from the command that registered the hook. `stepIdx` plus `conversationId` ident
 
 Not captured in 1.5.3: `create_file`, `delete_file`, `rename_file` and `notebook_edit`, which the binary names; PreInvocation; what `edit_file` does when `Target` is missing or repeated.
 
+## agy 1.5.6
+
+`agy` **1.5.6** adds native `SessionStart`, `continuationActive` on `Stop`, `manage_task` (`Action: "send_input" | "list" | "status" | "kill"`), and `Append` on `write_file`.
+
+| File | Event | What it shows |
+|---|---|---|
+| `session-start.json` | SessionStart | native `SessionStart` (`source:"STARTUP"`, no `invocationNum`) |
+| `post-invocation-top-cwd.json` | PostInvocation | `PostInvocation` with `cwd`, `hookEventName`, `invocationNum`, `finalNumSteps` |
+| `pre-write_file-append.json` | PreToolUse `write_file` | `Append:true`: `Content` is the appended text |
+| `pre-manage_task-send_input.json` | PreToolUse `manage_task` | `Action:"send_input"` (stdin to a running background task) |
+| `pre-manage_task-status.json` | PreToolUse `manage_task` | `Action:"status"` (read-only background task inspection) |
+| `stop-user-canceled.json` | Stop | `terminationReason:"USER_CANCELED"`, `continuationActive:false` |
+| `stop-continuation-active.json` | Stop | `continuationActive:true`, `executionNum:1` |
+
 ## Not captured
 
 - **`multi_replace_file_content`**: in 1.2.14 the tool is rejected with `unknown tool: "multi_replace_file_content"`.

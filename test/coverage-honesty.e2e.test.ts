@@ -72,7 +72,7 @@ test("status and doctor lead with enforced, advisor and unverified rules on a mi
   const monitor = `Advisor or monitor only: ${counts.monitor} (${counts.advisor} advisor, ${counts.shadow} shadow, ${counts.warnOnly} warn-only).`;
   const unverified = `Unverified: not adopted (${counts.unverified} optional requirements have no verifier and check nothing).`;
   const harnesses = "Harnesses gated: none. Not configured: claude-code, codex, cursor, grok, agy.";
-  const channels = "Channels not covered: warning channel not covered on agy; halt not covered on codex, cursor, grok, agy; stop-limit notice not covered on codex, cursor, grok, agy; session context not covered on grok.";
+  const channels = "Channels not covered: halt not covered on codex, cursor, grok; stop-limit notice not covered on codex, cursor, grok, agy; session context not covered on grok.";
   const catalog = `Catalog: ${counts.rules} rules in this lock (${counts.rules - counts.fitness} static, ${counts.fitness} fitness).`;
   const lead = [enforced, monitor, unverified, harnesses, channels, catalog];
   const status = run(["status"]);

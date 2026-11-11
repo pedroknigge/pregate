@@ -37,10 +37,10 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 // compact text on one line. Halt has no effect in Grok, ask is denied (MH-05), and the human has no
 // channel of their own: nothing else is emitted.
 export function encode(e: HookEvent["kind"], d: Decision): Emission {
-  if (e !== "stop" && e !== "session-start" && d.verdict === "none" && d.full !== "") {
+  if (e !== "stop" && e !== "session-start" && e !== "post-invocation" && d.verdict === "none" && d.full !== "") {
     return { stdout: json({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.full } }), stderr: "", exit: 0 };
   }
-  if (e === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
+  if (e === "session-start" || e === "post-invocation" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
   const reason = d.compact.replace(/[\r\n]+/g, " ");
   if (e === "stop") return { stdout: json({ decision: "block", reason }), stderr: "", exit: 0 };
   // exit 2 blocks even when the JSON does not reach Grok intact.
