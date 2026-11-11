@@ -28,7 +28,7 @@ import { agyApprovalEvidence, agyApprovalPrompt, agyShellOutput, claudeFitnessIn
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only <harness>
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex
-//   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code|codex
+//   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code|codex|cursor
 // Approval scenarios test model denials and controller-driven human shell input, not actual user consent.
 //
 // Nothing real is written: HOME, XDG_*, CODEX_HOME, GROK_HOME and TMPDIR of every child point into one
@@ -120,7 +120,7 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
   const only = process.argv.slice(2).filter((a) => !["--pty-only", "--extras-only", "--core-only", "--approval-only", "--approval-shell-only", "--issue-dedup-only", "--adaptation-only", PROJECT_HOOKS].includes(a));
   if (process.env.PREGATE_REAL !== "1" || process.platform !== "darwin" || only.some((h) => !(IDS as string[]).includes(h))
     || [ptyOnly && !approvalOnly, extrasOnly, coreOnly, approvalOnly, issueOnly, adaptationOnly, projectHooksOnly].filter(Boolean).length > 1
-    || (projectHooksOnly && (ptyOnly || only.length !== 1 || !["claude-code", "codex"].includes(only[0]!)))
+    || (projectHooksOnly && (ptyOnly || only.length !== 1 || !["claude-code", "codex", "cursor"].includes(only[0]!)))
     || (issueOnly && (ptyOnly || only.length !== 1 || !["codex", "agy"].includes(only[0]!)))
     || (approvalOnly && only.length !== 1)
     || (adaptationOnly && (ptyOnly || only.length !== 1 || only[0] !== "codex"))
@@ -131,7 +131,7 @@ function scenarios(): {ptyOnly:boolean;extrasOnly:boolean;coreOnly:boolean;issue
       + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts --approval-shell-only ${IDS.join("|")}\n`
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy\n"
       + "       PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex\n"
-      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code|codex\n`
+      + `       PREGATE_REAL=1 bun run scripts/e2e-real.ts ${PROJECT_HOOKS} claude-code|codex|cursor\n`
       + "Runs MULTI-HARNESS §6.3 against the real CLIs (macOS: their credentials live in the keychain). It spends model calls.");
     return null;
   }
@@ -160,7 +160,7 @@ async function runScenarios(w: World, s: NonNullable<ReturnType<typeof scenarios
   try {
     seed(w);
     compileBinary(hostTarget(), join(w.work, "dist/pregate"));
-    if (s.projectHooksOnly) return await (s.only[0] === "codex" ? codexProjectHooksScenario(w) : projectHooksScenario(w));
+    if (s.projectHooksOnly) return await (s.only[0] === "codex" ? codexProjectHooksScenario(w) : s.only[0] === "cursor" ? cursorProjectHooksScenario(w) : projectHooksScenario(w));
     if (!(await install(w))) return finish(w);
     templates(w);
     tapIn(w);
@@ -423,7 +423,7 @@ const preset = (enforcement: string): string => JSON.stringify({
 // registration and no global launcher. A real Claude Code session has to deny the forbidden write
 // and allow the clean one from the project hooks alone. Workspace trust is accepted in ~/.claude.json
 // before the run (trustDir) and the run is headless: the interactive trust prompt is not exercised.
-function projectRepo(w: World, h: "claude-code" | "codex" = "claude-code"): string {
+function projectRepo(w: World, h: "claude-code" | "codex" | "cursor" = "claude-code"): string {
   const engine = join(w.data, pkg.version, "pregate");
   mkdirSync(dirname(engine), { recursive: true });
   copyFileSync(join(w.work, "dist/pregate"), engine);
@@ -564,6 +564,60 @@ async function codexProjectHooksScenario(w: World): Promise<undefined> {
   await codexProjectPhase(w, repo, "changed", "definition changed after the review (PreToolUse timeout 120 to 119)");
   writeFileSync(hooksFile, text);
   report("MEASURE", "codex project hooks: /hooks", "the interactive /hooks review and the TUI's notice for an unreviewed hook were not exercised: every run is headless (codex exec)");
+  return undefined;
+}
+
+// Project mode for Cursor (MULTI-HARNESS MH-28c, MH-35): the project's .cursor/hooks.json alone, with
+// no machine installation. The project also declares a stdio MCP server whose one tool writes a file,
+// so the same headless session shows how the native preToolUse judges an MCP call that names a file
+// in scope. Workspace trust is given by --trust.
+const MCP_SERVER = `const reply = (id, result) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id, result }) + "\\n");
+let buffer = "";
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  for (let at; (at = buffer.indexOf("\\n")) >= 0; ) {
+    const line = buffer.slice(0, at).trim(); buffer = buffer.slice(at + 1);
+    if (line === "") continue;
+    const m = JSON.parse(line);
+    if (m.method === "initialize") reply(m.id, { protocolVersion: m.params?.protocolVersion ?? "2024-11-05", capabilities: { tools: {} }, serverInfo: { name: "notes", version: "1.0.0" } });
+    else if (m.method === "tools/list") reply(m.id, { tools: [{ name: "write_note", description: "Write text to a file at an absolute path", inputSchema: { type: "object", properties: { path: { type: "string" }, text: { type: "string" } }, required: ["path", "text"] } }] });
+    else if (m.method === "tools/call") { require("node:fs").writeFileSync(m.params.arguments.path, m.params.arguments.text); reply(m.id, { content: [{ type: "text", text: "wrote" }] }); }
+    else if (m.id !== undefined) reply(m.id, {});
+  }
+});
+`;
+
+async function cursorProjectHooksScenario(w: World): Promise<undefined> {
+  const files = [join(w.home, ".cursor/hooks.json"), join(w.home, ".claude/settings.json")];
+  const before = files.map(read);
+  const repo = projectRepo(w, "cursor");
+  const server = join(w.work, "mcp-notes.js");
+  writeFileSync(server, MCP_SERVER);
+  writeJson(join(repo, ".cursor/mcp.json"), { mcpServers: { notes: { command: "bun", args: [server] } } });
+  ok(run(["git", "add", "-A"], repo, w.env), "git add mcp.json");
+  ok(run(["git", "commit", "-q", "-m", "mcp server"], repo, w.env), "git commit mcp.json");
+  const local = read(join(repo, ".cursor/hooks.json")) ?? "";
+  const NOTE = "src/core/note.ts";
+  const prompt = `Do these three steps in order, one tool call each: use your file-writing tool to create ${OK} containing exactly:\n${quoted(OK_TEXT)}\n`
+    + `then use it to create ${X} containing exactly:\n${quoted(X_TEXT)}\nthen call the MCP tool write_note with path ${join(repo, NOTE)} and text ${quoted(OK_TEXT)}\n`
+    + "The second and third may be blocked. No retries, shell, or workarounds. Quote each error and stop.";
+  const r = await agent(w, { h: "cursor", label: "cursor-project-hooks", repo }, prompt, ["--approve-mcps", ...CLIS.cursor.headless(prompt)]);
+  check("cursor project hooks: no global installation", [
+    [files.every((f, i) => read(f) === before[i]), "a file of the Cursor or Claude home changed"],
+    [!existsSync(join(w.data, "bin")) && !lexists(w.pregate), "a global launcher or ~/.local/bin/pregate exists"],
+    [local.includes(".pregate/bin/pregate") && local.includes("--harness cursor") && !local.includes(w.home),
+      "the project hooks.json lacks the launcher command or names the home"],
+  ]);
+  check("cursor project hooks: allow", [[read(join(repo, OK)) === OK_TEXT, "the clean write differs or is missing"]]);
+  check("cursor project hooks: deny", [
+    [!existsSync(join(repo, X)), "the forbidden file was written"],
+    [r.events.some((e) => e.path === join(repo, X) && e.verdict === "deny"), "no deny event: Cursor did not run the project hooks, or the project had no consent"],
+    [r.trace.includes(RULE), "rule never reached the model"],
+  ]);
+  const judged = r.events.filter((e) => e.path === join(repo, NOTE));
+  report("MEASURE", "cursor project hooks: MCP write_note into src/core", !r.trace.includes("write_note") ? "the model did not call the MCP tool"
+    : `${judged.length} gate event(s), verdicts ${judged.map((e) => `${e.verdict}${e.form === null ? "" : `/${e.form}`}`).join(", ") || "none"}; ${existsSync(join(repo, NOTE)) ? "file written" : "file not written"}`);
+  report("MEASURE", "cursor project hooks: workspace trust", "given by --trust in a headless run; the interactive trust prompt and cloud agents were not exercised");
   return undefined;
 }
 

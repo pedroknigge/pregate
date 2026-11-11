@@ -26,7 +26,7 @@ import type { HarnessId } from "./types.ts";
 import { latestRelease } from "./release-download.ts";
 import { verifiedEngineExtract } from "./release-install.ts";
 import { pinnedEngine } from "./project-updates.ts";
-import { PROJECT_CODEX_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./install.ts";
+import { PROJECT_CODEX_HOOKS, PROJECT_CURSOR_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./install.ts";
 import { projectLauncherRel, projectScope } from "./project-claude.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
@@ -430,11 +430,12 @@ export async function doctor(): Promise<Result> {
   const { coverageLead, protectionStatus } = await import("./status.ts");
   // `project hooks` and `project setup` both write .claude/settings.json, and the bytes differ.
   // The hooks registration is what register.ts calls exact. The setup registration is what
-  // project-claude.ts calls exact. Doctor follows the one that matches.
+  // project-claude.ts calls exact. Doctor follows the one that matches. Cursor's project
+  // registration is a third file and stays in `scope`.
   const setup = root === null
     ? { active: false, exact: false, lines: [] as Line[], preCommand: null as string | null, consentActive: false }
     : localClaude(p, root);
-  const scope = projectScopes(p, root, found.has("codex"));
+  const scope = projectScopes(p, root, found);
   const hooksLocal = root !== null && registered(read(join(root, PROJECT_SETTINGS)), "project", p.data);
   const setupExact = setup.exact && !hooksLocal;
   const standalone = new Set(scope.standalone);
@@ -457,7 +458,7 @@ export async function doctor(): Promise<Result> {
     lines.push(...setup.lines);
     // The setup file is owned by the project-hooks matcher but is not that registration.
     // Reporting it as a broken project-hooks file would hide the scope doctor just stated.
-    lines.push(...scope.lines.filter((line) => !line.text.includes("Claude Code hooks:") && !line.text.includes("PREGATE project hooks are missing, modified or written for another platform")));
+    lines.push(...scope.lines.filter((line) => !line.text.includes("Claude Code hooks:") && !line.text.startsWith(`${PROJECT_SETTINGS}: PREGATE project hooks are missing`)));
   } else lines.push(...scope.lines);
   const m = machineFiles(p, machine);
   const hookTrust = machine.has("codex") ? trusts(p) : {};
@@ -471,6 +472,7 @@ export async function doctor(): Promise<Result> {
   const supervisionLimit = "Direct engine hook calls have no launcher crash/timeout protection. Runtime canaries below exercise the launcher route; they do not override registration errors.";
   const admitted = gated(m, null, p.data, hookTrust);
   if (standalone.has("claude-code")) admitted.add("claude-code");
+  if (standalone.has("cursor")) admitted.add("cursor");
   lines.push((checked.size === 0 && standalone.size === 0) || [...checked.keys()].some((h) => !admitted.has(h))
     ? warn(`Hook supervision is not established for every detected harness. ${supervisionLimit} Run pregate setup and review the registrations.`)
     : ok(`Hook supervision: required launcher commands are registered. ${supervisionLimit}`));
@@ -478,7 +480,7 @@ export async function doctor(): Promise<Result> {
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !standalone.has("codex")) lines.push(codexOffPath(p));
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
-  if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
+  if (found.has("cursor") && !scope.standalone.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
   const onPath = cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher);
   lines.push(onPath ? ok(`pregate on PATH: ${cli}.`)
@@ -566,14 +568,48 @@ export function codexRegistration(root: string | null): { scope: "project" | "gl
   return { scope: local ? (global ? "both" : "project") : global ? "global" : "none", projectTrust: level };
 }
 
-// Both scopes for doctor. `standalone`: the harnesses whose only registration is the project's.
-function projectScopes(p: Paths, root: string | null, codexPresent: boolean): { standalone: Set<HarnessId>; lines: Line[] } {
-  const claude = claudeScope(p, root), codex = codexScope(p, root, codexPresent);
+// ── Cursor scope ─────────────────────────────────────────────────────────────────────
+
+// Where Cursor gets its PREGATE hooks for this project: its own .cursor/hooks.json (`pregate project
+// hooks --harness cursor`), the machine registration (`pregate setup`: the shared Claude Code
+// settings Cursor imports, and the native Stop in ~/.cursor/hooks.json), both or neither. Cursor
+// runs every source it loads, so both means every tool call is evaluated twice. Cursor also runs the
+// project's .claude/settings.json [V 2026.11.11], so a Claude Code project registration is one more
+// Cursor registration. Workspace trust is Cursor's own record and is not read here.
+function cursorScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; double: boolean; lines: Line[] } {
+  const text = root === null ? null : read(join(root, PROJECT_CURSOR_HOOKS));
+  const native = registered(text, "project-cursor", p.data);
+  const imported = root !== null && registered(read(join(root, PROJECT_SETTINGS)), "project", p.data);
+  const local = native || imported;
+  const global = owned(read(join(p.home, ".cursor/hooks.json")), "cursor", p.data) || p.shared.some((f) => owned(read(f), "shared", p.data));
+  const lines: Line[] = [];
+  const fix = "pregate project hooks --harness cursor --preview";
+  const trust = "Cursor runs project hooks only in a trusted workspace.";
+  if (!native && owned(text, "project-cursor", p.data)) lines.push(fail(`${PROJECT_CURSOR_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
+  if (native && imported) lines.push(warn(`Cursor hooks: ${PROJECT_CURSOR_HOOKS} and ${PROJECT_SETTINGS} of this project both register PREGATE, and Cursor runs both, so every tool call is evaluated twice. Keep one for Cursor. ${trust}`));
+  else if (local && global) lines.push(warn(`Cursor hooks: project-local and global. Cursor runs both registrations, so every tool call is evaluated twice. Keep one: remove the PREGATE entries from ${native ? PROJECT_CURSOR_HOOKS : PROJECT_SETTINGS}, or the global ones (pregate uninstall removes them for every harness). ${trust}`));
+  else if (native) lines.push(ok(`Cursor hooks: project-local only. ${PROJECT_CURSOR_HOOKS} runs the project launcher; no global registration is present. ${trust}`));
+  else if (local) lines.push(info(`Cursor hooks: project-local through ${PROJECT_SETTINGS}, which Cursor imports; its Stop in Cursor is not established. ${PROJECT_CURSOR_HOOKS} is Cursor's native registration (${fix}). ${trust}`));
+  else if (global) lines.push(info(`Cursor hooks: global only (pregate setup). ${root === null ? "No project here." : `${PROJECT_CURSOR_HOOKS} of this project holds no complete PREGATE registration.`}`));
+  else lines.push((root === null || !present ? info : warn)(`Cursor hooks: neither project-local nor global. Cursor is not gated${root === null ? "" : " in this project"}. Run ${fix} in a project, or pregate setup.`));
+  return { local, global, double: (native && imported) || (local && global), lines };
+}
+
+// For status: where Cursor gets its hooks for this project; "both" is any double registration.
+export function cursorRegistration(root: string | null): "project" | "global" | "both" | "none" {
+  const { local, global, double } = cursorScope(paths(), root, true);
+  return double ? "both" : local ? "project" : global ? "global" : "none";
+}
+
+// Every scope for doctor. `standalone`: the harnesses whose only registration is the project's.
+function projectScopes(p: Paths, root: string | null, present: Map<HarnessId, string | null>): { standalone: Set<HarnessId>; lines: Line[] } {
+  const claude = claudeScope(p, root), codex = codexScope(p, root, present.has("codex")), cursor = cursorScope(p, root, present.has("cursor"));
   const standalone = new Set<HarnessId>();
   if (claude.local && !claude.global) standalone.add("claude-code");
   if (codex.local && !codex.global) standalone.add("codex");
-  const checks = claude.local || codex.local ? projectChecks(root!, p.data, claude.local) : [];
-  return { standalone, lines: [...checks, ...claude.lines, ...codex.lines] };
+  if (cursor.local && !cursor.global) standalone.add("cursor");
+  const checks = claude.local || codex.local || cursor.local ? projectChecks(root!, p.data, claude.local) : [];
+  return { standalone, lines: [...checks, ...claude.lines, ...codex.lines, ...cursor.lines] };
 }
 
 // What a project registration depends on, read from the files. No hook runs here.
@@ -634,7 +670,7 @@ function machineFiles(p: Paths, checked: Map<HarnessId, string | null>): Machine
     codexHooks: codex ? read(join(p.codexHome, "hooks.json")) : null, codexConfig: codex ? read(join(p.codexHome, "config.toml")) : null,
     grokConfig: read(join(p.grokHome, "config.toml")),
     agyHooks: agy ? read(join(p.plugin, "hooks.json")) : null, agyConfig: agy ? read(join(p.home, ".gemini/config/config.json")) : null,
-    cursorHooks: read(join(p.home, ".cursor/hooks.json")),
+    cursorHooks: checked.has("cursor") ? read(join(p.home, ".cursor/hooks.json")) : null,
   };
 }
 
@@ -924,6 +960,7 @@ export function gatedHarnesses(root: string | null): Set<string> {
   if (process.env.GROK_CLAUDE_HOOKS_ENABLED === "0") ids.delete("grok");
   // The project's own registration gates Claude Code here without a global one.
   if (registered(repo[PROJECT_SETTINGS] ?? null, "project", p.data) && !Object.keys(repo).some((f) => f.startsWith(".claude/") && parse(repo[f]!)?.disableAllHooks === true)) ids.add("claude-code");
+  if (root !== null && registered(read(join(root, PROJECT_CURSOR_HOOKS)), "project-cursor", p.data)) ids.add("cursor");
   return new Set([...ids].flatMap((h) => BINARIES[h]));
 }
 

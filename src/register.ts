@@ -9,8 +9,9 @@ export type Sub = HookKind;
 // "shared": ~/.claude/settings.json, read by Claude Code, Cursor and Grok; "codex": its hooks.json;
 // "agy": the hooks.json of the pregate plugin. "project": the project's own .claude/settings.json,
 // whose handlers run the project launcher and name no machine path. "project-codex": the project's
-// own .codex/hooks.json, with the Codex events and matcher, on the same launcher.
-export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex";
+// own .codex/hooks.json, with the Codex events and matcher, on the same launcher. "project-cursor":
+// the project's own .cursor/hooks.json in Cursor's native format, on the same launcher.
+export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex" | "project-cursor";
 // The machine files drift reads; null: absent. `claude` holds every shared registration setup
 // writes: ~/.claude/settings.json, and ${CLAUDE_CONFIG_DIR}/settings.json when it is elsewhere.
 export interface MachineFiles {
@@ -24,11 +25,15 @@ export type RepoFiles = Record<string, string>;
 // Closed tool lists (MH-22): `*` would spawn the hook on every read the agent makes.
 const SHARED_TOOLS = "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command";
 const CODEX_TOOLS = "^(apply_patch|Bash)$";
+// A native Cursor matcher is tested against Cursor's own tool names: every file mutation captured
+// reaches preToolUse as Write or Delete, commands as Shell, and MCP tools as MCP:<name>.
+const CURSOR_TOOLS = "^(Write|Delete|Shell)$|^MCP:";
 const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   shared: SHARED_TOOLS,
   project: SHARED_TOOLS,
   codex: CODEX_TOOLS,
   "project-codex": CODEX_TOOLS,
+  "project-cursor": CURSOR_TOOLS,
   agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
 };
 // The project registration uses the same closed list as the shared Claude settings.
@@ -65,16 +70,19 @@ export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
 // global registration reaches its launcher: pregate.cmd beside it only starts that same script.
 const PROJECT_BIN = ".pregate/bin";
 const PROJECT_MISSING = "PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user";
-export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" | "codex" = "claude-code"): string {
+// Cursor runs project hooks from the project root and sets CURSOR_PROJECT_DIR (and CLAUDE_PROJECT_DIR
+// as an alias); the Cursor form names its own variable so that it is told apart from the Claude one.
+export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" | "codex" | "cursor" = "claude-code"): string {
   if (h === "codex") return projectCodexCommand(sub, windows);
-  const args = `hook ${sub} --harness claude-code`;
+  const args = `hook ${sub} --harness ${h}`;
+  const dir = h === "cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR";
   if (!windows) {
     const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
-    return `f="\${CLAUDE_PROJECT_DIR:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
+    return `f="\${${dir}:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
   }
   const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
-    + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
+    + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:${dir}) { $env:${dir} } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
     + `if (Test-Path -LiteralPath $f -PathType Leaf) { $raw | & $f ${args}; exit $LASTEXITCODE }; ${missing}`);
 }
 
@@ -102,7 +110,7 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
 function ownedProjectCommand(command: string, t: Target): boolean {
   const script = commandScript(command);
   const launcher = script.includes(`/${PROJECT_BIN}/pregate"`) || script.includes(`'${PROJECT_BIN}/project-launcher.ps1'`);
-  return launcher && script.includes(t === "project-codex" ? "--harness codex" : "CLAUDE_PROJECT_DIR");
+  return launcher && script.includes(t === "project-codex" ? "--harness codex" : t === "project-cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR");
 }
 
 // The trust level the user's Codex config.toml records for a project directory
@@ -121,7 +129,7 @@ function windowsData(data: string): boolean {
 export function merge(text: string | null, t: Target, data: string): string | null {
   const root = text === null ? {} : parse(text);
   if (root === null) return null;
-  if (t === "cursor") {
+  if (t === "cursor" || t === "project-cursor") {
     if (root.version !== undefined && (typeof root.version !== "number" || !Number.isInteger(root.version) || root.version < 1)) return null;
     root.version ??= 1;
   }
@@ -167,7 +175,7 @@ export function unmerge(text: string, t: Target, data: string): { text: string; 
     // What setup created goes away with it: the file is left as it was before setup.
     if (kept.length > 0) hooks[event] = kept;
     else delete hooks[event];
-    if (Object.keys(hooks).length === 0 && t !== "cursor") delete root.hooks;
+    if (Object.keys(hooks).length === 0 && t !== "cursor" && t !== "project-cursor") delete root.hooks;
   }
   return { text: settled(text, root), shifted };
 }
@@ -257,13 +265,18 @@ export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, tru
 
 // What setup registers, by event: a group; agy's Stop takes a bare handler.
 function ours(t: Target, data: string): Record<string, object> {
-  const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t;
-  const local = h === "claude-code" || h === "codex" ? h : null;
+  const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t === "project-cursor" ? "cursor" : t;
+  const project = t === "project" || t === "project-codex" || t === "project-cursor";
   const run = (sub: Sub, timeout: number) => ({
     type: "command", timeout,
-    command: (t === "project" || t === "project-codex") && local !== null ? projectHookCommand(sub, windowsData(data), local) : hookCommand(data, sub, h),
+    command: project && h !== "agy" ? projectHookCommand(sub, windowsData(data), h) : hookCommand(data, sub, h),
   });
   if (t === "cursor") return { stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
+  // No failClosed: Cursor 2026.11.11 counts an empty stdout as a failed hook under it, and empty is
+  // how the gate says it has no objection. The launcher turns a crash or a hang into exit 2 itself.
+  if (t === "project-cursor") {
+    return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t] }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
+  }
   const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
   if (t === "agy") return { PreToolUse: pre, Stop: run("stop", 60), PreInvocation: run("session-start", 15) };
   const stop = { hooks: [run("stop", 60)] };
@@ -284,7 +297,7 @@ function named(data: string): Payload {
 // also holds a foreign handler is foreign, since replacing it would drop that handler.
 function mine(group: unknown, t: Target, data: string): boolean {
   const hs = hooksOf(group);
-  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && (t === "project" || t === "project-codex" ? ownedProjectCommand(h.command, t) : ownedCommand(h.command, data)));
+  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && (t === "project" || t === "project-codex" || t === "project-cursor" ? ownedProjectCommand(h.command, t) : ownedCommand(h.command, data)));
 }
 
 export function ownedCommand(command: string, data: string): boolean {

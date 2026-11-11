@@ -60,7 +60,39 @@ Every payload carries `conversation_id`, `generation_id`, `model`, `session_id`,
 `cursor_version`, `workspace_roots`, `user_email` and `transcript_path` (null until the transcript exists).
 File paths are absolute. Write and Delete payloads carry **no top-level `cwd`**.
 
-Not captured: subagentStart/subagentStop (they did not fire for a Task subagent in the CLI),
+## 2026.11.11 capture (`*-1111.json`)
+
+- `cursor-agent` **2026.11.11-043ef28** on macOS arm64, captured 2026-11-11, model `auto`. Headless runs used
+  `cursor-agent -p --trust --force --approve-mcps --model auto --output-format stream-json "<prompt>"`; `stop` and the
+  deny came from an interactive session in a pty.
+- Isolation as above: temporary `HOME` with the keychain symlink. Hooks: a capture script registered for every agent
+  hook of Cursor's documentation in `<repo>/.cursor/hooks.json`, and for PreToolUse (with the shared matcher of
+  MULTI-HARNESS MH-22), Stop, SubagentStop and SessionStart in `<repo>/.claude/settings.json`. The project declared a
+  stdio MCP server (`/home/user/hooks/mcp.ts`) whose one tool, `write_note`, writes a file.
+- Sanitized as above; UUIDs continue the numbering at `…0b`, `toolu_…` ids at `…0008`.
+
+| File | Event / tool | What it shows |
+|---|---|---|
+| `session-start-1111.json`, `stop-1111.json` | sessionStart, stop | Same envelope as 2026.09.26 |
+| `pre-write-strreplace-1111.json`, `pre-write-create-1111.json` | preToolUse `Write` | A str_replace edit and a creation still arrive as the whole resulting file |
+| `pre-write-subagent-1111.json` | preToolUse `Write` in a subagent | The subagent's own `session_id`, no parent marker |
+| `pre-task-1111.json`, `post-tool-use-task-1111.json` | preToolUse / postToolUse `Task` | The parent's `postToolUse` names the subagent as `agentId` |
+| `pre-shell-1111.json`, `pre-delete-1111.json` | preToolUse `Shell`, `Delete` | Unchanged shapes |
+| `pre-mcp-1111.json` | preToolUse `MCP:write_note` | MCP tools reach preToolUse as `MCP:<tool>` with object arguments |
+| `claude-import-pre-mcp-1111.json` | preToolUse via `.claude/settings.json` | The shared matcher reaches `MCP:write_note`: `write` matches as a substring |
+| `before-mcp-execution-1111.json`, `after-mcp-execution-1111.json` | beforeMCPExecution, afterMCPExecution | String `tool_input`, `mcp_server_name`, the stdio `command` |
+| `after-file-edit-strreplace-1111.json` | afterFileEdit | Fired for `Write` edits only (none for Delete, Shell or MCP) |
+| `post-tool-use-failure-denied-1111.json` | postToolUseFailure | After a JSON deny with `user_message` and `agent_message`: `error_message` is the `user_message`, which is also what the model read |
+| `hook-env-pre-tool-use-1111.txt` | — | Environment of a project hook; it runs from the workspace root |
+
+Also observed and not kept as files: `subagentStart` and `subagentStop` did not fire, headless or in a pty, natively or
+through the imported `SubagentStop`; `preCompact` did not fire. A foreign native `preToolUse` answering
+`{"permission":"allow"}` beside a Claude-format deny from `.claude/settings.json`: the deny won and the file was not
+written. A native `preToolUse` with `failClosed: true` that printed nothing blocked the tool.
+
+## Not captured
+
+Not captured in 2026.09.26: subagentStart/subagentStop (they did not fire for a Task subagent in the CLI),
 beforeMCPExecution, preCompact, afterAgentResponse, `Write` payloads above a few hundred bytes, NotebookEdit,
 and any edit tool other than the three shapes above. In 2026.09.26 every file mutation that was observed
 reached preToolUse as either `Write` (whole resulting content) or `Delete`.

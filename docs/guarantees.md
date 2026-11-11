@@ -70,7 +70,7 @@ These are heuristics over text, not a sandbox.
 | A project script that already uses a sink, changed in the session so that the same call writes another file (new arguments, the same name and member) | Not denied at Pre | Same |
 | A project script that already writes files when the session begins, run unchanged | Not denied: it is the project's program, as under `pnpm test` | Same |
 | `rsync`/`tar`/`prettier` with destinations built at runtime, not spelled on the command line | Not denied | Same |
-| MCP and other edit channels with no Pre matcher | Hook may not run | Stop, CI |
+| MCP and other edit channels with no Pre matcher | Hook may not run; in Cursor, Pre judges the absolute paths an MCP call names | Stop, CI |
 | Background/async writers (`&`, `nohup`, harness-specific delays) | May exit Pre before the write | Stop, CI |
 | Git `merge`/`rebase`/`pull`/`am` | Judged after the fact | Stop, pre-commit, CI |
 

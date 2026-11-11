@@ -777,6 +777,7 @@ usage:
   pregate project launcher [--preview|--yes]
   pregate project hooks --harness claude-code [--preview|--yes]
   pregate project hooks --harness codex [--preview|--yes]
+  pregate project hooks --harness cursor [--preview|--yes]
   pregate project setup
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]

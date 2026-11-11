@@ -210,7 +210,7 @@ pregate enable                                         # local consent, by the h
 - **With a global setup.** If `pregate setup` also registered Claude Code, Claude Code runs both registrations and every tool call is evaluated twice. `pregate doctor` reports the scope as project-local only, global only, both or neither, and `pregate status` names the project-local and the double case. In a project-local setup with no other harness, `doctor` states the missing global launcher, skills and PATH entry as information, not as errors. It checks the files; it runs no canary for the project hooks.
 - **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
 
-A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
+A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Grok reading a project `.claude/settings.json` is not covered. Cursor 2026.11.11 runs that file too (see [project-local Cursor hooks](#project-local-cursor-hooks)).
 
 ## Repository-owned Claude setup
 
@@ -245,6 +245,29 @@ A live run on 2026-11-11 with Codex 0.167.0 on macOS (`scripts/e2e-real.ts --pro
 So a project registration gates Codex only after two human steps in Codex, project trust and the `/hooks` review, and any later change to the definition, including an engine update that rewrites the command, removes the gate without a notice until the hooks are reviewed again. Keep the machine setup for Codex if you need the gate to hold across updates without a new review.
 
 Not established: the interactive `/hooks` review and what the TUI shows for an unreviewed hook; whether Codex runs both registrations when both exist; the Windows form in a real Codex session.
+
+## Project-local Cursor hooks
+
+`pregate project hooks --harness cursor [--preview|--yes]` registers Cursor's native hooks in the project's own `.cursor/hooks.json`. The hooks run the project launcher. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview                # review, then the human approves
+pregate project hooks --harness cursor --preview  # review, then the human approves
+pregate enable                                    # local consent, by the human
+```
+
+- **What it writes.** `version: 1` and three entries: `preToolUse` with the matcher `^(Write|Delete|Shell)$|^MCP:` (timeout 120), `stop` (timeout 60, `loop_limit: null`) and `sessionStart` (timeout 15). The commands find the launcher through `$CURSOR_PROJECT_DIR` and hold no path of this machine, so the file can be committed. Other entries and unknown keys stay, and a second run changes no byte.
+- **MCP tools.** Every `MCP:` tool reaches the gate. A call that names no local absolute path is not judged; a call that names a protected file or a file in the contract's scope is denied, and the agent is told to write the file with its file tool instead.
+- **No `failClosed`.** Cursor 2026.11.11 blocks a tool when a `failClosed` hook prints nothing, and printing nothing is how Pregate allows. A crash or a hang of the engine is still a deny: the launcher turns it into exit 2.
+- **Trust.** Cursor runs project hooks only in a trusted workspace. Pregate does not read that record.
+- **Cloud agents.** Cursor's cloud agents load `.cursor/hooks.json` from the repository and never the user's home. On a cloud machine the hooks deny every write until the pinned engine is cached (`pregate prepare` in the environment's setup), and they enforce nothing there without a local consent record. Cloud agents were not exercised.
+- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. Cursor also runs the project's `.claude/settings.json`, so a project registered for both Claude Code and Cursor is evaluated twice in Cursor, and `doctor` says so. A Claude Code project registration alone is reported as Cursor's registration through that file.
+- **With a global setup.** If `pregate setup` also registered the machine, Cursor runs both registrations and every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
+
+A live run on 2026-11-11 with cursor-agent 2026.11.11 on macOS (`scripts/e2e-real.ts --project-hooks-only cursor`, headless with `--trust`, isolated home, no global installation) allowed a clean write, denied a forbidden one with the rule reaching the model, and denied an MCP tool that tried to write into `src/core`.
+
+Not established: the interactive trust prompt, cloud agents, and the Windows form in a real Cursor session.
 
 ## Updates and removal
 

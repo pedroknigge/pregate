@@ -5,9 +5,9 @@ import { decode, encode } from "../../src/harness/cursor.ts";
 import type { DecideInput, Decision, Emission, HookEvent, HookKind, Lock, Rejected, Session, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
-// The Cursor contract (MULTI-HARNESS MH-05, MH-06, MH-14): real payloads captured from cursor-agent
-// 2026.09.26-dd393fe in test/payloads/cursor, decoded to exact events; decisions from the real policy,
-// encoded to exact output.
+// The Cursor contract (MULTI-HARNESS MH-05, MH-06, MH-14, MH-35): real payloads captured from
+// cursor-agent 2026.09.26-dd393fe and 2026.11.11-043ef28 (the *-1111 files) in test/payloads/cursor,
+// decoded to exact events; decisions from the real policy, encoded to exact output.
 
 const DIR = `${import.meta.dir}/../payloads/cursor`;
 const PROJECT = "/home/user/project";
@@ -16,9 +16,12 @@ const json = (name: string): Record<string, unknown> => JSON.parse(readFileSync(
 const raw = (o: unknown): string => JSON.stringify(o);
 const uuid = (n: string): string => `00000000-0000-4000-8000-${n.padStart(12, "0")}`;
 const session = (id: string, turn: string): Session => ({ id: uuid(id), harness: "cursor", agentId: null, turnId: uuid(turn), interactive: false });
-const toolu = (n: number): string => `toolu_01CAPTURE000000000000000${n}`;
+const toolu = (n: number): string => `toolu_01CAPTURE${String(n).padStart(16, "0")}`;
 const write = (s: Session, callId: string, file: string, content: string): HookEvent => ({
   kind: "pre-edit", changes: [{ session: s, callId, tool: "Write", path: `${PROJECT}/${file}`, edit: { form: "full", content }, from: null }],
+});
+const mcpWrite = (s: Session, callId: string, file: string): HookEvent => ({
+  kind: "pre-edit", changes: [{ session: s, callId, tool: "MCP:write_note", path: `${PROJECT}/${file}`, edit: { form: "unknown", cause: "MCP:write_note" }, from: null }],
 });
 const causeOf = (e: HookEvent | Rejected | null): string | null => (e !== null && "cause" in e ? e.cause : null);
 const MATCHER = "the shared PreToolUse matcher (MH-22) names no tool Cursor calls this";
@@ -67,6 +70,27 @@ describe("decode: captured payloads", () => {
     "post-tool-use-failure-denied.json": { unregistered: EVENT },
     "session-end.json": { unregistered: EVENT },
     "deny-matrix.observed.json": { unregistered: "not a payload: the tool results Cursor streamed for 19 hook behaviours" },
+    // 2026.11.11: the shapes Pre reads are unchanged, and MCP tools reach preToolUse as MCP:<name>.
+    "session-start-1111.json": { event: "session-start", out: { kind: "session-start", session: session("b", "b"), cwd: PROJECT } },
+    "pre-write-strreplace-1111.json": { event: "pre", out: write(session("b", "b"), toolu(8), "a.ts", "export const a = 2;\n") },
+    "pre-write-create-1111.json": { event: "pre", out: write(session("b", "b"), toolu(9), "c.ts", "export const c = 3;") },
+    "pre-write-subagent-1111.json": { event: "pre", out: write(session("f", "f"), toolu(12), "sub.ts", "export const s = 1;") },
+    "pre-shell-1111.json": {
+      event: "pre", out: { kind: "pre-command", command: { session: session("b", "b"), callId: uuid("c"), tool: "Shell", command: "echo hello", cwd: PROJECT } },
+    },
+    "pre-delete-1111.json": {
+      event: "pre", out: { kind: "pre-edit", changes: [{ session: session("b", "b"), callId: toolu(10), tool: "Delete", path: `${PROJECT}/b.txt`, edit: { form: "delete" }, from: null }] },
+    },
+    "pre-mcp-1111.json": { event: "pre", out: mcpWrite(session("b", "b"), uuid("d"), "note.txt") },
+    // The shared matcher is a substring search: `write` matches MCP:write_note in the imported registration.
+    "claude-import-pre-mcp-1111.json": { event: "pre", out: mcpWrite(session("10", "10"), uuid("11"), "note3.txt") },
+    "stop-1111.json": { event: "stop", out: { kind: "stop", session: session("12", "13"), cwd: PROJECT, reentry: false } },
+    "pre-task-1111.json": { unregistered: MATCHER },
+    "before-mcp-execution-1111.json": { unregistered: EVENT },
+    "after-mcp-execution-1111.json": { unregistered: EVENT },
+    "after-file-edit-strreplace-1111.json": { unregistered: EVENT },
+    "post-tool-use-task-1111.json": { unregistered: EVENT },
+    "post-tool-use-failure-denied-1111.json": { unregistered: EVENT },
   });
 
   test("the harness environment changes nothing: no Cursor session is interactive", () => {
@@ -155,8 +179,45 @@ describe("decode: edits", () => {
   });
 
   // The matcher keeps them away; should one arrive anyway, nothing passes unjudged.
-  test.each(["Read", "Task", "Grep", "write", "MultiEdit", "MCP:write_file"])("tool_name %p is outside the exact set", (tool) => {
+  test.each(["Read", "Task", "Grep", "write", "MultiEdit", "mcp:write_file"])("tool_name %p is outside the exact set", (tool) => {
     expect(causeOf(decode("pre", raw({ ...json("pre-write-create.json"), tool_name: tool }), ENV))).toBe(BAD);
+  });
+});
+
+// MH-35: an MCP tool's arguments are its server's; the paths it names are judged where they land.
+describe("decode: MCP tools", () => {
+  const call = (input: unknown, tool = "MCP:write_note"): HookEvent | Rejected | null =>
+    decode("pre", raw({ ...json("pre-mcp-1111.json"), tool_name: tool, tool_input: input }), ENV);
+  const paths = (e: HookEvent | Rejected | null): string[] => (e as Extract<HookEvent, { kind: "pre-edit" }>).changes.map((c) => c.path);
+
+  test("a call that names no local absolute path is not judged", () => {
+    expect(call({ title: "Fix login", body: "see ./src/a.ts and https://example.com/x" }, "MCP:create_issue")).toBeNull();
+    expect(call({})).toBeNull();
+  });
+
+  test("every absolute path, nested or repeated, is one unknown edit judged by its path", () => {
+    const e = call({ files: [{ path: `${PROJECT}/a.ts` }, { path: `${PROJECT}/a.ts` }], meta: { out: "/home/user/other/b.ts" } });
+    expect(paths(e)).toEqual([`${PROJECT}/a.ts`, "/home/user/other/b.ts"]);
+    for (const c of (e as Extract<HookEvent, { kind: "pre-edit" }>).changes) {
+      expect(c).toMatchObject({ tool: "MCP:write_note", callId: uuid("d"), edit: { form: "unknown", cause: "MCP:write_note" }, from: null });
+    }
+  });
+
+  test("a path that is not normalized cannot be placed: refused with it as a directory", () => {
+    expect(call({ path: `${PROJECT}/../etc/a.ts` })).toEqual({
+      cause: "cannot-reconstruct", kind: "pre-edit", reentry: false, session: session("b", "b"), dirs: [`${PROJECT}/../etc/a.ts`],
+    });
+  });
+
+  test("values nested deeper than the bound are not read", () => {
+    expect(call({ a: { b: { c: { d: { path: `${PROJECT}/a.ts` } } } } })).toBeNull();
+    expect(paths(call({ a: { b: { c: { path: `${PROJECT}/a.ts` } } } }))).toEqual([`${PROJECT}/a.ts`]);
+  });
+
+  test("the envelope stays strict: tool_use_id and an object tool_input are required", () => {
+    const { tool_use_id: _, ...p } = json("pre-mcp-1111.json");
+    expect(causeOf(decode("pre", raw(p), ENV))).toBe(BAD);
+    expect(causeOf(call('{"path":"/home/user/project/a.ts"}'))).toBe(BAD);
   });
 });
 
