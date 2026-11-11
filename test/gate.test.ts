@@ -1144,7 +1144,7 @@ test("Cursor Stop followups share the cap despite new generation IDs, and reset 
   expect((await stop("generation-5")).verdict).toBe("deny");
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop even when the adapter cannot display it", async (harness) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop and uses only its supported notice channel", async (harness) => {
   const root = repo();
   const s = session(harness);
   onSessionStart({ kind: "session-start", session: s, cwd: root });
@@ -1157,8 +1157,10 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s record
   expect(last.stopIncomplete).toEqual({ reason: "limit", cause: null });
   const emission = HARNESSES[harness].encode("stop", last);
   expect(emission.exit).toBe(0);
-  if (harness === "claude-code") expect(emission.stdout).toContain("pregate report --json");
-  else expect(emission.stdout).toBe("");
+  if (harness === "claude-code" || harness === "codex") {
+    expect(JSON.parse(emission.stdout)).toEqual({ systemMessage: last.notice });
+    expect(emission.stdout).toContain("pregate report --json");
+  } else expect(emission.stdout).toBe("");
   const result = JSON.parse(report(["--repo", root, "--json"]).text);
   expect(result.incompleteStops).toHaveLength(1);
   expect(result.incompleteStops[0]).toMatchObject({ session: state.key(s), reason: "limit", cause: null });
