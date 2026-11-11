@@ -9,7 +9,7 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 export const VERIFIED = "1.0.49";
 
 const BAD: Cause = "payload-unrecognized";
-const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", session_start: "session-start" };
+const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", subagent_stop: "stop", session_start: "session-start" };
 const COMMAND = "run_terminal_command";
 // In the registration's matcher (the codex preset, the opencode agent), but uncaptured: nothing says
 // what they carry, so nothing says where they write.
@@ -17,14 +17,13 @@ const UNCAPTURED = new Set(["apply_patch", "edit", "bash"]);
 
 export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null {
   const p = parse(raw);
-  // The shared registration's SubagentStop: Grok has no subagent Stop the gate judges.
-  if (event === "stop" && p !== null && /^subagent/i.test(String(p.hookEventName))) return null;
   if (p === null || named(p) !== event) return refuse(event, p, env);
   const session = sessionOf(p);
   if (session === null || !absolute(p.cwd)) return refuse(event, p, env);
   if (event === "session-start") return { kind: "session-start", session, cwd: p.cwd };
   if (event === "stop") {
-    // The extra Stop after SessionEnd: Grok ignores its decision.
+    // The extra Stop after SessionEnd: Grok ignores its decision. SubagentStop uses this same
+    // path. The payload's sessionId is the child's, and the payload has no agent id.
     if (p.reason === "shutdown") return null;
     return typeof p.stopHookActive === "boolean" ? { kind: "stop", session, cwd: p.cwd, reentry: p.stopHookActive } : refuse(event, p, env);
   }
