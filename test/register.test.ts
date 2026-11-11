@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, type Sub, type Target, unmerge } from "../src/register.ts";
+import { agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, registered, type Sub, type Target, unmerge } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -373,6 +373,44 @@ describe("project", () => {
       expect(obj(unmerge(both, "project-codex", DATA)!.text)).toEqual(obj(merge(null, other, DATA)));
       expect(obj(unmerge(both, other, DATA)!.text)).toEqual(obj(merge(null, "project-codex", DATA)));
     }
+  });
+
+  test("the Cursor project registration is native: version 1, flat entries, no failClosed, and no machine path", () => {
+    const project = obj(merge(null, "project-cursor", DATA));
+    expect(project.version).toBe(1);
+    expect(Object.keys(project.hooks)).toEqual(["preToolUse", "stop", "sessionStart"]);
+    expect(project.hooks.preToolUse).toEqual([{
+      type: "command", timeout: 120, matcher: "^(Write|Delete|Shell)$|^MCP:",
+      command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness cursor; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`,
+    }]);
+    expect(project.hooks.stop[0]).toMatchObject({ timeout: 60, loop_limit: null, command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness cursor; exit 0` });
+    const flat = (text: string | null): string[] => Object.values(obj(text).hooks as Record<string, Json[]>).flatMap((list) => list.map((h) => h.command as string));
+    for (const command of [...flat(merge(null, "project-cursor", DATA)), ...flat(merge(null, "project-cursor", WINDOWS_DATA))]) {
+      expect(commandScript(command)).not.toContain(DATA);
+      expect(commandScript(command)).not.toContain("AppData");
+      expect(commandScript(command)).not.toContain("CLAUDE_PROJECT_DIR");
+    }
+    for (const command of flat(merge(null, "project-cursor", WINDOWS_DATA))) {
+      expect(command).toMatch(/^powershell\.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/);
+      expect(commandScript(command)).toContain("$d=if ($env:CURSOR_PROJECT_DIR) { $env:CURSOR_PROJECT_DIR } else { (Get-Location).Path }");
+    }
+    expect(merge('{"version":0,"hooks":{}}', "project-cursor", DATA)).toBeNull();
+  });
+
+  test("the Cursor project registration is idempotent, keeps foreign entries, and does not own the other registrations", () => {
+    const foreign = JSON.stringify({ version: 1, hooks: { preToolUse: [{ command: "sh .cursor/hooks/audit.sh --harness cursor" }], stop: [{ command: "afplay done.aiff" }] } });
+    const merged = merge(foreign, "project-cursor", DATA)!;
+    expect(merge(merged, "project-cursor", DATA)).toBe(merged);
+    expect(obj(merged).hooks.preToolUse[0]).toEqual(obj(foreign).hooks.preToolUse[0]);
+    expect(obj(unmerge(merged, "project-cursor", DATA)!.text)).toEqual(obj(foreign));
+    expect(merge(merge(null, "project-cursor", WINDOWS_DATA), "project-cursor", DATA)).toBe(merge(null, "project-cursor", DATA)!);
+    // The machine's native Cursor Stop belongs to `cursor`, the project's to `project-cursor`.
+    const both = merge(merge(null, "cursor", DATA), "project-cursor", DATA)!;
+    expect(obj(both).hooks.stop).toHaveLength(2);
+    expect(obj(unmerge(both, "project-cursor", DATA)!.text)).toEqual(obj(merge(null, "cursor", DATA)));
+    expect(obj(unmerge(both, "cursor", DATA)!.text)).toEqual(obj(merge(null, "project-cursor", DATA)));
+    expect(registered(merge(null, "project-cursor", DATA), "project-cursor", DATA)).toBe(true);
+    expect(registered(merge(null, "project", DATA), "project-cursor", DATA)).toBe(false);
   });
 
   test("codexProjectTrust reads the trust level of one project directory and nothing about a hook", () => {
