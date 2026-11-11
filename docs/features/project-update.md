@@ -1,6 +1,6 @@
 # One reviewed project update
 
-Included in 0.0.6. Updating the global installation prepares a review;
+Included in 0.0.7. Updating the global installation prepares a review;
 only human approval migrates an existing project's contract.
 
 The human starts `! pregate update` inside Claude Code, Codex, Grok or agy.

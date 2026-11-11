@@ -11,9 +11,9 @@ hiding it. Cite this record in release notes instead of rebuilding the table by
 hand. It covers the host target only; other platforms and actual harness UI
 remain separate evidence.
 
-## Release 0.0.6
+## Release 0.0.7
 
-[v0.0.6](https://github.com/pedroknigge/pregate/releases/tag/v0.0.6) is the release this tree prepares. The commit to verify is the v0.0.6 tag. macOS ARM64 is the stable platform. Linux and Windows archives remain experimental until native validation is recorded. The manual Windows procedure is [windows verification](../guides/windows-verification.md). Cross-compilation and checksums do not by themselves prove a platform. The previously published release is [v0.0.3](https://github.com/pedroknigge/pregate/releases/tag/v0.0.3), tag commit `f7fe8ac159bd17edc6eaf501f4b209a351426b01`. See the [changelog](../../CHANGELOG.md), [v0.0.6 release notes](../releases/0.0.6.md) and [v0.0.1 release notes](../releases/0.0.1.md).
+[v0.0.7](https://github.com/pedroknigge/pregate/releases/tag/v0.0.7) is the release this tree prepares. The commit to verify is the v0.0.7 tag. macOS ARM64 is the stable platform. Linux and Windows archives remain experimental until native validation is recorded. The manual Windows procedure is [windows verification](../guides/windows-verification.md). Cross-compilation and checksums do not by themselves prove a platform. The previously published release is [v0.0.3](https://github.com/pedroknigge/pregate/releases/tag/v0.0.3), tag commit `f7fe8ac159bd17edc6eaf501f4b209a351426b01`. See the [changelog](../../CHANGELOG.md), [v0.0.7 release notes](../releases/0.0.7.md) and [v0.0.1 release notes](../releases/0.0.1.md).
 
 ## README on every release
 
@@ -24,7 +24,7 @@ and the optional pack inventory and counts. It also rewrites the committed laten
 baselines in [hook latency](../benchmarks/hook-latency.md).
 `bun scripts/docs-reference.ts --check` fails when either block drifts.
 Run it in the same change that sets the release version, and commit the README.
-The 0.0.6 release change does this after it sets the version. Until `package.json`
+The 0.0.7 release change does this after it sets the version. Until `package.json`
 says that version, the generated line stays on the version the file actually contains.
 
 ## Standard release workflow
@@ -79,7 +79,7 @@ bun run scripts/smoke-stop.ts /absolute/path/to/candidate
 
 ## Evidence and limits
 
-Candidate SHAs, action-run links, and timings from before the public 0.0.x line are not evidence for the v0.0.6 tag. Quote a run only after you open it on [pedroknigge/pregate](https://github.com/pedroknigge/pregate) and it shows the commit you mean.
+Candidate SHAs, action-run links, and timings from before the public 0.0.x line are not evidence for the v0.0.7 tag. Quote a run only after you open it on [pedroknigge/pregate](https://github.com/pedroknigge/pregate) and it shows the commit you mean.
 
 CI records whether the tested Linux job uploaded the candidate. Native bootstrap and smoke can then run even if a later repository self-gate fails, so platform evidence is available while the failed job still blocks admission. The release workflow still requires the native matrix before publication. Post-publication bootstrap checks the GitHub download, including signature verification when cosign is installed.
 

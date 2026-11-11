@@ -29,7 +29,7 @@ bun run scripts/build.ts darwin-arm64   # or linux-x64, linux-arm64, darwin-x64,
 
 ### What a rebuild proves
 
-- Two builds of the same commit, on the same machine with the pinned Bun, produced the same engine bytes (macOS ARM64, Bun 1.4.4, engine 0.0.6).
+- Two builds of the same commit, on the same machine with the pinned Bun, produced the same engine bytes (macOS ARM64, Bun 1.4.4, at the 0.0.6 source).
 - A local macOS ARM64 build of tag `v0.0.5` did **not** match the engine in the published `darwin-arm64` archive: same size, different bytes. The release workflow builds every target on a GitHub-hosted runner. Pregate does not claim that a local rebuild reproduces a published archive.
 
 So a rebuild checks that the tag builds and passes its tests. It is not how a published archive is verified.

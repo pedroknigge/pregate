@@ -12,7 +12,7 @@ distinct from current real harness interaction evidence.
 
 **Sources of truth.** The contracts verified live today: `docs/research/harness-{codex,cursor,grok,agy}-live.md` and `test/payloads/{codex,cursor,grok,agy}/`. The distribution pattern: `docs/research/distribution-patterns.md`. The MVP: `docs/ARCHITECTURE.md` (§10, O1–O41) and `docs/SPEC.md` §14. If this document contradicts `distribution-patterns.md`, this one wins, because it was written against the live contracts. Examples: Grok does not read `~/.cursor/hooks.json` in 1.0.48, agy uses a plugin and not `~/.gemini/config/hooks.json`, and Cursor and Grok always read `~/.claude/settings.json`, with their native payload.
 
-0.0.6 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
+0.0.7 is the published release. The notes below are the harness design. Pack counts and acceptance evidence are in [packs](packs.md) and the [changelog](../CHANGELOG.md), not in a pre-rename version number.
 Under [D29/O60](ARCHITECTURE.md), human commands prompt on /dev/tty (or CONIN$ on Windows);
 interactive Claude Code and agy use enforced native permissions. Codex, Cursor,
 Grok and headless sessions deny contract edits and direct the human to
@@ -559,7 +559,7 @@ What the session gate does not see and is left for Stop (where it exists), pre-c
 - **§5.4:** layout (MH-18) and releases (MH-32).
 - **O11:** bounded by MH-13.
 - **O25:** `payload-unrecognized` names the harness and the tool.
-- **SPEC §14.6:** Codex, Cursor, and agy are in the current public release (0.0.6). `hashline_edit` stays in v2.
+- **SPEC §14.6:** Codex, Cursor, and agy are in the current public release (0.0.7). `hashline_edit` stays in v2.
 
 ---
 
@@ -677,7 +677,7 @@ export function uninstall(purge: boolean): Promise<{ code: 0 | 1; text: string }
 export function doctor(): Promise<{ code: 0 | 1; text: string }>;
 ```
 
-Launcher protocol in 0.0.6: exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
+Launcher protocol in 0.0.7: exit 0 and 2 = the engine's output; exit 3 with first stdout line `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$` = "run that engine". Pre also returns the original stdin after that line (MH-19); an empty replay is rejected. Any other code = fail-closed. The `<CMD ev h>` text from MH-22 is written in W0 as a literal fixture.
 
 **W0 delta (built; this overrides the signatures above).**
 - `HARNESSES` and `profile` live in `src/harness/profile.ts`, not in `main.ts`: `main.ts` runs on import, so neither a test nor `doctor` could import it, and `machine.ts → main.ts → cli.ts → machine.ts` would be a cycle.
@@ -725,7 +725,7 @@ Launcher protocol in 0.0.6: exit 0 and 2 = the engine's output; exit 3 with firs
 
 | # | Question | Recommendation |
 |---|---|---|
-| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.6 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
+| U-1 | **Pilot migration.** The per-repo hooks have to come out of its `.claude/settings.json` and the committed launcher (MH-28), and its lock has to be recompiled with the current engine, 0.0.7 (MH-20). Teammates without the global install lose the session gate and their pre-commit asks them to install PREGATE. The alternative (FO-F23) is to keep the per-repo hook as a backup, with the `callId` deduplication that MH-04 no longer needs | Yes, in a single pilot PR, together with the install instruction. A single path for the hooks |
 | U-2 | **Release downloads.** `pedroknigge/pregate` is public. Anonymous HTTPS downloads the release. `gh auth login` is only the fallback when that download fails | No extra repository grant. Use the installers in the [installation guide](guides/installation.md) |
 | U-3 | **Codex trust.** `setup` grants it through app-server **only to the PREGATE keys whose definition is exactly what it wrote**, which is the same as approving them in `/hooks`. I understand D20's "yes" covers it. If a foreign hook loses trust, setup restores and fails: it never touches foreign trust | Confirm. If not, `setup` leaves it pending and `doctor` fails until it is approved by hand |
 | U-4 | **New-version notice.** (a) `doctor` only; (b) one line in the pre-commit, at most once a day, from a background cached check with `gh`; (c) opt-in auto-update | (b): without a notice, nobody learns there is a new version, and the pre-commit is the only channel that exists on all five harnesses. Never auto-update |

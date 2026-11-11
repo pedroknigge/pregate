@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-11
+
+A small release. A project can carry its own reviewed launcher, which runs the engine its lock pins. Maintenance, a reproducible build and rollback are documented, and the upgrade and the rollback run as a test. The rest is how the project tests itself: CI takes about half the time, and hook latency is also read against the last release on the same runner. No rule and no contract format changed. See the [0.0.7 notes](docs/releases/0.0.7.md).
+
 ### Added
 
 - **Maintenance, reproducible build and rollback are documented and tested.** [Maintenance, reproducible build and rollback](docs/guides/maintenance.md) says who releases Pregate, how to build a tag from a clean checkout, how a published archive is verified, and how a pinned project is upgraded and rolled back. An end-to-end test runs the upgrade and the rollback on every CI run with two real engines that differ only in version: the upgrade changes the pin and no rule, both engines deny the same edit for the same rule, and reverting the upgrade commit restores the first committed contract. The page states what a rebuild does not prove: two local builds were identical, and a local build of `v0.0.5` did not match the published archive.

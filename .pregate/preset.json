@@ -2,7 +2,7 @@
   "$schema": "../schema/preset.v1.json",
   "name": "pregate",
   "version": "0.1.0",
-  "engine": "0.0.6",
+  "engine": "0.0.7",
   "sources": [
     {
       "ns": "core",

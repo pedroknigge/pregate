@@ -1,6 +1,6 @@
 # Turn a correction into a rule
 
-Included in 0.0.6. `rules draft` covers the
+Included in 0.0.7. `rules draft` covers the
 case the feedback commands do not: no rule fired, the agent wrote something a
 reviewer rejected, and the team wants that mistake to be impossible next time.
 `feedback`, `dispute` and `issue` handle the opposite case, a rule that was wrong.
