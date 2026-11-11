@@ -195,6 +195,20 @@ test("an inactive Codex child receives no setup notice", () => {
   expect(out.stdout).toBe("");
 });
 
+test("a Codex child making first contact does not adopt dirty edits as existing debt", () => {
+  const id = "child-first-contact", file = join(repo, "src/dirty-before-child.ts");
+  writeFileSync(file, "export const dirty = ;\n");
+  const base = { session_id: id, cwd: spell(repo), stop_hook_active: false };
+  const started = hook("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart", agent_id: "worker" }));
+  expect(started.code, started.text).toBe(0);
+  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(repo), "snapshot.json");
+  expect(JSON.parse(readFileSync(snap, "utf8"))).toMatchObject({ start: false, dirty: {} });
+  const parent = hook("stop", JSON.stringify({ ...base, hook_event_name: "Stop" }));
+  expect(parent.stdout, parent.text).toContain("syntax");
+  expect(JSON.parse(parent.stdout).decision).toBe("block");
+  writeFileSync(file, "export const dirty = 1;\n");
+});
+
 test("an older engine pin retains parent Stop routing and does not receive new child events", () => {
   const old = join(area, "older-pin");
   git(old);

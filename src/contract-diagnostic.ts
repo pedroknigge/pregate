@@ -181,7 +181,10 @@ export function onSessionStart(e: Extract<HookEvent, { kind: "session-start" }>)
   }
   if (root === null) return told(null);
   const loaded = lockOf(root);
-  const snap = state.ensureSnapshot(sid, root, (rel) => contextFile(rel) || inScope(isCause(loaded) ? null : loaded.lock, rel));
+  // A child's first contact cannot accept unobserved dirty edits as pre-session debt.
+  const start = e.session.harness === "codex" && e.session.agentId !== null ? null
+    : (rel: string) => contextFile(rel) || inScope(isCause(loaded) ? null : loaded.lock, rel);
+  const snap = state.ensureSnapshot(sid, root, start);
   if (isCause(snap)) return told(notice("halt", { reason: snap }));
   const valid = verify(sid, root, loaded);
   if (!isCause(valid)) return told(null, briefing(valid.lock, launcher(), updateReady()));
