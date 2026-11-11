@@ -37,12 +37,23 @@ jobs:
       - name: Install test shells
         run: |
           set -eu
-          # Hosted Ubuntu lists azure.archive.ubuntu.com first. When that name does not resolve,
-          # apt stops there and the suite never starts. Use archive.ubuntu.com, then retry.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/apt-mirrors.txt
+          # The hosted stub resolver has failed every Ubuntu archive name for the whole job
+          # (azure.archive.ubuntu.com, then archive.ubuntu.com) while other HTTPS hosts resolved.
+          resolve() { getent hosts "$1" >/dev/null 2>&1; }
+          if ! resolve archive.ubuntu.com && ! resolve azure.archive.ubuntu.com; then
+            echo "Ubuntu archive names did not resolve; using public DNS"
+            sudo rm -f /etc/resolv.conf
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\noptions timeout:2 attempts:2\n' | sudo tee /etc/resolv.conf >/dev/null
           fi
-          for attempt in 1 2 3 4 5; do
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            if resolve archive.ubuntu.com; then
+              sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/apt-mirrors.txt
+            else
+              echo "archive.ubuntu.com still does not resolve; using mirrors.kernel.org"
+              printf '%s\n' 'http://mirrors.kernel.org/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+          fi
+          for attempt in 1 2 3; do
             if sudo apt-get update && sudo apt-get install -y zsh; then
               command -v zsh
               exit 0
