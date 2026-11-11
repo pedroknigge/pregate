@@ -156,7 +156,7 @@ test("Codex child lifecycle preserves the parent's baseline and checks only its 
   const lifecycle = (event: string, child = false) => JSON.stringify({ ...base, hook_event_name: event, ...(child ? { agent_id: agent, agent_type: "default" } : {}), stop_hook_active: false });
   const start = hook("session-start", lifecycle("SessionStart"));
   expect(start.code, start.text).toBe(0);
-  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(repo), "snapshot.json");
+  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(canonical(repo)), "snapshot.json");
   const before = readFileSync(snap, "utf8");
   const childStart = hook("session-start", lifecycle("SubagentStart", true));
   expect(childStart.code, childStart.text).toBe(0);
@@ -164,7 +164,7 @@ test("Codex child lifecycle preserves the parent's baseline and checks only its 
   expect(context.hookEventName).toBe("SubagentStart");
   expect(context.additionalContext).toContain("PREGATE is active:");
   expect(context.additionalContext).toContain("use absolute paths");
-  expect(context.additionalContext).toContain(repo);
+  expect(context.additionalContext).toContain(canonical(repo));
   expect(readFileSync(snap, "utf8")).toBe(before);
 
   const file = join(repo, "src/lifecycle.ts"), good = "export const value = 1;\n";
@@ -201,7 +201,7 @@ test("a Codex child making first contact does not adopt dirty edits as existing 
   const base = { session_id: id, cwd: spell(repo), stop_hook_active: false };
   const started = hook("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart", agent_id: "worker" }));
   expect(started.code, started.text).toBe(0);
-  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(repo), "snapshot.json");
+  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(canonical(repo)), "snapshot.json");
   expect(JSON.parse(readFileSync(snap, "utf8"))).toMatchObject({ start: false, dirty: {} });
   const parent = hook("stop", JSON.stringify({ ...base, hook_event_name: "Stop" }));
   expect(parent.stdout, parent.text).toContain("syntax");
