@@ -68,7 +68,7 @@ for (const [harness, tool] of [["claude-code", "Write"], ["codex", "apply_patch"
   test.skipIf(!POSIX)(`${harness} gated: the denial is classified repaired and the final tree has no new finding`, () => {
     const s = of(`scratch-count.${harness}.gated`);
     expect(s.denials).toEqual([expect.objectContaining({ file: "src/parse.ts", rule: RULE, decision: "deny", attempts: 1, laterAccepted: true, changed: true, finalClean: true, outcome: "repaired" })]);
-    expect(s.noNew).toEqual({ ran: true, exit: 0, findings: [], error: null });
+    expect(s.noNew).toEqual({ ran: true, exit: 0, findings: [], advisories: [], error: null });
     expect(s.changed).toEqual(["src/format.ts", "src/parse.ts"]);
     const diff = readFileSync(join(done.out, "sessions", s.diff), "utf8");
     expect(diff).toContain("+export function parseCount");
@@ -79,7 +79,7 @@ for (const [harness, tool] of [["claude-code", "Write"], ["codex", "apply_patch"
   test.skipIf(!POSIX)(`${harness} control: no hook ran, and the final check reports the finding that the gate prevented`, () => {
     const s = of(`scratch-count.${harness}.control`);
     expect([s.hooks, s.hookCalls, s.denials]).toEqual([[], null, []]);
-    expect(s.noNew).toEqual({ ran: true, exit: 1, findings: [{ rule: RULE, path: "src/parse.ts", line: 4 }], error: null });
+    expect(s.noNew).toEqual({ ran: true, exit: 1, findings: [{ rule: RULE, path: "src/parse.ts", line: 4, level: "error" }], advisories: [], error: null });
     expect(readFileSync(join(done.out, "sessions", s.diff), "utf8")).toContain("JSON.parse(text)");
   });
 }

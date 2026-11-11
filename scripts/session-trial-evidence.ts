@@ -14,7 +14,8 @@ export interface Manifest { selection: string; repositories: Repository[]; tasks
 export interface Planned { id: string; harness: TrialHarness; arm: Arm; repo: Repository; task: Task }
 export interface Selection { harnesses: TrialHarness[]; repos: string[]; tasks: string[]; arms: Arm[] }
 
-export interface Finding { rule: string; path: string; line: number }
+// `level` is the SARIF level: "error" blocks under the contract; "warning" and "note" inform.
+export interface Finding { rule: string; path: string; line: number; level?: string }
 // One hook call as the engine recorded it. `tool` comes from the payload the harness sent (the
 // engine's record has the call id, not the tool name); it is null when no payload matched.
 export interface HookCall {
@@ -26,7 +27,9 @@ export interface Denial {
   file: string | null; rule: string; decision: "deny" | "ask"; attempts: number; message: string | null;
   laterAccepted: boolean; changed: boolean | null; finalClean: boolean | null; outcome: Outcome;
 }
-export interface NoNew { ran: boolean; exit: number | null; findings: Finding[]; error: string | null }
+// `findings` are the ones that block (the check exits 1 for them). `advisories` are reported and
+// do not block: a rule in advisor mode, a warn rule, or debt the base commit already had.
+export interface NoNew { ran: boolean; exit: number | null; findings: Finding[]; advisories?: Finding[]; error: string | null }
 export interface Session {
   id: string; harness: TrialHarness; cliVersion: string; model: string | null; arm: Arm; repo: string; commit: string; task: string;
   wallMs: number; exitCode: number | null; timedOut: boolean; contractMatchesReference: boolean | null;
@@ -90,9 +93,9 @@ export function sarifFindings(text: string): Finding[] | null {
   try { doc = JSON.parse(text); } catch { return null; }   // fail-closed: an unreadable report is reported as a check that did not run
   const results = (doc as { runs?: { results?: unknown }[] } | null)?.runs?.[0]?.results;
   if (!Array.isArray(results)) return null;
-  return results.map((r: { ruleId?: string; locations?: { physicalLocation?: { artifactLocation?: { uri?: string }; region?: { startLine?: number } } }[] }) => {
+  return results.map((r: { ruleId?: string; level?: string; locations?: { physicalLocation?: { artifactLocation?: { uri?: string }; region?: { startLine?: number } } }[] }) => {
     const where = r.locations?.[0]?.physicalLocation;
-    return { rule: r.ruleId ?? "", path: where?.artifactLocation?.uri ?? "", line: where?.region?.startLine ?? 0 };
+    return { rule: r.ruleId ?? "", path: where?.artifactLocation?.uri ?? "", line: where?.region?.startLine ?? 0, level: r.level ?? "error" };
   });
 }
 

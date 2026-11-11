@@ -246,9 +246,9 @@ function parsed(text: string): Record<string, unknown> | null {
 // The "no new debt" check on the final tree, with the engine that the gated arm runs.
 function noNew(t: Trial, s: Planned, repo: string): NoNew {
   const o = run([t.engine, "check", "--ratchet", "--base", s.repo.commit, "--format", "sarif"], repo, t.gated.env);
-  const findings = sarifFindings(o.stdout);
-  if (findings === null) return { ran: false, exit: o.code, findings: [], error: (o.stdout + o.stderr).trim().slice(0, 2000) };
-  return { ran: true, exit: o.code, findings, error: null };
+  const all = sarifFindings(o.stdout);
+  if (all === null) return { ran: false, exit: o.code, findings: [], error: (o.stdout + o.stderr).trim().slice(0, 2000) };
+  return { ran: true, exit: o.code, findings: all.filter((f) => f.level === "error"), advisories: all.filter((f) => f.level !== "error"), error: null };
 }
 
 // The final tree against the pinned commit, without the contract folder. Everything is staged first,

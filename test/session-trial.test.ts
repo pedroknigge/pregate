@@ -62,7 +62,10 @@ test("one call that denies two files gives one denial per file", () => {
 
 test("the SARIF report of the check gives rule, path and line; other text gives null", () => {
   const sarif = JSON.stringify({ runs: [{ results: [{ ruleId: RULE, locations: [{ physicalLocation: { artifactLocation: { uri: "src/a.ts" }, region: { startLine: 4 } } }] }] }] });
-  expect(sarifFindings(sarif)).toEqual([{ rule: RULE, path: "src/a.ts", line: 4 }]);
+  expect(sarifFindings(sarif)).toEqual([{ rule: RULE, path: "src/a.ts", line: 4, level: "error" }]);
+  // A warn rule, a rule in advisor mode and debt the base already had are reported with a level that does not block.
+  const advisory = JSON.stringify({ runs: [{ results: [{ ruleId: RULE, level: "warning", locations: [{ physicalLocation: { artifactLocation: { uri: "src/a.ts" }, region: { startLine: 4 } } }] }] }] });
+  expect(sarifFindings(advisory)).toEqual([{ rule: RULE, path: "src/a.ts", line: 4, level: "warning" }]);
   expect(sarifFindings(JSON.stringify({ runs: [{ results: [] }] }))).toEqual([]);
   expect(sarifFindings("PREGATE DENY git-error")).toBeNull();
   expect(sarifFindings("{}")).toBeNull();
