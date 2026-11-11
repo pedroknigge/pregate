@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pregate project setup` merges repository-owned Claude Code hooks into `.claude/settings.json`. The hooks run the reviewed project launcher and the engine pin from the lock. They do not fall back to a global launcher or to `pregate` on PATH. The command requires `pregate prepare` and `pregate project launcher`. It does not write the home directory, accept Claude workspace trust, or grant policy consent. A second run leaves the file byte for byte unchanged and leaves hook groups it does not own in place. `pregate doctor` reports that project scope, and it reports workspace trust separately from policy consent.
+
+### Changed
+
+- `pregate install` no longer deletes a project launcher at `.pregate/bin/pregate`. Repository-owned Claude hooks stay. A 0.1.0 handler, whose guard only tested that the launcher file existed, is still removed.
+
 ## [0.0.7] - 2026-11-11
 
 A small release. A project can carry its own reviewed launcher, which runs the engine its lock pins. Maintenance, a reproducible build and rollback are documented, and the upgrade and the rollback run as a test. The rest is how the project tests itself: CI takes about half the time, and hook latency is also read against the last release on the same runner. No rule and no contract format changed. See the [0.0.7 notes](docs/releases/0.0.7.md).

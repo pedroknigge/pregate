@@ -26,6 +26,7 @@ import type { HarnessId } from "./types.ts";
 import { latestRelease } from "./release-download.ts";
 import { verifiedEngineExtract } from "./release-install.ts";
 import { pinnedEngine } from "./project-updates.ts";
+import { projectLauncherRel, projectScope } from "./project-claude.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
 // writes nothing; whatever cannot be done safely is left untouched and reported. setup exits 1 when no harness was wired or a real error occurred.
@@ -426,17 +427,28 @@ export async function doctor(): Promise<Result> {
   const ci = describeCi(canonical(process.cwd()));
   const root = findRoot(canonical(process.cwd()), () => true);
   const { coverageLead, protectionStatus } = await import("./status.ts");
-  const lines = [...coverageLead(protectionStatus(root)).map((text) => ok(text)), installed(p), ok(status(root)), ci.providers.length === 0 ? info(ci.text) : ok(ci.text)];
-  lines.push(...skillProblems().map(fail));
-  if (found.size === 0) lines.push(fail("No harness found; PREGATE gates nothing on this machine."));
-  else if (checked.size === 0) lines.push(warn("No harness with its binary on PATH; PREGATE gates nothing yet."));
+  const local = root === null ? { active: false, exact: false, lines: [], preCommand: null, consentActive: false } : localClaude(p, root);
+  const lines = [...coverageLead(protectionStatus(root)).map((text) => ok(text)), globalInstalled(p, local.exact), ok(status(root)), ci.providers.length === 0 ? info(ci.text) : ok(ci.text)];
+  lines.push(...local.lines);
+  lines.push(...skillProblems().map((text) => local.exact ? info(`${text} Repository hooks do not use the global companion skill.`) : fail(text)));
+  if (found.size === 0) lines.push(local.exact ? info("No global harness home was found. This project uses repository-owned Claude hooks.") : fail("No harness found; PREGATE gates nothing on this machine."));
+  else if (checked.size === 0) lines.push(local.exact ? info("No harness binary is on PATH. Repository Claude hooks are still checked below.") : warn("No harness with its binary on PATH; PREGATE gates nothing yet."));
   for (const [h, bin] of found) lines.push(versionOf(h, bin));
   const m = machineFiles(p, checked);
-  const hookTrust = checked.has("codex") ? trusts(p) : {}, hookDrift = drift(m, null, p.data, hookTrust);
+  const hookTrust = checked.has("codex") ? trusts(p) : {};
+  let hookDrift = drift(m, null, p.data, hookTrust);
+  if (local.exact && !checked.has("cursor") && !checked.has("grok")) {
+    const kept = hookDrift.filter((line) => !globalClaudeMissing(line));
+    if (kept.length !== hookDrift.length) lines.push(info("This project uses repository-owned Claude hooks. Global Claude settings are not a fallback."));
+    hookDrift = kept;
+  }
   lines.push(...hookDrift.map(fail));
   const supervisionLimit = "Direct engine hook calls have no launcher crash/timeout protection. Runtime canaries below exercise the launcher route; they do not override registration errors.";
-  const registered = gated(m, null, p.data, hookTrust);
-  lines.push(checked.size === 0 || [...checked.keys()].some(h => !registered.has(h))
+  const machineGated = gated(m, null, p.data, hookTrust);
+  const registered = new Set(machineGated);
+  if (local.exact) registered.add("claude-code");
+  const unsupervised = [...checked.keys()].filter((h) => !registered.has(h));
+  lines.push((checked.size === 0 && !local.exact) || unsupervised.length > 0
     ? warn(`Hook supervision is not established for every detected harness. ${supervisionLimit} Run pregate setup and review the registrations.`)
     : ok(`Hook supervision: required launcher commands are registered. ${supervisionLimit}`));
   const codexBin = checked.get("codex");
@@ -445,12 +457,55 @@ export async function doctor(): Promise<Result> {
   if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
   if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
-  lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
+  const globalCli = cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher);
+  lines.push(globalCli ? ok(`pregate on PATH: ${cli}.`)
+    : local.exact ? info(`pregate on PATH is not the global launcher (${cli ?? "none"}). This project runs its repository launcher and does not fall back to PATH.`)
     : warn(`pregate on PATH is not ${p.link} (${cli ?? "none"}); add ${dirname(p.link)} to PATH.`));
   lines.push(which("gh") !== null && spawn(["gh", "auth", "status"]).exit === 0 ? ok("gh authenticated; private release fallback is available.")
     : warn("Public releases use anonymous HTTPS. Private pilot releases require gh auth login and repository read access; no release access was tested."));
-  for (const h of checked.keys()) lines.push(canary(p, h));
+  for (const h of checked.keys()) {
+    if (h === "claude-code" && local.exact && local.consentActive && local.preCommand !== null && root !== null) lines.push(projectCanary(root, local.preCommand));
+    if (!(h === "claude-code" && local.exact && !machineGated.has("claude-code"))) lines.push(canary(p, h));
+  }
+  if (local.exact && local.consentActive && local.preCommand !== null && root !== null && !checked.has("claude-code")) lines.push(projectCanary(root, local.preCommand));
   return report(lines);
+}
+
+function localClaude(p: Paths, root: string) {
+  const files = projectLauncherRel().map((rel) => join(root, rel));
+  const pin = pinnedEngine(root);
+  return projectScope({
+    root,
+    settings: read(join(root, ".claude/settings.json")),
+    localSettings: read(join(root, ".claude/settings.local.json")),
+    claudeConfig: read(join(p.home, ".claude.json")),
+    launcherPresent: files.some((file) => stats(file)?.isFile() === true),
+    launcherReady: files.every((file) => ready(file)),
+    pin,
+    engineReady: pin !== null && ENGINE_VERSION.test(pin) && ready(join(p.data, pin, ENGINE_FILE)),
+    consentActive: enabled(root),
+  });
+}
+
+function globalInstalled(p: Paths, localExact: boolean): Line {
+  const line = installed(p);
+  if (localExact && line.level === "fail" && line.text.startsWith("Missing launcher")) {
+    return info(`No global launcher at ${p.launcher}. This project uses its repository launcher and does not fall back to it.`);
+  }
+  return line;
+}
+
+function globalClaudeMissing(line: string): boolean {
+  return /^(?:~\/\.claude\/settings\.json|\$CLAUDE_CONFIG_DIR\/settings\.json): PREGATE hooks missing or modified/.test(line);
+}
+
+function projectCanary(root: string, command: string): Line {
+  const c = CANARY["claude-code"];
+  const shell = WINDOWS ? ["cmd.exe", "/d", "/s", "/c", command] : [process.env.SHELL || "/bin/sh", "-c", command];
+  const env = { ...process.env, ...c.env(root) };
+  const o = spawn(shell, 30_000, { cwd: root, env, stdin: JSON.stringify(c.payload(root, join(root, ".pregate/canary.json"))) });
+  if (o.exit === c.exit && c.reason(o)?.includes(MARK) === true) return ok("claude-code: project hook denied in its native dialect.");
+  return fail(`claude-code: project hook was not denied in its native dialect (exit ${o.exit}; stdout: ${clip(o.stdout) || "empty"}; stderr: ${clip(o.stderr) || "empty"}).`);
 }
 
 // The registration files doctor checks; Codex's and agy's only when that harness runs here.

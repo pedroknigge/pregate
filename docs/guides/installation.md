@@ -184,11 +184,19 @@ pregate install --ci vercel
 
 ## Prepare an engine without global registration
 
-`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to warm the cache for a pinned engine before project-local hook setup lands; `pregate setup` still performs full machine registration today.
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. `pregate project setup` uses that cached pin. It does not download an engine itself.
 
 ## Project launcher
 
-`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. No harness hook names this launcher yet; `pregate setup` still registers the global one.
+`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. `pregate install` does not remove this launcher.
+
+## Project-local Claude Code hooks
+
+`pregate project setup` merges Claude Code hooks into the repository's `.claude/settings.json`. Those hooks run the project launcher and the engine the lock pins. They do not call a `pregate` on PATH and they do not read a global launcher under `<DATA>/bin`.
+
+Run it only after `pregate prepare` and `pregate project launcher`. It does not download the engine, install the launcher, write anything under your home directory, accept Claude's workspace-trust dialog, or grant policy consent. `pregate enable` is still required before a hook denies an edit. Accepting the trust dialog in Claude Code is also required before Claude runs repository hooks. Those two acts are separate.
+
+A second run leaves `.claude/settings.json` byte for byte unchanged. Hook groups this command does not own stay in place, including their order. A file that is not a JSON object is left unchanged and the command fails. `pregate doctor` reports this project scope on its own, and it reports workspace trust separately from policy consent. It does not treat a global Claude registration as a fallback for the repository hooks.
 
 ## Updates and removal
 

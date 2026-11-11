@@ -75,6 +75,7 @@ function invocation(text: string, at: number): Cause | null {
 function classify(verb: string, rest: string): Cause | null {
   const preview = /--preview\b/.test(rest) && !/--yes\b/.test(rest) && !/--digest\b/.test(rest);
   if (SWITCH.has(verb)) return "hook-switch";
+  if (verb === "project" && /^(?:['"`][ \t]*,\s*['"`\s]*|[ \t]+)setup\b/.test(rest)) return "hook-switch";
   if (verb === "update") return preview ? null : "hook-switch";
   if (ADMIN.has(verb)) {
     if (verb === "approve" && preview && !/\b[0-9a-f]{12,64}\b/.test(rest)) return null;

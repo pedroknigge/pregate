@@ -17,6 +17,8 @@ test("inline interpreters name pregate control commands and leave benign code al
   expect(pregateControlCause("system('pregate','disable')")).toBe("shell-admin");
   expect(pregateControlCause("system('pregate uninstall')")).toBe("hook-switch");
   expect(pregateControlCause("os.system('pregate setup')")).toBe("hook-switch");
+  expect(pregateControlCause("pregate project setup")).toBe("hook-switch");
+  expect(pregateControlCause("pregate project launcher --preview")).toBeNull();
   expect(pregateControlCause("pregate update --project --yes")).toBe("hook-switch");
   expect(pregateControlCause("pregate update --project --preview")).toBeNull();
   expect(pregateControlCause("pregate approve --preview")).toBeNull();

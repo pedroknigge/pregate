@@ -25,6 +25,10 @@ const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   codex: "^(apply_patch|Bash)$",
   agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
 };
+// The project registration uses the same closed list as the shared Claude settings.
+export function sharedClaudeMatcher(): string {
+  return MATCHER.shared;
+}
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
