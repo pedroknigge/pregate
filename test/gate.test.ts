@@ -375,6 +375,15 @@ test("a project script as it was when the session began runs; one the session ch
   put(join(root, "src/domain/c.test.js"), "import { test } from 'node:test';\nimport { writeFileSync } from 'node:fs';\ntest('c', () => writeFileSync('src/domain/a.ts', 'x'));\n");
   expect(run(s, "node --test src/domain/b.test.js").verdict).toBe("none");
   expect(run(s, "node --test src/domain/c.test.js").cause).toBe("shell-write");
+  // A project test file that already imports `vm`, edited in the session: it runs while it gains no sink.
+  const tested = join(root, "src/domain/a.test.js"), base = readFileSync(tested, "utf8");
+  put(tested, `${base}test('more', () => a === 1);\n`);
+  expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
+  put(tested, `${base}test('more', () => vm.runInNewContext('2'));\n`);
+  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
+  put(tested, `${base}import { writeFileSync } from 'node:fs';\n`);
+  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
+  put(tested, base);
   // An unchanged script that names a control command is still denied: only the write sink is forgiven.
   const other = repo("scripts-control");
   put(join(other, "scripts/off.js"), "require('node:child_process').execSync('pregate uninstall');\n");
