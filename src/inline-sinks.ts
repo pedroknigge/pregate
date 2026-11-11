@@ -35,6 +35,57 @@ export function inlineSink(name: string, program: string, options: string[]): bo
   return NODE_SINK.test(masked(program, false));
 }
 
+// A script FILE that node, bun or deno runs. A real program imports modules, so the words of the
+// module system are not sinks here as they are in a one-line program. Each import or require must
+// be the literal form and must not name a module that writes files or starts programs; any other
+// use of those two words is a sink. The file-writing and code-running names stay sinks.
+// `rest`: the text without the literal imports, for the scan of path tokens.
+// `sinks`: each sink found, a writer module by its specifier and a name by its text, once per use.
+// Not read: what an imported module does, and access built through `constructor` or a computed
+// member. Stop, the pre-commit hook and CI are the net for those (docs/guarantees.md).
+const NODE_FILE_SINK = new RegExp(NODE_FILE_NAMES().join("|"));
+// With the member that follows, so that `fs.readFileSync` and `fs.writeFileSync` are two sinks.
+const NODE_FILE_SINKS = new RegExp(`(?:${NODE_FILE_NAMES().join("|")})(?:\\s*\\.\\s*[\\w$]+)?`, "g");
+function NODE_FILE_NAMES(): string[] { return [
+  String.raw`\b(?:require|import|fs|child_process|worker_threads|vm|inspector|wasi|cluster|repl|eval|Function|Bun|Deno|WebAssembly|Worker)\b`,
+  String.raw`\bprocess\b(?!\s*\.\s*(?:version|versions|platform|arch|argv|env|cwd|pid|ppid|exitCode|exit|stdout|stderr|uptime|hrtime|memoryUsage|execPath|release|title|nextTick|on|once|off|emitWarning)\b)`,
+]; }
+const NODE_WRITERS = /^(?:fs|child_process|worker_threads|cluster|vm|module|repl|inspector|wasi|process|bun|fs-extra|graceful-fs|fs-jetpack|jsonfile|write-file-atomic|write-json-file|execa|shelljs|zx|cross-spawn|node-pty|rimraf|mkdirp|make-dir|del|cpy|cpx|tempy|tmp)(?:\/|$)/;
+const NODE_IMPORTS = [
+  /\b(?:require|import)\s*\(\s*(['"])([^'"\n]+)\1\s*\)/g,
+  /\bimport\s+(?:type\s+)?[\w$*{}\s,]+?\s+from\s*(['"])([^'"\n]+)\1/g,
+  /\bimport\s*(['"])([^'"\n]+)\1/g,
+];
+
+export function nodeFile(text: string): { sink: boolean; rest: string; sinks: string[] } {
+  const writers: string[] = [];
+  let rest = text.replace(/\bimport\s*\.\s*meta\b/g, "META");
+  for (const form of NODE_IMPORTS) {
+    rest = rest.replace(form, (_all, _quote: string, spec: string) => {
+      const name = spec.replace(/^node:/, "");
+      if (NODE_WRITERS.test(name) || (/^bun:/.test(spec) && spec !== "bun:test")) writers.push(`module ${name}`);
+      return "IMPORTED";
+    });
+  }
+  const code = masked(rest, false);
+  const sinks = [...writers, ...[...code.matchAll(NODE_FILE_SINKS)].map((m) => m[0].replace(/\s+/g, ""))];
+  return { sink: writers.length > 0 || NODE_FILE_SINK.test(code), rest, sinks };
+}
+
+// Whether a changed script has no sink that its base text did not have: the same writer modules and
+// no more uses of any sink name. A test file that already imports `vm` and gets more assertions
+// passes; one more call through `fs` or `vm`, or a new writer module, does not.
+export function noNewNodeSinks(base: string, text: string): boolean {
+  const had = new Map<string, number>();
+  for (const s of nodeFile(base).sinks) had.set(s, (had.get(s) ?? 0) + 1);
+  for (const s of nodeFile(text).sinks) {
+    const left = (had.get(s) ?? 0) - 1;
+    if (left < 0) return false;
+    had.set(s, left);
+  }
+  return true;
+}
+
 function pythonSink(program: string): boolean {
   const text = masked(program, true);
   if (PYTHON_SINK.test(text)) return true;
