@@ -4,7 +4,9 @@
 
 What happens when a coding agent works on an ordinary task with Pregate installed, and what the same agent leaves behind without it: edits denied, denials repaired, and denials that a person judged wrong.
 
-**No real session has been run.** This page is the method and the place for the results. The runner (`scripts/session-trial.ts`) has been checked end to end with a scripted stand-in for the agent CLIs, and that check is not evidence about any agent. The sections below have no numbers until a maintainer runs real sessions.
+48 sessions ran: 24 gated and 24 control. The gate denied or asked on **17** (file, rule) pairs in the gated sessions: 2 repaired, 0 abandoned, 0 worked-around, 15 unknown. The no-new-debt check on the final trees reported **0** findings in the gated arm and **0** in the control arm.
+
+Labels: 17 of 17 denials are labeled (7 true-positive, 8 false-positive, 2 unclear); 0 are unlabeled.
 
 ## Method
 
@@ -32,11 +34,152 @@ After each session the script records:
 
 ### Labels
 
-A person reads each denial and labels it `true-positive`, `false-positive` or `unclear` in [`session-trial-labels.json`](session-trial-labels.json), with a one-sentence note and the labeler's name. The script never writes a label. Labeled and unlabeled denials are counted apart.
+A labeler reads each denial and labels it `true-positive`, `false-positive` or `unclear` in [`session-trial-labels.json`](session-trial-labels.json), with a note and the labeler's name. A labeler whose name begins with `agent` is an AI coding agent that read the evidence: such a label is not an independent human review. One denial row can stand for several denied commands in one session; the note then says how many were true and how many false, and the verdict is that of the larger part. The script never writes a label. Labeled and unlabeled denials are counted apart.
 
 ### How the tasks were chosen
 
 The project wrote the tasks, with its coding assistant, and committed them before the first session ran. Each task is a small feature or bug fix written from the public API of the repository at the pinned commit. No task was tried against the gate before it was committed, and no prompt names Pregate, a rule or a code style. The repositories come from the corpus of the precision report, where they are pinned by commit: two libraries without runtime dependencies, so that a `verify` command can load the changed module, and one larger framework, whose tasks have no `verify` command. The set is not a sample of what developers ask agents to do.
+
+## Run
+
+Run `2026-11-11T18:11:43.595Z` (real). Engine 0.0.7, darwin arm64. CLI versions: claude-code `2.1.322 (Claude Code)`, codex `codex-cli 0.167.1`. Models: claude-code: claude-opus-5-5; codex: not reported by the CLI; claude-code: claude-fable-5-2.
+
+| Repository | Proposed packs | Rules |
+| --- | --- | --- |
+| ms | core@0.0.1, clean-code@1.2.0, testing@1.2.1, typescript@1.3.0. | 9 block, 0 advise, 0 observe. |
+| classnames | core@0.0.1, clean-code@1.2.0, testing@1.2.1, typescript@1.3.0, javascript@1.2.1. | 18 block, 0 advise, 0 observe. |
+| express | core@0.0.1, clean-code@1.2.0, testing@1.2.1, typescript@1.3.0, javascript@1.2.1. | 17 block, 0 advise, 0 observe. |
+
+## Gated and control
+
+| Arm | Sessions | Timed out | Sessions with new findings | New findings | Check did not run | Verify passed | Not verified |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| gated | 24 | 0 | 0 | 0 | 0 | 15 of 16 | 8 |
+| control | 24 | 0 | 0 | 0 | 0 | 16 of 16 | 8 |
+
+### Per task
+
+| Task | Harness | New findings, gated | New findings, control | Rules reported in control | Verify, gated | Verify, control |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| ms-parse-compound | claude-code | 0 | 0 | none | pass | pass |
+| ms-parse-compound | codex | 0 | 0 | none | pass | pass |
+| ms-trim-whitespace | claude-code | 0 | 0 | none | pass | pass |
+| ms-trim-whitespace | codex | 0 | 0 | none | pass | pass |
+| ms-format-decimals | claude-code | 0 | 0 | none | pass | pass |
+| ms-format-decimals | codex | 0 | 0 | none | pass | pass |
+| ms-week-aliases | claude-code | 0 | 0 | none | pass | pass |
+| ms-week-aliases | codex | 0 | 0 | none | pass | pass |
+| classnames-number-arguments | claude-code | 0 | 0 | none | pass | pass |
+| classnames-number-arguments | codex | 0 | 0 | none | pass | pass |
+| classnames-prefix | claude-code | 0 | 0 | none | pass | pass |
+| classnames-prefix | codex | 0 | 0 | none | fail | pass |
+| classnames-normalize-whitespace | claude-code | 0 | 0 | none | pass | pass |
+| classnames-normalize-whitespace | codex | 0 | 0 | none | pass | pass |
+| classnames-map-and-set | claude-code | 0 | 0 | none | pass | pass |
+| classnames-map-and-set | codex | 0 | 0 | none | pass | pass |
+| express-res-no-store | claude-code | 0 | 0 | none | not-verified | not-verified |
+| express-res-no-store | codex | 0 | 0 | none | not-verified | not-verified |
+| express-req-bearer-token | claude-code | 0 | 0 | none | not-verified | not-verified |
+| express-req-bearer-token | codex | 0 | 0 | none | not-verified | not-verified |
+| express-res-links-attributes | claude-code | 0 | 0 | none | not-verified | not-verified |
+| express-res-links-attributes | codex | 0 | 0 | none | not-verified | not-verified |
+| express-req-is-json | claude-code | 0 | 0 | none | not-verified | not-verified |
+| express-req-is-json | codex | 0 | 0 | none | not-verified | not-verified |
+
+## Denials
+
+| Rule | Denied (file, rule) pairs | Repaired | Abandoned | Worked-around | Unknown | True-positive | False-positive | Unclear | Unlabeled |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `cause:protected-path` | 3 | 0 | 0 | 0 | 3 | 2 | 1 | 0 | 0 |
+| `cause:shell-write` | 12 | 0 | 0 | 0 | 12 | 5 | 7 | 0 | 0 |
+| `core/EVA-SUP-001` | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+
+| Session | File | Rule | Attempts | Outcome | Label | Labeler | Note |
+| --- | --- | --- | ---: | --- | --- | --- | --- |
+| ms-parse-compound.claude-code.gated | `src/parse-compound.test.ts` | `core/EVA-SUP-001` | 1 | repaired | unclear | agent (Claude Fable 5.2) | A new test file with two `@ts-expect-error` lines on calls with an invalid argument, the form the repository's own tests use. The rule did what it says; the suppression follows the project's convention. The agent wrote the test another way. |
+| ms-parse-compound.codex.gated | none | `cause:shell-write` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | `pnpm exec biome format --write` on two files in scope: a formatter that rewrites source outside the edit tool. |
+| ms-format-decimals.claude-code.gated | none | `cause:shell-write` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | A python heredoc that rewrote `src/index.ts`: a write to a file in scope outside the edit tool. |
+| ms-format-decimals.claude-code.gated | `src/format.test.ts` | `core/EVA-SUP-001` | 1 | repaired | unclear | agent (Claude Fable 5.2) | The edit added a sixth `@ts-expect-error` to a test file that had five, each on a call with an invalid argument. The rule did what it says; the suppression follows the convention of that file. The agent wrote the test another way. |
+| ms-format-decimals.codex.gated | none | `cause:shell-write` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | A python heredoc that rewrote `src/index.ts`: a write to a file in scope outside the edit tool. |
+| ms-week-aliases.claude-code.gated | none | `cause:shell-write` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | `sed -i ''` on `src/index.ts`: an in-place edit of a file in scope outside the edit tool. |
+| ms-week-aliases.codex.gated | none | `cause:protected-path` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | `rg -n` over the home that holds the Pregate installation and state, joined to two harmless reads. The guard denies a search of that tree by design. |
+| classnames-number-arguments.claude-code.gated | none | `cause:shell-write` | 4 | unknown | false-positive | agent (Claude Fable 5.2) | Mixed, 4 commands: 3 false (`node --test` and `node tests/index.js`, one by absolute path) and 1 true (a python heredoc that rewrote `index.js` and the tests). The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. |
+| classnames-prefix.claude-code.gated | none | `cause:protected-path` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | One command joined `ls`, `cat package.json` and `cat .pregate/*.json`: a glob read of the contract folder, which the guard denies by design. The whole command was denied, the harmless parts with it. |
+| classnames-prefix.claude-code.gated | none | `cause:shell-write` | 3 | unknown | false-positive | agent (Claude Fable 5.2) | 3 commands, all false: `node --test ./tests/*.js`, `node --test` on four files and `node tests/prefix.js`. The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. |
+| classnames-normalize-whitespace.claude-code.gated | none | `cause:shell-write` | 4 | unknown | false-positive | agent (Claude Fable 5.2) | Mixed, 4 commands: 3 false (`node --test` and `node tests/index.js`) and 1 true (a python heredoc that rewrote `index.js`). The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. |
+| classnames-normalize-whitespace.codex.gated | none | `cause:protected-path` | 1 | unknown | false-positive | agent (Claude Fable 5.2) | `rg --files` with the globs `AGENTS.md`, `CLAUDE.md`, `*lock*` and `.pregate/**`: a listing of file names. `ls .pregate/` is allowed, so the denial is not consistent. Not fixed. |
+| classnames-map-and-set.claude-code.gated | none | `cause:shell-write` | 4 | unknown | false-positive | agent (Claude Fable 5.2) | Mixed, 4 commands: 3 false (`node --test ./tests/*.js`, `node --test` on three files, `node tests/index.js`) and 1 true (a python heredoc that rewrote `index.js`). The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. |
+| express-res-no-store.codex.gated | none | `cause:shell-write` | 3 | unknown | false-positive | agent (Claude Fable 5.2) | 3 commands, all false: `node --check` twice and `./node_modules/.bin/mocha` on one test. The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. The mocha path stays denied after #79. |
+| express-req-bearer-token.codex.gated | none | `cause:shell-write` | 2 | unknown | false-positive | agent (Claude Fable 5.2) | 2 commands, both false: `node --check` on two files, and `./node_modules/.bin/mocha` on one test. The guard read the script file for write sinks and counted `import`; the commands only ran tests or a syntax check. Fixed in #79. The mocha path stays denied after #79: an ignored file has no session base. |
+| express-res-links-attributes.claude-code.gated | none | `cause:shell-write` | 1 | unknown | true-positive | agent (Claude Fable 5.2) | A python heredoc that rewrote `lib/response.js`: a write to a file in scope outside the edit tool. The agent then used the edit tool. |
+| express-res-links-attributes.codex.gated | none | `cause:shell-write` | 1 | unknown | false-positive | agent (Claude Fable 5.2) | `./node_modules/.bin/mocha` on one test and `./node_modules/.bin/eslint` without a fix option, in one call. Neither writes a source file. The paths stay denied after #79: an ignored file has no session base. |
+
+## Sessions
+
+| Session | Repository | Wall time | Exit | Hook calls | Recorded decisions | Denied | New findings | Verify |
+| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | --- |
+| ms-parse-compound.claude-code.gated | ms `4ff48cec099f` | 56 s | 0 | 10 | 9 | 1 | 0 | pass |
+| ms-parse-compound.claude-code.control | ms `4ff48cec099f` | 40 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-parse-compound.codex.gated | ms `4ff48cec099f` | 79 s | 0 | 17 | 17 | 1 | 0 | pass |
+| ms-parse-compound.codex.control | ms `4ff48cec099f` | 87 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-trim-whitespace.claude-code.gated | ms `4ff48cec099f` | 23 s | 0 | 8 | 7 | 0 | 0 | pass |
+| ms-trim-whitespace.claude-code.control | ms `4ff48cec099f` | 21 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-trim-whitespace.codex.gated | ms `4ff48cec099f` | 43 s | 0 | 13 | 12 | 0 | 0 | pass |
+| ms-trim-whitespace.codex.control | ms `4ff48cec099f` | 60 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-format-decimals.claude-code.gated | ms `4ff48cec099f` | 98 s | 0 | 19 | 18 | 2 | 0 | pass |
+| ms-format-decimals.claude-code.control | ms `4ff48cec099f` | 131 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-format-decimals.codex.gated | ms `4ff48cec099f` | 92 s | 0 | 17 | 17 | 1 | 0 | pass |
+| ms-format-decimals.codex.control | ms `4ff48cec099f` | 68 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-week-aliases.claude-code.gated | ms `4ff48cec099f` | 32 s | 0 | 17 | 16 | 1 | 0 | pass |
+| ms-week-aliases.claude-code.control | ms `4ff48cec099f` | 35 s | 0 | none | 0 | 0 | 0 | pass |
+| ms-week-aliases.codex.gated | ms `4ff48cec099f` | 64 s | 0 | 15 | 14 | 1 | 0 | pass |
+| ms-week-aliases.codex.control | ms `4ff48cec099f` | 42 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-number-arguments.claude-code.gated | classnames `abd6314010de` | 59 s | 0 | 21 | 20 | 4 | 0 | pass |
+| classnames-number-arguments.claude-code.control | classnames `abd6314010de` | 59 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-number-arguments.codex.gated | classnames `abd6314010de` | 56 s | 0 | 17 | 20 | 0 | 0 | pass |
+| classnames-number-arguments.codex.control | classnames `abd6314010de` | 57 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-prefix.claude-code.gated | classnames `abd6314010de` | 35 s | 0 | 13 | 12 | 4 | 0 | pass |
+| classnames-prefix.claude-code.control | classnames `abd6314010de` | 53 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-prefix.codex.gated | classnames `abd6314010de` | 34 s | 0 | 10 | 9 | 0 | 0 | fail |
+| classnames-prefix.codex.control | classnames `abd6314010de` | 57 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-normalize-whitespace.claude-code.gated | classnames `abd6314010de` | 33 s | 0 | 12 | 11 | 4 | 0 | pass |
+| classnames-normalize-whitespace.claude-code.control | classnames `abd6314010de` | 36 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-normalize-whitespace.codex.gated | classnames `abd6314010de` | 41 s | 0 | 11 | 10 | 1 | 0 | pass |
+| classnames-normalize-whitespace.codex.control | classnames `abd6314010de` | 29 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-map-and-set.claude-code.gated | classnames `abd6314010de` | 67 s | 0 | 13 | 12 | 4 | 0 | pass |
+| classnames-map-and-set.claude-code.control | classnames `abd6314010de` | 89 s | 0 | none | 0 | 0 | 0 | pass |
+| classnames-map-and-set.codex.gated | classnames `abd6314010de` | 70 s | 0 | 13 | 15 | 0 | 0 | pass |
+| classnames-map-and-set.codex.control | classnames `abd6314010de` | 49 s | 0 | none | 0 | 0 | 0 | pass |
+| express-res-no-store.claude-code.gated | express `1c6f1b0fe400` | 24 s | 0 | 9 | 8 | 0 | 0 | not-verified |
+| express-res-no-store.claude-code.control | express `1c6f1b0fe400` | 20 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-res-no-store.codex.gated | express `1c6f1b0fe400` | 80 s | 0 | 19 | 19 | 3 | 0 | not-verified |
+| express-res-no-store.codex.control | express `1c6f1b0fe400` | 59 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-req-bearer-token.claude-code.gated | express `1c6f1b0fe400` | 31 s | 0 | 10 | 9 | 0 | 0 | not-verified |
+| express-req-bearer-token.claude-code.control | express `1c6f1b0fe400` | 32 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-req-bearer-token.codex.gated | express `1c6f1b0fe400` | 78 s | 0 | 15 | 15 | 2 | 0 | not-verified |
+| express-req-bearer-token.codex.control | express `1c6f1b0fe400` | 80 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-res-links-attributes.claude-code.gated | express `1c6f1b0fe400` | 72 s | 0 | 10 | 9 | 1 | 0 | not-verified |
+| express-res-links-attributes.claude-code.control | express `1c6f1b0fe400` | 58 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-res-links-attributes.codex.gated | express `1c6f1b0fe400` | 93 s | 0 | 12 | 11 | 1 | 0 | not-verified |
+| express-res-links-attributes.codex.control | express `1c6f1b0fe400` | 67 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-req-is-json.claude-code.gated | express `1c6f1b0fe400` | 37 s | 0 | 11 | 10 | 0 | 0 | not-verified |
+| express-req-is-json.claude-code.control | express `1c6f1b0fe400` | 44 s | 0 | none | 0 | 0 | 0 | not-verified |
+| express-req-is-json.codex.gated | express `1c6f1b0fe400` | 99 s | 0 | 20 | 20 | 0 | 0 | not-verified |
+| express-req-is-json.codex.control | express `1c6f1b0fe400` | 71 s | 0 | none | 0 | 0 | 0 | not-verified |
+
+Gate evaluation time, as the engine recorded it per call (320 calls): median 11 ms, 95th percentile 319 ms, maximum 1987 ms. This is the time inside the engine. It excludes the start of the hook process.
+
+## Reading
+
+Reading of run `2026-11-11T18:11:43.595Z`: 48 sessions, the engine built from commit `11cc0a83`, which is 0.0.7 plus the read of the installed skill file. An AI coding agent wrote the labels.
+
+- **The run shows no benefit of the gate on these tasks.** No session of either arm left a new finding. The tasks are small, and the control sessions wrote code that the default contract accepts. The run cannot show a prevented defect where the control arm has none.
+- **The run shows the cost.** 17 denial rows in 24 gated sessions and none in the control arm. 7 rows are labeled true, 8 false and 2 unclear.
+- **One cause makes 7 of the 8 false rows.** The shell guard read a script file for write sinks and counted `import`. It denied `node tests/index.js`, `node --test`, `node --check` and `./node_modules/.bin/mocha`, so the agent could not run the tests the direct way in 4 of 4 `classnames` tasks (Claude Code) and 3 of 4 `express` tasks (Codex). The cause is fixed after this run, except for the `node_modules/.bin` path. The eighth false row is a file listing that named the contract folder.
+- **The true rows are writes outside the edit tool.** A python heredoc, `sed -i` or a formatter with `--write` on a source file, and two reads of protected folders. In each of these sessions the agent then used the edit tool, and every task with a `verify` command passed.
+- **The two rule denials are unclear.** `core/EVA-SUP-001` denied a new `@ts-expect-error` in a test, where the repository's own tests use that form for an invalid argument. Both agents wrote the test another way.
+- **One gated task failed with no denial.** Codex on `classnames-prefix` read the scope of the contract, concluded that a new file at the repository root was excluded, wrote a scope request and stopped. A file outside the scope is not judged; it is not forbidden. The text that the agent receives does not say so plainly.
+- **Time.** The gated sessions took 567 s against 618 s (Claude Code) and 829 s against 726 s (Codex), 12 sessions each. One session per cell: the difference can be chance.
 
 ## Run it
 
@@ -53,7 +196,7 @@ bun scripts/session-trial.ts --page <evidence-dir>  # rewrite this page and sess
 - **Two harnesses, one model version each.** A result for Claude Code and Codex at the recorded versions says nothing about another harness, another model or a later version. A model session is not repeatable: the same prompt can give another result.
 - **No statistical claim.** One session per task, harness and arm. A difference between the arms on one task can be chance. The page reports counts and does not test a hypothesis.
 - **A finding is a rule match, not a defect.** The control session never sees the contract. Its new findings are what the default contract reports on work that nothing guided. Whether a rule match is right is what the labels are for, and only denials are labeled.
-- **Labels are one person's reading.** The labeler is named with each label. No second person labeled the same denials, so there is no agreement figure.
+- **Labels are one reading.** The labeler is named with each label, and can be an AI coding agent. No second labeler read the same denials, so there is no agreement figure.
 - **`verify` is a narrow check.** It asserts the behavior that the prompt names. It does not run the repository's own test suite, which needs a dependency install. A task without a `verify` command is reported as not verified.
 - **Outcome classes are mechanical.** They come from hook records, the changed-file list and the final check. They do not say why an agent stopped editing a file.
 - **The default contract only.** Each repository gets the contract that the guide proposes. A project that selects other packs gets other denials.

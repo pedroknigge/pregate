@@ -357,7 +357,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Hook latency](docs/benchmarks/hook-latency.md)
 - [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
 - [Shell guard friction](docs/benchmarks/shell-guard-friction.md): which routine commands the guard refuses
-- [Session trial](docs/benchmarks/session-trial.md): the method for a trial with real agent sessions; no real session has been run yet
+- [Session trial](docs/benchmarks/session-trial.md): 48 real sessions of Claude Code and Codex on three pinned public repositories, with and without the gate: no new finding in either arm, 17 denial rows in the gated arm (7 labeled true, 8 false, 2 unclear; an AI coding agent wrote the labels)
 - [Guarantees and residual limits](docs/guarantees.md)
 - [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)

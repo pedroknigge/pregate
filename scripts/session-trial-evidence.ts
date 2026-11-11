@@ -197,7 +197,7 @@ const METHOD = [
   "",
   "### Labels",
   "",
-  "A person reads each denial and labels it `true-positive`, `false-positive` or `unclear` in [`session-trial-labels.json`](session-trial-labels.json), with a one-sentence note and the labeler's name. The script never writes a label. Labeled and unlabeled denials are counted apart.",
+  "A labeler reads each denial and labels it `true-positive`, `false-positive` or `unclear` in [`session-trial-labels.json`](session-trial-labels.json), with a note and the labeler's name. A labeler whose name begins with `agent` is an AI coding agent that read the evidence: such a label is not an independent human review. One denial row can stand for several denied commands in one session; the note then says how many were true and how many false, and the verdict is that of the larger part. The script never writes a label. Labeled and unlabeled denials are counted apart.",
   "",
 ];
 
@@ -208,7 +208,7 @@ const LIMITS = [
   "- **Two harnesses, one model version each.** A result for Claude Code and Codex at the recorded versions says nothing about another harness, another model or a later version. A model session is not repeatable: the same prompt can give another result.",
   "- **No statistical claim.** One session per task, harness and arm. A difference between the arms on one task can be chance. The page reports counts and does not test a hypothesis.",
   "- **A finding is a rule match, not a defect.** The control session never sees the contract. Its new findings are what the default contract reports on work that nothing guided. Whether a rule match is right is what the labels are for, and only denials are labeled.",
-  "- **Labels are one person's reading.** The labeler is named with each label. No second person labeled the same denials, so there is no agreement figure.",
+  "- **Labels are one reading.** The labeler is named with each label, and can be an AI coding agent. No second labeler read the same denials, so there is no agreement figure.",
   "- **`verify` is a narrow check.** It asserts the behavior that the prompt names. It does not run the repository's own test suite, which needs a dependency install. A task without a `verify` command is reported as not verified.",
   "- **Outcome classes are mechanical.** They come from hook records, the changed-file list and the final check. They do not say why an agent stopped editing a file.",
   "- **The default contract only.** Each repository gets the contract that the guide proposes. A project that selects other packs gets other denials.",
@@ -219,7 +219,15 @@ const LIMITS = [
 const READING = [
   "## Reading",
   "",
-  "No reading yet. This section is written by hand after the first real run is labeled.",
+  "Reading of run `2026-11-11T18:11:43.595Z`: 48 sessions, the engine built from commit `11cc0a83`, which is 0.0.7 plus the read of the installed skill file. An AI coding agent wrote the labels.",
+  "",
+  "- **The run shows no benefit of the gate on these tasks.** No session of either arm left a new finding. The tasks are small, and the control sessions wrote code that the default contract accepts. The run cannot show a prevented defect where the control arm has none.",
+  "- **The run shows the cost.** 17 denial rows in 24 gated sessions and none in the control arm. 7 rows are labeled true, 8 false and 2 unclear.",
+  "- **One cause makes 7 of the 8 false rows.** The shell guard read a script file for write sinks and counted `import`. It denied `node tests/index.js`, `node --test`, `node --check` and `./node_modules/.bin/mocha`, so the agent could not run the tests the direct way in 4 of 4 `classnames` tasks (Claude Code) and 3 of 4 `express` tasks (Codex). The cause is fixed after this run, except for the `node_modules/.bin` path. The eighth false row is a file listing that named the contract folder.",
+  "- **The true rows are writes outside the edit tool.** A python heredoc, `sed -i` or a formatter with `--write` on a source file, and two reads of protected folders. In each of these sessions the agent then used the edit tool, and every task with a `verify` command passed.",
+  "- **The two rule denials are unclear.** `core/EVA-SUP-001` denied a new `@ts-expect-error` in a test, where the repository's own tests use that form for an invalid argument. Both agents wrote the test another way.",
+  "- **One gated task failed with no denial.** Codex on `classnames-prefix` read the scope of the contract, concluded that a new file at the repository root was excluded, wrote a scope request and stopped. A file outside the scope is not judged; it is not forbidden. The text that the agent receives does not say so plainly.",
+  "- **Time.** The gated sessions took 567 s against 618 s (Claude Code) and 829 s against 726 s (Codex), 12 sessions each. One session per cell: the difference can be chance.",
   "",
 ];
 
