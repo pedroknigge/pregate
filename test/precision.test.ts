@@ -79,6 +79,8 @@ test("the agent sample is fixed by the number of findings and an agent label out
   expect(() => assertAgentSample([...go, ...node], [inside, labeled(label(node[0]!, "true-positive"), "agent")])).not.toThrow();
   expect(() => assertAgentSample([...go, ...node], [outside])).toThrow("agent label outside the stride sample: go go/GO-FN-001 lib/app.js:2");
   expect(() => assertAgentSample([...go, ...node], [labeled(label(go[1]!, "true-positive"), "maintainer")])).not.toThrow();
+  expect(() => assertAgentSample([...go, ...node], [outside], [go[1]!])).not.toThrow();
+  expect(() => assertAgentSample([...go, ...node], [outside], [go[3]!])).toThrow("agent label outside the stride sample");
 });
 
 test("the page separates maintainer labels, agent labels and resolved false positives", () => {

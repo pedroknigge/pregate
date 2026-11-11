@@ -76,9 +76,9 @@
   ],
   "engine": "0.0.7",
   "labels": {
-    "agent": 71,
+    "agent": 47,
     "maintainer": 17,
-    "resolved": 11
+    "resolved": 35
   },
   "limits": [
     "Sample precision is true positives divided by the labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.",
@@ -150,11 +150,11 @@
       "truePositives": 5
     },
     {
-      "falsePositives": 2,
-      "findings": 77,
-      "labeled": 5,
+      "falsePositives": 0,
+      "findings": 56,
+      "labeled": 3,
       "pack": "express",
-      "precision": 0.6,
+      "precision": 1,
       "truePositives": 3
     },
     {
@@ -164,14 +164,6 @@
       "pack": "vibe-proof",
       "precision": 1,
       "truePositives": 5
-    },
-    {
-      "falsePositives": 5,
-      "findings": 51,
-      "labeled": 5,
-      "pack": "trpc",
-      "precision": 0,
-      "truePositives": 0
     },
     {
       "falsePositives": 0,
@@ -198,44 +190,12 @@
       "truePositives": 5
     },
     {
-      "falsePositives": 5,
-      "findings": 8,
-      "labeled": 5,
-      "pack": "vue",
-      "precision": 0,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 5,
-      "findings": 6,
-      "labeled": 5,
-      "pack": "tailwind",
-      "precision": 0,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 5,
-      "findings": 5,
-      "labeled": 5,
-      "pack": "authjs",
-      "precision": 0,
-      "truePositives": 0
-    },
-    {
       "falsePositives": 0,
       "findings": 3,
       "labeled": 3,
       "pack": "python",
       "precision": 1,
       "truePositives": 3
-    },
-    {
-      "falsePositives": 2,
-      "findings": 2,
-      "labeled": 2,
-      "pack": "mongodb",
-      "precision": 0,
-      "truePositives": 0
     },
     {
       "falsePositives": 0,
@@ -274,6 +234,14 @@
       "findings": 0,
       "labeled": 0,
       "pack": "astro",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "authjs",
       "precision": null,
       "truePositives": 0
     },
@@ -346,6 +314,14 @@
       "findings": 0,
       "labeled": 0,
       "pack": "hono",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "mongodb",
       "precision": null,
       "truePositives": 0
     },
@@ -465,6 +441,14 @@
       "falsePositives": 0,
       "findings": 0,
       "labeled": 0,
+      "pack": "tailwind",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
       "pack": "tanstack-query",
       "precision": null,
       "truePositives": 0
@@ -481,7 +465,23 @@
       "falsePositives": 0,
       "findings": 0,
       "labeled": 0,
+      "pack": "trpc",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
       "pack": "vercel",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "vue",
       "precision": null,
       "truePositives": 0
     }
@@ -554,6 +554,149 @@
       "verdict": "false-positive"
     },
     {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 49,
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute, which is the stated condition.",
+      "pack": "tailwind",
+      "path": "bind.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "appendClass",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 13,
+      "note": "' ' + key builds the library's return string in a function named classNames. No className attribute contains the expression.",
+      "pack": "tailwind",
+      "path": "dedupe.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "classNames",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 49,
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute.",
+      "pack": "tailwind",
+      "path": "index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "appendClass",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 3,
+      "note": "document.getElementById('start') is at the top of a plain browser script. No Vue component or setup function owns the element, which is what the rule's condition requires.",
+      "pack": "vue",
+      "path": "benchmarks/runInBrowser.js",
+      "rule": "vue/VUE-DOM-001",
+      "symbol": "startButton",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 25,
+      "note": "secret: 'shhhh, very secret' is an option of express-session. The rule's condition is a literal secret in the NextAuth config, and this file has none.",
+      "pack": "authjs",
+      "path": "examples/auth/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 13,
+      "note": "The literal secret is passed to cookieSession, the cookie-session middleware. It is not a NextAuth config.",
+      "pack": "authjs",
+      "path": "examples/cookie-sessions/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 43,
+      "note": "secret: 'some secret here' configures express-session. No NextAuth config is in this file.",
+      "pack": "authjs",
+      "path": "examples/mvc/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 19,
+      "note": "secret: 'keyboard cat' is an express-session option. The literal is hardcoded, but the object is not the NextAuth config the rule names.",
+      "pack": "authjs",
+      "path": "examples/session/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 23,
+      "note": "secret: 'keyboard cat' sits beside store: new RedisStore in an express-session call. It is not a NextAuth config.",
+      "pack": "authjs",
+      "path": "examples/session/redis.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 294,
+      "note": "Line 294 is the it(...) call of a test. The next('route') call is seven lines below, inside its callback, so the reported line is not the call the rule names.",
+      "pack": "express",
+      "path": "test/app.param.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 873,
+      "note": "Line 873 is the it(...) call of a test. The next('router') call is six lines below, inside a nested function, so the reported line is not the call the rule names.",
+      "pack": "express",
+      "path": "test/app.router.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 33,
+      "note": "db is the Redis client from redis.createClient(). db.connect() is not a MongoDB connection, so maxPoolSize does not apply to it.",
+      "pack": "mongodb",
+      "path": "examples/search/index.js",
+      "rule": "mongodb/MONGO-CONNECT-001",
+      "symbol": "initializeRedis",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 243,
+      "note": "strict: false is an option of the express.json body parser in a test. It is not a Mongoose schema option.",
+      "pack": "mongodb",
+      "path": "test/express.json.js",
+      "rule": "mongodb/MONGO-SCHEMA-001",
+      "symbol": "strict",
+      "verdict": "false-positive"
+    },
+    {
       "corpus": "express",
       "labeler": "maintainer",
       "line": 100,
@@ -606,6 +749,127 @@
       "path": "test/app.router.js",
       "rule": "redis/REDIS-SCAN-001",
       "symbol": "keys",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 31,
+      "note": "throw new Error('something broke!') is in an Express route handler. The file defines no tRPC procedure, so it is not a procedure file.",
+      "pack": "trpc",
+      "path": "examples/error/index.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 252,
+      "note": "throw new Error('boom!') is in a route.all handler of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/Route.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 204,
+      "note": "throw new Error('err!') is in an app.param callback of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/app.param.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 479,
+      "note": "throw new Error('no arrays') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/express.json.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "app.verify",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 533,
+      "note": "throw new Error('no leading space') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/express.urlencoded.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "app.verify",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "document.querySelector('[type=search]') is at the top of a plain browser script. The file has no Vue component, so there is no setup to run before mount.",
+      "pack": "vue",
+      "path": "examples/search/public/client.js",
+      "rule": "vue/VUE-DOM-001",
+      "symbol": "search",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 60,
+      "note": "urls is an array and urls.push('0@' + req.baseUrl) appends a string to it. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 65,
+      "note": "urls.push('1@' + req.baseUrl) appends to an array in a test. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 74,
+      "note": "urls.push('3@' + req.baseUrl) appends to an array in a test. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 298,
+      "note": "The concatenation builds the message of an unreachable(...) error about the children prop. It is not a class name.",
+      "pack": "tailwind",
+      "path": "lib/index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "createFile",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 329,
+      "note": "The concatenation builds the message of an unreachable(...) error about a deprecated prop. It is not a class name.",
+      "pack": "tailwind",
+      "path": "lib/index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "post",
       "verdict": "false-positive"
     }
   ],
@@ -679,39 +943,6 @@
     {
       "corpus": "classnames",
       "labeler": "agent",
-      "line": 49,
-      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute, which is the stated condition.",
-      "pack": "tailwind",
-      "path": "bind.js",
-      "rule": "tailwind/TW-DYN-001",
-      "symbol": "appendClass",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "classnames",
-      "labeler": "agent",
-      "line": 13,
-      "note": "' ' + key builds the library's return string in a function named classNames. No className attribute contains the expression.",
-      "pack": "tailwind",
-      "path": "dedupe.js",
-      "rule": "tailwind/TW-DYN-001",
-      "symbol": "classNames",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "classnames",
-      "labeler": "agent",
-      "line": 49,
-      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute.",
-      "pack": "tailwind",
-      "path": "index.js",
-      "rule": "tailwind/TW-DYN-001",
-      "symbol": "appendClass",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "classnames",
-      "labeler": "agent",
       "line": 3,
       "note": "export default function classNames declares a default export.",
       "pack": "typescript",
@@ -732,17 +963,6 @@
       "verdict": "true-positive"
     },
     {
-      "corpus": "classnames",
-      "labeler": "agent",
-      "line": 3,
-      "note": "document.getElementById('start') is at the top of a plain browser script. No Vue component or setup function owns the element, which is what the rule's condition requires.",
-      "pack": "vue",
-      "path": "benchmarks/runInBrowser.js",
-      "rule": "vue/VUE-DOM-001",
-      "symbol": "startButton",
-      "verdict": "false-positive"
-    },
-    {
       "corpus": "errors",
       "labeler": "agent",
       "line": 161,
@@ -752,61 +972,6 @@
       "rule": "go/GO-FN-001",
       "symbol": "TestFormatWithStack",
       "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 25,
-      "note": "secret: 'shhhh, very secret' is an option of express-session. The rule's condition is a literal secret in the NextAuth config, and this file has none.",
-      "pack": "authjs",
-      "path": "examples/auth/index.js",
-      "rule": "authjs/AUTH-SECRET-001",
-      "symbol": "secret",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 13,
-      "note": "The literal secret is passed to cookieSession, the cookie-session middleware. It is not a NextAuth config.",
-      "pack": "authjs",
-      "path": "examples/cookie-sessions/index.js",
-      "rule": "authjs/AUTH-SECRET-001",
-      "symbol": "secret",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 43,
-      "note": "secret: 'some secret here' configures express-session. No NextAuth config is in this file.",
-      "pack": "authjs",
-      "path": "examples/mvc/index.js",
-      "rule": "authjs/AUTH-SECRET-001",
-      "symbol": "secret",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 19,
-      "note": "secret: 'keyboard cat' is an express-session option. The literal is hardcoded, but the object is not the NextAuth config the rule names.",
-      "pack": "authjs",
-      "path": "examples/session/index.js",
-      "rule": "authjs/AUTH-SECRET-001",
-      "symbol": "secret",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 23,
-      "note": "secret: 'keyboard cat' sits beside store: new RedisStore in an express-session call. It is not a NextAuth config.",
-      "pack": "authjs",
-      "path": "examples/session/redis.js",
-      "rule": "authjs/AUTH-SECRET-001",
-      "symbol": "secret",
-      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -840,28 +1005,6 @@
       "rule": "express/EX-NEXT-001",
       "symbol": "<module>",
       "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 294,
-      "note": "Line 294 is the it(...) call of a test. The next('route') call is seven lines below, inside its callback, so the reported line is not the call the rule names.",
-      "pack": "express",
-      "path": "test/app.param.js",
-      "rule": "express/EX-NEXT-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 873,
-      "note": "Line 873 is the it(...) call of a test. The next('router') call is six lines below, inside a nested function, so the reported line is not the call the rule names.",
-      "pack": "express",
-      "path": "test/app.router.js",
-      "rule": "express/EX-NEXT-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -961,28 +1104,6 @@
       "rule": "mattpocock/MP-PARAMS-001",
       "symbol": "testRequestedRedirect",
       "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 33,
-      "note": "db is the Redis client from redis.createClient(). db.connect() is not a MongoDB connection, so maxPoolSize does not apply to it.",
-      "pack": "mongodb",
-      "path": "examples/search/index.js",
-      "rule": "mongodb/MONGO-CONNECT-001",
-      "symbol": "initializeRedis",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 243,
-      "note": "strict: false is an option of the express.json body parser in a test. It is not a Mongoose schema option.",
-      "pack": "mongodb",
-      "path": "test/express.json.js",
-      "rule": "mongodb/MONGO-SCHEMA-001",
-      "symbol": "strict",
-      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -1119,61 +1240,6 @@
     {
       "corpus": "express",
       "labeler": "agent",
-      "line": 31,
-      "note": "throw new Error('something broke!') is in an Express route handler. The file defines no tRPC procedure, so it is not a procedure file.",
-      "pack": "trpc",
-      "path": "examples/error/index.js",
-      "rule": "trpc/TRPC-ERR-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 252,
-      "note": "throw new Error('boom!') is in a route.all handler of an Express test. The file is not a tRPC procedure file.",
-      "pack": "trpc",
-      "path": "test/Route.js",
-      "rule": "trpc/TRPC-ERR-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 204,
-      "note": "throw new Error('err!') is in an app.param callback of an Express test. The file is not a tRPC procedure file.",
-      "pack": "trpc",
-      "path": "test/app.param.js",
-      "rule": "trpc/TRPC-ERR-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 479,
-      "note": "throw new Error('no arrays') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
-      "pack": "trpc",
-      "path": "test/express.json.js",
-      "rule": "trpc/TRPC-ERR-001",
-      "symbol": "app.verify",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 533,
-      "note": "throw new Error('no leading space') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
-      "pack": "trpc",
-      "path": "test/express.urlencoded.js",
-      "rule": "trpc/TRPC-ERR-001",
-      "symbol": "app.verify",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
       "line": 52,
       "note": "console.log('Express started on port 3000') is a console.log call in an example server, not in a test file.",
       "pack": "vibe-proof",
@@ -1203,50 +1269,6 @@
       "rule": "vibe-proof/VP-CONSOLE-001",
       "symbol": "<module>",
       "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 3,
-      "note": "document.querySelector('[type=search]') is at the top of a plain browser script. The file has no Vue component, so there is no setup to run before mount.",
-      "pack": "vue",
-      "path": "examples/search/public/client.js",
-      "rule": "vue/VUE-DOM-001",
-      "symbol": "search",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 60,
-      "note": "urls is an array and urls.push('0@' + req.baseUrl) appends a string to it. It is not router.push.",
-      "pack": "vue",
-      "path": "test/req.baseUrl.js",
-      "rule": "vue/VUE-PUSH-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 65,
-      "note": "urls.push('1@' + req.baseUrl) appends to an array in a test. It is not router.push.",
-      "pack": "vue",
-      "path": "test/req.baseUrl.js",
-      "rule": "vue/VUE-PUSH-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "express",
-      "labeler": "agent",
-      "line": 74,
-      "note": "urls.push('3@' + req.baseUrl) appends to an array in a test. It is not router.push.",
-      "pack": "vue",
-      "path": "test/req.baseUrl.js",
-      "rule": "vue/VUE-PUSH-001",
-      "symbol": "<module>",
-      "verdict": "false-positive"
     },
     {
       "corpus": "markupsafe",
@@ -1346,28 +1368,6 @@
       "rule": "react-native/RN-PLAT-001",
       "symbol": "p",
       "verdict": "true-positive"
-    },
-    {
-      "corpus": "react-markdown",
-      "labeler": "agent",
-      "line": 298,
-      "note": "The concatenation builds the message of an unreachable(...) error about the children prop. It is not a class name.",
-      "pack": "tailwind",
-      "path": "lib/index.js",
-      "rule": "tailwind/TW-DYN-001",
-      "symbol": "createFile",
-      "verdict": "false-positive"
-    },
-    {
-      "corpus": "react-markdown",
-      "labeler": "agent",
-      "line": 329,
-      "note": "The concatenation builds the message of an unreachable(...) error about a deprecated prop. It is not a class name.",
-      "pack": "tailwind",
-      "path": "lib/index.js",
-      "rule": "tailwind/TW-DYN-001",
-      "symbol": "post",
-      "verdict": "false-positive"
     },
     {
       "corpus": "react-markdown",

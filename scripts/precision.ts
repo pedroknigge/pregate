@@ -127,8 +127,10 @@ export function strideSample<T extends FindingSite>(findings: T[], size = AGENT_
 }
 
 // An agent label outside its pack's stride sample is an error: the agent may not choose its sites.
-export function assertAgentSample(findings: FindingSite[], labels: LabeledSample[]): void {
-  const allowed = new Set<string>();
+// `recorded` holds the sites offered in earlier runs. A rule change moves the stride positions,
+// and a label written before the change stays valid for the site it was offered.
+export function assertAgentSample(findings: FindingSite[], labels: LabeledSample[], recorded: FindingSite[] = []): void {
+  const allowed = new Set<string>(recorded.map(siteKey));
   for (const rows of groupFindings([], findings).values()) for (const site of strideSample(rows)) allowed.add(siteKey(site));
   const known = new Set(findings.map(siteKey));
   for (const label of labels) {
@@ -301,7 +303,7 @@ function methodSection(): string[] {
     "1. Shallow-fetch each git entry at its pinned commit into `.cache/precision` (or `--cache`). Reuse a clean cache whose HEAD is that commit. Check the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves the written report untouched. A path entry must already be a checkout of its commit.",
     "2. For each pack, compile a shadow preset of the builtin core plus that pack's methodologies. If those methodologies do not compile together, compile each one on its own. Count static findings from the same file audit `pregate audit` uses. One finding is one site: corpus, pack, rule, path, line, and symbol.",
     "3. Read every file in `bench/labels`. Each file names one pack and one labeler, `maintainer` or `agent`, and holds labels: `true-positive` or `false-positive`, plus a note. A `true-positive` label that does not match a finding is an error. A `false-positive` label that does not match a finding is recorded as resolved: the rules no longer report that site. Precision is `true-positive / (true-positive + false-positive)` for packs with at least one matching label.",
-    `4. An agent does not choose the findings it labels. Take the findings of one pack in the order of the \`--findings\` file (sorted as text by corpus, pack, rule, path, line and symbol). With n findings and k the smaller of ${AGENT_SAMPLE} and n, the sample is the findings at positions floor(i × n / k) for i from 0 to k − 1. An agent label for any other site is an error. \`--sample <file>\` writes these sites for every pack.`,
+    `4. An agent does not choose the findings it labels. Take the findings of one pack in the order of the \`--findings\` file (sorted as text by corpus, pack, rule, path, line and symbol). With n findings and k the smaller of ${AGENT_SAMPLE} and n, the sample is the findings at positions floor(i × n / k) for i from 0 to k − 1. \`bench/agent-sample.json\` records the sites offered so far, and \`--sample <file>\` writes that record plus the sample of this run. An agent label for a site that is not in the record or in the sample of this run is an error. A rule change moves the positions; a label written before the change keeps the site it was offered.`,
     "",
     "Engine and core versions are recorded on the report. Re-running the command on the same pins and the same engine reproduces the counts.",
     "",

@@ -19,7 +19,7 @@ const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|svelte|py|go|rs)$/i;
 const CONFIG = /(^|\/)(package\.json|tsconfig.*\.json)$/;
 const EXCLUDE = new Set(["node_modules", "vendor", "dist", "build", "coverage", ".next", "target", ".git"]);
 const MAX_SOURCE_BYTES = 32 * 1024 * 1024;
-const USAGE = "usage: bench-audit-repos.ts --precision [--corpus <file>] [--labels <dir>] [--packs <dir>] [--catalog <dir>] [--cache <dir>] [--out <file>] [--markdown <file>] [--findings <file>] [--sample <file>] [--skip-offline]";
+const USAGE = "usage: bench-audit-repos.ts --precision [--corpus <file>] [--labels <dir>] [--packs <dir>] [--catalog <dir>] [--cache <dir>] [--out <file>] [--markdown <file>] [--findings <file>] [--sample <file>] [--agent-sample <file>] [--skip-offline]";
 
 interface Options {
   corpus: string;
@@ -31,6 +31,7 @@ interface Options {
   markdown: string | null;
   findings: string | null;
   sample: string | null;
+  agentSample: string;
   skipOffline: boolean;
 }
 
@@ -63,16 +64,35 @@ export async function measurePrecision(options: Options): Promise<PrecisionRepor
   const labels = loadLabels(options.labels);
   const found = distinct(repos.flatMap((repo) => findingsFor(repo, prepared)));
   if (options.findings) writeFileSync(options.findings, stableJson(found));
-  if (options.sample) writeFileSync(options.sample, stableJson(agentSample(found)));
+  const recorded = recordedSample(options.agentSample);
+  if (options.sample) writeFileSync(options.sample, stableJson(distinct([...recorded, ...agentSample(found)])));
   const applied = applyLabels(prepared.map((pack) => pack.ns), found, labels);
   const lost = applied.unmatched.filter((label) => label.verdict === "true-positive");
   if (lost.length) {
     const sample = lost.slice(0, 8).map((label) => `${label.pack} ${label.path}:${label.line}`).join("; ");
     throw new Error(`${lost.length} labels did not match a finding: ${sample}`);
   }
-  assertAgentSample(found, applied.matched);
+  assertAgentSample(found, applied.matched, recorded);
   const resolved = applied.unmatched.filter((label) => label.verdict === "false-positive");
   return reportOf(repos, applied.packs, applied.matched, resolved);
+}
+
+// The sites offered to an agent in earlier runs. No file means no earlier run.
+function recordedSample(file: string): FindingSite[] {
+  if (!existsSync(file)) return [];
+  const doc: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(doc)) throw new Error(`${file}: expected an array of sites`);
+  return doc.map((item) => siteOf(jsonRecord(JSON.stringify(item ?? null), file), file));
+}
+
+function siteOf(item: Record<string, unknown>, at: string): FindingSite {
+  const text = (key: string) => {
+    const got = item[key];
+    if (typeof got !== "string" || got === "") throw new Error(`${at}: ${key} must be a non-empty string`);
+    return got;
+  };
+  if (typeof item.line !== "number") throw new Error(`${at}: line must be a number`);
+  return { corpus: text("corpus"), pack: text("pack"), rule: text("rule"), path: text("path"), line: item.line, symbol: text("symbol") };
 }
 
 // The sites an agent may label, pack by pack, in the stable order of the findings.
@@ -86,7 +106,7 @@ export function parsePrecisionArgs(argv: string[], root: string): Options {
   const options: Options = {
     corpus: resolve(root, "bench/corpus.json"), labels: resolve(root, "bench/labels"),
     packs: resolve(root, "packs"), catalog: resolve(root, "catalog"), cache: resolve(root, ".cache/precision"),
-    out: null, markdown: null, findings: null, sample: null, skipOffline: false,
+    out: null, markdown: null, findings: null, sample: null, agentSample: resolve(root, "bench/agent-sample.json"), skipOffline: false,
   };
   const args = [...argv];
   while (args.length) takePrecision(options, args, root);
@@ -120,6 +140,7 @@ function takePrecision(options: Options, args: string[], root: string): void {
   else if (flag === "--markdown") options.markdown = path;
   else if (flag === "--findings") options.findings = path;
   else if (flag === "--sample") options.sample = path;
+  else if (flag === "--agent-sample") options.agentSample = path;
   else throw new Error(USAGE);
 }
 
