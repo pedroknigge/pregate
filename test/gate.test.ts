@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, setDefaultTimeout, spyOn, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
@@ -1772,7 +1772,7 @@ test("agy queues Pre warnings and halt notices for PostInvocation, clears stale 
   for (const rel of [".gemini/config/plugins/pregate-global/hooks.json", ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json"]) {
     const target = join(process.env.HOME!, rel);
     put(target, "{}\n");
-    const edit = await onPreEdit([change(dirname(target), target.slice(target.lastIndexOf("/") + 1), { form: "full", content: "{}\n" }, s)]);
+    const edit = await onPreEdit([change(dirname(target), basename(target), { form: "full", content: "{}\n" }, s)]);
     expect(edit).toMatchObject({ verdict: "deny", cause: "protected-path" });
     const cmd = onPreCommand({ session: s, callId: "cmd", tool: "run_command", command: `echo '{}' > "${target}"`, cwd: root });
     expect(cmd).toMatchObject({ verdict: "deny", cause: "protected-path" });

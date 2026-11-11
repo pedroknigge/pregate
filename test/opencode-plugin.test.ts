@@ -26,6 +26,55 @@ esac
 exit 0
 `;
 
+// The same contract as a Windows project launcher: `pregate.cmd` is what the plugin runs, and
+// PowerShell records the payload as UTF-8 so the assertions can parse it.
+const ENGINE_CMD = [
+  "@echo off",
+  '"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0engine.ps1" %*',
+  "exit /b %errorlevel%",
+  "",
+].join("\r\n");
+const ENGINE_PS1 = [
+  "$event = $args[1]",
+  "$payload = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.UTF8Encoding]::new($false)).ReadToEnd()",
+  "[IO.File]::AppendAllText($env:LOG, ($event + ' ' + $payload + \"`n\"))",
+  "switch ($event) {",
+  '  "pre" {',
+  "    if ($payload.Contains('\"tool_name\":\"write\"')) {",
+  '      [Console]::Error.WriteLine("PREGATE DENY protected-path: test")',
+  "      exit 2",
+  "    }",
+  '    [Console]::Out.WriteLine("PREGATE ADVISOR: prefer the smaller edit")',
+  "    exit 0",
+  "  }",
+  "  \"stop\" { [Console]::Out.WriteLine('{\"decision\":\"block\",\"reason\":\"finish the rule\"}'); exit 0 }",
+  '  "session-start" { [Console]::Out.WriteLine("PREGATE is active: test"); exit 0 }',
+  "}",
+  "exit 0",
+  "",
+].join("\n");
+
+function launcherFile(root: string): string {
+  return join(root, ".pregate/bin", process.platform === "win32" ? "pregate.cmd" : "pregate");
+}
+
+function installLauncher(root: string, kind: "engine" | "boom"): void {
+  const dir = join(root, ".pregate/bin");
+  mkdirSync(dir, { recursive: true });
+  const file = launcherFile(root);
+  if (process.platform === "win32") {
+    if (kind === "boom") {
+      writeFileSync(file, "@echo off\r\necho boom 1>&2\r\nexit /b 1\r\n");
+      return;
+    }
+    writeFileSync(file, ENGINE_CMD);
+    writeFileSync(join(dir, "engine.ps1"), ENGINE_PS1);
+    return;
+  }
+  writeFileSync(file, kind === "boom" ? "#!/bin/sh\necho 'boom' >&2\nexit 1\n" : ENGINE);
+  chmodSync(file, 0o755);
+}
+
 type Hook = (input: Record<string, unknown>) => Promise<void>;
 interface Registrations { before: Hook; after: Hook; prompt: Hook; idle: Hook }
 interface Side { instructions: { key: string; value: unknown }[]; synthetic: { sessionID: string; text: string; description?: string }[] }
@@ -42,12 +91,7 @@ function project(o: { preset?: boolean; projectLauncher?: boolean } = {}): { roo
     mkdirSync(join(root, ".pregate"), { recursive: true });
     writeFileSync(join(root, ".pregate/preset.json"), "{}\n");
   }
-  if (o.projectLauncher !== false) {
-    mkdirSync(join(root, ".pregate/bin"), { recursive: true });
-    const file = join(root, ".pregate/bin/pregate");
-    writeFileSync(file, ENGINE);
-    chmodSync(file, 0o755);
-  }
+  if (o.projectLauncher !== false) installLauncher(root, "engine");
   process.env.LOG = log;
   return { root, log };
 }
@@ -134,8 +178,7 @@ describe("execute.before", () => {
 
   test("an engine failure that is not a deny also denies", async () => {
     const p = project();
-    writeFileSync(join(p.root, ".pregate/bin/pregate"), "#!/bin/sh\necho 'boom' >&2\nexit 1\n");
-    chmodSync(join(p.root, ".pregate/bin/pregate"), 0o755);
+    installLauncher(p.root, "boom");
     const { hooks } = await plugin(p.root);
     await expect(hooks.before(call("write", { filePath: "src/a.ts", content: "x" }))).rejects.toThrow("boom");
   });

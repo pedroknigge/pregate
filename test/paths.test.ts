@@ -263,6 +263,7 @@ describe("machineGlobs", () => {
       ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/requirements.toml",
       ".grok/config.toml", ".grok/hooks-paths", ".grok/managed_config.toml", ".grok/requirements.toml", ".grok/hooks/aa.json",
       ".gemini/config/hooks.json", ".gemini/config/config.json", ".gemini/config/plugins/pregate/hooks.json",
+      ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json", ".gemini/config/plugins/pregate-global/hooks.json",
       ".cursor/hooks.json", ".cursor/cli-config.json", ".cursor/managed/hooks.json",
       ".config/opencode/opencode.json", ".config/opencode/opencode.jsonc", ".config/opencode/pregate/index.ts",
       ".config/opencode/plugins/orca.js",

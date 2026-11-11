@@ -14,9 +14,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-// Replaced by `pregate setup` with the absolute path of <DATA>/bin/pregate.
+// Replaced by `pregate setup` with the absolute path of the installed launcher
+// (`pregate.cmd` on Windows, `pregate` elsewhere).
 const LAUNCHER = "@PREGATE_LAUNCHER@";
-const PROJECT_LAUNCHER = ".pregate/bin/pregate";
+// The launcher a hook names. On Windows that file is `pregate.cmd`: CreateProcess cannot start
+// an extensionless script or a batch file, so the shim asks cmd.exe to run the batch.
+const PROJECT_LAUNCHER = process.platform === "win32" ? ".pregate/bin/pregate.cmd" : ".pregate/bin/pregate";
 const MISSING = "PREGATE could not evaluate: its launcher is missing; report it to the user";
 const TIMEOUT_MS = 30_000;
 
@@ -54,11 +57,24 @@ function engineOf(root: string): string | null {
   return present(LAUNCHER) ? LAUNCHER : null;
 }
 
+// cmd.exe `/s` strips one pair of quotes around the whole command. A path that contains spaces,
+// quotes or `%` stays one argument, and `%` is not expanded as a variable.
+function quoteCmd(arg: string): string {
+  const text = arg.replaceAll("%", "%%").replaceAll('"', '""');
+  return text === "" || /[\s"&|<>^%]/.test(arg) ? `"${text}"` : text;
+}
+
 function run(file: string, event: string, payload: Payload, cwd: string): Out {
-  const r = spawnSync(file, ["hook", event, "--harness", "opencode"], {
-    cwd, env: process.env, encoding: "utf8", timeout: TIMEOUT_MS, input: JSON.stringify(payload),
-  });
-  return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+  const args = ["hook", event, "--harness", "opencode"];
+  const batch = process.platform === "win32" && /\.(cmd|bat)$/i.test(file);
+  const options = { cwd, env: process.env, encoding: "utf8" as const, timeout: TIMEOUT_MS, input: JSON.stringify(payload) };
+  const r = batch
+    ? spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `"${[file, ...args].map(quoteCmd).join(" ")}"`], { ...options, windowsVerbatimArguments: true })
+    : spawnSync(file, args, options);
+  // A process that never started has no stderr. The spawn error is that line, so the caller
+  // reports why the launcher did not run.
+  const stderr = r.stderr !== null && r.stderr !== "" ? r.stderr : r.error instanceof Error ? r.error.message : "";
+  return { status: r.status, stdout: r.stdout ?? "", stderr };
 }
 
 function absolute(path: string): boolean {

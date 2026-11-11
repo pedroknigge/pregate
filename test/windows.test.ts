@@ -51,6 +51,10 @@ test("Windows command wrappers keep administrative and launcher protections", ()
   const home = "C:\\Users\\Pedro";
   const globs = machineGlobs(home, { codexHome: `${home}\\.codex`, grokHome: `${home}\\.grok`, opencodeHome: `${home}\\AppData\\Roaming\\opencode`, claudeConfig: null, data: `${home}\\AppData\\Local\\pregate`, state: `${home}\\AppData\\Local\\State\\pregate` }, slash);
   for (const command of ['type "%LOCALAPPDATA%\\pregate\\bin\\launcher.ps1"', 'Get-Content "$env:LOCALAPPDATA/State/pregate/consent.json"']) expect(guard(command, "C:/repo", { ...ctx, isProtected: (p) => protects(p, globs) })).toBe("protected-path");
+  // Antigravity settings keep their backslashes. The matcher compares them as the same path.
+  for (const file of [`${home}\\.gemini\\antigravity\\settings.json`, `${home}\\.gemini\\antigravity-cli\\settings.json`, `${home}\\.gemini\\config\\plugins\\pregate-global\\hooks.json`]) {
+    expect(protects(file, globs)).toBe(true);
+  }
 });
 
 test("Windows registrations round-trip and keep foreign groups; the command is shell-independent", () => {
