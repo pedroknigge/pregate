@@ -273,7 +273,7 @@ The agent can prepare a literal supported preview command. The human reviews
 `approve --preview` and enters its `! pregate approve <code>`
 where the harness supports human shell input.
 The preview names the supported harnesses and shows a separate human terminal
-command for Cursor. The agent must not execute either approval command itself.
+command for Cursor and OpenCode. The agent must not execute either approval command itself.
 Native interactive Claude Code
 permission can approve a validated edit; agy uses human Bash input in normal
 and skip-permissions sessions. Proposals expire after 24 hours and
