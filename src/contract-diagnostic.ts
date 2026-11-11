@@ -182,12 +182,16 @@ export function onSessionStart(e: Extract<HookEvent, { kind: "session-start" }>)
   if (root === null) return told(null);
   const loaded = lockOf(root);
   // A child's first contact cannot accept unobserved dirty edits as pre-session debt.
-  const start = e.session.harness === "codex" && e.session.agentId !== null ? null
+  const child = e.session.harness === "codex" && e.session.agentId !== null;
+  const start = child ? null
     : (rel: string) => contextFile(rel) || inScope(isCause(loaded) ? null : loaded.lock, rel);
   const snap = state.ensureSnapshot(sid, root, start);
   if (isCause(snap)) return told(notice("halt", { reason: snap }));
   const valid = verify(sid, root, loaded);
-  if (!isCause(valid)) return told(null, briefing(valid.lock, launcher(), updateReady()));
+  if (!isCause(valid)) {
+    const lead = child ? `Workspace root: ${JSON.stringify(root)}. Codex apply_patch: use absolute paths, name each file once, and include context in update hunks.` : updateReady();
+    return told(null, briefing(valid.lock, launcher(), lead));
+  }
   return told(valid === "lock-stale" || valid === "version-mismatch" ? formText(form(valid, root), null).full : notice("halt", { reason: valid }));
 }
 
