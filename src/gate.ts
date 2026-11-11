@@ -173,7 +173,8 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
-    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
+    sessionUnchanged: (p) => sessionUnchanged(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);
@@ -198,6 +199,24 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
       return known.some((r) => within(abs, r)) || (h !== null && scopeUnder(h.lock, h.rel));
     },
   };
+}
+
+// The file is in an enabled root, the session has that root's snapshot, and the file's text is the
+// text the snapshot gives as its "before": the session's base commit, or the dirty text recorded at
+// the session start. A file the session wrote, an untracked or ignored file and a file outside
+// every root are not shown unchanged.
+function sessionUnchanged(sid: string, path: string): boolean {
+  try {
+    const actual = canonical(path), holder = findRoot(dirname(actual), enabled);
+    if (holder === null) return false;
+    const snap = state.snapshot(sid, holder);
+    if (snap === null || snap === "missing") return false;
+    const before = state.beforeText(sid, snap, relative(holder, actual));
+    return typeof before === "string" && !isCause(before) && before === readText(actual);
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return false;
+    throw error;
+  }
 }
 
 // `skill`: the question is about the installed skill file, not about a harness configuration file.

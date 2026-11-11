@@ -342,6 +342,46 @@ test("a literal cat call reads the installed skill file, alone or in a sequence,
   for (const file of skills.filter(f => !f.startsWith(linked))) expect(readFileSync(file, "utf8")).toBe("name: pregate\n");
 });
 
+test("a project script as it was when the session began runs; one the session changed, added or committed is read for sinks", () => {
+  const root = repo("scripts");
+  const writer = "const fs = require('node:fs');\nfs.writeFileSync('out.txt', 'x');\n";
+  put(join(root, "scripts/gen.js"), writer);
+  put(join(root, "src/domain/a.test.js"), "import { test } from 'node:test';\nimport vm from 'node:vm';\nimport { a } from './a.js';\ntest('a', () => vm.runInNewContext('1') && a);\n");
+  git(root, "add", "."); git(root, "commit", "-qm", "scripts");
+  const run = (s: Session, text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
+  for (const harness of ["claude-code", "codex", "cursor", "grok", "agy"] as const) {
+    const s = session(harness, `scripts-${harness}`);
+    for (const text of ["node scripts/gen.js", "node src/domain/a.test.js", "node --test src/domain/a.test.js", "bun scripts/gen.js"])
+      expect(run(s, text).verdict, `${harness}: ${text}`).toBe("none");
+  }
+  const s = session("claude-code", "scripts-changed");
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
+  // Changed in the session, by any route: the text is no longer the session's base.
+  put(join(root, "scripts/gen.js"), `${writer}fs.writeFileSync('src/domain/a.ts', 'x');\n`);
+  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  // Committed in the session: the base is the commit the session began on.
+  git(root, "add", "."); git(root, "commit", "-qm", "changed in the session");
+  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  // Restored to the base text: the project's program again.
+  put(join(root, "scripts/gen.js"), writer);
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
+  // New in the session, in the project or outside every root.
+  put(join(root, "scripts/new.js"), writer);
+  put(join(area, "outside-writer.js"), writer);
+  expect(run(s, "node scripts/new.js").cause).toBe("shell-write");
+  expect(run(s, `node '${join(area, "outside-writer.js")}'`).cause).toBe("shell-write");
+  // A new test file with literal imports of modules that do not write runs; one that imports a writer does not.
+  put(join(root, "src/domain/b.test.js"), "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from './a.js';\ntest('a', () => assert.equal(a, 1));\n");
+  put(join(root, "src/domain/c.test.js"), "import { test } from 'node:test';\nimport { writeFileSync } from 'node:fs';\ntest('c', () => writeFileSync('src/domain/a.ts', 'x'));\n");
+  expect(run(s, "node --test src/domain/b.test.js").verdict).toBe("none");
+  expect(run(s, "node --test src/domain/c.test.js").cause).toBe("shell-write");
+  // An unchanged script that names a control command is still denied: only the write sink is forgiven.
+  const other = repo("scripts-control");
+  put(join(other, "scripts/off.js"), "require('node:child_process').execSync('pregate uninstall');\n");
+  git(other, "add", "."); git(other, "commit", "-qm", "control");
+  expect(onPreCommand({ session: session("claude-code", "scripts-control"), callId: "off", tool: "Bash", cwd: other, command: "node scripts/off.js" }).verdict).toBe("deny");
+});
+
 function change(root: string, rel: string, edit: Edit, s = session(), from: string | null = null): ProposedChange {
   return { session: s, callId: "one-call", tool: "Write", path: join(root, rel), edit, from };
 }

@@ -3,7 +3,7 @@ import { absolutePath, matches, pathKey, PROTECTED_NAMES, REQUESTS, slash } from
 import type { Cause, HarnessId } from "./types.ts";
 import { pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
-import { inlineSink } from "./inline-sinks.ts";
+import { inlineSink, nodeFile } from "./inline-sinks.ts";
 
 // Help must exit before any command can inspect or change installation/project state.
 const HELP_COMMANDS = new Set([
@@ -34,6 +34,9 @@ export interface GuardContext {
   engines?: string;
   policyRead?: (abs: string, kind: "admitted" | "inspect" | "inventory") => boolean;
   configurationRead?: (abs: string) => boolean;
+  // Whether a file has the text it had when the session began: tracked or recorded then, and not
+  // changed since. False when that cannot be shown.
+  sessionUnchanged?: (abs: string) => boolean;
   // Whether a path is the skill file that setup installed for the agent to read.
   skillRead?: (abs: string) => boolean;
   // Reads one literal script for pregate control commands. The shell layer supplies it; the core does not open files.
@@ -111,8 +114,13 @@ function scriptFile(ctx: Ctx, path: string, interpreter: string, cwd: string | n
     const src = lang === "powershell" && read.text.includes("\\") ? read.text.replace(/\\(?=[\w.-])/g, "/") : read.text;
     return script(src, cwd, ctx);
   }
-  if (inlineSink(lang, read.text, options)) return "shell-write";
-  return code({ text: read.text, literal: true, subs: [] }, cwd, ctx);
+  // A file run by node, bun or deno is a program with imports, read by the rules for a file.
+  const file = INTERPRETERS.get(lang) === NODE ? nodeFile(read.text) : null;
+  const sink = file === null ? inlineSink(lang, read.text, options) : file.sink;
+  const wrote = sink ? "shell-write" : code({ text: file === null ? read.text : file.rest, literal: true, subs: [] }, cwd, ctx);
+  // A script that is as it was when the session began is the project's own program: running it is
+  // what the project's test command does. Only a write sink is forgiven; control text was read above.
+  return wrote === "shell-write" && ctx.sessionUnchanged?.(path) === true ? null : wrote;
 }
 
 // A path command (`./run`, `scripts/deploy.sh`) is read where it is spelled. A bare name is resolved

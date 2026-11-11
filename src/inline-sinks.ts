@@ -35,6 +35,37 @@ export function inlineSink(name: string, program: string, options: string[]): bo
   return NODE_SINK.test(masked(program, false));
 }
 
+// A script FILE that node, bun or deno runs. A real program imports modules, so the words of the
+// module system are not sinks here as they are in a one-line program. Each import or require must
+// be the literal form and must not name a module that writes files or starts programs; any other
+// use of those two words is a sink. The file-writing and code-running names stay sinks.
+// `rest`: the text without the literal imports, for the scan of path tokens.
+// Not read: what an imported module does, and access built through `constructor` or a computed
+// member. Stop, the pre-commit hook and CI are the net for those (docs/guarantees.md).
+const NODE_FILE_SINK = new RegExp([
+  String.raw`\b(?:require|import|fs|child_process|worker_threads|vm|inspector|wasi|cluster|repl|eval|Function|Bun|Deno|WebAssembly|Worker)\b`,
+  String.raw`\bprocess\b(?!\s*\.\s*(?:version|versions|platform|arch|argv|env|cwd|pid|ppid|exitCode|exit|stdout|stderr|uptime|hrtime|memoryUsage|execPath|release|title|nextTick|on|once|off|emitWarning)\b)`,
+].join("|"));
+const NODE_WRITERS = /^(?:fs|child_process|worker_threads|cluster|vm|module|repl|inspector|wasi|process|bun|fs-extra|graceful-fs|fs-jetpack|jsonfile|write-file-atomic|write-json-file|execa|shelljs|zx|cross-spawn|node-pty|rimraf|mkdirp|make-dir|del|cpy|cpx|tempy|tmp)(?:\/|$)/;
+const NODE_IMPORTS = [
+  /\b(?:require|import)\s*\(\s*(['"])([^'"\n]+)\1\s*\)/g,
+  /\bimport\s+(?:type\s+)?[\w$*{}\s,]+?\s+from\s*(['"])([^'"\n]+)\1/g,
+  /\bimport\s*(['"])([^'"\n]+)\1/g,
+];
+
+export function nodeFile(text: string): { sink: boolean; rest: string } {
+  let writer = false;
+  let rest = text.replace(/\bimport\s*\.\s*meta\b/g, "META");
+  for (const form of NODE_IMPORTS) {
+    rest = rest.replace(form, (_all, _quote: string, spec: string) => {
+      const name = spec.replace(/^node:/, "");
+      if (NODE_WRITERS.test(name) || (/^bun:/.test(spec) && spec !== "bun:test")) writer = true;
+      return "IMPORTED";
+    });
+  }
+  return { sink: writer || NODE_FILE_SINK.test(masked(rest, false)), rest };
+}
+
 function pythonSink(program: string): boolean {
   const text = masked(program, true);
   if (PYTHON_SINK.test(text)) return true;
