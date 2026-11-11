@@ -650,6 +650,7 @@ async function projectCodexTrust(p: Paths, root: string, bin: string): Promise<L
     return active === expected ? ok(`Codex project hooks: ${active}/${expected} enabled and trusted for this directory (read-only app-server inspection).`)
       : fail(`Codex project hooks: ${active}/${expected} enabled and trusted; ${listed.length} discovered. Trust the project and review its hooks in Codex /hooks. No trust was changed.`);
   } catch (e) {
+    // fail-closed: failed discovery never establishes project hook trust.
     return fail(`Codex project hook review could not be verified: ${(e as Error).message}. Check /hooks; no trust was changed.`);
   } finally {
     server.close();
