@@ -27,7 +27,7 @@ const LAUNCHER = join(DATA, "pregate/bin/pregate");
 const PRE = ["hook", "pre", "--harness", "claude-code"];
 
 type Preset = "backend-clean-ddd" | "functional-ts";
-type Event = "PreToolUse" | "Stop" | "SessionStart";
+type Event = "PreToolUse" | "Stop" | "SessionStart" | "SubagentStart";
 type Env = Record<string, string>;
 interface Out { code: number; stdout: string; stderr: string; ms: number }
 interface Repo { dir: string; env: Env }
@@ -385,6 +385,36 @@ test("SessionStart in a Git repository without a contract says once how to set u
     silent(start(plain));
     expect(existsSync(state)).toBe(false);
   }
+});
+
+test("a Claude Code subagent gets the briefing at SubagentStart, and a Cursor or Grok payload on that registration gets no reply", () => {
+  const r = repo({ ".": "backend-clean-ddd" });
+  const parent = claude(r);
+  const session = json(ok(parent.start(), "SessionStart")).hookSpecificOutput.additionalContext!;
+  expect(session).toContain("PREGATE is active");
+  const sub = claude(r, { sid: parent.session.sid, agentId: "a0000000000000001" });
+  const started = ok(hook(sub.session, "SubagentStart", {}), "SubagentStart");
+  expect(started.stderr).toBe("");
+  const reply = JSON.parse(started.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+  expect(Object.keys(reply)).toEqual(["hookSpecificOutput"]);
+  expect(reply.hookSpecificOutput.hookEventName).toBe("SubagentStart");
+  // The same briefing as the session's: the same first line and the same checks. A lock read from the
+  // compiled cache lists the parameters of a check in another order, so the bytes can differ.
+  const checks = (text: string): string[] => text.split("\n").filter((line) => line.startsWith("- ")).map((line) => line.split(":")[0]!);
+  expect(reply.hookSpecificOutput.additionalContext.split("\n")[0]).toBe(session.split("\n")[0]!);
+  expect(checks(reply.hookSpecificOutput.additionalContext)).toEqual(checks(session));
+  expect(checks(session).length).toBeGreaterThan(5);
+  // The gate still judges the subagent's writes: the briefing grants nothing.
+  expect(denied(sub.write("src/domain/order.ts", SETTER))).toContain("ddd/DDD-ENT-001");
+  // Without a contract the subagent gets nothing: the session already has the line that says how to start.
+  const bare = join(TMP, "subagent-dormant");
+  ok(run(["git", "init", "-q", bare], TMP, envOf()), "git init");
+  const command = hookCommand(join(DATA, "pregate"), "session-start", "claude-code");
+  const shape = { session_id: randomUUID(), transcript_path: join(HOME, "t.jsonl"), prompt_id: randomUUID() };
+  silent(run(["sh", "-c", command], bare, envOf(), JSON.stringify({ ...shape, cwd: bare, hook_event_name: "SubagentStart", agent_id: "a1", agent_type: "general-purpose" })));
+  // Cursor and Grok read the same settings file. If one dispatches the event, the command is silent.
+  silent(run(["sh", "-c", command], r.dir, r.env, JSON.stringify({ hook_event_name: "subagentStart", cursor_version: "3.2.11", conversation_id: randomUUID(), workspace_roots: [r.dir] })));
+  silent(run(["sh", "-c", command], r.dir, { ...r.env, GROK_HOOK_EVENT: "subagent_start" }, JSON.stringify({ hookEventName: "subagent_start", sessionId: randomUUID(), cwd: r.dir })));
 });
 
 test("blocked edits preserve protection and offer reviewed rule adaptation in every captured harness", () => {
