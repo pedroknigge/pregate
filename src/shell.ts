@@ -34,6 +34,8 @@ export interface GuardContext {
   engines?: string;
   policyRead?: (abs: string, kind: "admitted" | "inspect" | "inventory") => boolean;
   configurationRead?: (abs: string) => boolean;
+  // Whether a path is the skill file that setup installed for the agent to read.
+  skillRead?: (abs: string) => boolean;
   // Reads one literal script for pregate control commands. The shell layer supplies it; the core does not open files.
   readControlFile?: (path: string) => Cause | null;
   // Reads script bytes for sink and control scanning without the lexer importing the filesystem.
@@ -751,7 +753,13 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
   const policyInput = (w: Word) => reading !== null && words.slice(1).includes(w) && ctx.policyRead?.(resolve(cwd, w.text) ?? "", reading) === true;
   const configurationInput = (w: Word) => ctx.configurationInspection && words.slice(1).includes(w)
     && ctx.configurationRead?.(resolve(cwd, w.text) ?? "") === true;
-  if (paths.some((w) => !exempt.has(w) && !((precheck || engineInspection) && w === head) && !(inspectedPython && w === words.at(-1)) && w !== contractInput && !guideInputs.includes(w) && !descriptions.includes(w) && mentionsProtected(w, cwd, ctx) && !policyInput(w) && !configurationInput(w))) return "protected-path";
+  // An agent loads the skill in a sequence of commands (`pwd; rg --files; cat <skill>`), so this read
+  // is not bound to a single-command line. The call is still literal, with no option, no
+  // redirection and no pipe on either side.
+  const skillCall = !pipedIn && cmd.redirs.length === 0 && [";", "&&", "||"].includes(cmd.op) && words[0]?.text === "cat" && words.length > 1
+    && words.every(w => w.literal && w.subs.length === 0) && words.slice(1).every((w, i) => (i === 0 && w.text === "--") || !w.text.startsWith("-"));
+  const skillInput = (w: Word) => skillCall && words.slice(1).includes(w) && ctx.skillRead?.(resolve(cwd, w.text) ?? "") === true;
+  if (paths.some((w) => !exempt.has(w) && !((precheck || engineInspection) && w === head) && !(inspectedPython && w === words.at(-1)) && w !== contractInput && !guideInputs.includes(w) && !descriptions.includes(w) && mentionsProtected(w, cwd, ctx) && !policyInput(w) && !configurationInput(w) && !skillInput(w))) return "protected-path";
   if (usedVar && (precheck || engineInspection)) ctx.pendingProtected.delete(usedVar);
   // A redirection from a literal file keeps the path: a shell or an interpreter that runs its stdin
   // reads that file for control commands. The text itself is not analyzed. null: the terminal.

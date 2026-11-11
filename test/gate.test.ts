@@ -310,7 +310,7 @@ test("configuration symlinks cannot expose private state or rule sources and non
   expect(onPreCommand({ session: s, callId: "sibling-source", tool: "Bash", cwd: root, command: `cat '${globalSettings}'` }).cause).toBe("protected-path");
 });
 
-test("a literal cat reads the installed skill file and nothing else in its folder, and every write stays denied", () => {
+test("a literal cat call reads the installed skill file, alone or in a sequence, and nothing else in its folder", () => {
   const root = repo(), home = process.env.HOME!;
   const skills = [join(home, ".agents/skills/pregate/SKILL.md"), join(home, ".claude/skills/pregate/SKILL.md"),
     join(process.env.CODEX_HOME!, "skills/pregate/SKILL.md"), join(home, ".cursor/skills/pregate/SKILL.md"),
@@ -322,11 +322,15 @@ test("a literal cat reads the installed skill file and nothing else in its folde
     expect(command(`cat ${file}`).verdict, file).toBe("none");
     expect(command(`cat -- '${file}'`, "claude-code").verdict, file).toBe("none");
   }
+  // Codex 0.167.0 loads the skill at the end of a sequence, not as a command line of its own.
+  for (const text of [`pwd && rg --files -g AGENTS.md && cat ${skills[0]}`, `pwd; rg --files -g package.json; cat ${skills[0]}`, `cat ${skills[0]}; git status --short`])
+    expect(command(text).verdict, text).toBe("none");
   const skill = skills[0]!, other = join(dirname(skill), "notes.md"), secret = join(process.env.XDG_STATE_HOME!, "pregate/private.json");
   put(other, "x\n"); put(secret, "{}\n");
   for (const text of [
     `cat ${other}`, `cat ${dirname(skill)}/*`, `cat ${skill} > /tmp/skill-copy`, `cat ${skill} | sh`, `sed -i s/x/y/ ${skill}`,
-    `rm ${skill}`, `echo x >> ${skill}`, `cp ${secret} ${skill}`, `sh -c "cat ${skill}"`,
+    `rm ${skill}`, `echo x >> ${skill}`, `cp ${secret} ${skill}`, `cat ${skill} ${other}`, `cat ${skill} 2>&1`, `pwd | cat ${skill}`,
+    `cat -n ${skill}`, `sh -c "cat ${skill}"`, `echo $(cat ${skill})`, `cat ${skill} && cat ${secret}`, `pwd; cat ${skill} > ${other}`,
   ]) expect(command(text).cause, text).toBe("protected-path");
   // The skill folder as a link into private state gives no read of that state.
   const linked = join(home, ".cursor/skills/pregate");

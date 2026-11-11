@@ -173,7 +173,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
-    configurationRead: (p) => configurationRead(sid, root, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);
@@ -200,21 +200,21 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   };
 }
 
-function configurationRead(sid: string, root: string | null, path: string): boolean {
+// `skill`: the question is about the installed skill file, not about a harness configuration file.
+function configurationRead(sid: string, root: string | null, path: string, skill: boolean): boolean {
   if (path.includes("\0") || /^\/dev\//.test(path)) return false;
-  return harnessConfigurationRead(sid, root, path);
+  return harnessConfigurationRead(sid, root, path, skill);
 }
 
-function harnessConfigurationRead(sid: string, root: string | null, path: string): boolean {
+function harnessConfigurationRead(sid: string, root: string | null, path: string, skill: boolean): boolean {
   try {
     const actual = canonical(path), env = process.env, home = homeDir();
-    const files = harnessConfigFiles(home, {
+    // The skill is the text setup wrote for the agent to read. Its tree is protected against writes,
+    // so a read of that one file discloses only what the installation gave the agent.
+    const files = skill ? skillFiles() : harnessConfigFiles(home, {
       codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
     }, root);
-    // The skill is the text setup wrote for the agent to read. Its tree is protected against writes,
-    // so a literal read of that one file discloses only what the installation gave the agent.
-    const skill = skillFiles().some(file => pathKey(actual) === pathKey(canonical(file)));
-    if (!(skill || files.some(file => pathKey(actual) === pathKey(canonical(file)))) || !statSync(actual).isFile()) return false;
+    if (!files.some(file => pathKey(actual) === pathKey(canonical(file))) || !statSync(actual).isFile()) return false;
     const targetRoot = findRoot(dirname(actual), enabled);
     const roots = [...new Set([...(root === null ? [] : [root]), ...(targetRoot === null ? [] : [targetRoot]), ...state.roots(sid)])];
     const sources = roots.flatMap(r => sourceDirs(readText(join(r, PRESET)) ?? "").map(dir => canonical(resolve(r, dir))));
