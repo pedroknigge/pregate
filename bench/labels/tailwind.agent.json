@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "tailwind",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "tailwind",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "bind.js",
+      "line": 49,
+      "symbol": "appendClass",
+      "verdict": "false-positive",
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute, which is the stated condition."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "tailwind",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "dedupe.js",
+      "line": 13,
+      "symbol": "classNames",
+      "verdict": "false-positive",
+      "note": "' ' + key builds the library's return string in a function named classNames. No className attribute contains the expression."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "tailwind",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "index.js",
+      "line": 49,
+      "symbol": "appendClass",
+      "verdict": "false-positive",
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "tailwind",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "lib/index.js",
+      "line": 298,
+      "symbol": "createFile",
+      "verdict": "false-positive",
+      "note": "The concatenation builds the message of an unreachable(...) error about the children prop. It is not a class name."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "tailwind",
+      "rule": "tailwind/TW-DYN-001",
+      "path": "lib/index.js",
+      "line": 329,
+      "symbol": "post",
+      "verdict": "false-positive",
+      "note": "The concatenation builds the message of an unreachable(...) error about a deprecated prop. It is not a class name."
+    }
+  ]
+}

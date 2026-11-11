@@ -1,5 +1,7 @@
 # False-positive measurement
 
+This page is a record of release 0.0.1 and was not run again. [Rule precision](../guides/rule-precision.md) supersedes its counts for `redis`, `pstack`, `trpc`, `vue`, `tailwind`, `authjs`, `mongodb` and `express`, whose rules were narrowed later.
+
 **False-positive rate: unmeasured.**
 
 This run audited 45 optional packs and the builtin core against 8 pinned repositories (238 source files) and recorded **9103 findings** (11737 raw matches; a site that a rule matched more than once is one finding). The findings are not fully labeled, so the false-positive rate is unmeasured. Fixture density for `pregate rules test` is separate: 1114 checks, 1117 rules, 6281 fixtures, 0 rules with no positive fixture, and 0 rules with no negative fixture.

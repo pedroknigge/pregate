@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "typescript",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "typescript",
+      "rule": "typescript/TS-DEFAULT-001",
+      "path": "bind.d.ts",
+      "line": 3,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "export default function classNames declares a default export."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "typescript",
+      "rule": "typescript/TS-DEFAULT-001",
+      "path": "index.js",
+      "line": 10,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The export list contains Markdown as default, which the rule names as a default export."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.js",
+      "line": 178,
+      "symbol": "__values",
+      "verdict": "true-positive",
+      "note": "throw new TypeError(...) is the last statement of export function __values."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.js",
+      "line": 76,
+      "symbol": "__esDecorate",
+      "verdict": "true-positive",
+      "note": "The throw is in the addInitializer function expression, which is declared inside export function __esDecorate."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.mjs",
+      "line": 310,
+      "symbol": "__addDisposableResource",
+      "verdict": "true-positive",
+      "note": "throw new TypeError(\"Symbol.asyncDispose is not defined.\") is in the body of export function __addDisposableResource."
+    }
+  ]
+}

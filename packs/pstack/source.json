@@ -2,5 +2,5 @@
   "$schema": "../../schema/source.v1.json",
   "ns": "pstack",
   "category": "process",
-  "version": "1.1.1"
+  "version": "1.2.0"
 }

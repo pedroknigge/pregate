@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "express",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-NEXT-001",
+      "path": "examples/mvc/controllers/pet/index.js",
+      "line": 13,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "return next('route') passes the string route to next, which is the call this rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-NEXT-001",
+      "path": "test/app.param.js",
+      "line": 294,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Line 294 is the it(...) call of a test. The next('route') call is seven lines below, inside its callback, so the reported line is not the call the rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-NEXT-001",
+      "path": "test/app.router.js",
+      "line": 873,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Line 873 is the it(...) call of a test. The next('router') call is six lines below, inside a nested function, so the reported line is not the call the rule names."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/app.route.js",
+      "line": 101,
+      "symbol": "handleError",
+      "verdict": "true-positive",
+      "note": "res.status(500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line, so the request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/express.urlencoded.js",
+      "line": 635,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "res.status(err.status || 500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line."
+    }
+  ]
+}

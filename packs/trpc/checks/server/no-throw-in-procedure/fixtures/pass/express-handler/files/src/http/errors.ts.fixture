@@ -1,0 +1,7 @@
+import express from "express";
+
+export const app = express();
+
+app.get("/", () => {
+  throw new Error("something broke!");
+});

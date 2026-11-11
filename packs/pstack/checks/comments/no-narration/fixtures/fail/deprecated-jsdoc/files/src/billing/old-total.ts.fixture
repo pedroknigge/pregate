@@ -1,0 +1,4 @@
+/** @deprecated */
+export function oldTotal(cents: number): number {
+  return cents;
+}

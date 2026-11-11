@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "maintainability/maintainability",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -144,7 +144,7 @@
         {
           "with": "pstack/PS-COMMENT-001",
           "kind": "duplicates",
-          "why": "PS-COMMENT-001 denies every JSDoc comment that is not on its allowlist, so a bare @deprecated is reported by both rules, and a written notice still fails PS-COMMENT-001.",
+          "why": "PS-COMMENT-001 reports every comment that carries @deprecated, so a bare @deprecated is reported by both rules, and a written notice is still reported by PS-COMMENT-001.",
           "settle": "Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001."
         }
       ],

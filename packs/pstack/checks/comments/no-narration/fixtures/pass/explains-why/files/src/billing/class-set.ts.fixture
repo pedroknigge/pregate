@@ -1,0 +1,8 @@
+
+// Don't inherit from Object so we can skip the hasOwnProperty check later.
+const store: Record<string, boolean> = Object.create(null);
+
+export function mark(key: string, value: unknown): void {
+  // Set the value to false instead of deleting it to avoid changing the object structure.
+  store[key] = !!value;
+}

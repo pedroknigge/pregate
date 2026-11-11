@@ -1,0 +1,11 @@
+import express from "express";
+
+const app = express();
+describe("app.param", () => {
+  it("skips the route when the user is foo", () => {
+    app.param("user", (_req, _res, next, user) => {
+      if (user === "foo") return next("route");
+      next();
+    });
+  });
+});

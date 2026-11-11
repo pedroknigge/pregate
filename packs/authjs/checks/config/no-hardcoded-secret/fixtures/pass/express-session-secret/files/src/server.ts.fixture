@@ -1,0 +1,12 @@
+import express from "express";
+import session from "express-session";
+import cookieSession from "cookie-session";
+
+export const app = express();
+
+app.use(session({
+  resave: false,
+  saveUninitialized: false,
+  secret: "keyboard cat",
+}));
+app.use(cookieSession({ secret: "manny is cool" }));

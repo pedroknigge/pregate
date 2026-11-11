@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "tailwind/classes/no-dynamic-class-concat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "classes",
   "cardinality": "singleton",
   "dimension": "tailwind.no-dynamic-class-concat",
@@ -13,22 +13,38 @@
       "typescript": [
         {
           "id": "dynamic-concat",
+          "utils": {
+            "class-holder": {
+              "any": [
+                {
+                  "regex": "^(className|class)\\s*=\\s*[{\"'`]"
+                },
+                {
+                  "kind": "pair",
+                  "regex": "^[\"']?(className|class)[\"']?\\s*:"
+                }
+              ]
+            }
+          },
           "rule": {
             "any": [
               {
                 "kind": "binary_expression",
                 "regex": "\\+",
-                "has": { "stopBy": "end", "kind": "identifier" },
+                "has": {
+                  "stopBy": "end",
+                  "kind": "identifier"
+                },
                 "inside": {
                   "stopBy": "end",
-                  "regex": "className"
+                  "matches": "class-holder"
                 }
               },
               {
                 "kind": "template_substitution",
                 "inside": {
                   "stopBy": "end",
-                  "regex": "className"
+                  "matches": "class-holder"
                 }
               }
             ]

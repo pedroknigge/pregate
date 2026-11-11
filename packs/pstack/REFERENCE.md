@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.1.1`. Category: **process**.
+Version: `1.2.0`. Category: **process**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -2885,7 +2885,7 @@ Source metadata:
 
 ## pstack/reader-load
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **complete**.
 
 ### pstack/PS-LET-001
 
@@ -2921,7 +2921,7 @@ Source metadata:
 
 ### pstack/PS-COMMENT-001
 
-Check: [`pstack/comments/no-narration@1.0.0`](checks/comments/no-narration/check.json). Default severity: **deny**.
+Check: [`pstack/comments/no-narration@1.0.1`](checks/comments/no-narration/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -2931,13 +2931,13 @@ A narration comment goes stale and splits the reader's attention. The code shoul
 
 Default parameters: `{}`.
 
-**Repair:** Delete the comment. If the debt is real, write TODO(owner) with an owner of at least two characters, matching the vibe-proof TODO rule.
+**Repair:** Delete the comment if it restates the code. If it records a reason, say the reason in the comment. If the debt is real, write TODO(owner) with an owner of at least two characters, matching the vibe-proof TODO rule.
 
-**Scope and limits:** Allowlisted: TODO/FIXME/HACK/XXX(owner), @ts-expect-error, eslint-, biome-ignore, pregate-, istanbul, c8, SPDX-License-Identifier, Copyright, @license, and /// <reference. @ts-ignore and @ts-nocheck are not allowlisted. A fake owner satisfies the spelling; that is a social hole, not a structural one.
+**Scope and limits:** The pattern cannot compare a comment with the code after it, so this rule reports every comment that is not one of the exempt shapes, and the default severity is warn. Allowlisted: TODO/FIXME/HACK/XXX(owner), @ts-expect-error, eslint-, biome-ignore, pregate-, istanbul, c8, SPDX-License-Identifier, Copyright, @license, and /// <reference. Also exempt, unless the comment carries @deprecated: a JSDoc block, a comment with an http or https URL, a comment that names a license, and a comment with one of the reason words because, since, so, otherwise, instead of, rather than, in order to, to avoid, to prevent, to ensure, due to, workaround or why. @ts-ignore and @ts-nocheck are not allowlisted. A fake owner or an added reason word satisfies the spelling; that is a social hole, not a structural one.
 
 **Interactions when active together:**
 
-- Duplicates `maintainability/MAINT-DEPR-001`: A bare @deprecated JSDoc tag is reported by both rules, and the written notice MAINT-DEPR-001 asks for is still a comment PS-COMMENT-001 denies. Settle: Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001.
+- Duplicates `maintainability/MAINT-DEPR-001`: A bare @deprecated JSDoc tag is reported by both rules, and the written notice MAINT-DEPR-001 asks for is still a comment PS-COMMENT-001 reports. Settle: Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

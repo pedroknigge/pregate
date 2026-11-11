@@ -1,14 +1,16 @@
 import { isObject, parse, type Payload } from "./harness/wire.ts";
 import type { HarnessId, HookKind } from "./types.ts";
-import { commandScript, psQuote, windowsHook } from "./windows-command.ts";
+import { commandScript, powershellCommand, psQuote, windowsHook } from "./windows-command.ts";
 
 // The global registrations (MULTI-HARNESS MH-22 to MH-25, MH-27): pure text in, text out. Writing
 // the files (only when the bytes change, atomically, through symlinks, one backup) is machine.ts's.
 
 export type Sub = HookKind;
 // "shared": ~/.claude/settings.json, read by Claude Code, Cursor and Grok; "codex": its hooks.json;
-// "agy": the hooks.json of the pregate plugin.
-export type Target = "shared" | "codex" | "agy" | "cursor";
+// "agy": the hooks.json of the pregate plugin. "project": the project's own .claude/settings.json,
+// whose handlers run the project launcher and name no machine path. "project-codex": the project's
+// own .codex/hooks.json, with the Codex events and matcher, on the same launcher.
+export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex";
 // The machine files drift reads; null: absent. `claude` holds every shared registration setup
 // writes: ~/.claude/settings.json, and ${CLAUDE_CONFIG_DIR}/settings.json when it is elsewhere.
 export interface MachineFiles {
@@ -20,9 +22,13 @@ export interface MachineFiles {
 export type RepoFiles = Record<string, string>;
 
 // Closed tool lists (MH-22): `*` would spawn the hook on every read the agent makes.
+const SHARED_TOOLS = "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command";
+const CODEX_TOOLS = "^(apply_patch|Bash)$";
 const MATCHER: Record<Exclude<Target, "cursor">, string> = {
-  shared: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command",
-  codex: "^(apply_patch|Bash)$",
+  shared: SHARED_TOOLS,
+  project: SHARED_TOOLS,
+  codex: CODEX_TOOLS,
+  "project-codex": CODEX_TOOLS,
   agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
 };
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
@@ -35,7 +41,7 @@ const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePath
 
 // The registered command: frozen across versions (test/fixtures/hook-command.ts).
 export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
-  if (/^[a-z]:|^(?:\\\\|\/\/)/i.test(data)) return windowsHook(data, sub, h);
+  if (windowsData(data)) return windowsHook(data, sub, h);
   const consent = 'PATH=/usr/bin:/bin:$PATH; ' + CONSENT.replaceAll("\\${", "${").replaceAll("@CONSENT@", quote(`${data}/consent`)).replaceAll("@PROPOSALS@", quote(`${data}/proposals`));
   // Grok expands $VAR before invoking the shell, including locals the shell has not set yet.
   // Keep the exec path literal; decode the fallback only if the launcher is unavailable.
@@ -46,6 +52,65 @@ export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
   }
   const run = `f=${launcher(data)}; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook ${sub} --harness ${h}; `;
   return run + (sub !== "pre" ? "exit 0" : consent + (h === "agy" ? AGY_PROJECT : PROJECT));
+}
+
+// The command a project registration holds (`pregate project hooks`). It names the project launcher
+// through $CLAUDE_PROJECT_DIR, so it runs from any directory of the project and holds no machine
+// path. A missing launcher denies a write (exit 2) and lets Stop and SessionStart pass; a missing
+// engine is the launcher's own denial. Windows reaches project-launcher.ps1 from PowerShell, as the
+// global registration reaches its launcher: pregate.cmd beside it only starts that same script.
+const PROJECT_BIN = ".pregate/bin";
+const PROJECT_MISSING = "PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user";
+export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" | "codex" = "claude-code"): string {
+  if (h === "codex") return projectCodexCommand(sub, windows);
+  const args = `hook ${sub} --harness claude-code`;
+  if (!windows) {
+    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    return `f="\${CLAUDE_PROJECT_DIR:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
+  }
+  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
+    + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
+    + `if (Test-Path -LiteralPath $f -PathType Leaf) { $raw | & $f ${args}; exit $LASTEXITCODE }; ${missing}`);
+}
+
+// The command a project Codex registration holds. Codex sets no project variable, so the command
+// finds the launcher itself: it walks up from its working directory to the first directory that
+// holds .pregate/bin, and stops at the first .git entry. It then runs the launcher from that
+// directory, because the launcher's own fail-closed test looks for the lock in its working
+// directory. The engine reads the session directory from the payload, not from the process.
+// Limits: a working directory outside the repository finds no launcher and denies a write; a
+// launcher above the first .git entry is never reached.
+function projectCodexCommand(sub: Sub, windows: boolean): string {
+  const args = `hook ${sub} --harness codex`;
+  if (!windows) {
+    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
+  }
+  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
+    + `$raw=[Console]::In.ReadToEnd(); $d=(Get-Location).Path; while ($d) { $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
+    + `if (Test-Path -LiteralPath $f -PathType Leaf) { Set-Location -LiteralPath $d; $raw | & $f ${args}; exit $LASTEXITCODE }; `
+    + `if (Test-Path -LiteralPath (Join-Path $d '.git')) { break }; $d=[IO.Path]::GetDirectoryName($d) }; ${missing}`);
+}
+
+// A handler of a project registration, written on this platform or on the other one.
+function ownedProjectCommand(command: string, t: Target): boolean {
+  const script = commandScript(command);
+  const launcher = script.includes(`/${PROJECT_BIN}/pregate"`) || script.includes(`'${PROJECT_BIN}/project-launcher.ps1'`);
+  return launcher && script.includes(t === "project-codex" ? "--harness codex" : "CLAUDE_PROJECT_DIR");
+}
+
+// The trust level the user's Codex config.toml records for a project directory
+// ([projects."<root>"] trust_level); null: no record. It says nothing about the review of a hook.
+export function codexProjectTrust(config: string | null, root: string): string | null {
+  const spellings = [root, root.replaceAll("\\", "/"), root.replaceAll("/", "\\")];
+  return spellings.map((dir) => toml(config, ["projects", dir, "trust_level"])).find((level) => level !== null) ?? null;
+}
+
+// The platform of a registration is read from the form of the data path it is made for.
+function windowsData(data: string): boolean {
+  return /^[a-z]:|^(?:\\\\|\/\/)/i.test(data);
 }
 
 // null: the text is not a JSON object, or an event is not an array; nothing is written then.
@@ -66,8 +131,8 @@ export function merge(text: string | null, t: Target, data: string): string | nu
     const list = hooks[event] ?? [];
     if (!Array.isArray(list)) return null;
     // In place, so that no foreign group changes index (Codex trust is per index, MH-24).
-    const at = list.findIndex((g) => mine(g, data));
-    hooks[event] = at < 0 ? [...list, group] : list.flatMap((g, i) => (i === at ? [group] : mine(g, data) ? [] : [g]));
+    const at = list.findIndex((g) => mine(g, t, data));
+    hooks[event] = at < 0 ? [...list, group] : list.flatMap((g, i) => (i === at ? [group] : mine(g, t, data) ? [] : [g]));
   }
   root.hooks = hooks;
   return settled(text, root);
@@ -88,7 +153,7 @@ export function unmerge(text: string, t: Target, data: string): { text: string; 
   for (const event of Object.keys(ours(t, data))) {
     const list = hooks[event] ?? [];
     if (!Array.isArray(list)) return null;
-    const kept = list.filter((g) => !mine(g, data));
+    const kept = list.filter((g) => !mine(g, t, data));
     if (kept.length === list.length) continue;
     if (t === "codex") {
       kept.forEach((g, i) => {
@@ -188,13 +253,17 @@ export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, tru
 
 // What setup registers, by event: a group; agy's Stop takes a bare handler.
 function ours(t: Target, data: string): Record<string, object> {
-  const h: HarnessId = t === "shared" ? "claude-code" : t;
-  const run = (sub: Sub, timeout: number) => ({ type: "command", command: hookCommand(data, sub, h), timeout });
+  const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t;
+  const local = h === "claude-code" || h === "codex" ? h : null;
+  const run = (sub: Sub, timeout: number) => ({
+    type: "command", timeout,
+    command: (t === "project" || t === "project-codex") && local !== null ? projectHookCommand(sub, windowsData(data), local) : hookCommand(data, sub, h),
+  });
   if (t === "cursor") return { stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
   if (t === "agy") return { PreToolUse: pre, Stop: run("stop", 60), PreInvocation: run("session-start", 15) };
   const stop = { hooks: [run("stop", 60)] };
-  if (t === "shared") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
+  if (t === "shared" || t === "project") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
   return { PreToolUse: pre, Stop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
 }
 
@@ -206,13 +275,13 @@ function named(data: string): Payload {
 
 // Ours, of this version or an older one: every handler runs this machine's launcher. A group that
 // also holds a foreign handler is foreign, since replacing it would drop that handler.
-function mine(group: unknown, data: string): boolean {
+function mine(group: unknown, t: Target, data: string): boolean {
   const hs = hooksOf(group);
-  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && ownedCommand(h.command, data));
+  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && (t === "project" || t === "project-codex" ? ownedProjectCommand(h.command, t) : ownedCommand(h.command, data)));
 }
 
 export function ownedCommand(command: string, data: string): boolean {
-  return commandScript(command).includes(/^[a-z]:|^(?:\\\\|\/\/)/i.test(data) ? psQuote(`${data.replaceAll("\\", "/")}/bin/launcher.ps1`) : launcher(data));
+  return commandScript(command).includes(windowsData(data) ? psQuote(`${data.replaceAll("\\", "/")}/bin/launcher.ps1`) : launcher(data));
 }
 
 function hooksOf(group: unknown): unknown[] {

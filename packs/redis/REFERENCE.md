@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -204,11 +204,11 @@ Source metadata:
 
 ## redis/keys
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### redis/REDIS-KEY-001
 
-Check: [`redis/keys/no-unprefixed-key@1.0.0`](checks/keys/no-unprefixed-key/check.json). Default severity: **warn**.
+Check: [`redis/keys/no-unprefixed-key@1.0.1`](checks/keys/no-unprefixed-key/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -220,7 +220,7 @@ Default parameters: `{}`.
 
 **Repair:** Name keys as <domain>:<id>, for example session:abc123. Keep the domain next to the module that owns it.
 
-**Scope and limits:** Backticks do not add a namespace. A template literal without a colon is still a global key.
+**Scope and limits:** Backticks do not add a namespace. A template literal without a colon is still a global key. The call must be on a Redis client: a receiver whose name contains redis or valkey, or a receiver named client, cache, db, kv, store, pub, sub, publisher or subscriber in a file that imports a module whose specifier contains redis, valkey or @vercel/kv. An Express app.get route, a req.get header read and a Map get are not matched. A client under another name is not matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -304,7 +304,7 @@ Source metadata:
 
 ### redis/REDIS-SCAN-001
 
-Check: [`redis/keys/no-keys-command@1.0.0`](checks/keys/no-keys-command/check.json). Default severity: **deny**.
+Check: [`redis/keys/no-keys-command@1.0.1`](checks/keys/no-keys-command/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -316,7 +316,7 @@ Default parameters: `{}`.
 
 **Repair:** Iterate with scanIterator (optionally with a MATCH pattern) instead of calling keys.
 
-**Scope and limits:** A narrow prefix does not make KEYS cheap. Scope does not change the blocking scan; use SCAN.
+**Scope and limits:** A narrow prefix does not make KEYS cheap. Scope does not change the blocking scan; use SCAN. The call must be on a Redis client: a receiver whose name contains redis or valkey, or a receiver named client, cache, db, kv, store, pub, sub, publisher or subscriber in a file that imports a module whose specifier contains redis, valkey or @vercel/kv. Object.keys and Map keys are not matched. A client under another name is not matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

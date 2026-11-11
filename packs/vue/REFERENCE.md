@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## vue/reactivity
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### vue/VUE-DEST-001
 
@@ -140,7 +140,7 @@ Source metadata:
 
 ### vue/VUE-PUSH-001
 
-Check: [`vue/router/no-push-concat@1.0.0`](checks/router/no-push-concat/check.json). Default severity: **deny**.
+Check: [`vue/router/no-push-concat@1.0.1`](checks/router/no-push-concat/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -152,7 +152,7 @@ Default parameters: `{}`.
 
 **Repair:** Push a named route with a params object: push({ name: "user", params: { id } }). Renames then fail the build instead of the router.
 
-**Scope and limits:** More segments do not help. Any plus inside push arguments is string-built routing, even with a shared base prefix.
+**Scope and limits:** More segments do not help. Any plus inside push arguments is string-built routing, even with a shared base prefix. The receiver must end in router, for example router, this.$router or useRouter(). A push on an array is not matched. A router held under another name is not matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## vue/sfc
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **complete**.
 
 ### vue/VUE-OPT-001
 
@@ -336,7 +336,7 @@ Source metadata:
 
 ### vue/VUE-DOM-001
 
-Check: [`vue/components/no-dom-query-in-setup@1.0.0`](checks/components/no-dom-query-in-setup/check.json). Default severity: **warn**.
+Check: [`vue/components/no-dom-query-in-setup@1.0.1`](checks/components/no-dom-query-in-setup/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -348,7 +348,7 @@ Default parameters: `{}`.
 
 **Repair:** Bind a ref attribute in the template and read it with useTemplateRef('name') or ref(null) inside onMounted.
 
-**Scope and limits:** Direct calls on document, window.document, and globalThis.document for getElementById, querySelector, querySelectorAll, getElementsByClassName, and getElementsByTagName are matched. Queries on local Element or XMLDocument receivers pass.
+**Scope and limits:** Direct calls on document, window.document, and globalThis.document for getElementById, querySelector, querySelectorAll, getElementsByClassName, and getElementsByTagName are matched. Queries on local Element or XMLDocument receivers pass. The call is matched when the file imports vue, a vue- or @vue/ package, nuxt, #imports or a .vue file, or when the call is inside a function. A query at the top level of a script with no such import is not matched. A function in a file that has no Vue code is still matched.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

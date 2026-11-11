@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "trpc/client",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -43,7 +43,7 @@
       },
       "why": "A plain Error crosses the boundary as an untyped internal failure. The client cannot tell NOT_FOUND from a bug.",
       "fixHint": "Throw new TRPCError({ code: 'NOT_FOUND' }) (or the code the caller should handle) instead of new Error.",
-      "avoid": "This rule sees throw statements in router files only. AggregateError and other built-ins are still untyped throws.",
+      "avoid": "This rule sees a throw only in a tRPC context: the file imports a module whose specifier contains trpc, or the throw is inside a query, mutation or subscription call on a receiver whose text contains procedure. A throw in an Express handler or a test with neither is not matched. AggregateError and other built-ins are still untyped throws.",
       "examples": {
         "pass": "pass/trpc-error",
         "fail": "fail/plain-error"

@@ -1,0 +1,4 @@
+{
+  "about": "Labels for the denials of the session trial. A person reads each denial (its message, the denied content and the final diff in the evidence directory) and adds one entry. `run` is the id in the evidence directory's trial.json, `session`, `file` and `rule` are those of the denial, `verdict` is true-positive, false-positive or unclear, `note` is one sentence, and `labeler` names the person. scripts/session-trial.ts reads this file and never writes it.",
+  "labels": []
+}

@@ -1,0 +1,7 @@
+import { createClient } from "redis";
+
+const db = createClient();
+
+export async function listSessions(): Promise<string[]> {
+  return db.keys("session:*");
+}

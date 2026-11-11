@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "mongodb/models/no-connect-without-options",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "models",
   "cardinality": "singleton",
   "dimension": "mongodb.models.connect-options",
@@ -15,10 +15,33 @@
           "id": "connect-options",
           "rule": {
             "kind": "call_expression",
-            "regex": "\\.connect\\s*\\(",
-            "not": {
-              "regex": "(serverSelectionTimeoutMS|maxPoolSize)"
-            }
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "kind": "member_expression",
+                  "has": {
+                    "field": "property",
+                    "regex": "^connect$"
+                  }
+                }
+              },
+              {
+                "not": {
+                  "has": {
+                    "field": "arguments",
+                    "regex": "(serverSelectionTimeoutMS|maxPoolSize)"
+                  }
+                }
+              },
+              {
+                "inside": {
+                  "stopBy": "end",
+                  "kind": "program",
+                  "regex": "(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'](mongoose|mongodb)(/[^\"'\\n]*)?[\"']"
+                }
+              }
+            ]
           }
         }
       ]

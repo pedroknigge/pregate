@@ -1,0 +1,36 @@
+{
+  "labeler": "agent",
+  "pack": "python",
+  "items": [
+    {
+      "corpus": "markupsafe",
+      "pack": "python",
+      "rule": "python/PY-CLASS-001",
+      "path": "src/markupsafe/__init__.py",
+      "line": 84,
+      "symbol": "Markup",
+      "verdict": "true-positive",
+      "note": "Markup declares 29 methods whose names do not start with an underscore, from join to format_map. The limit is 10."
+    },
+    {
+      "corpus": "markupsafe",
+      "pack": "python",
+      "rule": "python/PY-NEST-001",
+      "path": "src/markupsafe/__init__.py",
+      "line": 213,
+      "symbol": "Markup.striptags",
+      "verdict": "true-positive",
+      "note": "The if on line 213 is inside if value.startswith(\"<!--\", start), which is inside the while loop. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "markupsafe",
+      "pack": "python",
+      "rule": "python/PY-NEST-001",
+      "path": "src/markupsafe/__init__.py",
+      "line": 220,
+      "symbol": "Markup.striptags",
+      "verdict": "true-positive",
+      "note": "The if on line 220 is in the else branch of the if on line 211, inside the while loop. That is a third level and the limit is two."
+    }
+  ]
+}

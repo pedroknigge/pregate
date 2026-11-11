@@ -1,0 +1,7 @@
+interface Session { regenerate(done: () => void): void }
+
+export function signIn(session: Session, done: () => void): void {
+  // Regenerate session when signing in
+  // to prevent fixation
+  session.regenerate(done);
+}

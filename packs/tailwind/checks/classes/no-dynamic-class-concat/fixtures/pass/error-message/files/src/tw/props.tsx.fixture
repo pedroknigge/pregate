@@ -1,0 +1,6 @@
+export function Card({ className, children }: { className?: string; children: unknown }) {
+  if (typeof children !== "string") {
+    throw new TypeError("Unexpected value `" + children + "` for `children` prop");
+  }
+  return <div className="p-4 text-sm">{children}</div>;
+}

@@ -770,6 +770,8 @@ usage:
   pregate ci wait [--sha <sha>] [--timeout <seconds>] [--interval <seconds>] [--require github-actions|vercel] [--json]
   pregate prepare [--version <v> | --engine <v>]
   pregate project launcher [--preview|--yes]
+  pregate project hooks --harness claude-code [--preview|--yes]
+  pregate project hooks --harness codex [--preview|--yes]
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
@@ -784,7 +786,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `angular@1.2.0` — library: `angular/components` (complete), `angular/rxjs` (complete)
 - `architecture@1.3.0` — pattern: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/vertical-slice` (complete)
 - `astro@1.0.0` — library: `astro/config` (complete), `astro/content` (complete), `astro/routing` (complete)
-- `authjs@1.2.0` — library: `authjs/config` (complete), `authjs/session` (complete)
+- `authjs@1.2.1` — library: `authjs/config` (complete), `authjs/session` (complete)
 - `clean-code@1.2.0` — practice: `clean-code/clean-code` (complete)
 - `consumer-saas@1.0.0` — invariants: `consumer-saas/readiness` (preview)
 - `dcouplr@1.27.1` — library: `dcouplr/delivery` (preview), `dcouplr/events` (preview), `dcouplr/factories` (preview), `dcouplr/factory-runtime` (preview), `dcouplr/logging` (preview), `dcouplr/managed-components` (preview), `dcouplr/messages` (preview), `dcouplr/observability` (preview), `dcouplr/queue-runtime` (preview), `dcouplr/queues` (preview), `dcouplr/runtime` (preview), `dcouplr/saga-runtime` (preview), `dcouplr/sagas` (preview), `dcouplr/utility-runtime` (preview)
@@ -792,14 +794,14 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `design-invariants@1.0.0` — invariants: `design-invariants/architecture` (preview), `design-invariants/code-quality` (preview), `design-invariants/design-principles` (preview), `design-invariants/domain-state` (preview), `design-invariants/error-handling` (preview), `design-invariants/package-principles` (preview), `design-invariants/performance-and-data` (preview), `design-invariants/process` (preview), `design-invariants/security` (preview), `design-invariants/testing` (preview)
 - `drizzle@1.3.0` — library: `drizzle/queries` (complete), `drizzle/schema` (complete)
 - `enterprise-ready@1.0.0` — invariants: `enterprise-ready/readiness` (preview)
-- `express@1.2.0` — library: `express/middleware` (complete), `express/requests` (complete)
+- `express@1.2.1` — library: `express/middleware` (complete), `express/requests` (complete)
 - `firebase@1.2.0` — library: `firebase/auth` (complete), `firebase/firestore` (complete)
 - `go@1.2.0` — language: `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete)
 - `hono@1.0.0` — library: `hono/middleware` (complete), `hono/routing` (complete)
 - `javascript@1.2.1` — language: `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete)
-- `maintainability@1.2.0` — practice: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete)
+- `maintainability@1.2.1` — practice: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete)
 - `mattpocock@1.1.1` — practice: `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview)
-- `mongodb@1.2.0` — library: `mongodb/models` (complete), `mongodb/queries` (complete)
+- `mongodb@1.2.1` — library: `mongodb/models` (complete), `mongodb/queries` (complete)
 - `musk@1.0.1` — process: `musk/algorithm` (complete)
 - `nestjs@1.2.0` — library: `nestjs/controllers` (complete), `nestjs/providers` (complete)
 - `next-website@1.0.0` — library: `next-website/readiness` (preview)
@@ -808,11 +810,11 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `nuxt@1.2.0` — library: `nuxt/data` (complete), `nuxt/server` (complete)
 - `postgres@1.2.0` — library: `postgres/client` (complete), `postgres/safety` (complete)
 - `prisma@1.3.0` — library: `prisma/client` (complete), `prisma/writes` (complete)
-- `pstack@1.1.1` — process: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview)
+- `pstack@1.2.0` — process: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview)
 - `python@1.4.0` — language: `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete)
 - `react@1.2.0` — library: `react/components` (complete), `react/hooks` (complete)
 - `react-native@1.2.0` — library: `react-native/platform` (complete), `react-native/security` (complete)
-- `redis@1.2.0` — library: `redis/client` (complete), `redis/keys` (complete)
+- `redis@1.2.1` — library: `redis/client` (complete), `redis/keys` (complete)
 - `rust@1.2.0` — language: `rust/architecture` (complete), `rust/quality` (complete)
 - `security-audit@1.0.0` — practice: `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview)
 - `senior@1.2.0` — practice: `senior/fowler` (complete), `senior/style` (complete)
@@ -820,14 +822,14 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `supabase@1.2.0` — library: `supabase/client` (complete), `supabase/storage` (complete)
 - `svelte@1.2.0` — library: `svelte/runes` (complete), `svelte/stores` (complete)
 - `sveltekit@1.2.0` — library: `sveltekit/data` (complete), `sveltekit/routing` (complete)
-- `tailwind@1.2.0` — library: `tailwind/classes` (complete)
+- `tailwind@1.2.1` — library: `tailwind/classes` (complete)
 - `tanstack-query@1.0.0` — library: `tanstack-query/client` (complete), `tanstack-query/keys` (complete)
 - `testing@1.2.1` — practice: `testing/tdd` (complete)
-- `trpc@1.2.0` — library: `trpc/client` (complete), `trpc/router` (complete)
+- `trpc@1.2.1` — library: `trpc/client` (complete), `trpc/router` (complete)
 - `typescript@1.3.0` — language: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete)
 - `vercel@1.0.0` — library: `vercel/configuration` (preview), `vercel/cron` (preview), `vercel/environment` (preview), `vercel/functions` (preview), `vercel/protection` (preview), `vercel/recovery` (preview)
 - `vibe-proof@1.1.0` — practice: `vibe-proof/hygiene` (complete), `vibe-proof/secrets` (complete), `vibe-proof/transport` (complete)
-- `vue@1.2.0` — library: `vue/reactivity` (complete), `vue/sfc` (complete)
+- `vue@1.2.1` — library: `vue/reactivity` (complete), `vue/sfc` (complete)
 
 Inspect live defaults and scope with `pack show --library <ns> --json`; effective policy comes from `preset show`/`explain`. Check availability on the installed version before proposing a command.
 <!-- END generated reference -->

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "pstack/comments/no-narration",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "comments",
   "cardinality": "singleton",
   "dimension": "comments.narration",
@@ -16,7 +16,33 @@
           "rule": {
             "kind": "comment",
             "not": {
-              "regex": "(?i)(\\b(TODO|FIXME|HACK|XXX)\\([A-Za-z0-9][A-Za-z0-9._-]{1,})|@ts-expect-error|eslint-|biome-ignore|pregate-|istanbul|\\bc8\\b|SPDX-License-Identifier|Copyright|@license|///\\s*<reference"
+              "any": [
+                {
+                  "regex": "(?i)(\\b(TODO|FIXME|HACK|XXX)\\([A-Za-z0-9][A-Za-z0-9._-]{1,})|@ts-expect-error|eslint-|biome-ignore|pregate-|istanbul|\\bc8\\b|SPDX-License-Identifier|Copyright|@license|///\\s*<reference"
+                },
+                {
+                  "all": [
+                    {
+                      "not": {
+                        "regex": "@deprecated"
+                      }
+                    },
+                    {
+                      "any": [
+                        {
+                          "regex": "(?i)\\bhttps?://|\\blicen[sc]e"
+                        },
+                        {
+                          "regex": "(?i)\\b(because|since|so|otherwise|instead of|rather than|in order to|to avoid|to prevent|to ensure|due to|workaround|why)\\b"
+                        },
+                        {
+                          "regex": "^/\\*\\*"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           }
         }
@@ -30,6 +56,6 @@
     "ci"
   ],
   "feedback": {
-    "message": "{symbol} has a comment that restates the code. Delete it, or keep a marker the tools already understand."
+    "message": "{symbol} has a comment that may restate the code. Delete it if it does, state the reason it exists, or keep a marker the tools already understand."
   }
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "mongodb/models/no-schema-any",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "models",
   "cardinality": "singleton",
   "dimension": "mongodb.models.schema-strict",
@@ -15,7 +15,12 @@
           "id": "schema-strict",
           "rule": {
             "kind": "pair",
-            "regex": "\\bstrict\\s*:\\s*false"
+            "regex": "\\bstrict\\s*:\\s*false",
+            "inside": {
+              "stopBy": "end",
+              "kind": "program",
+              "regex": "(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"']mongoose(/[^\"'\\n]*)?[\"']"
+            }
           }
         }
       ]

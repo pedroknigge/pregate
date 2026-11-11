@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "redis/keys",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "A bare global key collides with every other feature sharing the database, and a delete or expiry can take down unrelated data.",
       "fixHint": "Name keys as <domain>:<id>, for example session:abc123. Keep the domain next to the module that owns it.",
-      "avoid": "Backticks do not add a namespace. A template literal without a colon is still a global key.",
+      "avoid": "Backticks do not add a namespace. A template literal without a colon is still a global key. The call must be on a Redis client: a receiver whose name contains redis or valkey, or a receiver named client, cache, db, kv, store, pub, sub, publisher or subscriber in a file that imports a module whose specifier contains redis, valkey or @vercel/kv. An Express app.get route, a req.get header read and a Map get are not matched. A client under another name is not matched.",
       "examples": {
         "pass": "pass/namespaced-get",
         "fail": "fail/bare-get"
@@ -71,7 +71,7 @@
       },
       "why": "A KEYS call blocks the single-threaded server while it walks every key, stalling all other clients until it returns.",
       "fixHint": "Iterate with scanIterator (optionally with a MATCH pattern) instead of calling keys.",
-      "avoid": "A narrow prefix does not make KEYS cheap. Scope does not change the blocking scan; use SCAN.",
+      "avoid": "A narrow prefix does not make KEYS cheap. Scope does not change the blocking scan; use SCAN. The call must be on a Redis client: a receiver whose name contains redis or valkey, or a receiver named client, cache, db, kv, store, pub, sub, publisher or subscriber in a file that imports a module whose specifier contains redis, valkey or @vercel/kv. Object.keys and Map keys are not matched. A client under another name is not matched.",
       "examples": {
         "pass": "pass/scan-iterator",
         "fail": "fail/star-keys"

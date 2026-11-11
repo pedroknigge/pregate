@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "authjs/config",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -25,7 +25,7 @@
       },
       "why": "A committed secret signs every session token. Anyone holding it can forge sessions for any user.",
       "fixHint": "Read the secret from the environment: secret: process.env.AUTH_SECRET. Never write the value into the config object.",
-      "avoid": "Renaming the key or moving the literal to a nearby const does not remove the committed value.",
+      "avoid": "Renaming the key or moving the literal to a nearby const does not remove the committed value. The file must import next-auth or an @auth/ package. A literal secret in an express-session or cookie-session options object is not matched. A config object kept in a file that does not import Auth.js is not matched.",
       "examples": {
         "pass": "pass/env-secret",
         "fail": "fail/hardcoded-double"

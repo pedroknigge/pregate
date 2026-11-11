@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "vue/components/no-dom-query-in-setup",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "components",
   "cardinality": "singleton",
   "dimension": "vue.dom-query",
@@ -15,10 +15,44 @@
           "id": "dom-query-in-setup",
           "rule": {
             "kind": "call_expression",
-            "has": {
-              "field": "function",
-              "regex": "^(document|window\\.document|globalThis\\.document)\\.(getElementById|querySelector|querySelectorAll|getElementsByClassName|getElementsByTagName)$"
-            }
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "regex": "^(document|window\\.document|globalThis\\.document)\\.(getElementById|querySelector|querySelectorAll|getElementsByClassName|getElementsByTagName)$"
+                }
+              },
+              {
+                "any": [
+                  {
+                    "inside": {
+                      "stopBy": "end",
+                      "kind": "program",
+                      "regex": "(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'](vue|@vue/[^\"'\\n]*|vue-[^\"'\\n]*|nuxt[^\"'\\n]*|#imports|[^\"'\\n]*\\.vue)[\"']"
+                    }
+                  },
+                  {
+                    "inside": {
+                      "stopBy": "end",
+                      "any": [
+                        {
+                          "kind": "function_declaration"
+                        },
+                        {
+                          "kind": "function_expression"
+                        },
+                        {
+                          "kind": "arrow_function"
+                        },
+                        {
+                          "kind": "method_definition"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
           }
         }
       ]

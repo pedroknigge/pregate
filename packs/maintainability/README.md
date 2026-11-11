@@ -50,7 +50,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **practice**. Version: `1.2.0`. 209 distinct check IDs.
+Category: **practice**. Version: `1.2.1`. 209 distinct check IDs.
 
 Methodologies: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete).
 

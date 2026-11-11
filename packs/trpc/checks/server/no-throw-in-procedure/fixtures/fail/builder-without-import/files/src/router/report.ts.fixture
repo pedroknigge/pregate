@@ -1,0 +1,6 @@
+import { publicProcedure } from "../api/builders";
+
+export const report = publicProcedure
+  .query(() => {
+    throw new Error("report failed");
+  });

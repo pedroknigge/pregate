@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "redis/keys/no-keys-command",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "keys",
   "cardinality": "singleton",
   "dimension": "redis.scan-instead-of-keys",
@@ -15,7 +15,45 @@
           "id": "keys-call",
           "rule": {
             "kind": "call_expression",
-            "regex": "\\.keys\\s*\\("
+            "has": {
+              "field": "function",
+              "kind": "member_expression",
+              "all": [
+                {
+                  "has": {
+                    "field": "property",
+                    "regex": "^keys$"
+                  }
+                },
+                {
+                  "any": [
+                    {
+                      "has": {
+                        "field": "object",
+                        "regex": "(?i)^[\\w$.()]*(redis|valkey)[\\w$.()]*$"
+                      }
+                    },
+                    {
+                      "all": [
+                        {
+                          "has": {
+                            "field": "object",
+                            "regex": "^(this\\.)?(client|cache|db|kv|store|pub|sub|publisher|subscriber)$"
+                          }
+                        },
+                        {
+                          "inside": {
+                            "stopBy": "end",
+                            "kind": "program",
+                            "regex": "(?i)(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'][^\"'\\n]*(redis|valkey|@vercel/kv)[^\"'\\n]*[\"']"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
           }
         }
       ]

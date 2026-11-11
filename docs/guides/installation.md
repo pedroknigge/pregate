@@ -184,11 +184,59 @@ pregate install --ci vercel
 
 ## Prepare an engine without global registration
 
-`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to warm the cache for a pinned engine before project-local hook setup lands; `pregate setup` still performs full machine registration today.
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher` and `pregate project hooks`; `pregate setup` still performs the full machine registration.
 
 ## Project launcher
 
-`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. No harness hook names this launcher yet; `pregate setup` still registers the global one.
+`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. `pregate install` keeps this launcher. It removes only a `.pregate/bin/pregate` that is not a project launcher, which is the file that 0.1.0 committed.
+
+## Project-local Claude Code hooks
+
+`pregate project hooks --harness claude-code [--preview|--yes]` registers the Claude Code hooks in the project's own `.claude/settings.json`. The hooks run the project launcher, so the project needs no `pregate setup` on the machine and the command writes no harness home. Run `pregate prepare` and `pregate project launcher` first; the command refuses a project without the reviewed launcher.
+
+```sh
+pregate prepare
+pregate project launcher --preview                     # review, then the human approves
+pregate project hooks --harness claude-code --preview  # review, then the human approves
+pregate enable                                         # local consent, by the human
+```
+
+- **What it writes.** PreToolUse (the same tool matcher as the global registration), Stop, SubagentStop and SessionStart. Each command is `"${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate" hook <event> --harness claude-code` behind a test that the launcher is there. It holds no path of this machine, so it can be committed.
+- **What it keeps.** Other hooks, `permissions` and unknown keys stay. Only the groups that run the project launcher are replaced. A file that already holds the registration is not rewritten: a second run changes no byte. The first write re-serializes the file with two-space indentation, so the formatting of the other entries can change; their content does not.
+- **Review.** The file is a reviewed change. `--preview` prepares the review and a human approves it, as for a contract proposal. Under the user's home, the approval rewrites this project's record in `<DATA>/contract-approvals/`. Nothing else there is created or changed.
+- **Consent is separate.** The registration does not enable the project. Without `pregate enable` in the worktree the hooks run and allow. Claude Code's workspace trust is a third, independent step that Claude Code asks for.
+- **Failure.** A missing or empty pinned engine denies the write (exit 2) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
+- **Windows.** The command is `powershell.exe -EncodedCommand …`, the form of the global registration, and it runs `.pregate\bin\project-launcher.ps1`. `pregate.cmd` in the same folder only starts that script. One settings file holds one command form: a repository that Windows and POSIX machines share is not supported by this registration.
+- **With a global setup.** If `pregate setup` also registered Claude Code, Claude Code runs both registrations and every tool call is evaluated twice. `pregate doctor` reports the scope as project-local only, global only, both or neither, and `pregate status` names the project-local and the double case. In a project-local setup with no other harness, `doctor` states the missing global launcher, skills and PATH entry as information, not as errors. It checks the files; it runs no canary for the project hooks.
+- **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
+
+A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
+
+## Project-local Codex hooks
+
+`pregate project hooks --harness codex [--preview|--yes]` registers the Codex hooks in the project's own `.codex/hooks.json`. The hooks run the project launcher. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview               # review, then the human approves
+pregate project hooks --harness codex --preview  # review, then the human approves
+pregate enable                                   # local consent, by the human
+# then, in Codex, in this project: /hooks, and review the three Pregate hooks
+```
+
+- **What it writes.** PreToolUse with the matcher `^(apply_patch|Bash)$`, Stop and SessionStart, with the timeouts of the global Codex registration. It holds no path of this machine, so it can be committed.
+- **It grants no trust.** Codex runs a hook only after its own review. This command does not record that review, does not mark the project trusted, and writes no file in the Codex home (`config.toml`, `hooks.json`). The human reviews the hooks in Codex with `/hooks`. Expect a changed definition to need the review again: Codex binds trust to a hash of the definition.
+- **What it keeps.** Other hooks and unknown keys stay, and other groups keep their index, which is how Codex addresses a hook. A second run changes no byte. The first write re-serializes the file with two-space indentation.
+- **Starting below the root.** Codex gives a hook no project variable. The command walks up from its working directory to the first directory that holds `.pregate/bin`, stops at the first `.git` entry, and runs the launcher from there. A working directory outside the repository finds no launcher and the write is denied.
+- **Failure.** A missing or empty pinned engine denies the write (exit 2, one line on stderr) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
+- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. For a project registration, `doctor` reads whether the Codex `config.toml` marks the project trusted, and always adds "Hook review state unknown: check `/hooks` in Codex". Pregate does not read the review state, so it never reports the project hooks as trusted, and `status` does not list Codex as gated by a project registration alone.
+- **With a global setup.** If `pregate setup` also registered Codex, both registrations exist and, when Codex runs both, every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
+
+A live run on 2026-11-11 with Codex 0.167.0 on macOS (`scripts/e2e-real.ts --project-hooks-only codex`, headless `codex exec` started in a subdirectory, isolated home) measured four states. (1) Project not marked trusted: Codex does not list the project hooks, and the forbidden write is written. (2) Project marked trusted, hooks not reviewed: Codex lists the three hooks as untrusted, runs none, and the forbidden write is written; the headless output carries no notice. (3) Hooks trusted: the forbidden write is denied and the rule reaches the model. (4) Definition changed after the review (one timeout value): Codex lists the hook as modified, runs none, and the forbidden write is written. A trusted hook of the user ran in all four states.
+
+So a project registration gates Codex only after two human steps in Codex, project trust and the `/hooks` review, and any later change to the definition, including an engine update that rewrites the command, removes the gate without a notice until the hooks are reviewed again. Keep the machine setup for Codex if you need the gate to hold across updates without a new review.
+
+Not established: the interactive `/hooks` review and what the TUI shows for an unreviewed hook; whether Codex runs both registrations when both exist; the Windows form in a real Codex session.
 
 ## Updates and removal
 

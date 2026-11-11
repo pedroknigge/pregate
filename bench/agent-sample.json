@@ -1,0 +1,722 @@
+[
+  {
+    "corpus": "classnames",
+    "line": 16,
+    "pack": "clean-code",
+    "path": "bind.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "parseValue"
+  },
+  {
+    "corpus": "classnames",
+    "line": 47,
+    "pack": "javascript",
+    "path": "benchmarks/benchmarks.js",
+    "rule": "javascript/JS-AWAIT-001",
+    "symbol": "runBenchmarks.bench"
+  },
+  {
+    "corpus": "classnames",
+    "line": 113,
+    "pack": "node",
+    "path": "tests/index.js",
+    "rule": "node/NODE-VM-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "classnames",
+    "line": 2,
+    "pack": "pstack",
+    "path": "index.d.ts",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "classnames",
+    "line": 21,
+    "pack": "senior",
+    "path": "dedupe.js",
+    "rule": "senior/SR-BRACE-001",
+    "symbol": "appendValue"
+  },
+  {
+    "corpus": "classnames",
+    "line": 49,
+    "pack": "tailwind",
+    "path": "bind.js",
+    "rule": "tailwind/TW-DYN-001",
+    "symbol": "appendClass"
+  },
+  {
+    "corpus": "classnames",
+    "line": 13,
+    "pack": "tailwind",
+    "path": "dedupe.js",
+    "rule": "tailwind/TW-DYN-001",
+    "symbol": "classNames"
+  },
+  {
+    "corpus": "classnames",
+    "line": 49,
+    "pack": "tailwind",
+    "path": "index.js",
+    "rule": "tailwind/TW-DYN-001",
+    "symbol": "appendClass"
+  },
+  {
+    "corpus": "classnames",
+    "line": 3,
+    "pack": "typescript",
+    "path": "bind.d.ts",
+    "rule": "typescript/TS-DEFAULT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "classnames",
+    "line": 46,
+    "pack": "vibe-proof",
+    "path": "benchmarks/benchmarks.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "runBenchmarks"
+  },
+  {
+    "corpus": "classnames",
+    "line": 3,
+    "pack": "vue",
+    "path": "benchmarks/runInBrowser.js",
+    "rule": "vue/VUE-DOM-001",
+    "symbol": "startButton"
+  },
+  {
+    "corpus": "errors",
+    "line": 161,
+    "pack": "go",
+    "path": "format_test.go",
+    "rule": "go/GO-FN-001",
+    "symbol": "TestFormatWithStack"
+  },
+  {
+    "corpus": "express",
+    "line": 25,
+    "pack": "authjs",
+    "path": "examples/auth/index.js",
+    "rule": "authjs/AUTH-SECRET-001",
+    "symbol": "secret"
+  },
+  {
+    "corpus": "express",
+    "line": 13,
+    "pack": "authjs",
+    "path": "examples/cookie-sessions/index.js",
+    "rule": "authjs/AUTH-SECRET-001",
+    "symbol": "secret"
+  },
+  {
+    "corpus": "express",
+    "line": 43,
+    "pack": "authjs",
+    "path": "examples/mvc/index.js",
+    "rule": "authjs/AUTH-SECRET-001",
+    "symbol": "secret"
+  },
+  {
+    "corpus": "express",
+    "line": 19,
+    "pack": "authjs",
+    "path": "examples/session/index.js",
+    "rule": "authjs/AUTH-SECRET-001",
+    "symbol": "secret"
+  },
+  {
+    "corpus": "express",
+    "line": 23,
+    "pack": "authjs",
+    "path": "examples/session/redis.js",
+    "rule": "authjs/AUTH-SECRET-001",
+    "symbol": "secret"
+  },
+  {
+    "corpus": "express",
+    "line": 65,
+    "pack": "clean-code",
+    "path": "test/app.route.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 7,
+    "pack": "clean-code",
+    "path": "test/middleware.basic.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 173,
+    "pack": "clean-code",
+    "path": "test/res.render.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 993,
+    "pack": "clean-code",
+    "path": "test/app.router.js",
+    "rule": "clean-code/CC-FN-002",
+    "symbol": "sawError"
+  },
+  {
+    "corpus": "express",
+    "line": 13,
+    "pack": "express",
+    "path": "examples/mvc/controllers/pet/index.js",
+    "rule": "express/EX-NEXT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 294,
+    "pack": "express",
+    "path": "test/app.param.js",
+    "rule": "express/EX-NEXT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 873,
+    "pack": "express",
+    "path": "test/app.router.js",
+    "rule": "express/EX-NEXT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 26,
+    "pack": "express",
+    "path": "examples/downloads/index.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 101,
+    "pack": "express",
+    "path": "examples/web-service/index.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 101,
+    "pack": "express",
+    "path": "test/app.route.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "handleError"
+  },
+  {
+    "corpus": "express",
+    "line": 498,
+    "pack": "express",
+    "path": "test/express.raw.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "createApp"
+  },
+  {
+    "corpus": "express",
+    "line": 635,
+    "pack": "express",
+    "path": "test/express.urlencoded.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 31,
+    "pack": "express",
+    "path": "test/res.format.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 23,
+    "pack": "javascript",
+    "path": "examples/ejs/index.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 16,
+    "pack": "javascript",
+    "path": "lib/response.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "createError"
+  },
+  {
+    "corpus": "express",
+    "line": 4,
+    "pack": "javascript",
+    "path": "test/app.request.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "express"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "javascript",
+    "path": "test/req.subdomains.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "express"
+  },
+  {
+    "corpus": "express",
+    "line": 24,
+    "pack": "maintainability",
+    "path": "examples/route-map/index.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 23,
+    "pack": "mattpocock",
+    "path": "examples/params/index.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 141,
+    "pack": "mattpocock",
+    "path": "test/res.location.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "testRequestedRedirect"
+  },
+  {
+    "corpus": "express",
+    "line": 33,
+    "pack": "mongodb",
+    "path": "examples/search/index.js",
+    "rule": "mongodb/MONGO-CONNECT-001",
+    "symbol": "initializeRedis"
+  },
+  {
+    "corpus": "express",
+    "line": 243,
+    "pack": "mongodb",
+    "path": "test/express.json.js",
+    "rule": "mongodb/MONGO-SCHEMA-001",
+    "symbol": "strict"
+  },
+  {
+    "corpus": "express",
+    "line": 14,
+    "pack": "musk",
+    "path": "examples/mvc/lib/boot.js",
+    "rule": "musk/MUSK-FAST-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 97,
+    "pack": "node",
+    "path": "test/app.js",
+    "rule": "node/NODE-ENV-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 201,
+    "pack": "node",
+    "path": "lib/view.js",
+    "rule": "node/NODE-SYNC-001",
+    "symbol": "tryStat"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "pstack",
+    "path": "examples/mvc/db.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 11,
+    "pack": "pstack",
+    "path": "examples/vhost/index.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 373,
+    "pack": "pstack",
+    "path": "lib/application.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "set"
+  },
+  {
+    "corpus": "express",
+    "line": 93,
+    "pack": "pstack",
+    "path": "lib/view.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "View"
+  },
+  {
+    "corpus": "express",
+    "line": 43,
+    "pack": "senior",
+    "path": "test/req.get.js",
+    "rule": "senior/SR-CHAIN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 19,
+    "pack": "senior",
+    "path": "lib/express.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 123,
+    "pack": "senior",
+    "path": "test/express.json.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "senior",
+    "path": "test/res.send.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 31,
+    "pack": "trpc",
+    "path": "examples/error/index.js",
+    "rule": "trpc/TRPC-ERR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 252,
+    "pack": "trpc",
+    "path": "test/Route.js",
+    "rule": "trpc/TRPC-ERR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 204,
+    "pack": "trpc",
+    "path": "test/app.param.js",
+    "rule": "trpc/TRPC-ERR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 479,
+    "pack": "trpc",
+    "path": "test/express.json.js",
+    "rule": "trpc/TRPC-ERR-001",
+    "symbol": "app.verify"
+  },
+  {
+    "corpus": "express",
+    "line": 533,
+    "pack": "trpc",
+    "path": "test/express.urlencoded.js",
+    "rule": "trpc/TRPC-ERR-001",
+    "symbol": "app.verify"
+  },
+  {
+    "corpus": "express",
+    "line": 52,
+    "pack": "vibe-proof",
+    "path": "examples/error/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 24,
+    "pack": "vibe-proof",
+    "path": "examples/route-map/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 43,
+    "pack": "vibe-proof",
+    "path": "examples/static-files/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "vue",
+    "path": "examples/search/public/client.js",
+    "rule": "vue/VUE-DOM-001",
+    "symbol": "search"
+  },
+  {
+    "corpus": "express",
+    "line": 60,
+    "pack": "vue",
+    "path": "test/req.baseUrl.js",
+    "rule": "vue/VUE-PUSH-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 65,
+    "pack": "vue",
+    "path": "test/req.baseUrl.js",
+    "rule": "vue/VUE-PUSH-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 74,
+    "pack": "vue",
+    "path": "test/req.baseUrl.js",
+    "rule": "vue/VUE-PUSH-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "markupsafe",
+    "line": 84,
+    "pack": "python",
+    "path": "src/markupsafe/__init__.py",
+    "rule": "python/PY-CLASS-001",
+    "symbol": "Markup"
+  },
+  {
+    "corpus": "markupsafe",
+    "line": 213,
+    "pack": "python",
+    "path": "src/markupsafe/__init__.py",
+    "rule": "python/PY-NEST-001",
+    "symbol": "Markup.striptags"
+  },
+  {
+    "corpus": "markupsafe",
+    "line": 220,
+    "pack": "python",
+    "path": "src/markupsafe/__init__.py",
+    "rule": "python/PY-NEST-001",
+    "symbol": "Markup.striptags"
+  },
+  {
+    "corpus": "ms",
+    "line": 344,
+    "pack": "musk",
+    "path": "src/index.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 168,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 55,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 162,
+    "pack": "musk",
+    "path": "src/parse.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 537,
+    "pack": "react-native",
+    "path": "test.jsx",
+    "rule": "react-native/RN-PLAT-001",
+    "symbol": "p"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 298,
+    "pack": "tailwind",
+    "path": "lib/index.js",
+    "rule": "tailwind/TW-DYN-001",
+    "symbol": "createFile"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 329,
+    "pack": "tailwind",
+    "path": "lib/index.js",
+    "rule": "tailwind/TW-DYN-001",
+    "symbol": "post"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 10,
+    "pack": "typescript",
+    "path": "index.js",
+    "rule": "typescript/TS-DEFAULT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 98,
+    "pack": "vibe-proof",
+    "path": "script/load-jsx.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "createLoader.transformSource"
+  },
+  {
+    "corpus": "toml",
+    "line": 231,
+    "pack": "go",
+    "path": "decode.go",
+    "rule": "go/GO-FN-001",
+    "symbol": "MetaData.unify"
+  },
+  {
+    "corpus": "toml",
+    "line": 262,
+    "pack": "go",
+    "path": "toml_test.go",
+    "rule": "go/GO-FN-001",
+    "symbol": "TestToml"
+  },
+  {
+    "corpus": "toml",
+    "line": 491,
+    "pack": "go",
+    "path": "encode.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "Encoder.eStruct"
+  },
+  {
+    "corpus": "toml",
+    "line": 740,
+    "pack": "go",
+    "path": "lex.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "lexMultilineString"
+  },
+  {
+    "corpus": "tslib",
+    "line": 143,
+    "pack": "maintainability",
+    "path": "tslib.es6.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "__generator.step"
+  },
+  {
+    "corpus": "tslib",
+    "line": 82,
+    "pack": "maintainability",
+    "path": "tslib.es6.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "__esDecorate"
+  },
+  {
+    "corpus": "tslib",
+    "line": 345,
+    "pack": "maintainability",
+    "path": "tslib.es6.mjs",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "__disposeResources.next"
+  },
+  {
+    "corpus": "tslib",
+    "line": 183,
+    "pack": "maintainability",
+    "path": "tslib.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "step"
+  },
+  {
+    "corpus": "tslib",
+    "line": 371,
+    "pack": "mattpocock",
+    "path": "tslib.es6.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__rewriteRelativeImportExtension"
+  },
+  {
+    "corpus": "tslib",
+    "line": 370,
+    "pack": "mattpocock",
+    "path": "tslib.es6.mjs",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__rewriteRelativeImportExtension"
+  },
+  {
+    "corpus": "tslib",
+    "line": 115,
+    "pack": "mattpocock",
+    "path": "tslib.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 45,
+    "pack": "node",
+    "path": "test/runTests.js",
+    "rule": "node/NODE-EXEC-001",
+    "symbol": "results"
+  },
+  {
+    "corpus": "tslib",
+    "line": 1,
+    "pack": "node",
+    "path": "test/webpack-modules/webpack.config.js",
+    "rule": "node/NODE-PREFIX-001",
+    "symbol": "path"
+  },
+  {
+    "corpus": "tslib",
+    "line": 178,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__values"
+  },
+  {
+    "corpus": "tslib",
+    "line": 76,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__esDecorate"
+  },
+  {
+    "corpus": "tslib",
+    "line": 310,
+    "pack": "typescript",
+    "path": "tslib.es6.mjs",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__addDisposableResource"
+  }
+]

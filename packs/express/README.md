@@ -44,7 +44,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 12 distinct check IDs.
 
 Methodologies: `express/middleware` (complete), `express/requests` (complete).
 

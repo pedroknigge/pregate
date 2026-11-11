@@ -75,10 +75,17 @@
     }
   ],
   "engine": "0.0.7",
-  "labeler": "maintainer",
+  "labels": {
+    "agent": 47,
+    "maintainer": 17,
+    "resolved": 35
+  },
   "limits": [
-    "Sample precision is true positives divided by the maintainer-labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.",
-    "A pack with no matching maintainer label is unmeasured. This report does not give it a precision.",
+    "Sample precision is true positives divided by the labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.",
+    "A pack with no matching label is unmeasured. This report does not give it a precision.",
+    "A sample of five or six findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings match the rule.",
+    "Agent labels were written by an AI coding agent. They are not an independent human review, and the maintainer has not confirmed them. The Labeled by column separates them from maintainer labels.",
+    "A resolved false positive says the rule no longer reports that site. It is not evidence about the findings that remain.",
     "A label says whether the finding matches the rule's stated condition. It is not a judgment that a project should adopt the rule.",
     "The corpus is the pinned commits in the manifest. It is not a random sample of public code.",
     "The audit records static matches in the checked-out tree. It is not the no-new ratchet used on an edit, and it does not run fitness, diff, or placement checks.",
@@ -95,28 +102,20 @@
       "truePositives": 6
     },
     {
-      "falsePositives": 6,
-      "findings": 3039,
-      "labeled": 6,
-      "pack": "redis",
-      "precision": 0,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 5,
-      "findings": 827,
-      "labeled": 6,
-      "pack": "pstack",
-      "precision": 0.16666666666666666,
-      "truePositives": 1
-    },
-    {
       "falsePositives": 0,
       "findings": 565,
       "labeled": 5,
       "pack": "clean-code",
       "precision": 1,
       "truePositives": 5
+    },
+    {
+      "falsePositives": 4,
+      "findings": 516,
+      "labeled": 6,
+      "pack": "pstack",
+      "precision": 0.3333333333333333,
+      "truePositives": 2
     },
     {
       "falsePositives": 0,
@@ -129,122 +128,82 @@
     {
       "falsePositives": 0,
       "findings": 105,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "maintainability",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 101,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "go",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 91,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "typescript",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
-      "findings": 77,
-      "labeled": 0,
+      "findings": 56,
+      "labeled": 3,
       "pack": "express",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 3
     },
     {
       "falsePositives": 0,
       "findings": 55,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "vibe-proof",
-      "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 51,
-      "labeled": 0,
-      "pack": "trpc",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 40,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "musk",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 31,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "node",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 12,
-      "labeled": 0,
+      "labeled": 5,
       "pack": "mattpocock",
-      "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 8,
-      "labeled": 0,
-      "pack": "vue",
-      "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 6,
-      "labeled": 0,
-      "pack": "tailwind",
-      "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 5,
-      "labeled": 0,
-      "pack": "authjs",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 5
     },
     {
       "falsePositives": 0,
       "findings": 3,
-      "labeled": 0,
+      "labeled": 3,
       "pack": "python",
-      "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 2,
-      "labeled": 0,
-      "pack": "mongodb",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 3
     },
     {
       "falsePositives": 0,
       "findings": 1,
-      "labeled": 0,
+      "labeled": 1,
       "pack": "react-native",
-      "precision": null,
-      "truePositives": 0
+      "precision": 1,
+      "truePositives": 1
     },
     {
       "falsePositives": 0,
@@ -267,6 +226,22 @@
       "findings": 0,
       "labeled": 0,
       "pack": "architecture",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "astro",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "authjs",
       "precision": null,
       "truePositives": 0
     },
@@ -338,6 +313,22 @@
       "falsePositives": 0,
       "findings": 0,
       "labeled": 0,
+      "pack": "hono",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "mongodb",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
       "pack": "nestjs",
       "precision": null,
       "truePositives": 0
@@ -394,6 +385,14 @@
       "falsePositives": 0,
       "findings": 0,
       "labeled": 0,
+      "pack": "redis",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
       "pack": "rust",
       "precision": null,
       "truePositives": 0
@@ -442,7 +441,31 @@
       "falsePositives": 0,
       "findings": 0,
       "labeled": 0,
+      "pack": "tailwind",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "tanstack-query",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
       "pack": "testing",
+      "precision": null,
+      "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "trpc",
       "precision": null,
       "truePositives": 0
     },
@@ -453,31 +476,20 @@
       "pack": "vercel",
       "precision": null,
       "truePositives": 0
+    },
+    {
+      "falsePositives": 0,
+      "findings": 0,
+      "labeled": 0,
+      "pack": "vue",
+      "precision": null,
+      "truePositives": 0
     }
   ],
-  "sample": [
+  "resolved": [
     {
       "corpus": "classnames",
-      "line": 16,
-      "note": "parseValue runs from line 16 through the return on line 42, past the limit of 20.",
-      "pack": "clean-code",
-      "path": "bind.js",
-      "rule": "clean-code/CC-FN-001",
-      "symbol": "parseValue",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "classnames",
-      "line": 16,
-      "note": "The describe callback starts at line 16 and still contains further tests past line 35, so it is over the 20-line limit.",
-      "pack": "clean-code",
-      "path": "tests/bind.js",
-      "rule": "clean-code/CC-FN-001",
-      "symbol": "<module>",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 1,
       "note": "The comment explains why StorageObject must not inherit from Object. The next line is only the constructor, so the comment does not restate it.",
       "pack": "pstack",
@@ -488,6 +500,7 @@
     },
     {
       "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 65,
       "note": "The comment records why the code assigns false instead of deleting a key. The assignment on the following line does not say that.",
       "pack": "pstack",
@@ -498,6 +511,7 @@
     },
     {
       "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 66,
       "note": "The line is a URL citation. It does not restate classSet[k] = !!object[k].",
       "pack": "pstack",
@@ -508,6 +522,7 @@
     },
     {
       "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 1,
       "note": "LICENSE is MIT is a license banner. It does not restate the types below, and it is not the Copyright line that the allowlist already names.",
       "pack": "pstack",
@@ -518,6 +533,7 @@
     },
     {
       "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 15,
       "note": "The JSDoc sentence describes the package. It does not restate the classNames signature on the next line.",
       "pack": "pstack",
@@ -528,6 +544,7 @@
     },
     {
       "corpus": "classnames",
+      "labeler": "maintainer",
       "line": 72,
       "note": "Object.keys lists the columns of a benchmark row. It is not the Redis KEYS command.",
       "pack": "redis",
@@ -538,96 +555,150 @@
     },
     {
       "corpus": "classnames",
-      "line": 21,
-      "note": "if (!arg) return has no braces. The rule requires braces on an if.",
-      "pack": "senior",
-      "path": "dedupe.js",
-      "rule": "senior/SR-BRACE-001",
-      "symbol": "appendValue",
-      "verdict": "true-positive"
+      "labeler": "agent",
+      "line": 49,
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute, which is the stated condition.",
+      "pack": "tailwind",
+      "path": "bind.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "appendClass",
+      "verdict": "false-positive"
     },
     {
       "corpus": "classnames",
-      "line": 29,
-      "note": "arg.toString.toString().includes walks three member or call hops, which is the chain this rule rejects.",
-      "pack": "senior",
-      "path": "bind.js",
-      "rule": "senior/SR-CHAIN-001",
-      "symbol": "parseValue",
-      "verdict": "true-positive"
+      "labeler": "agent",
+      "line": 13,
+      "note": "' ' + key builds the library's return string in a function named classNames. No className attribute contains the expression.",
+      "pack": "tailwind",
+      "path": "dedupe.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "classNames",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 49,
+      "note": "value + ' ' + newClass joins two class strings inside the classnames library. It is not inside a className attribute.",
+      "pack": "tailwind",
+      "path": "index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "appendClass",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 3,
+      "note": "document.getElementById('start') is at the top of a plain browser script. No Vue component or setup function owns the element, which is what the rule's condition requires.",
+      "pack": "vue",
+      "path": "benchmarks/runInBrowser.js",
+      "rule": "vue/VUE-DOM-001",
+      "symbol": "startButton",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
-      "line": 11,
-      "note": "The exported boot function starts at line 11 and is still loading controllers past line 40, over the 20-line limit.",
-      "pack": "clean-code",
-      "path": "examples/mvc/lib/boot.js",
-      "rule": "clean-code/CC-FN-001",
-      "symbol": "<module>",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "line": 20,
-      "note": "error takes err, req, res, and next. Express uses that arity for error middleware, and the function is still four parameters over the limit of three.",
-      "pack": "clean-code",
-      "path": "examples/error/index.js",
-      "rule": "clean-code/CC-FN-002",
-      "symbol": "error",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "line": 9,
-      "note": "module.exports = users publishes the array through CommonJS, which is the export this rule names.",
-      "pack": "javascript",
-      "path": "examples/content-negotiation/db.js",
-      "rule": "javascript/JS-CJS-001",
-      "symbol": "<module>",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "line": 11,
-      "note": "exports.text assigns a CommonJS export. The rule asks for an export statement.",
-      "pack": "javascript",
-      "path": "examples/content-negotiation/users.js",
-      "rule": "javascript/JS-CJS-001",
-      "symbol": "<module>",
-      "verdict": "true-positive"
-    },
-    {
-      "corpus": "express",
-      "line": 10,
-      "note": "require('express-session') loads that module with require, which is the call this rule names.",
-      "pack": "javascript",
+      "labeler": "agent",
+      "line": 25,
+      "note": "secret: 'shhhh, very secret' is an option of express-session. The rule's condition is a literal secret in the NextAuth config, and this file has none.",
+      "pack": "authjs",
       "path": "examples/auth/index.js",
-      "rule": "javascript/JS-REQ-001",
-      "symbol": "session",
-      "verdict": "true-positive"
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
-      "line": 9,
-      "note": "require('node:path') is a require call. The rule asks for an import statement.",
-      "pack": "javascript",
-      "path": "examples/auth/index.js",
-      "rule": "javascript/JS-REQ-001",
-      "symbol": "path",
-      "verdict": "true-positive"
+      "labeler": "agent",
+      "line": 13,
+      "note": "The literal secret is passed to cookieSession, the cookie-session middleware. It is not a NextAuth config.",
+      "pack": "authjs",
+      "path": "examples/cookie-sessions/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
-      "line": 109,
-      "note": "Regenerate session when signing in restates the req.session.regenerate call it sits on.",
-      "pack": "pstack",
-      "path": "examples/auth/index.js",
-      "rule": "pstack/PS-COMMENT-001",
+      "labeler": "agent",
+      "line": 43,
+      "note": "secret: 'some secret here' configures express-session. No NextAuth config is in this file.",
+      "pack": "authjs",
+      "path": "examples/mvc/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 19,
+      "note": "secret: 'keyboard cat' is an express-session option. The literal is hardcoded, but the object is not the NextAuth config the rule names.",
+      "pack": "authjs",
+      "path": "examples/session/index.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 23,
+      "note": "secret: 'keyboard cat' sits beside store: new RedisStore in an express-session call. It is not a NextAuth config.",
+      "pack": "authjs",
+      "path": "examples/session/redis.js",
+      "rule": "authjs/AUTH-SECRET-001",
+      "symbol": "secret",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 294,
+      "note": "Line 294 is the it(...) call of a test. The next('route') call is seven lines below, inside its callback, so the reported line is not the call the rule names.",
+      "pack": "express",
+      "path": "test/app.param.js",
+      "rule": "express/EX-NEXT-001",
       "symbol": "<module>",
-      "verdict": "true-positive"
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
+      "labeler": "agent",
+      "line": 873,
+      "note": "Line 873 is the it(...) call of a test. The next('router') call is six lines below, inside a nested function, so the reported line is not the call the rule names.",
+      "pack": "express",
+      "path": "test/app.router.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 33,
+      "note": "db is the Redis client from redis.createClient(). db.connect() is not a MongoDB connection, so maxPoolSize does not apply to it.",
+      "pack": "mongodb",
+      "path": "examples/search/index.js",
+      "rule": "mongodb/MONGO-CONNECT-001",
+      "symbol": "initializeRedis",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 243,
+      "note": "strict: false is an option of the express.json body parser in a test. It is not a Mongoose schema option.",
+      "pack": "mongodb",
+      "path": "test/express.json.js",
+      "rule": "mongodb/MONGO-SCHEMA-001",
+      "symbol": "strict",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
       "line": 100,
       "note": "app.get registers an HTTP route. The call is not a Redis GET of a key.",
       "pack": "redis",
@@ -638,6 +709,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 119,
       "note": "req.get reads the Referrer header. It is not a Redis GET.",
       "pack": "redis",
@@ -648,6 +720,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 16,
       "note": "app.set stores the Express view engine. It is not a Redis SET of a key.",
       "pack": "redis",
@@ -658,6 +731,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 578,
       "note": "Object.keys copies header names. It is not a Redis KEYS scan.",
       "pack": "redis",
@@ -668,6 +742,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 308,
       "note": "Object.keys(req.params) reads route parameters in a test. It is not Redis KEYS.",
       "pack": "redis",
@@ -678,6 +753,449 @@
     },
     {
       "corpus": "express",
+      "labeler": "agent",
+      "line": 31,
+      "note": "throw new Error('something broke!') is in an Express route handler. The file defines no tRPC procedure, so it is not a procedure file.",
+      "pack": "trpc",
+      "path": "examples/error/index.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 252,
+      "note": "throw new Error('boom!') is in a route.all handler of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/Route.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 204,
+      "note": "throw new Error('err!') is in an app.param callback of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/app.param.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 479,
+      "note": "throw new Error('no arrays') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/express.json.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "app.verify",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 533,
+      "note": "throw new Error('no leading space') is in a body-parser verify option of an Express test. The file is not a tRPC procedure file.",
+      "pack": "trpc",
+      "path": "test/express.urlencoded.js",
+      "rule": "trpc/TRPC-ERR-001",
+      "symbol": "app.verify",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "document.querySelector('[type=search]') is at the top of a plain browser script. The file has no Vue component, so there is no setup to run before mount.",
+      "pack": "vue",
+      "path": "examples/search/public/client.js",
+      "rule": "vue/VUE-DOM-001",
+      "symbol": "search",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 60,
+      "note": "urls is an array and urls.push('0@' + req.baseUrl) appends a string to it. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 65,
+      "note": "urls.push('1@' + req.baseUrl) appends to an array in a test. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 74,
+      "note": "urls.push('3@' + req.baseUrl) appends to an array in a test. It is not router.push.",
+      "pack": "vue",
+      "path": "test/req.baseUrl.js",
+      "rule": "vue/VUE-PUSH-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 298,
+      "note": "The concatenation builds the message of an unreachable(...) error about the children prop. It is not a class name.",
+      "pack": "tailwind",
+      "path": "lib/index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "createFile",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 329,
+      "note": "The concatenation builds the message of an unreachable(...) error about a deprecated prop. It is not a class name.",
+      "pack": "tailwind",
+      "path": "lib/index.js",
+      "rule": "tailwind/TW-DYN-001",
+      "symbol": "post",
+      "verdict": "false-positive"
+    }
+  ],
+  "sample": [
+    {
+      "corpus": "classnames",
+      "labeler": "maintainer",
+      "line": 16,
+      "note": "parseValue runs from line 16 through the return on line 42, past the limit of 20.",
+      "pack": "clean-code",
+      "path": "bind.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "parseValue",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "maintainer",
+      "line": 16,
+      "note": "The describe callback starts at line 16 and still contains further tests past line 35, so it is over the 20-line limit.",
+      "pack": "clean-code",
+      "path": "tests/bind.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 113,
+      "note": "vm.runInContext(code, context) evaluates a string in a vm context, which is the call this rule names. The string is a fixed literal in a test.",
+      "pack": "node",
+      "path": "tests/index.js",
+      "rule": "node/NODE-VM-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 2,
+      "note": "The comment is an empty // line inside the license banner. It has no words, so it does not restate the Copyright line after it.",
+      "pack": "pstack",
+      "path": "index.d.ts",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "maintainer",
+      "line": 21,
+      "note": "if (!arg) return has no braces. The rule requires braces on an if.",
+      "pack": "senior",
+      "path": "dedupe.js",
+      "rule": "senior/SR-BRACE-001",
+      "symbol": "appendValue",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "maintainer",
+      "line": 29,
+      "note": "arg.toString.toString().includes walks three member or call hops, which is the chain this rule rejects.",
+      "pack": "senior",
+      "path": "bind.js",
+      "rule": "senior/SR-CHAIN-001",
+      "symbol": "parseValue",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 3,
+      "note": "export default function classNames declares a default export.",
+      "pack": "typescript",
+      "path": "bind.d.ts",
+      "rule": "typescript/TS-DEFAULT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 46,
+      "note": "console.log prints the benchmark name. The file is a benchmark script, not a test file, so the stated condition holds.",
+      "pack": "vibe-proof",
+      "path": "benchmarks/benchmarks.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "runBenchmarks",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "errors",
+      "labeler": "agent",
+      "line": 161,
+      "note": "TestFormatWithStack runs from line 161 to line 228. That is 68 lines and the limit is 50.",
+      "pack": "go",
+      "path": "format_test.go",
+      "rule": "go/GO-FN-001",
+      "symbol": "TestFormatWithStack",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 11,
+      "note": "The exported boot function starts at line 11 and is still loading controllers past line 40, over the 20-line limit.",
+      "pack": "clean-code",
+      "path": "examples/mvc/lib/boot.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 20,
+      "note": "error takes err, req, res, and next. Express uses that arity for error middleware, and the function is still four parameters over the limit of three.",
+      "pack": "clean-code",
+      "path": "examples/error/index.js",
+      "rule": "clean-code/CC-FN-002",
+      "symbol": "error",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 13,
+      "note": "return next('route') passes the string route to next, which is the call this rule names.",
+      "pack": "express",
+      "path": "examples/mvc/controllers/pet/index.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 101,
+      "note": "res.status(500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line, so the request does not stay open.",
+      "pack": "express",
+      "path": "test/app.route.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "handleError",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 635,
+      "note": "res.status(err.status || 500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line.",
+      "pack": "express",
+      "path": "test/express.urlencoded.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 9,
+      "note": "module.exports = users publishes the array through CommonJS, which is the export this rule names.",
+      "pack": "javascript",
+      "path": "examples/content-negotiation/db.js",
+      "rule": "javascript/JS-CJS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 11,
+      "note": "exports.text assigns a CommonJS export. The rule asks for an export statement.",
+      "pack": "javascript",
+      "path": "examples/content-negotiation/users.js",
+      "rule": "javascript/JS-CJS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 10,
+      "note": "require('express-session') loads that module with require, which is the call this rule names.",
+      "pack": "javascript",
+      "path": "examples/auth/index.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "session",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 9,
+      "note": "require('node:path') is a require call. The rule asks for an import statement.",
+      "pack": "javascript",
+      "path": "examples/auth/index.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "path",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 24,
+      "note": "if (verbose) is inside a switch, which is inside a for-in loop. That is a third level and the limit is two.",
+      "pack": "maintainability",
+      "path": "examples/route-map/index.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 23,
+      "note": "The app.param callback takes req, res, next, num and name. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "examples/params/index.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 141,
+      "note": "testRequestedRedirect takes app, inputUrl, expected, expectedHost and done. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "test/res.location.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "testRequestedRedirect",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 14,
+      "note": "fs.readdirSync(dir) is a synchronous filesystem call, and boot.js is not a test file.",
+      "pack": "musk",
+      "path": "examples/mvc/lib/boot.js",
+      "rule": "musk/MUSK-FAST-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 97,
+      "note": "process.env.NODE_ENV = this.env assigns to the environment at runtime. The assignment restores the value after a test.",
+      "pack": "node",
+      "path": "test/app.js",
+      "rule": "node/NODE-ENV-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 201,
+      "note": "fs.statSync(path) is a synchronous filesystem call in library code.",
+      "pack": "node",
+      "path": "lib/view.js",
+      "rule": "node/NODE-SYNC-001",
+      "symbol": "tryStat",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
+      "line": 109,
+      "note": "Regenerate session when signing in restates the req.session.regenerate call it sits on.",
+      "pack": "pstack",
+      "path": "examples/auth/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "faux database says the module is a stand-in for a real store. The next statement, var pets = exports.pets = [], does not say that.",
+      "pack": "pstack",
+      "path": "examples/mvc/db.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 11,
+      "note": "The block comment tells the reader which lines to add to /etc/hosts before the example runs. It does not restate the code after it.",
+      "pack": "pstack",
+      "path": "examples/vhost/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 373,
+      "note": "trust proxy inherit back-compat gives the purpose of the Object.defineProperty call that follows. The call itself does not name back-compat.",
+      "pack": "pstack",
+      "path": "lib/application.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "set",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 93,
+      "note": "lookup path sits on this.path = this.lookup(fileName) and repeats the two names in that statement.",
+      "pack": "pstack",
+      "path": "lib/view.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "View",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "maintainer",
       "line": 36,
       "note": "if (err) assigns res.locals.message with no braces around the branch.",
       "pack": "senior",
@@ -688,6 +1206,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 27,
       "note": "req.params.file.join walks params, file, and join. That is three member hops.",
       "pack": "senior",
@@ -698,6 +1217,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 10,
       "note": "var session declares the express-session binding with var, which is the declaration this rule names.",
       "pack": "senior",
@@ -708,6 +1228,7 @@
     },
     {
       "corpus": "express",
+      "labeler": "maintainer",
       "line": 31,
       "note": "var err reads the session error with var. const or let would be the binding this rule asks for.",
       "pack": "senior",
@@ -717,7 +1238,74 @@
       "verdict": "true-positive"
     },
     {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 52,
+      "note": "console.log('Express started on port 3000') is a console.log call in an example server, not in a test file.",
+      "pack": "vibe-proof",
+      "path": "examples/error/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 24,
+      "note": "if (verbose) console.log('%s %s', key, route) is a console.log call outside a test file. The verbose guard does not change the call.",
+      "pack": "vibe-proof",
+      "path": "examples/route-map/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 43,
+      "note": "console.log('  GET /css/style.css') is a console.log call in an example server, not in a test file.",
+      "pack": "vibe-proof",
+      "path": "examples/static-files/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "markupsafe",
+      "labeler": "agent",
+      "line": 84,
+      "note": "Markup declares 29 methods whose names do not start with an underscore, from join to format_map. The limit is 10.",
+      "pack": "python",
+      "path": "src/markupsafe/__init__.py",
+      "rule": "python/PY-CLASS-001",
+      "symbol": "Markup",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "markupsafe",
+      "labeler": "agent",
+      "line": 213,
+      "note": "The if on line 213 is inside if value.startswith(\"<!--\", start), which is inside the while loop. That is a third level and the limit is two.",
+      "pack": "python",
+      "path": "src/markupsafe/__init__.py",
+      "rule": "python/PY-NEST-001",
+      "symbol": "Markup.striptags",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "markupsafe",
+      "labeler": "agent",
+      "line": 220,
+      "note": "The if on line 220 is in the else branch of the if on line 211, inside the while loop. That is a third level and the limit is two.",
+      "pack": "python",
+      "path": "src/markupsafe/__init__.py",
+      "rule": "python/PY-NEST-001",
+      "symbol": "Markup.striptags",
+      "verdict": "true-positive"
+    },
+    {
       "corpus": "ms",
+      "labeler": "maintainer",
       "line": 236,
       "note": "plural takes ms, msAbs, n, and name. That is four parameters and the limit is three.",
       "pack": "clean-code",
@@ -727,7 +1315,129 @@
       "verdict": "true-positive"
     },
     {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 344,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket, which is the directive this rule reports.",
+      "pack": "musk",
+      "path": "src/index.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 168,
+      "note": "@ts-expect-error - We expect this to throw. gives a reason and no owner or ticket. The rule asks for an owner or a ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 55,
+      "note": "The @ts-expect-error comment explains that JS users can still pass the value. It names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 162,
+      "note": "@ts-expect-error - We expect this to throw. has no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 537,
+      "note": "return <div {...rest} /> returns a DOM tag, which is the stated condition. react-markdown renders to the web, so the pack does not fit this repository; the label does not judge that.",
+      "pack": "react-native",
+      "path": "test.jsx",
+      "rule": "react-native/RN-PLAT-001",
+      "symbol": "p",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 10,
+      "note": "The export list contains Markdown as default, which the rule names as a default export.",
+      "pack": "typescript",
+      "path": "index.js",
+      "rule": "typescript/TS-DEFAULT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 98,
+      "note": "console.log(warning.text) prints a build warning from a loader script. The file is not a test file.",
+      "pack": "vibe-proof",
+      "path": "script/load-jsx.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "createLoader.transformSource",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 231,
+      "note": "unify runs from line 231 to line 303. That is 73 lines and the limit is 50.",
+      "pack": "go",
+      "path": "decode.go",
+      "rule": "go/GO-FN-001",
+      "symbol": "MetaData.unify",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 262,
+      "note": "TestToml runs from line 262 to line 393. That is 132 lines and the limit is 50.",
+      "pack": "go",
+      "path": "toml_test.go",
+      "rule": "go/GO-FN-001",
+      "symbol": "TestToml",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 491,
+      "note": "The if on line 491 is inside if isEmbed, which is inside the for loop over the struct fields. That is a third level and the limit is two.",
+      "pack": "go",
+      "path": "encode.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "Encoder.eStruct",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 740,
+      "note": "The if on line 740 is inside if lx.peek(), which is inside two nested if lx.accept blocks. That is a fourth level and the limit is two.",
+      "pack": "go",
+      "path": "lex.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "lexMultilineString",
+      "verdict": "true-positive"
+    },
+    {
       "corpus": "tslib",
+      "labeler": "maintainer",
       "line": 2,
       "note": "require(\"child_process\") is a require call in the test runner.",
       "pack": "javascript",
@@ -735,7 +1445,139 @@
       "rule": "javascript/JS-REQ-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 143,
+      "note": "The if on line 143 is in the default branch of a switch, inside a try, inside a while loop. That is more than two levels.",
+      "pack": "maintainability",
+      "path": "tslib.es6.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "__generator.step",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 82,
+      "note": "The if on line 82 is inside if (kind === \"accessor\"), which is inside the for loop over the decorators. That is a third level and the limit is two.",
+      "pack": "maintainability",
+      "path": "tslib.es6.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "__esDecorate",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 345,
+      "note": "if (r.async) is inside if (r.dispose), inside a try, inside a while loop. That is more than two levels.",
+      "pack": "maintainability",
+      "path": "tslib.es6.mjs",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "__disposeResources.next",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 183,
+      "note": "The switch on line 183 is inside a try, which is the body of a while loop. That is a third level and the limit is two.",
+      "pack": "maintainability",
+      "path": "tslib.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "step",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 371,
+      "note": "The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__rewriteRelativeImportExtension",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 370,
+      "note": "The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.mjs",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__rewriteRelativeImportExtension",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 115,
+      "note": "The function assigned to __esDecorate takes ctor, descriptorIn, decorators, contextIn, initializers and extraInitializers. That is six inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 45,
+      "note": "spawnSync(\"npm\", [\"test\"], ...) is a synchronous subprocess call, which is the call this rule names.",
+      "pack": "node",
+      "path": "test/runTests.js",
+      "rule": "node/NODE-EXEC-001",
+      "symbol": "results",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 1,
+      "note": "require('path') loads the builtin without the node: prefix.",
+      "pack": "node",
+      "path": "test/webpack-modules/webpack.config.js",
+      "rule": "node/NODE-PREFIX-001",
+      "symbol": "path",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 178,
+      "note": "throw new TypeError(...) is the last statement of export function __values.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__values",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 76,
+      "note": "The throw is in the addInitializer function expression, which is declared inside export function __esDecorate.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__esDecorate",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 310,
+      "note": "throw new TypeError(\"Symbol.asyncDispose is not defined.\") is in the body of export function __addDisposableResource.",
+      "pack": "typescript",
+      "path": "tslib.es6.mjs",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__addDisposableResource",
+      "verdict": "true-positive"
     }
   ],
-  "schemaVersion": 1
+  "schemaVersion": 2
 }

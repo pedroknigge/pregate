@@ -34,3 +34,12 @@ at runtime. `clsx`/`cn` calls with non-literal arguments, aliased join methods
 (`const j = parts.join; j(" ")`), and template literals without substitutions
 (`className={`p-4 text-sm`}`) are known holes documented here rather than
 claimed coverage.
+
+`TW-DYN-001` matched a concatenation under any ancestor whose text contained
+`className`, which included a function named `classNames` and a whole component.
+All five sampled findings on the public corpus were false. Since pack 1.2.1 the
+expression must be inside a `className`/`class` attribute or the value of a
+`className`/`class` property. The pattern cannot name JSX node kinds in the
+TypeScript grammar, so the attribute is found by its text (`className={`). A
+class string built in a variable or a helper and passed to the attribute later
+is not matched: that needs value flow.

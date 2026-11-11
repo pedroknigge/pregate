@@ -1,0 +1,5 @@
+
+// https://example.com/specs/rounding#half-even
+export function roundCents(amount: number): number {
+  return Math.round(amount);
+}

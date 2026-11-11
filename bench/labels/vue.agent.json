@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "vue",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "vue",
+      "rule": "vue/VUE-DOM-001",
+      "path": "benchmarks/runInBrowser.js",
+      "line": 3,
+      "symbol": "startButton",
+      "verdict": "false-positive",
+      "note": "document.getElementById('start') is at the top of a plain browser script. No Vue component or setup function owns the element, which is what the rule's condition requires."
+    },
+    {
+      "corpus": "express",
+      "pack": "vue",
+      "rule": "vue/VUE-DOM-001",
+      "path": "examples/search/public/client.js",
+      "line": 3,
+      "symbol": "search",
+      "verdict": "false-positive",
+      "note": "document.querySelector('[type=search]') is at the top of a plain browser script. The file has no Vue component, so there is no setup to run before mount."
+    },
+    {
+      "corpus": "express",
+      "pack": "vue",
+      "rule": "vue/VUE-PUSH-001",
+      "path": "test/req.baseUrl.js",
+      "line": 60,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "urls is an array and urls.push('0@' + req.baseUrl) appends a string to it. It is not router.push."
+    },
+    {
+      "corpus": "express",
+      "pack": "vue",
+      "rule": "vue/VUE-PUSH-001",
+      "path": "test/req.baseUrl.js",
+      "line": 65,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "urls.push('1@' + req.baseUrl) appends to an array in a test. It is not router.push."
+    },
+    {
+      "corpus": "express",
+      "pack": "vue",
+      "rule": "vue/VUE-PUSH-001",
+      "path": "test/req.baseUrl.js",
+      "line": 74,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "urls.push('3@' + req.baseUrl) appends to an array in a test. It is not router.push."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+import { createClient } from "redis";
+
+const db = createClient();
+const index = new Map<string, string>();
+
+export async function names(params: Record<string, string>): Promise<string[]> {
+  for await (const key of db.scanIterator({ MATCH: "session:*" })) {
+    index.set(key, key);
+  }
+  return [...index.keys(), ...Object.keys(params)];
+}

@@ -35,7 +35,18 @@ jobs:
         with:
           bun-version-file: .bun-version
       - name: Install test shells
-        run: sudo apt-get update && sudo apt-get install -y zsh
+        # The image may already carry zsh. When it does not, the package index comes from a mirror
+        # that has failed to resolve for more than an hour at a time. Each attempt is bounded.
+        run: |
+          if [ -x /bin/zsh ]; then exit 0; fi
+          for attempt in 1 2 3; do
+            if sudo timeout 120 apt-get -o Acquire::Retries=0 update && sudo timeout 120 apt-get install -y zsh; then break; fi
+            sleep 20
+          done
+          # A second source on another network path, for when the package mirror does not resolve.
+          # The suites start /bin/zsh by that path, so the second source is linked there.
+          [ -x /bin/zsh ] || { eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew install zsh && sudo ln -sf "$(brew --prefix)/bin/zsh" /bin/zsh; }
+          /bin/zsh -c 'echo "zsh $ZSH_VERSION"'
       - name: Isolate runtime homes
         run: |
           root=/private/tmp/claude-501/pregate-ci

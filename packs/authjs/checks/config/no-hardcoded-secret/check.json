@@ -1,1 +1,38 @@
-{"$schema":"../../../../../schema/check.v1.json","area":"config","cardinality":"singleton","dimension":"authjs.hardcoded-secret","feedback":{"message":"{symbol} hardcodes an auth secret in the config. Read it from the environment instead."},"id":"authjs/config/no-hardcoded-secret","impl":{"kind":"pattern","patterns":{"typescript":[{"id":"hardcoded-secret","rule":{"kind":"pair","regex":"^secret\\s*:\\s*[\"'`]"}}]}},"minSeverity":null,"params":{},"phase":["pre","stop","commit","ci"],"version":"1.0.0"}
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "area": "config",
+  "cardinality": "singleton",
+  "dimension": "authjs.hardcoded-secret",
+  "feedback": {
+    "message": "{symbol} hardcodes an auth secret in the config. Read it from the environment instead."
+  },
+  "id": "authjs/config/no-hardcoded-secret",
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "hardcoded-secret",
+          "rule": {
+            "kind": "pair",
+            "regex": "^secret\\s*:\\s*[\"'`]",
+            "inside": {
+              "stopBy": "end",
+              "kind": "program",
+              "regex": "(\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*)[\"'](next-auth|@auth/)[^\"'\\n]*[\"']"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "minSeverity": null,
+  "params": {},
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "version": "1.0.1"
+}

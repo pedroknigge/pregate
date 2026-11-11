@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## authjs/config
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### authjs/AUTH-SECRET-001
 
-Check: [`authjs/config/no-hardcoded-secret@1.0.0`](checks/config/no-hardcoded-secret/check.json). Default severity: **deny**.
+Check: [`authjs/config/no-hardcoded-secret@1.0.1`](checks/config/no-hardcoded-secret/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Read the secret from the environment: secret: process.env.AUTH_SECRET. Never write the value into the config object.
 
-**Scope and limits:** Renaming the key or moving the literal to a nearby const does not remove the committed value.
+**Scope and limits:** Renaming the key or moving the literal to a nearby const does not remove the committed value. The file must import next-auth or an @auth/ package. A literal secret in an express-session or cookie-session options object is not matched. A config object kept in a file that does not import Auth.js is not matched.
 
 **Interactions when active together:**
 

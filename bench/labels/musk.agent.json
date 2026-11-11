@@ -1,0 +1,56 @@
+{
+  "labeler": "agent",
+  "pack": "musk",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "musk",
+      "rule": "musk/MUSK-FAST-001",
+      "path": "examples/mvc/lib/boot.js",
+      "line": 14,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "fs.readdirSync(dir) is a synchronous filesystem call, and boot.js is not a test file."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/index.test.ts",
+      "line": 344,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket, which is the directive this rule reports."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 168,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. gives a reason and no owner or ticket. The rule asks for an owner or a ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 55,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The @ts-expect-error comment explains that JS users can still pass the value. It names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse.test.ts",
+      "line": 162,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. has no owner and no ticket."
+    }
+  ]
+}

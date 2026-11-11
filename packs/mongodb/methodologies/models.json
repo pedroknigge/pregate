@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "mongodb/models",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "A non-strict schema stores whatever the client sends, so typos and injected fields persist without an error.",
       "fixHint": "Declare the paths on the schema, or use strict: \"throw\" so undeclared paths fail loudly instead of persisting.",
-      "avoid": "Extra options beside strict do not cancel it. This rule complements mass-assignment: that one guards the write call, this one guards the schema.",
+      "avoid": "Extra options beside strict do not cancel it. The file must import mongoose; strict: false in a body-parser or other options object in a file with no such import is not matched. This rule complements mass-assignment: that one guards the write call, this one guards the schema.",
       "examples": {
         "pass": "pass/default-strict",
         "fail": "fail/strict-false"
@@ -35,7 +35,7 @@
       },
       "why": "Default pool and timeout settings hang or overload under load instead of failing fast with a tuned budget.",
       "fixHint": "Pass maxPoolSize and serverSelectionTimeoutMS in the connect() options for the workload this service runs.",
-      "avoid": "An empty options object sets nothing. Unrelated options such as dbName do not satisfy this rule.",
+      "avoid": "An empty options object sets nothing. Unrelated options such as dbName do not satisfy this rule. The file must import mongoose or mongodb. A connect call on a Redis or other client in a file with no such import is not matched. Any other connect call in a file that does import one is still matched.",
       "examples": {
         "pass": "pass/pooled",
         "fail": "fail/bare-connect"

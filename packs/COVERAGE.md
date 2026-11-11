@@ -67,9 +67,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 | Default severity | Aliases |
 | --- | ---: |
-| deny | 948 |
+| deny | 947 |
 | ask | 5 |
-| warn | 110 |
+| warn | 111 |
 | off | 27 |
 
 These are declarations, not effective project policy or verification of complete semantic requirements. [All defaults, scope, phases and rule limits](../docs/packs.md).

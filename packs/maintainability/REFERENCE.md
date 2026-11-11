@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **practice**.
+Version: `1.2.1`. Category: **practice**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -7416,7 +7416,7 @@ Source metadata:
 
 ## maintainability/maintainability
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### maintainability/MAINT-NEST-001
 
@@ -7673,7 +7673,7 @@ Default parameters: `{}`.
 
 **Interactions when active together:**
 
-- Duplicates `pstack/PS-COMMENT-001`: PS-COMMENT-001 denies every JSDoc comment that is not on its allowlist, so a bare @deprecated is reported by both rules, and a written notice still fails PS-COMMENT-001. Settle: Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001.
+- Duplicates `pstack/PS-COMMENT-001`: PS-COMMENT-001 reports every comment that carries @deprecated, so a bare @deprecated is reported by both rules, and a written notice is still reported by PS-COMMENT-001. Settle: Migrating the callers and deleting the deprecated API satisfies both. Teams that keep deprecated surfaces exclude the files that carry them from PS-COMMENT-001.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
