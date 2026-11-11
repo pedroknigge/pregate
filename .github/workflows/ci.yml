@@ -37,10 +37,14 @@ jobs:
       - name: Install test shells
         run: |
           set -eu
-          # GitHub-hosted Ubuntu has failed this step when azure.archive.ubuntu.com did not resolve.
-          # Retry before the suite, which never starts if zsh is missing.
+          # Hosted Ubuntu lists azure.archive.ubuntu.com first. When that name does not resolve,
+          # apt stops there and the suite never starts. Use archive.ubuntu.com, then retry.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/apt-mirrors.txt
+          fi
           for attempt in 1 2 3 4 5; do
             if sudo apt-get update && sudo apt-get install -y zsh; then
+              command -v zsh
               exit 0
             fi
             echo "apt attempt ${attempt} failed; retrying"
