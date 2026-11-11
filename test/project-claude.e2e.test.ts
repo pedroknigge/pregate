@@ -9,6 +9,7 @@ import pkg from "../package.json" with { type: "json" };
 import { enable, disable } from "../src/consent.ts";
 import { projectHookCommand } from "../src/project-claude.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { commandScript } from "../src/windows-command.ts";
 import { engineAt } from "./compiled-engine.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -44,7 +45,13 @@ function isolated(): Isolated {
   mkdirSync(dirname(decoy), { recursive: true });
   writeFileSync(decoy, WINDOWS ? "@echo decoy-hook 1>&2\r\n@exit /b 0\r\n" : "#!/bin/sh\necho decoy-hook >&2\nexit 0\n", { mode: 0o755 });
   const git = Bun.which("git");
-  const windowsPath = [join(root, "bin"), ...(git === null ? [] : [dirname(git)])].join(";");
+  const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
+  // The registered command is `powershell.exe … -EncodedCommand`. Claude finds that binary on PATH.
+  // System32 stays after the decoy, so a `pregate` on PATH is still the decoy.
+  const windowsPath = [
+    join(root, "bin"), join(systemRoot, "System32"), join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+    ...(git === null ? [] : [dirname(git)]),
+  ].join(";");
   const env: Record<string, string> = {
     HOME: home,
     USERPROFILE: home,
@@ -64,7 +71,10 @@ function isolated(): Isolated {
     GIT_COMMITTER_NAME: "W",
     GIT_COMMITTER_EMAIL: "w@e",
   };
-  if (WINDOWS) env.SystemRoot = process.env.SystemRoot ?? "C:\\Windows";
+  if (WINDOWS) {
+    env.SystemRoot = systemRoot;
+    env.PATHEXT = process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD";
+  }
   mkdirSync(env.XDG_DATA_HOME!, { recursive: true });
   mkdirSync(join(root, "tmp"), { recursive: true });
   if (git !== null && !WINDOWS) symlinkSync(git, join(root, "bin", "git"));
@@ -210,8 +220,9 @@ describe("project-local Claude setup", () => {
     expect(doc.permissions).toEqual(foreign.permissions);
     expect(doc.hooks.PreToolUse![0]!.hooks[0]!.command).toBe("echo foreign-pre");
     expect(doc.hooks.Stop![0]!.hooks[0]!.command).toBe("echo foreign-stop");
-    expect(doc.hooks.PreToolUse!.at(-1)!.hooks[0]!.command).toContain(".pregate/bin/");
-    expect(doc.hooks.PreToolUse!.at(-1)!.hooks[0]!.command).not.toContain("decoy");
+    const owned = commandScript(doc.hooks.PreToolUse!.at(-1)!.hooks[0]!.command);
+    expect(owned.includes(".pregate/bin/pregate") || owned.includes(".pregate/bin/project-launcher.ps1")).toBe(true);
+    expect(owned).not.toContain("decoy");
     const second = run([engine, "project", "setup"], i, project);
     expect(second.code, second.stderr + second.stdout).toBe(0);
     expect(second.stdout).toContain("already has the repository-owned Claude hooks");
