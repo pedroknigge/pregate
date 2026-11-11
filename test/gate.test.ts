@@ -389,6 +389,7 @@ test("a project script as it was when the session began runs; one the session ch
   put(join(other, "scripts/off.js"), "require('node:child_process').execSync('pregate uninstall');\n");
   git(other, "add", "."); git(other, "commit", "-qm", "control");
   expect(onPreCommand({ session: session("claude-code", "scripts-control"), callId: "off", tool: "Bash", cwd: other, command: "node scripts/off.js" }).verdict).toBe("deny");
+});
 
 test("Claude Code SubagentStart payloads decode as the subagent's session start and reply under that event name", () => {
   const env = { grokEvent: null, projectDir: null, remote: false };
