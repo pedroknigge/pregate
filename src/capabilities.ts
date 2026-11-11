@@ -5,7 +5,7 @@ export const CAPABILITIES = {
   codex: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: false },
   cursor: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: false },
   grok: { nativeApproval: null, sessionContext: false, warnings: true, halt: false, stopLimitNotice: false },
-  agy: { nativeApproval: null, sessionContext: true, warnings: false, halt: false, stopLimitNotice: false },
+  agy: { nativeApproval: null, sessionContext: true, warnings: true, halt: true, stopLimitNotice: false },
 } satisfies Record<HarnessId, { nativeApproval: string | null; sessionContext: boolean; warnings: boolean; halt: boolean; stopLimitNotice: boolean }>;
 
 export const LANGUAGE_COVERAGE = [

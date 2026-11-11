@@ -179,7 +179,7 @@ describe("setup", () => {
     const mine = EVENTS.map((e) => `${{ PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" }[e]}:${json(m.hooks).hooks[e].length - 1}:0`);
     for (const k of mine) expect(after[k]).toBe("trusted");
     expect(Object.keys(json(join(m.state, "codex-trust.json"))).sort()).toEqual(mine.map((k) => `${m.hooks}:${k}`).sort());
-    for (const [f, text] of Object.entries(agyPlugin(m.data))) expect(read(join(m.plugin, f))).toBe(text);
+    for (const [f, text] of Object.entries(agyPlugin(m.data, pkg.version))) expect(read(join(m.plugin, f))).toBe(text);
 
     const stamped = stamps(m);
     const again = ok(run([m.link, "setup"], m), "setup through the CLI link");
@@ -265,10 +265,10 @@ describe("setup", () => {
     expect(existsSync(join(m.state, "codex-trust.json"))).toBe(false);
   });
 
-  test("Codex and agy without their binaries: setup registers the Codex hooks (an IDE may bundle codex), skips agy; doctor does not fail", () => {
+  test("Codex and agy without their binaries: setup registers Codex hooks and installs the agy plugin for IDE/App surfaces; doctor does not fail", () => {
     const m = machine([]);
     put(join(m.codex, "config.toml"), "");
-    put(join(m.home, ".gemini/antigravity-cli/settings.json"), "{}");
+    put(join(m.home, ".gemini/antigravity/settings.json"), "{}");
     // An interrupted install left a copy whose process is gone; one whose process runs is kept.
     const stale = join(m.data, pkg.version, "pregate.2147483646.tmp"), live = join(m.data, pkg.version, `pregate.${process.pid}.tmp`);
     put(stale, "partial"); put(live, "partial");
@@ -276,16 +276,20 @@ describe("setup", () => {
     expect(out.stdout).toContain("Removed 1 engine copy left by an interrupted install.");
     expect([existsSync(stale), existsSync(live)]).toEqual([false, true]);
     expect(out.stdout).toContain(`INFO: codex: binary not on PATH; hooks registered in ${m.hooks} but not trusted.`);
-    expect(out.stdout).toContain("INFO: agy: binary not on PATH; skipped. Install it and rerun pregate setup.");
+    expect(out.stdout).toContain(`INFO: agy: binary not on PATH; pregate-global plugin installed at ${m.plugin} for Antigravity IDE/App.`);
     expect(EVENTS.every((e) => (json(m.hooks).hooks[e] as unknown[]).some((g) => exact(g, "codex", m.data)))).toBe(true);
-    expect(existsSync(m.plugin)).toBe(false);
+    for (const [f, text] of Object.entries(agyPlugin(m.data, pkg.version))) expect(read(join(m.plugin, f))).toBe(text);
     const doctor = ok(pregate(m, "doctor"), "doctor");
     expect(doctor.stdout).toContain(`INFO: codex: PREGATE hooks registered in ${m.hooks}; their trust cannot be verified without codex on PATH.`);
+    expect(doctor.stdout).toContain(`INFO: agy: pregate-global plugin installed at ${m.plugin}; runtime canary skipped without agy on PATH.`);
     expect(doctor.stdout).toContain("WARNING: No harness with its binary on PATH; PREGATE gates nothing yet.");
     expect(doctor.stdout).not.toContain("ERROR");
-    // A Codex home whose hooks.json lost the PREGATE groups is not reported as healthy.
+    // A Codex home or Antigravity plugin that lost its registration is not reported as healthy.
     put(m.hooks, "{}");
-    expect(ok(pregate(m, "doctor"), "doctor").stdout).toContain(`WARNING: codex: ${m.hooks} has no PREGATE hooks; Codex sessions an IDE launches from its bundled binary are not protected.`);
+    rmSync(join(m.plugin, "hooks.json"));
+    const degraded = ok(pregate(m, "doctor"), "doctor").stdout;
+    expect(degraded).toContain(`WARNING: codex: ${m.hooks} has no PREGATE hooks; Codex sessions an IDE launches from its bundled binary are not protected.`);
+    expect(degraded).toContain(`WARNING: agy: ${m.plugin} is missing or modified; Antigravity IDE/App sessions are not protected.`);
   });
 
   test("a trusted Codex hooks.json left behind without its binary does not fail doctor", () => {

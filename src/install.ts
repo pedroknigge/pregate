@@ -251,9 +251,12 @@ export async function projectLauncher(args: string[]): Promise<{ code: number; t
 // `--harness codex` writes the Codex groups into the project's .codex/hooks.json in the same way.
 // It records no Codex trust and writes nothing in the Codex home: Codex runs a hook only after its
 // own review, and that review stays with the human (`/hooks`).
-const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]";
+//
+// `--harness agy` writes the `pregate-project` named hook into the project's .agents/hooks.json.
+const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]\n       pregate project hooks --harness agy [--preview|--yes]";
 export const PROJECT_SETTINGS = ".claude/settings.json";
 export const PROJECT_CODEX_HOOKS = ".codex/hooks.json";
+export const PROJECT_AGY_HOOKS = ".agents/hooks.json";
 const CODEX_REVIEW = "No Codex trust is recorded and the Codex home is not written. Codex runs a hook only after its own review: start Codex in this project and review the hooks with /hooks. A changed definition needs that review again. Until then, treat Codex as not gated in this project.";
 
 // "ready": every launcher file is the reviewed template. "differs": a launcher is there and is not.
@@ -265,20 +268,22 @@ export function projectLauncherState(root: string): "ready" | "differs" | "missi
 
 export async function projectHooks(args: string[]): Promise<{ code: number; text: string }> {
   const flags = args.slice(2);
-  if (args[0] !== "--harness" || (args[1] !== "claude-code" && args[1] !== "codex") || flags.length > 1 || flags.some((a) => a !== "--preview" && a !== "--yes")) {
+  const harness = args[1];
+  if (args[0] !== "--harness" || (harness !== "claude-code" && harness !== "codex" && harness !== "agy") || flags.length > 1 || flags.some((a) => a !== "--preview" && a !== "--yes")) {
     return { code: 1, text: HOOKS_USAGE };
   }
-  const codex = args[1] === "codex";
   const root = findRoot(canonical(process.cwd()), () => true);
   if (root === null) return { code: 1, text: "Run from a Git project with .pregate/pregate.lock.json." };
   if (projectLauncherState(root) !== "ready") {
     return { code: 1, text: `The project launcher in ${LAUNCHER_DIR} is missing or differs from the reviewed template. Run pregate project launcher --preview first; the hooks run that launcher.` };
   }
-  const path = join(root, codex ? PROJECT_CODEX_HOOKS : PROJECT_SETTINGS);
-  const name = codex ? "Codex" : "Claude Code", note = codex ? ` ${CODEX_REVIEW}` : "";
+  const path = join(root, harness === "codex" ? PROJECT_CODEX_HOOKS : harness === "agy" ? PROJECT_AGY_HOOKS : PROJECT_SETTINGS);
+  const name = harness === "codex" ? "Codex" : harness === "agy" ? "Antigravity" : "Claude Code";
+  const note = harness === "codex" ? ` ${CODEX_REVIEW}` : "";
+  const target = harness === "codex" ? "project-codex" : harness === "agy" ? "project-agy" : "project";
   const before = readText(path);
-  const after = merge(before, codex ? "project-codex" : "project", dataHome());
-  if (after === null) return { code: 1, text: `${path} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate project hooks.` };
+  const after = merge(before, target, dataHome());
+  if (after === null) return { code: 1, text: `${path} must be a JSON object${harness === "agy" ? "" : " with event arrays"}; left unchanged. Fix it and rerun pregate project hooks.` };
   if (after === before) return { code: 0, text: `${name} hooks in ${path} already run the project launcher; nothing changed.${note}` };
   const header = `Register the ${name} hooks in ${path}. They run the project launcher in ${LAUNCHER_DIR}; no file under the user's home is written. Other entries of the file are kept.${note}`;
   return reviewedWrites(root, [{ path, before, after }], header, flags);

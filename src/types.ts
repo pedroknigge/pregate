@@ -46,7 +46,7 @@ export const FIXABLE_BY = Object.freeze({
 
 // ── Normalized input (harness-agnostic) ──────────────────────────────────────────
 export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy";
-export type HookKind = "pre" | "stop" | "session-start";       // what a registration names: hook <kind> --harness <id>
+export type HookKind = "pre" | "stop" | "session-start" | "post-invocation"; // what a registration names: hook <kind> --harness <id>
 // What a hook call reads from its environment besides the payload (MULTI-HARNESS MH-03, MH-06).
 export interface HookEnv {
   grokEvent: string | null;        // GROK_HOOK_EVENT; null when unset or empty
@@ -69,6 +69,7 @@ export interface ProposedChange {  // an adapter produces it, gate.onPreEdit con
 export interface ProposedCommand { session: Session; callId: string; tool: string; command: string; cwd: string }
 export type HookEvent =
   | { kind: "session-start"; session: Session; cwd: string }
+  | { kind: "post-invocation"; session: Session; cwd: string }
   | { kind: "pre-edit"; changes: ProposedChange[] }           // ≥ 1, all from one tool call
   | { kind: "pre-command"; command: ProposedCommand }
   | { kind: "stop"; session: Session; cwd: string; reentry: boolean };

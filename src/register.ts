@@ -9,8 +9,8 @@ export type Sub = HookKind;
 // "shared": ~/.claude/settings.json, read by Claude Code, Cursor and Grok; "codex": its hooks.json;
 // "agy": the hooks.json of the pregate plugin. "project": the project's own .claude/settings.json,
 // whose handlers run the project launcher and name no machine path. "project-codex": the project's
-// own .codex/hooks.json, with the Codex events and matcher, on the same launcher.
-export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex";
+// own .codex/hooks.json. "project-agy": the project's own .agents/hooks.json.
+export type Target = "shared" | "codex" | "agy" | "cursor" | "project" | "project-codex" | "project-agy";
 // The machine files drift reads; null: absent. `claude` holds every shared registration setup
 // writes: ~/.claude/settings.json, and ${CLAUDE_CONFIG_DIR}/settings.json when it is elsewhere.
 export interface MachineFiles {
@@ -24,12 +24,14 @@ export type RepoFiles = Record<string, string>;
 // Closed tool lists (MH-22): `*` would spawn the hook on every read the agent makes.
 const SHARED_TOOLS = "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command";
 const CODEX_TOOLS = "^(apply_patch|Bash)$";
+const AGY_TOOLS = "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input|manage_task)$";
 const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   shared: SHARED_TOOLS,
   project: SHARED_TOOLS,
   codex: CODEX_TOOLS,
   "project-codex": CODEX_TOOLS,
-  agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
+  agy: AGY_TOOLS,
+  "project-agy": AGY_TOOLS,
 };
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
@@ -61,8 +63,9 @@ export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
 // global registration reaches its launcher: pregate.cmd beside it only starts that same script.
 const PROJECT_BIN = ".pregate/bin";
 const PROJECT_MISSING = "PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user";
-export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" | "codex" = "claude-code"): string {
+export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" | "codex" | "agy" = "claude-code"): string {
   if (h === "codex") return projectCodexCommand(sub, windows);
+  if (h === "agy") return projectAgyCommand(sub, windows);
   const args = `hook ${sub} --harness claude-code`;
   if (!windows) {
     const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
@@ -94,11 +97,31 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
     + `if (Test-Path -LiteralPath (Join-Path $d '.git')) { break }; $d=[IO.Path]::GetDirectoryName($d) }; ${missing}`);
 }
 
+// Antigravity runs workspace hooks from .agents/ (the directory holding hooks.json), or with the
+// workspace named in stdin's workspacePaths. Walk up from $PWD first without consuming stdin; if
+// started outside the repository, fall back to workspacePaths[0] from the payload.
+function projectAgyCommand(sub: Sub, windows: boolean): string {
+  const args = `hook ${sub} --harness agy`;
+  if (!windows) {
+    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    return `d=$PWD; while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; `
+      + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `
+      + `while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; if [ -x "$f" ] && [ -s "$f" ] && cd "$d"; then printf '%s' "$p" | "$f" ${args}; exit $?; fi; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
+  }
+  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
+    + "$raw=[Console]::In.ReadToEnd(); $p=$raw | ConvertFrom-Json -ErrorAction SilentlyContinue; "
+    + "foreach ($start in @((Get-Location).Path)+@($p.workspacePaths)) { if (!$start) { continue }; $d=$start; while ($d) { "
+    + `$f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; if (Test-Path -LiteralPath $f -PathType Leaf) { Set-Location -LiteralPath $d; $raw | & $f ${args}; exit $LASTEXITCODE }; `
+    + `if (Test-Path -LiteralPath (Join-Path $d '.git')) { break }; $d=[IO.Path]::GetDirectoryName($d) } }; ${missing}`);
+}
+
 // A handler of a project registration, written on this platform or on the other one.
 function ownedProjectCommand(command: string, t: Target): boolean {
   const script = commandScript(command);
   const launcher = script.includes(`/${PROJECT_BIN}/pregate"`) || script.includes(`'${PROJECT_BIN}/project-launcher.ps1'`);
-  return launcher && script.includes(t === "project-codex" ? "--harness codex" : "CLAUDE_PROJECT_DIR");
+  const marker = t === "project-codex" ? "--harness codex" : t === "project-agy" ? "--harness agy" : "CLAUDE_PROJECT_DIR";
+  return launcher && script.includes(marker);
 }
 
 // The trust level the user's Codex config.toml records for a project directory
@@ -121,8 +144,8 @@ export function merge(text: string | null, t: Target, data: string): string | nu
     if (root.version !== undefined && (typeof root.version !== "number" || !Number.isInteger(root.version) || root.version < 1)) return null;
     root.version ??= 1;
   }
-  if (t === "agy") {
-    root[AGY_PLUGIN] = named(data);
+  if (t === "agy" || t === "project-agy") {
+    root[t === "agy" ? AGY_PLUGIN : AGY_PROJECT_HOOK] = named(t, data);
     return settled(text, root);
   }
   const hooks = root.hooks ?? {};
@@ -143,8 +166,8 @@ export function merge(text: string | null, t: Target, data: string): string | nu
 export function unmerge(text: string, t: Target, data: string): { text: string; shifted: string[] } | null {
   const root = parse(text);
   if (root === null) return null;
-  if (t === "agy") {
-    delete root[AGY_PLUGIN];
+  if (t === "agy" || t === "project-agy") {
+    delete root[t === "agy" ? AGY_PLUGIN : AGY_PROJECT_HOOK];
     return { text: settled(text, root), shifted: [] };
   }
   const hooks = root.hooks ?? {};
@@ -175,8 +198,12 @@ export function exact(group: unknown, t: Target, data: string): boolean {
 
 // The agy plugin: relative path → bytes.
 export const AGY_PLUGIN = "pregate-global";
-export function agyPlugin(data: string): Record<string, string> {
-  return { "plugin.json": render({ name: AGY_PLUGIN }), "hooks.json": render({ [AGY_PLUGIN]: named(data) }) };
+export const AGY_PROJECT_HOOK = "pregate-project";
+export function agyPlugin(data: string, version: string): Record<string, string> {
+  return {
+    "plugin.json": render({ name: AGY_PLUGIN, version, description: "Pre-execution architectural and integrity gate for AI coding agents." }),
+    "hooks.json": render({ [AGY_PLUGIN]: named("agy", data) }),
+  };
 }
 
 // Cursor's TUI only enters its Stop dispatcher when a native registration exists. The shared
@@ -222,7 +249,7 @@ export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, tru
   const plugin = parse(m.agyConfig ?? "")?.plugins;
   const state = isObject(plugin) ? plugin[AGY_PLUGIN] : undefined;
   if (isObject(state) && state.enabled === false) out.push("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.");
-  if (m.agyHooks !== null ? !Bun.deepEquals(parse(m.agyHooks), { [AGY_PLUGIN]: named(data) }, true) : state !== undefined) {
+  if (m.agyHooks !== null ? !Bun.deepEquals(parse(m.agyHooks), { [AGY_PLUGIN]: named("agy", data) }, true) : state !== undefined) {
     out.push("agy: pregate-global plugin missing or modified; run pregate setup.");
   }
   for (const [path, text] of Object.entries(repo ?? {})) {
@@ -231,6 +258,7 @@ export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, tru
       out.push(`${path}: [features] hooks = false disables Codex hooks in this repo.`);
     }
     if (/(^|\/)[._]agents?\/(hooks\.json|plugins\.json|plugins\/)/.test(path) && /pregate/.test(path + text)) {
+      if (path === ".agents/hooks.json" && cleanProjectAgyHooks(text, data)) continue;
       out.push(`${path}: names pregate and may disable its agy plugin in this repo.`);
     }
   }
@@ -251,33 +279,42 @@ export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, tru
   return new Set(variants.filter(([h, present, files]) => present && drift(files, repo, data, h === "codex" ? trust : {}).length === 0).map(([h]) => h));
 }
 
-// What setup registers, by event: a group; agy's Stop takes a bare handler.
+function cleanProjectAgyHooks(text: string, data: string): boolean {
+  if (!registered(text, "project-agy", data)) return false;
+  const rest = unmerge(text, "project-agy", data);
+  return rest !== null && !/pregate/.test(rest.text);
+}
+
+// What setup registers, by event: a group; agy's lifecycle events take flat handlers.
 function ours(t: Target, data: string): Record<string, object> {
-  const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t;
-  const local = h === "claude-code" || h === "codex" ? h : null;
+  const h: HarnessId = t === "shared" || t === "project" ? "claude-code" : t === "project-codex" ? "codex" : t === "project-agy" ? "agy" : t;
+  const projectTarget = t === "project" || t === "project-codex" || t === "project-agy";
+  const local = h === "claude-code" || h === "codex" || h === "agy" ? h : null;
   const run = (sub: Sub, timeout: number) => ({
     type: "command", timeout,
-    command: (t === "project" || t === "project-codex") && local !== null ? projectHookCommand(sub, windowsData(data), local) : hookCommand(data, sub, h),
+    command: projectTarget && local !== null ? projectHookCommand(sub, windowsData(data), local) : hookCommand(data, sub, h),
   });
   if (t === "cursor") return { stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
-  if (t === "agy") return { PreToolUse: pre, Stop: run("stop", 60), PreInvocation: run("session-start", 15) };
+  if (t === "agy" || t === "project-agy") {
+    return { PreToolUse: pre, PostInvocation: run("post-invocation", 15), Stop: run("stop", 60), SessionStart: run("session-start", 15) };
+  }
   const stop = { hooks: [run("stop", 60)] };
   if (t === "shared" || t === "project") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
   return { PreToolUse: pre, Stop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
 }
 
-// agy uses PreInvocation rather than SessionStart; the adapter ignores invocationNum > 0.
-function named(data: string): Payload {
-  const { PreToolUse, Stop, PreInvocation } = ours("agy", data);
-  return { enabled: true, PreToolUse: [PreToolUse], Stop: [Stop], PreInvocation: [PreInvocation] };
+function named(t: "agy" | "project-agy", data: string): Payload {
+  const { PreToolUse, PostInvocation, Stop, SessionStart } = ours(t, data);
+  return { enabled: true, PreToolUse: [PreToolUse], PostInvocation: [PostInvocation], Stop: [Stop], SessionStart: [SessionStart] };
 }
 
 // Ours, of this version or an older one: every handler runs this machine's launcher. A group that
 // also holds a foreign handler is foreign, since replacing it would drop that handler.
 function mine(group: unknown, t: Target, data: string): boolean {
   const hs = hooksOf(group);
-  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && (t === "project" || t === "project-codex" ? ownedProjectCommand(h.command, t) : ownedCommand(h.command, data)));
+  const projectTarget = t === "project" || t === "project-codex" || t === "project-agy";
+  return hs.length > 0 && hs.every((h) => isObject(h) && typeof h.command === "string" && (projectTarget ? ownedProjectCommand(h.command, t) : ownedCommand(h.command, data)));
 }
 
 export function ownedCommand(command: string, data: string): boolean {
@@ -290,6 +327,10 @@ function hooksOf(group: unknown): unknown[] {
 
 // Every group setup writes for `t` is in `text`, unchanged.
 export function registered(text: string | null, t: Target, data: string): boolean {
+  if (t === "agy" || t === "project-agy") {
+    const entry = parse(text ?? "")?.[t === "agy" ? AGY_PLUGIN : AGY_PROJECT_HOOK];
+    return Bun.deepEquals(entry, named(t, data), true);
+  }
   return Object.values(placed(text, t, data)).every((at) => at >= 0);
 }
 

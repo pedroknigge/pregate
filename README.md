@@ -139,9 +139,9 @@ Supported harnesses, from `src/capabilities.ts`. A harness that is not in this t
 | Codex CLI | `codex` | yes | yes |
 | Cursor | `cursor` | yes | yes |
 | Grok Build | `grok` | no | yes |
-| Antigravity (agy) | `agy` | yes | no |
+| Antigravity (agy) | `agy` | yes | yes |
 
-Grok Build has no session-start context. Antigravity (agy) has no advisory warnings.
+Grok Build has no session-start context.
 
 Codex CLI 0.167.0 is the minimum supported version (`src/harness/codex.ts`).
 

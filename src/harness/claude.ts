@@ -38,6 +38,7 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 export function encode(e: HookEvent["kind"], d: Decision): Emission {
   const told = d.notice === null ? {} : { systemMessage: d.notice };
   if (e === "session-start") return quiet({ ...context("SessionStart", d.verdict === "none" ? d.full : ""), ...told });
+  if (e === "post-invocation") return quiet({});
   // Stop.additionalContext continues Claude's turn even on exit 0. Observations stay in the report.
   if (d.verdict === "none") return e === "stop" ? quiet(told) : quiet({ ...context("PreToolUse", d.full), ...told });
   if (e === "stop") return { stdout: json({ decision: "block", reason: d.full, ...told }), stderr: d.full, exit: 2 };

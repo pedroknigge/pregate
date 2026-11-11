@@ -74,6 +74,7 @@ export function harnessConfigFiles(home: string, env: { codexHome: string; grokH
     ...["config.toml", "hooks-paths", "managed_config.toml", "requirements.toml"].map(file => join(env.grokHome, file)),
     ...["hooks.json", "cli-config.json"].map(file => join(home, ".cursor", file)),
     ...["hooks.json", "config.json"].map(file => join(home, ".gemini/config", file)),
+    ...["settings.json", "antigravity-cli/settings.json", "antigravity/settings.json"].map(file => join(home, ".gemini", file)),
     ...[".agents", ".agent", "_agents", "_agent"].flatMap(dir => ["hooks.json", "plugins.json"].map(file => join(home, dir, file))),
   ];
   const local = root === null ? [] : [
@@ -130,9 +131,11 @@ export function machineGlobs(home: string, env: MachineDirs, real: (p: string) =
     ...(env.claudeConfig === null ? [] : [{ dir: env.claudeConfig, spelled: "~/.claude", files: settings, trees: [] }]),
     { dir: env.codexHome, spelled: "~/.codex", files: ["hooks.json", "config.toml", "requirements.toml"], trees: ["skills/pregate"] },
     { dir: env.grokHome, spelled: "~/.grok", files: ["config.toml", "hooks-paths", "managed_config.toml", "requirements.toml"], trees: ["hooks", "skills/pregate"] },
-    ...[".agents", ".gemini/antigravity-cli"].map((d) => ({ dir: join(home, d), spelled: `~/${d}`, files: [], trees: ["skills/pregate"] })),
+    { dir: join(home, ".agents"), spelled: "~/.agents", files: ["hooks.json", "plugins.json"], trees: ["skills/pregate", "plugins"] },
+    ...[".gemini/antigravity-cli", ".gemini/antigravity"].map((d) => ({ dir: join(home, d), spelled: `~/${d}`, files: ["settings.json"], trees: ["skills/pregate"] })),
+    { dir: join(home, ".gemini"), spelled: "~/.gemini", files: ["settings.json"], trees: [] },
     { dir: join(home, ".cursor"), spelled: "~/.cursor", files: ["hooks.json", "cli-config.json"], trees: ["skills/pregate", "managed"] },
-    { dir: join(home, ".gemini/config"), spelled: "~/.gemini/config", files: ["hooks.json", "config.json"], trees: ["plugins/pregate"] },
+    { dir: join(home, ".gemini/config"), spelled: "~/.gemini/config", files: ["hooks.json", "config.json"], trees: ["plugins/pregate", "plugins/pregate-global"] },
     { dir: env.data, spelled: "~/.local/share/pregate", files: [], trees: [""] },
     { dir: env.state, spelled: "~/.local/state/pregate", files: [], trees: [""] },
     { dir: join(home, ".local/bin"), spelled: "~/.local/bin", files: ["pregate", "pregate.cmd", "pregate.exe"], trees: [] },

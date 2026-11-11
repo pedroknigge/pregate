@@ -49,11 +49,11 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 // key too many lets the tool run. Halt does not exist (continue:false makes the hook fail and the
 // tool run), nor does ask (Codex treats it as no decision): both leave as the deny text.
 export function encode(kind: HookEvent["kind"], d: Decision): Emission {
-  if (kind !== "stop" && d.verdict === "none" && d.full !== "") {
+  if (kind !== "stop" && kind !== "post-invocation" && d.verdict === "none" && d.full !== "") {
     const hookEventName = kind === "session-start" ? "SessionStart" : "PreToolUse";
     return { stdout: json({ hookSpecificOutput: { hookEventName, additionalContext: d.full } }), stderr: "", exit: 0 };
   }
-  if (kind === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
+  if (kind === "session-start" || kind === "post-invocation" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
   if (kind === "stop") return { stdout: json({ decision: "block", reason: d.full }), stderr: "", exit: 0 };
   return { stdout: "", stderr: d.full, exit: 2 };
 }

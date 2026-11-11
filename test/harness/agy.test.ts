@@ -18,11 +18,14 @@ const raw = (o: unknown): string => JSON.stringify(o);
 const conversation = (n: number): Session => ({ id: `00000000-0000-4000-8000-00000000000${n}`, harness: "agy", agentId: null, turnId: null, interactive: false });
 const causeOf = (e: HookEvent | Rejected | null): string | null => (e !== null && "cause" in e ? e.cause : null);
 const editOf = (e: HookEvent | Rejected | null) => (e as Extract<HookEvent, { kind: "pre-edit" }>).changes[0]!.edit;
-const NOT_REGISTERED = "not registered: agy has no SessionStart, and PostToolUse and the invocation hooks cannot block (MH-25)";
+const NOT_REGISTERED = "not registered: PostToolUse cannot block (MH-25)";
 const OUTSIDE = "outside the PreToolUse matcher (MH-22): it neither writes nor runs anything";
 
 describe("decode: captured payloads", () => {
-  test("PreInvocation ignores later calls and rejects invalid counters", () => {
+  test("SessionStart accepts native payloads without invocationNum; PreInvocation ignores later calls and rejects invalid counters", () => {
+    const native = json("session-start.json");
+    expect(decode("session-start", raw(native), ENV)).toEqual({ kind: "session-start", session: conversation(7), cwd: PROJECT });
+    expect(decode("session-start", raw({ ...native, invocationNum: 0 }), ENV)).toMatchObject({ cause: BAD });
     const first = json("pre-invocation.json");
     expect(decode("session-start", raw({ ...first, invocationNum: 1 }), ENV)).toBeNull();
     for (const invocationNum of [undefined, -1, 0.5, "0"]) {
@@ -77,15 +80,22 @@ describe("decode: captured payloads", () => {
     // The parent stops while its subagent still works: still a Stop of its own (§7 residue).
     "stop-parent-not-idle.json": { event: "stop", out: { kind: "stop", session: conversation(5), cwd: PROJECT, reentry: false } },
     "pre-invocation.json": { event: "session-start", out: { kind: "session-start", session: conversation(1), cwd: PROJECT } },
-    "post-invocation.json": { unregistered: NOT_REGISTERED },
+    "post-invocation.json": { event: "post-invocation", out: { kind: "post-invocation", session: conversation(1), cwd: PROJECT } },
     "post-write_to_file.json": { unregistered: NOT_REGISTERED },
     "post-run_command.json": { unregistered: NOT_REGISTERED },
     "pre-view_file.json": { unregistered: OUTSIDE },
-    // agy 1.5.3: the edit tools are write_file and edit_file with Path, and the envelope has a cwd.
+    // agy 1.5.3+: the edit tools are write_file and edit_file with Path, and the envelope has a cwd and hookEventName.
     "pre-write_file.json": {
       event: "pre", out: {
         kind: "pre-edit", changes: [{
           session: conversation(7), callId: "2", tool: "write_file", path: `${PROJECT}/src/x.ts`, edit: { form: "full", content: "export const one = 1;" }, from: null,
+        }],
+      },
+    },
+    "pre-write_file-append.json": {
+      event: "pre", out: {
+        kind: "pre-edit", changes: [{
+          session: conversation(7), callId: "2", tool: "write_file", path: `${PROJECT}/notes.txt`, edit: { form: "append", text: "line five\n" }, from: null,
         }],
       },
     },
@@ -101,7 +111,16 @@ describe("decode: captured payloads", () => {
       event: "pre",
       out: { kind: "pre-command", command: { session: conversation(9), callId: "2", tool: "run_command", command: "ls src", cwd: PROJECT } },
     },
+    "pre-manage_task-send_input.json": {
+      event: "pre",
+      out: { cause: "shell-write", kind: "pre-edit", reentry: false, session: conversation(7), dirs: [PROJECT, PROJECT] },
+    },
+    "pre-manage_task-status.json": { event: "pre", out: null },
+    "session-start.json": { event: "session-start", out: { kind: "session-start", session: conversation(7), cwd: PROJECT } },
+    "post-invocation-top-cwd.json": { event: "post-invocation", out: { kind: "post-invocation", session: conversation(7), cwd: PROJECT } },
     "stop-top-cwd.json": { event: "stop", out: { kind: "stop", session: conversation(7), cwd: PROJECT, reentry: false } },
+    "stop-user-canceled.json": { event: "stop", out: null },
+    "stop-continuation-active.json": { event: "stop", out: { kind: "stop", session: conversation(7), cwd: PROJECT, reentry: true } },
     "post-write_file.json": { unregistered: NOT_REGISTERED },
     "pre-read_file.json": { unregistered: OUTSIDE },
     "pre-invoke_subagent.json": { unregistered: OUTSIDE },
@@ -111,7 +130,7 @@ describe("decode: captured payloads", () => {
   // agy inherits its parent's environment (a Claude Code or Grok session that launched it) [V].
   test("an inherited environment changes neither the profile nor the event", () => {
     const env = { grokEvent: "pre_tool_use", projectDir: "/home/user/elsewhere", remote: true };
-    for (const file of ["pre-write_to_file.json", "pre-run_command.json"]) {
+    for (const file of ["pre-write_to_file.json", "pre-run_command.json", "pre-write_file.json"]) {
       const text = raw(json(file));
       expect(profile("agy", text, env)).toBe("agy");
       expect(decode("pre", text, env)).toEqual(decode("pre", text, ENV));
@@ -123,9 +142,20 @@ describe("decode: captured payloads", () => {
     expect(decode("pre", raw({ ...json("pre-write_to_file.json"), somethingNew: 1 }), ENV)).toMatchObject({ kind: "pre-edit" });
   });
 
-  test("a Stop with several workspaces runs in the first", () => {
+  test("a Stop, SessionStart, or PostInvocation falls back to envelope cwd when workspacePaths is empty", () => {
     const p = { ...json("stop.json"), workspacePaths: [PROJECT, "/home/user/other"] };
     expect(decode("stop", raw(p), ENV)).toMatchObject({ kind: "stop", cwd: PROJECT });
+    expect(decode("stop", raw({ ...json("stop-top-cwd.json"), workspacePaths: [] }), ENV)).toMatchObject({ kind: "stop", cwd: PROJECT });
+    expect(decode("session-start", raw({ ...json("session-start.json"), workspacePaths: [] }), ENV)).toMatchObject({ kind: "session-start", cwd: PROJECT });
+    expect(decode("post-invocation", raw({ ...json("post-invocation-top-cwd.json"), workspacePaths: [] }), ENV)).toMatchObject({ kind: "post-invocation", cwd: PROJECT });
+  });
+
+  test("Stop ignores USER_CANCELED and TERMINAL_CUSTOM_HOOK, and honors continuationActive", () => {
+    const stop = json("stop-top-cwd.json");
+    expect(decode("stop", raw({ ...stop, terminationReason: "TERMINAL_CUSTOM_HOOK" }), ENV)).toBeNull();
+    expect(decode("stop", raw({ ...stop, executionNum: 0, continuationActive: true }), ENV)).toMatchObject({ kind: "stop", reentry: true });
+    expect(decode("stop", raw({ ...stop, executionNum: 2, continuationActive: false }), ENV)).toMatchObject({ kind: "stop", reentry: false });
+    expect(causeOf(decode("stop", raw({ ...stop, continuationActive: "yes" }), ENV))).toBe(BAD);
   });
 });
 
@@ -220,24 +250,39 @@ describe("decode: edits", () => {
 
 // ── commands (MH-11, MH-06) ──────────────────────────────────────────────────────
 
-describe("decode: the 1.5.3 edit tools", () => {
+describe("decode: the 1.5.3+ edit and task tools", () => {
   const write = json("pre-write_file.json") as { toolCall: { name: string; args: Record<string, unknown> } };
   const edit = json("pre-edit_file.json") as { toolCall: { name: string; args: Record<string, unknown> } };
   const withArgs = (base: typeof write, args: Record<string, unknown>, name = base.toolCall.name) => raw({ ...base, toolCall: { ...base.toolCall, name, args } });
 
-  test("write_file writes the whole content, with or without Overwrite", () => {
+  test("write_file writes the whole content, appends without Overwrite, and marks Append+Overwrite unknown", () => {
     const { Overwrite: _, ...rest } = write.toolCall.args;
     expect(editOf(decode("pre", withArgs(write, rest), ENV))).toEqual({ form: "full", content: "export const one = 1;" });
     expect(editOf(decode("pre", withArgs(write, { ...rest, Overwrite: false }), ENV))).toEqual({ form: "full", content: "export const one = 1;" });
+    expect(editOf(decode("pre", withArgs(write, { ...rest, Append: true }), ENV))).toEqual({ form: "append", text: "export const one = 1;" });
+    expect(editOf(decode("pre", withArgs(write, { ...rest, Append: true, Overwrite: false }), ENV))).toEqual({ form: "append", text: "export const one = 1;" });
+    expect(editOf(decode("pre", withArgs(write, { ...rest, Append: false }), ENV))).toEqual({ form: "full", content: "export const one = 1;" });
+    expect(editOf(decode("pre", withArgs(write, { ...write.toolCall.args, Append: true }), ENV))).toEqual({ form: "unknown", cause: "write_file" });
   });
   test("an argument outside the closed set, on either tool: the edit cannot be rebuilt", () => {
-    expect(editOf(decode("pre", withArgs(write, { ...write.toolCall.args, Append: true }), ENV))).toEqual({ form: "unknown", cause: "write_file" });
+    expect(editOf(decode("pre", withArgs(write, { ...write.toolCall.args, Encoding: "utf8" }), ENV))).toEqual({ form: "unknown", cause: "write_file" });
     expect(editOf(decode("pre", withArgs(edit, { ...edit.toolCall.args, AllowMultiple: true }), ENV))).toEqual({ form: "unknown", cause: "edit_file" });
   });
   test("a wrong type is a changed contract", () => {
     expect(causeOf(decode("pre", withArgs(write, { ...write.toolCall.args, Content: 1 }), ENV))).toBe(BAD);
+    expect(causeOf(decode("pre", withArgs(write, { ...write.toolCall.args, Append: "true" }), ENV))).toBe(BAD);
     expect(causeOf(decode("pre", withArgs(edit, { ...edit.toolCall.args, Target: null }), ENV))).toBe(BAD);
     expect(causeOf(decode("pre", withArgs(write, { ...write.toolCall.args, Path: "src/x.ts" }), ENV))).toBe(BAD);
+  });
+  test("manage_task refuses send_input as shell-write, ignores list/status/kill, and rejects unknown actions", () => {
+    expect(decode("pre", withArgs(write, { Action: "send_input", TaskId: "t1", Input: "y\n" }, "manage_task"), ENV)).toEqual({
+      cause: "shell-write", kind: "pre-edit", reentry: false, session: conversation(7), dirs: [PROJECT, PROJECT],
+    });
+    for (const Action of ["list", "status", "kill"]) {
+      expect(decode("pre", withArgs(write, { Action, TaskId: "t1" }, "manage_task"), ENV)).toBeNull();
+    }
+    expect(causeOf(decode("pre", withArgs(write, { Action: "exec" }, "manage_task"), ENV))).toBe(BAD);
+    expect(causeOf(decode("pre", withArgs(write, {}, "manage_task"), ENV))).toBe(BAD);
   });
   test("a write tool with no captured shape is unknown at its path, and refused without one", () => {
     for (const name of ["create_file", "delete_file", "rename_file", "notebook_edit"]) {
@@ -332,7 +377,15 @@ describe("decode: anything else is rejected as payload-unrecognized", () => {
 
   test.each([
     ["stop", WRITE], ["pre", "stop.json"], ["pre", "pre-invocation.json"], ["session-start", "stop.json"], ["session-start", WRITE],
+    ["pre", "post-invocation-top-cwd.json"], ["post-invocation", "pre-write_file.json"], ["post-invocation", "session-start.json"],
+    ["session-start", "post-invocation-top-cwd.json"],
   ] as [HookKind, string][])("hook %s receiving %s", (event, file) => expect(causeOf(decode(event, raw(json(file)), ENV))).toBe(BAD));
+
+  test("mismatched or non-string hookEventName is rejected", () => {
+    expect(causeOf(decode("pre", raw({ ...json("pre-write_file.json"), hookEventName: "PostToolUse" }), ENV))).toBe(BAD);
+    expect(causeOf(decode("pre", raw({ ...json("pre-write_file.json"), hookEventName: 1 }), ENV))).toBe(BAD);
+    expect(causeOf(decode("post-invocation", raw({ ...json("post-invocation-top-cwd.json"), invocationNum: -1 }), ENV))).toBe(BAD);
+  });
 
   test.each(["", "not json", "[]", "null", "42", '{"conversationId":"x"'])("stdin %p", (text) => {
     expect(causeOf(decode("pre", text, ENV))).toBe(BAD);
@@ -423,12 +476,26 @@ describe("encode", () => {
     expect(enc("stop", decide(input({ event: "stop", introduced: [v("core/FCIS-IO-001", 4)], stop })))).toEqual(NEUTRAL);
   });
 
-  test("PreInvocation context uses ephemeralMessage; a rejection stays neutral", () => {
+  test("SessionStart context uses systemMessage; a rejection stays neutral", () => {
     expect(enc("session-start", { ...decide(input({})), full: "PREGATE is active: …" })).toEqual({
-      stdout: raw({ injectSteps: [{ ephemeralMessage: "PREGATE is active: …" }] }) + "\n", stderr: "", exit: 0,
+      stdout: raw({ injectSteps: [{ systemMessage: { systemMessage: "PREGATE is active: …" } }] }) + "\n", stderr: "", exit: 0,
     });
     const d = decide(input({ introduced: [v("core/FCIS-IO-001", 4)] }));
     expect(enc("session-start", d)).toEqual(NEUTRAL);
+  });
+
+  test("PostInvocation injects warnings as systemMessage and terminates halted turns with errorMessage", () => {
+    expect(enc("post-invocation", decide(input({})))).toEqual(NEUTRAL);
+    const warn = decide(input({ introduced: [v("core/CA-DEP-002", 3)] }));
+    expect(warn.verdict).toBe("none");
+    expect(enc("post-invocation", warn)).toEqual({
+      stdout: raw({ injectSteps: [{ systemMessage: { systemMessage: warn.full } }] }) + "\n", stderr: "", exit: 0,
+    });
+    const halt = decide(input({ introduced: [v("core/FCIS-IO-001", 4)], turnDenials: LOCK.loop.maxDenialsPerTurn }));
+    expect(halt.halt).toBe(true);
+    expect(enc("post-invocation", halt)).toEqual({
+      stdout: raw({ injectSteps: [{ errorMessage: { userMessage: halt.notice } }], terminationBehavior: "terminate" }) + "\n", stderr: "", exit: 0,
+    });
   });
 
   test("a refused call denies through the event's channel; a Stop on reentry lets the turn end", () => {
@@ -453,8 +520,12 @@ describe("encode", () => {
       expect(e.stderr).toBe("");
       if (e.stdout !== "") {
         const out = JSON.parse(e.stdout);
-        if (out.injectSteps) expect(out.injectSteps[0].ephemeralMessage).toBe("PREGATE is active: …");
-        else expect(["deny", "continue"]).toContain(out.decision);
+        if (out.injectSteps) {
+          const step = out.injectSteps[0];
+          expect(typeof step.systemMessage?.systemMessage === "string" || (typeof step.errorMessage?.userMessage === "string" && out.terminationBehavior === "terminate")).toBe(true);
+        } else {
+          expect(["deny", "continue"]).toContain(out.decision);
+        }
       }
     }
   });

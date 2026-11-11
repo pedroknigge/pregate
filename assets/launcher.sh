@@ -114,6 +114,8 @@ fail_closed() {
   session-start)
     [ -z "$claude" ] || printf '{"systemMessage":"PREGATE could not prepare this session: %s. %s"}\n' "$2" "$hint"
     exit 0 ;;
+  post-invocation)
+    exit 0 ;;
   *) why="PREGATE could not evaluate: $1; report it to the user" ;;
   esac
   printf '%.256s\n' "$why" >&4

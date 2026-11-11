@@ -30,6 +30,7 @@ export { grammars, lockOf, onSessionStart, sourceDirs, sourcesOf };
 const NUDGE_EVERY_MS = 24 * 3_600_000;
 
 export async function sessionStart(e: Extract<HookEvent, { kind: "session-start" }>): Promise<Decision> {
+  if (e.session.harness === "agy") state.clearPostInvocation(state.key(e.session));
   const decision = onSessionStart(e);
   if (!decision.full.includes("PREGATE is active:")) return decision;
   const line = await promotionLine(e.cwd);
@@ -60,12 +61,22 @@ type Held = { root: string; loaded: Loaded | Cause; lock: Lock | null; rel: stri
 
 export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const rec = await import("./recorded.ts");
-  return rec.onPreEdit(changes);
+  const d = await rec.onPreEdit(changes);
+  if (changes[0]?.session.harness === "agy") state.queuePostInvocation(state.key(changes[0].session), d);
+  return d;
 }
 
 export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs?: number): Promise<Decision> {
+  if (e.session.harness === "agy") state.clearPostInvocation(state.key(e.session));
   const ses = await import("./session-command.ts");
   return ses.onStop(e, budgetMs);
+}
+
+export function onPostInvocation(e: Extract<HookEvent, { kind: "post-invocation" }>): Decision {
+  if (e.session.harness !== "agy") return told(null);
+  const { halt, warnings } = state.drainPostInvocation(state.key(e.session));
+  if (halt !== null) return { ...told(halt), verdict: "deny", halt: true };
+  return warnings.length > 0 ? told(null, warnings.join("\n\n")) : told(null);
 }
 
 export async function check(root: string, m: CheckMode, format: "agent" | "sarif" = "agent"): Promise<{ code: 0 | 1; text: string }> {
@@ -79,6 +90,12 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
 // no root writes nothing, and the guard denies only what holds machine-wide unless a path of the
 // command reaches a root (MH-17).
 export function onPreCommand(c: ProposedCommand): Decision {
+  const d = evaluatePreCommand(c);
+  if (c.session.harness === "agy") state.queuePostInvocation(state.key(c.session), d);
+  return d;
+}
+
+function evaluatePreCommand(c: ProposedCommand): Decision {
   const startedAt = clock();
   const sid = state.key(c.session);
   const cwd = canonical(c.cwd);
@@ -216,7 +233,7 @@ function harnessConfigurationRead(sid: string, root: string | null, path: string
     const sources = roots.flatMap(r => sourceDirs(readText(join(r, PRESET)) ?? "").map(dir => canonical(resolve(r, dir))));
     // Configuration symlinks cannot turn private state, installation or rule sources into inputs.
     return ![canonical(state.stateDir()), canonical(engineHome()), ...sources].some(dir => within(dir, actual))
-      && !["**/.pregate", "**/.git", "**/skills/pregate", "**/.gemini/config/plugins/pregate"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
+      && !["**/.pregate", "**/.git", "**/skills/pregate", "**/.gemini/config/plugins/pregate", "**/.gemini/config/plugins/pregate-global"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
       && !matches("**/.local/bin/pregate", actual);
   } catch (error) {
     if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return false;

@@ -488,7 +488,7 @@ const agy = (paths: string | undefined): string => {
 
 test("the fixture holds the registered commands", () => {
   expect(Object.keys(HOOK_COMMAND).sort()).toEqual([
-    "pre agy", "pre claude-code", "pre codex", "session-start agy", "session-start claude-code", "session-start codex", "stop agy", "stop claude-code", "stop codex",
+    "post-invocation agy", "pre agy", "pre claude-code", "pre codex", "session-start agy", "session-start claude-code", "session-start codex", "stop agy", "stop claude-code", "stop codex",
   ]);
 });
 
@@ -536,6 +536,7 @@ test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, P
     neutral(call(agy(JSON.stringify([`${OUTSIDE}/a"b`]))));
     neutral(call(agy("[]")));
     neutral(run([sh, "-c", command(i, "stop", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
+    neutral(run([sh, "-c", command(i, "post-invocation", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
   }
 });
 
