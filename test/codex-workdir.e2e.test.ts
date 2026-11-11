@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { engineAt } from "./compiled-engine.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
+import { H } from "../src/state.ts";
 
 // Codex 0.166.0 hook path through the compiled pregate binary. Payloads follow the captures in
 // test/payloads/codex/*-166.json and pre-bash-workdir-*.json: Bash `cwd` is the command workdir,
@@ -66,6 +67,11 @@ beforeAll(() => {
     const ready = run(["init", "--yes", "--preset", "legacy-safe"], "", dir);
     expect(ready.code, ready.text).toBe(0);
   }
+  const activePath = join(repo, ".pregate/preset.json");
+  const active = JSON.parse(readFileSync(activePath, "utf8"));
+  writeFileSync(activePath, JSON.stringify({ ...active, enforcement: "enforce" }));
+  const enforcing = run(["preset", "compile", "--yes"]);
+  expect(enforcing.code, enforcing.text).toBe(0);
   const presetPath = join(other, ".pregate/preset.json");
   const preset = JSON.parse(readFileSync(presetPath, "utf8")) as { scope: { include: string[]; exclude: string[] } };
   preset.scope = { include: ["only-b/**"], exclude: [] };
@@ -142,4 +148,70 @@ test("Codex 0.166 workdir payloads keep the session project and block a write th
 
   const after = stop();
   expect(after.code, after.text).toBe(before.code);
+});
+
+test("Codex child lifecycle preserves the parent's baseline and checks only its own edits", () => {
+  const id = "codex-lifecycle", agent = "worker";
+  const base = { session_id: id, turn_id: "turn", cwd: spell(repo), transcript_path: null, permission_mode: "bypassPermissions" };
+  const lifecycle = (event: string, child = false) => JSON.stringify({ ...base, hook_event_name: event, ...(child ? { agent_id: agent, agent_type: "default" } : {}), stop_hook_active: false });
+  const start = hook("session-start", lifecycle("SessionStart"));
+  expect(start.code, start.text).toBe(0);
+  const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(repo), "snapshot.json");
+  const before = readFileSync(snap, "utf8");
+  const childStart = hook("session-start", lifecycle("SubagentStart", true));
+  expect(childStart.code, childStart.text).toBe(0);
+  const context = JSON.parse(childStart.stdout).hookSpecificOutput;
+  expect(context.hookEventName).toBe("SubagentStart");
+  expect(context.additionalContext).toContain("PREGATE is active:");
+  expect(context.additionalContext).toContain("use absolute paths");
+  expect(context.additionalContext).toContain(repo);
+  expect(readFileSync(snap, "utf8")).toBe(before);
+
+  const file = join(repo, "src/lifecycle.ts"), good = "export const value = 1;\n";
+  const edit = hook("pre", JSON.stringify({ ...base, agent_id: agent, hook_event_name: "PreToolUse", tool_name: "apply_patch", tool_use_id: "exec-lifecycle",
+    tool_input: { command: `*** Begin Patch\n*** Add File: ${spell(file)}\n+${good.trim()}\n*** End Patch\n` } }));
+  expect(edit.code, edit.text).toBe(0);
+  writeFileSync(file, "export const value = ;\n");
+  const parent = hook("stop", lifecycle("Stop"));
+  expect(JSON.parse(parent.stdout).decision).toBe("block");
+  const blocked = hook("stop", lifecycle("SubagentStop", true));
+  expect(blocked.stdout, blocked.text).not.toBe("");
+  expect(JSON.parse(blocked.stdout).decision).toBe("block");
+  expect(blocked.stdout).toContain("syntax");
+  writeFileSync(file, good);
+  const repaired = hook("stop", lifecycle("SubagentStop", true));
+  expect(repaired.code, repaired.text).toBe(0);
+  expect(repaired.stdout).toBe("");
+  writeFileSync(file, "export const value = ;\n");
+  const finished = hook("stop", lifecycle("Stop"));
+  expect(JSON.parse(finished.stdout).decision).toBe("block");
+  expect(finished.stdout).toContain("lifecycle.ts");
+  writeFileSync(file, good);
+});
+
+test("an inactive Codex child receives no setup notice", () => {
+  const out = hook("session-start", JSON.stringify({ session_id: "inactive-child", cwd: spell(outside), hook_event_name: "SubagentStart", agent_id: "child" }));
+  expect(out.code, out.text).toBe(0);
+  expect(out.stdout).toBe("");
+});
+
+test("an older engine pin retains parent Stop routing and does not receive new child events", () => {
+  const old = join(area, "older-pin");
+  git(old);
+  const ready = run(["init", "--yes", "--preset", "legacy-safe"], "", old);
+  expect(ready.code, ready.text).toBe(0);
+  const base = { session_id: "older-pin", cwd: spell(old), stop_hook_active: false };
+  const started = run(["hook", "session-start", "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: "SessionStart" }), old);
+  expect(started.code, started.text).toBe(0);
+  const path = join(old, ".pregate/pregate.lock.json");
+  const lock = JSON.parse(readFileSync(path, "utf8"));
+  writeFileSync(path, JSON.stringify({ ...lock, engine: "0.0.1" }));
+  for (const [kind, event] of [["session-start", "SubagentStart"], ["stop", "SubagentStop"]] as const) {
+    const out = run(["hook", kind, "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: event, agent_id: "worker" }), old);
+    expect(out.code, out.text).toBe(0);
+    expect(out.stdout).toBe("");
+  }
+  const parent = run(["hook", "stop", "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: "Stop" }), old);
+  expect(parent.code, parent.text).toBe(3);
+  expect(parent.stdout.trim()).toBe("0.0.1");
 });

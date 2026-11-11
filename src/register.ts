@@ -32,7 +32,7 @@ const MATCHER: Record<Exclude<Target, "cursor">, string> = {
   agy: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
 };
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
-const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
+const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
 const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
 const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { ${MISSING}; }; done; exit 0`;
@@ -264,7 +264,8 @@ function ours(t: Target, data: string): Record<string, object> {
   if (t === "agy") return { PreToolUse: pre, Stop: run("stop", 60), PreInvocation: run("session-start", 15) };
   const stop = { hooks: [run("stop", 60)] };
   if (t === "shared" || t === "project") return { PreToolUse: pre, Stop: stop, SubagentStop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
-  return { PreToolUse: pre, Stop: stop, SessionStart: { hooks: [run("session-start", 15)] } };
+  const start = { hooks: [run("session-start", 15)] };
+  return { PreToolUse: pre, Stop: stop, SessionStart: start, SubagentStart: start, SubagentStop: stop };
 }
 
 // agy uses PreInvocation rather than SessionStart; the adapter ignores invocationNum > 0.

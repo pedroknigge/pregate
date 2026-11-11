@@ -13,6 +13,8 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 // The payload has no version field and the same shape as 0.159.2, so an older CLI cannot be told
 // apart and is not supported.
 export const VERIFIED = "0.167.0";
+// Latest CLI exercised by the native project-hooks and child-lifecycle scenario.
+export const TESTED = "0.167.1";
 
 const CLI_VERSION = /^codex(?:-cli)?\s+(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\b/;
 
@@ -23,7 +25,7 @@ export function cliVersion(versionText: string): string | null {
 }
 
 const BAD: Cause = "payload-unrecognized";
-const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SessionStart: "session-start" };
+const EVENTS: Record<string, HookKind> = { PreToolUse: "pre", Stop: "stop", SubagentStop: "stop", SessionStart: "session-start", SubagentStart: "session-start" };
 const BEGIN = "*** Begin Patch";
 const END = "*** End Patch";
 const ADD = "*** Add File: ";
@@ -40,20 +42,26 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   const p = parse(raw);
   const session = p === null ? null : sessionOf(p);
   if (p === null || session === null || !absolute(p.cwd) || named(p) !== event) return refuse(event, p, env);
-  if (event === "session-start") return { kind: "session-start", session, cwd: p.cwd };
-  if (event === "stop") return typeof p.stop_hook_active === "boolean" ? { kind: "stop", session, cwd: p.cwd, reentry: p.stop_hook_active } : refuse(event, p, env);
+  if (event === "session-start" || event === "stop") {
+    const child = p.hook_event_name === "SubagentStart" || p.hook_event_name === "SubagentStop";
+    if (child !== (session.agentId !== null) || (child && session.agentId === "")) return refuse(event, p, env);
+    if (event === "session-start") return { kind: "session-start", session, cwd: p.cwd };
+    return typeof p.stop_hook_active === "boolean" ? { kind: "stop", session, cwd: p.cwd, reentry: p.stop_hook_active } : refuse(event, p, env);
+  }
   return tool(p, session, p.cwd, env) ?? refuse(event, p, env);
 }
 
 // MH-14. A deny is stderr and exit 2 only: Codex ignores stdout on exit 2, and a JSON reply with one
 // key too many lets the tool run. Halt does not exist (continue:false makes the hook fail and the
 // tool run), nor does ask (Codex treats it as no decision): both leave as the deny text.
-export function encode(kind: HookEvent["kind"], d: Decision): Emission {
+export function encode(kind: HookEvent["kind"], d: Decision, subagent = false): Emission {
   if (kind !== "stop" && d.verdict === "none" && d.full !== "") {
-    const hookEventName = kind === "session-start" ? "SessionStart" : "PreToolUse";
+    const hookEventName = kind === "session-start" ? subagent ? "SubagentStart" : "SessionStart" : "PreToolUse";
     return { stdout: json({ hookSpecificOutput: { hookEventName, additionalContext: d.full } }), stderr: "", exit: 0 };
   }
-  if (kind === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
+  if (kind === "session-start" || d.verdict === "none") {
+    return { stdout: !subagent && d.notice !== null ? json({ systemMessage: d.notice }) : "", stderr: "", exit: 0 };
+  }
   if (kind === "stop") return { stdout: json({ decision: "block", reason: d.full }), stderr: "", exit: 0 };
   return { stdout: "", stderr: d.full, exit: 2 };
 }

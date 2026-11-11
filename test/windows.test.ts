@@ -177,6 +177,7 @@ test("supervisor failures preserve event dialects and Codex's nonempty stderr re
   expect(launcherFailure("pre", false, "{}", "engine crashed").stderr).toContain("engine crashed");
   expect(JSON.parse(launcherFailure("stop", true, "{}", "timeout").stdout).decision).toBe("block");
   expect(launcherFailure("stop", true, '{"stop_hook_active":true}', "timeout").exit).toBe(0);
-  expect(launcherFailure("stop", false, "{}", "timeout")).toEqual({ exit: 0, stdout: "", stderr: "" });
+  expect(JSON.parse(launcherFailure("stop", false, "{}", "timeout").stdout).systemMessage).toContain("timeout");
+  for (const harness of ["cursor", "grok", "agy"] as const) expect(launcherFailure("stop", false, "{}", "timeout", harness)).toEqual({ exit: 0, stdout: "", stderr: "" });
   expect(JSON.parse(launcherFailure("session-start", true, "{}", "missing").stdout).systemMessage).toContain("missing");
 });

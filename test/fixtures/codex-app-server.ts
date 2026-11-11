@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { codexProjectTrust } from "../../src/register.ts";
 
 // A stand-in for `codex app-server` 0.159.2, the three methods MH-24 uses, over JSON-RPC lines on
 // stdio. It keeps the rules harness-codex-live §1 verified: a user hook's key is
@@ -9,7 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 // CODEX_FAKE_REFUSE_TRUST=1 accepts the batchWrite and does not record it, so the next list still
 // says the PREGATE hooks are untrusted. Foreign trust that was already recorded stays.
 
-type Hook = { key: string; trustStatus: string; currentHash: string };
+type Hook = { key: string; trustStatus: string; currentHash: string; enabled: boolean };
 
 const HOME = process.env.CODEX_HOME!;
 const FILE = `${HOME}/hooks.json`;
@@ -21,7 +23,7 @@ const emit = (line: string): void => {
   out.write(line);
   out.flush();
 };
-const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
+const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const STATE = /^\[hooks\.state\."([^"]+)"\]\ntrusted_hash = "([^"]*)"\n?/gm;
 
 const text = (path: string): string => {
@@ -36,15 +38,23 @@ function trusted(): Map<string, string> {
   return new Map([...text(CONFIG).matchAll(STATE)].map((m) => [m[1]!, m[2]!]));
 }
 
-function list(): Hook[] {
-  const hooks = (JSON.parse(text(FILE) || "{}") as { hooks?: Record<string, { matcher?: string; hooks?: object[] }[]> }).hooks ?? {};
+function list(file = FILE): Hook[] {
+  const hooks = (JSON.parse(text(file) || "{}") as { hooks?: Record<string, { matcher?: string; hooks?: object[] }[]> }).hooks ?? {};
   const state = trusted();
   return Object.entries(hooks).flatMap(([event, groups]) => groups.flatMap((g, i) => (g.hooks ?? []).map((h, j) => {
-    const key = `${FILE}:${SNAKE[event] ?? event}:${i}:${j}`;
+    const key = `${file}:${SNAKE[event] ?? event}:${i}:${j}`;
     const currentHash = `sha256:${createHash("sha256").update(JSON.stringify([event, g.matcher ?? null, h])).digest("hex")}`;
     const t = state.get(key);
-    return { key, currentHash, trustStatus: t === undefined ? "untrusted" : t === currentHash ? "trusted" : "modified" };
+    return { key, currentHash, enabled: process.env.CODEX_FAKE_DISABLED_EVENT !== event, trustStatus: t === undefined ? "untrusted" : t === currentHash ? "trusted" : "modified" };
   })));
+}
+
+function discovered(cwd: string): Hook[] {
+  const all = list();
+  for (let dir = cwd; ; dir = dirname(dir)) {
+    if (codexProjectTrust(text(CONFIG), dir) === "trusted") all.push(...list(join(dir, ".codex/hooks.json")));
+    if (dirname(dir) === dir) return all;
+  }
 }
 
 function trust(value: Record<string, { trusted_hash: string }>): void {
@@ -56,7 +66,11 @@ function trust(value: Record<string, { trusted_hash: string }>): void {
 
 function answer(method: string, params: Record<string, unknown>): unknown {
   if (method === "initialize") return { userAgent: "codex-fake" };
-  if (method === "hooks/list") return { data: [{ cwd: null, hooks: list() }] };
+  if (method === "config/read") return { config: { features: { hooks: process.env.CODEX_FAKE_HOOKS_OFF !== "1" } } };
+  if (method === "hooks/list") {
+    const cwds = params.cwds as string[];
+    return { data: cwds.length === 0 ? [{ cwd: null, hooks: list() }] : cwds.map((cwd) => ({ cwd, hooks: discovered(cwd), errors: [] })) };
+  }
   const [edit] = params.edits as { keyPath: string; mergeStrategy: string; value: Record<string, { trusted_hash: string }> }[];
   if (method !== "config/batchWrite" || edit?.keyPath !== "hooks.state" || edit.mergeStrategy !== "upsert") throw new Error(`unsupported ${method}`);
   trust(edit.value);
@@ -64,7 +78,7 @@ function answer(method: string, params: Record<string, unknown>): unknown {
 }
 
 if (process.argv[2] === "trust-all") {
-  trust(Object.fromEntries(list().map((h) => [h.key, { trusted_hash: h.currentHash }])));
+  trust(Object.fromEntries((process.argv[3] === undefined ? list() : discovered(process.argv[3])).map((h) => [h.key, { trusted_hash: h.currentHash }])));
 } else if (process.argv[2] === "app-server") {
   let buffer = "";
   for await (const chunk of Bun.stdin.stream()) {

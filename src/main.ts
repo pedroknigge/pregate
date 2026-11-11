@@ -42,15 +42,20 @@ async function main(argv: string[]): Promise<number> {
   const adapter = HARNESSES[harness];
   const decoded = ours && KINDS.has(kind) ? adapter.decode(kind as HookKind, raw, env) : refused(kind);
   const e = input.invalid ? inputRejection(decoded, kind) : decoded;
+  const subagent = harness === "codex" && e !== null && e.kind === "session-start" && (e.session?.agentId ?? null) !== null;
+  if (subagent && inert(e)) return 0;
   if (e === null || inert(e)) return dormant(e, adapter);
   checkpoint("admission");
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
+  // Older pinned engines keep their parent Stop; they may not understand either child event.
+  const childLifecycle = harness === "codex" && e.kind !== "pre-edit" && e.kind !== "pre-command" && e.session?.agentId != null;
+  if (pin !== null && childLifecycle) return 0;
   if (pin !== null) {
     writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;
   }
-  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut)) : adapter.encode(e.kind, await dispatch(e, gate));
+  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut), subagent) : adapter.encode(e.kind, await dispatch(e, gate), subagent);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);

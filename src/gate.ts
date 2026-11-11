@@ -33,6 +33,11 @@ const NUDGE_EVERY_MS = 24 * 3_600_000;
 export async function sessionStart(e: Extract<HookEvent, { kind: "session-start" }>): Promise<Decision> {
   const decision = onSessionStart(e);
   if (!decision.full.includes("PREGATE is active:")) return decision;
+  if (e.session.agentId !== null) {
+    if (e.session.harness !== "codex") return decision;
+    const root = findRoot(canonical(e.cwd), enabled);
+    return { ...decision, full: `${decision.full}\nWorkspace root: ${JSON.stringify(root)}. Codex apply_patch: use absolute paths, name each file once, and include context in update hunks.` };
+  }
   const line = await promotionLine(e.cwd);
   return line === null ? decision : { ...decision, full: `${decision.full}\n${line}` };
 }
