@@ -180,6 +180,13 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
   return { compact, full: `${detail === null ? compact : headline}${help}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}` };
 }
 
+// Advisor mode does not block a grammar failure. The file was not evaluated, so the text must not say it was clean.
+export function syntaxAdvisory(f: Form, rel: string | null): Text {
+  const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const compact = clip(`PREGATE WARN syntax${at}: parse failure. This file does not parse, so its rules were not evaluated. Fix the syntax error and resend.`, LINE_MAX);
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX) };
+}
+
 // The literal invocation the shell guard allows (ARCHITECTURE §4.2; MH-29: `pregate` on the PATH or
 // the global launcher's absolute path). A path that would not survive as one shell word, or that `safe` would alter, becomes <file>: a
 // pre-check on another path can fall in another layer and give another verdict.
