@@ -31,6 +31,7 @@ usage:
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
   pregate layers [--json] | layers apply <layers.json> --preview [--complete]
+  pregate import arkgate --preview [--config <path>]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

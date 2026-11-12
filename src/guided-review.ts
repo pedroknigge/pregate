@@ -37,7 +37,9 @@ function layerLines(root: string, lock: Lock, files: Files): string[] {
   const notes = Bun.deepEquals(derived.layers, lock.layers ?? {}) ? derived.notes : [];
   const may = (layer: Layer) => layer.mayImport.includes("*") ? "may import any code" : layer.mayImport.length ? `may import ${layer.mayImport.join(", ")}` : "imports no other layer";
   if (!layers.length || Bun.deepEquals(current, lock.layers)) return notes;
+  const owned = lock.rules.filter(rule => rule.impl.kind === "primitive" && rule.impl.primitive === "layer-edge" && lock.ownedByArkgate.includes(rule.id)).map(rule => rule.id);
   return [`Layers to review: ${layers.map(([name, layer]) => `${name} (${layer.kind}; ${may(layer)})`).join("; ")}.`, ...notes,
+    ...(owned.length ? [`coexist.arkgate owns ${owned.join(", ")}; PREGATE does not evaluate those rules.`] : []),
     ...layerEvidenceLines(layerEvidence(files, lock.layers), lock.ratchet, newBreak(lock))];
 }
 

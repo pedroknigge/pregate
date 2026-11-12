@@ -70,6 +70,7 @@ const USAGE = `usage:
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
   pregate layers [--json] | layers apply <layers.json> --preview [--complete]
+  pregate import arkgate --preview [--config <path>]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]
@@ -133,6 +134,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "init": return init(args);
     case "scan": return scan(args);
     case "layers": return layers(args);
+    case "import": return (await import("./arkgate-command.ts")).importArkgate(args);
     case "demo": return (await import("./demo-command.ts")).demo(args);
     case "report": return report(args);
     case "session": return (await import("./session-command.ts")).sessionCommand(args);

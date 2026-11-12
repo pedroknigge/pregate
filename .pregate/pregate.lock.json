@@ -140,6 +140,8 @@
         "src/rules-add-command.ts",
         "src/git-changes.ts",
         "src/loosening.ts",
+        "src/arkgate-import.ts",
+        "src/arkgate-command.ts",
         "src/ci/**"
       ]
     }
@@ -166,7 +168,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "e8028e3310be72b2b506d113bbe111564dd2bccb9658ca4eb2e1411f15435ad0",
+  "presetHash": "d62245cbc479d49a96154e1549fa61ac8ea91ed5387fd318193b8e556b181c41",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5458,6 +5460,8 @@
           "src/rules-add-command.ts",
           "src/git-changes.ts",
           "src/loosening.ts",
+          "src/arkgate-import.ts",
+          "src/arkgate-command.ts",
           "src/ci/**"
         ]
       },

@@ -9,7 +9,7 @@ import { inlineSink, nodeFile, noNewNodeSinks } from "./inline-sinks.ts";
 const HELP_COMMANDS = new Set([
   "check", "audit", "promote", "fitness", "init", "scan", "demo", "report", "feedback", "storage", "dispute", "issue", "pack", "explain",
   "preset", "rules", "rules test", "rules draft", "rules add", "status", "approve", "enable", "disable", "install", "prepare", "project", "project launcher", "project hooks", "project setup", "setup", "update", "uninstall", "doctor", "guide", "session", "session rebase",
-  "ci", "ci detect", "ci status", "ci wait",
+  "ci", "ci detect", "ci status", "ci wait", "import", "import arkgate",
   "preset apply", "preset compile", "preset diagnose", "preset show", "preset schema", "preset request-schema",
   "pack list", "pack show", "pack init", "pack add", "pack apply", "pack restore", "pack update", "pack enable", "pack disable", "pack remove",
   "fitness status", "fitness run", "fitness plan", "fitness fingerprint", "fitness bind", "issue list", "issue draft", "issue show", "issue submit",
@@ -1159,11 +1159,20 @@ function pregate(args: Word[], guideAllowed: boolean): Cause | null {
 function proposal(args: Word[]): boolean {
   if (!args.every((w) => w.literal && w.subs.length === 0) || args.some((w) => w.text === "--yes" || w.text === "--digest")) return false;
   const [verb, ...rest] = args.map((w) => w.text);
+  if (verb === "import") return importPreview(rest);
   if (verb !== "layers" && verb !== "compile") return false;
   const flags = rest.filter((text) => text.startsWith("-")), operands = rest.filter((text) => !text.startsWith("-"));
   if (operands[0] === "apply") return operands.length === 2 && flags.includes("--preview") && flags.every((flag) => flag === "--preview" || (verb === "layers" && flag === "--complete"));
   if (verb === "layers") return operands.length === 0 && flags.every((flag) => flag === "--json");
   return operands.length === 1 && flags.length <= 1 && flags.every((flag) => ["--json", "--template", "--preview"].includes(flag));
+}
+
+// `import arkgate --preview` prepares one pending review. The config path is one literal operand.
+function importPreview(rest: string[]): boolean {
+  const flags = rest.filter((text) => text.startsWith("-")), operands = rest.filter((text) => !text.startsWith("-"));
+  const config = flags.filter((flag) => flag === "--config").length;
+  return operands[0] === "arkgate" && config <= 1 && flags.filter((flag) => flag === "--preview").length === 1
+    && flags.every((flag) => flag === "--preview" || flag === "--config") && operands.length === (config === 0 ? 1 : 2);
 }
 
 function wrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {

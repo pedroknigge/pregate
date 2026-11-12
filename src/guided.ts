@@ -9,6 +9,7 @@ import { visible } from "./contract.ts";
 import { canonical, findRoot, readTree } from "./disk.ts";
 import { grammars, LOCK, PRESET, readText, VERSIONS } from "./gate.ts";
 import { git } from "./git.ts";
+import { arkgateNotice } from "./arkgate-import.ts";
 import { init, repoFiles } from "./init.ts";
 import { librarySource } from "./library.ts";
 import { describeCi } from "./ci/detect.ts";
@@ -127,6 +128,7 @@ export async function inspectProject(directory: string) {
   const actions = projectActions(state, installation, coverage?.outsideScope.length ?? 0, recommendations.map(item => item.ns));
   return { schemaVersion: 1, root, engine: VERSIONS, state, consent: status.consent, installation,
     projectVersions: diagnosis?.project ?? null, coverage, coverageState, proposedScope: initialScope, stack, recommendations, discovery, documentation,
+    arkgate: arkgateNotice(root, validPreset),
     layerWarnings: validPreset ? emptyLayerLines(validPreset.layers, Object.keys(files)) : [],
     globWarnings: validPreset ? status.globWarnings : [],
     onboarding: !established ? { scanSuggested: true, customPack: documentation.customPack,
@@ -167,6 +169,7 @@ function card(info: Awaited<ReturnType<typeof inspectProject>>): string {
     ...(info.discovery.changedPacks.length ? [`Updated packs: ${info.discovery.changedPacks.map(pack => pack.ns).join(", ")}. Review their current rules and limits.`] : []),
     ...(info.discovery.suggestedAdditions.length ? [`Missing suggested methodologies: ${info.discovery.suggestedAdditions.flatMap(item => item.methodologies).join(", ")}. Review them together with guide; packs stay optional.`] : []),
     ...info.layerWarnings, ...info.globWarnings,
+    ...(info.arkgate ? [info.arkgate.suggestion] : []),
     ...(info.onboarding ? [`No project rules yet. Let's scan documentation, stack and code.`, `Custom pack idea: ${info.documentation.customPack.ns}. ${info.documentation.customPack.reason}`,
       ...(info.documentation.requirements.length ? [`Optional: draft a project pack from ${info.documentation.requirements.length} documented requirements: pregate guide --preview --custom-from-docs`] : ["The agent can use scan --json to propose domain rules and tests from the project evidence."])] : []),
     info.ci.text,

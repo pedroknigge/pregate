@@ -10,6 +10,7 @@ import { canonical, findRoot, readTree } from "./disk.ts";
 import { clock, grammars, LOCK, PRESET, readText, sourcesOf, VERSIONS } from "./gate.ts";
 import { librarySource, librarySources } from "./library.ts";
 import { git } from "./git.ts";
+import { foldArkgate } from "./arkgate-import.ts";
 import { detectLayers, detectStack, initialScope, layersMatchAny, onboardingCard, onboardingFile, onboardingPreset } from "./onboard.ts";
 import { INIT_PRESET_NAMES } from "./init-presets.ts";
 import { pendingReview } from "./pending-review.ts";
@@ -69,8 +70,9 @@ async function initialize(args: string[], selection: InitSelection, directory: s
   await grammars();
   const stack = detectStack(files);
   const choice = name ?? stack.recommended;
-  const candidate = initialPreset(root, choice, stack, files, selection);
-  if ("code" in candidate) return candidate;
+  const built = initialPreset(root, choice, stack, files, selection);
+  if ("code" in built) return built;
+  const candidate = built.preset;
   const draft = selection.customDraft, draftPath = draft ? `.pregate/packs/${draft.ns}` : null;
   const draftError = draft ? addDocumentDraft(root, candidate, draft) : null;
   if (draftError) return draftError;
@@ -85,19 +87,25 @@ async function initialize(args: string[], selection: InitSelection, directory: s
       ...(draft && draftPath ? Object.entries(draft.files).map(([path, after]) => ({ path: join(root, draftPath, path), before: null, after })) : [])] });
   const digest = sha256(JSON.stringify(proposal));
   const review = pendingReview(root, digest);
-  if (args.includes("--preview")) return { code: 0, text: `${card}\n${review.text}\nProject unchanged; local consent has not been enabled.` };
+  const ark = built.lines.length === 0 ? "" : `${built.lines.join("\n")}\n`;
+  if (args.includes("--preview")) return { code: 0, text: `${card}\n${ark}${review.text}\nProject unchanged; local consent has not been enabled.` };
   const applied = await approvePending(root, args.includes("--yes"), digest);
-  return { code: applied.code, text: `${card}\n${applied.text}\n${applied.code === 0 ? nextSteps() : "Project unchanged; inspect the pending proposal with pregate approve --preview."}` };
+  return { code: applied.code, text: `${card}\n${ark}${applied.text}\n${applied.code === 0 ? nextSteps() : "Project unchanged; inspect the pending proposal with pregate approve --preview."}` };
 }
 
-function initialPreset(root: string, choice: string, stack: ReturnType<typeof detectStack>, files: Files, selection: InitSelection): Preset | Result {
+function initialPreset(root: string, choice: string, stack: ReturnType<typeof detectStack>, files: Files, selection: InitSelection): { preset: Preset; lines: string[] } | Result {
   const preset = onboardingPreset(choice, BUILTIN, VERSIONS, stack, choice.endsWith("-starter") ? librarySources() : []);
   if (preset === null) return { code: 1, text: `Unknown preset. Choose ${INIT_PRESET_NAMES.join(", ")}.` };
   preset.scope = selection.scope ?? initialScope(files, preset.scope);
   if (selection.enforcement !== undefined) preset.enforcement = selection.enforcement;
   const layers = selection.layers ?? recipeLayers(preset, files);
   if (layers !== undefined) preset.layers = layers;
-  return selectedPacks(root, preset, selection);
+  const selected = selectedPacks(root, preset, selection);
+  if ("code" in selected) return selected;
+  const folded = foldArkgate(root, selected, files);
+  if (folded === null) return { preset: selected, lines: [] };
+  if ("errors" in folded) return { code: 1, text: folded.errors.join("\n") };
+  return { preset: folded.preset, lines: [...folded.notes, ...folded.evidenceLines] };
 }
 
 // A recipe written for src/ checks nothing when the code lives elsewhere (source/, packages/x/src/).

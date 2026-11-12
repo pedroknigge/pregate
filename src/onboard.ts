@@ -244,8 +244,10 @@ function layerParent(glob: string): string {
 
 // What the next forbidden import meets under this candidate: the mode of its layer rule.
 export function newBreak(lock: Lock): string {
-  const rule = lock.rules.find(r => r.impl.kind === "primitive" && r.impl.primitive === "layer-edge");
-  if (rule === undefined) return "not checked, because no layer rule is selected";
+  const rules = lock.rules.filter(r => r.impl.kind === "primitive" && r.impl.primitive === "layer-edge");
+  const rule = rules.find(r => !lock.ownedByArkgate.includes(r.id));
+  if (rules.length === 0) return "not checked, because no layer rule is selected";
+  if (rule === undefined) return "not reported by PREGATE; ArkGate already enforces layer direction";
   const mode = enforcementOf(lock, rule);
   return mode === "enforce" ? "blocked before the file is written" : mode === "advisor" ? "reported to the agent with the repair, and not blocked" : "recorded only (shadow)";
 }
