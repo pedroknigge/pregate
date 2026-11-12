@@ -853,14 +853,14 @@ function guideInspection(args: Word[]): boolean {
   let mode: string | null = null, selection = false, projects = false, full = false;
   for (let i = 1; i < args.length; i++) {
     const flag = args[i]!.text;
-    if (flag !== "--custom-pack" && seen.has(flag)) return false;
+    if (flag !== "--custom-pack" && flag !== "--compile" && seen.has(flag)) return false;
     seen.add(flag);
     if (flag === "--json" || flag === "--preview") {
       if (mode !== null) return false;
       mode = flag;
     } else if (flag === "--full") full = true;
     else if (flag === "--custom-from-docs") selection = true;
-    else if (["--packs", "--custom-pack", "--enforcement", "--preset"].includes(flag)) {
+    else if (["--packs", "--custom-pack", "--enforcement", "--preset", "--layers", "--compile"].includes(flag)) {
       const value = args[++i]?.text;
       if (!value || value.startsWith("-")) return false;
       if (flag === "--enforcement" && !["shadow", "enforce", "advisor"].includes(value)) return false;
@@ -887,7 +887,7 @@ function isolatedGuideInspection(command: string): boolean {
 function guideInputPaths(args: Word[]): Word[] {
   const inputs: Word[] = [];
   for (let i = 1; i < args.length; i++) {
-    if (args[i]!.text === "--custom-pack") inputs.push(args[++i]!);
+    if (args[i]!.text === "--custom-pack" || args[i]!.text === "--layers" || args[i]!.text === "--compile") inputs.push(args[++i]!);
     else if (args[i]!.text === "--projects") {
       while (args[i + 1] !== undefined && !args[i + 1]!.text.startsWith("-")) inputs.push(args[++i]!);
     }

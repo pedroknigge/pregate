@@ -15,6 +15,7 @@ import { inScope } from "../src/paths.ts";
 import { guidedReview } from "../src/guided-review.ts";
 import { sha256 } from "../src/state.ts";
 import { removeTree } from "./remove-tree.ts";
+import { arkConfig, arkFiles } from "./arkgate-fixture.ts";
 
 function withCleanup<T>(work: () => T, cleanup: () => void): T {
   try { return work(); } finally { cleanup(); }
@@ -792,6 +793,99 @@ test.skipIf(process.platform === "win32" || python === null)("a current multi-pr
   expect(p.proposals()).toEqual(pending);
   expect(p.installed().map(existsSync)).toEqual([false, false]);
 });
+
+test("a new project folds ark.config.json into the same review as compiled instruction rules", () => {
+  const p = project("ark and instructions", {
+    ...arkFiles,
+    "ark.config.json": `${JSON.stringify(arkConfig, null, 2)}\n`,
+    "AGENTS.md": "# Rules\n\n- UI components must not call `fetch`.\n",
+    "layers.json": JSON.stringify({ why: "hand map", layers: { domain: { paths: ["src/domain/**"], mayImport: [], kind: "core" } } }),
+  });
+  const inspected = p.cli(["guide", "--json"]);
+  expect(inspected.code, inspected.text).toBe(0);
+  expect(JSON.parse(inspected.text).arkgate.suggestion).toContain("guide --preview includes that import");
+  const preview = p.cli(["guide", "--preview", "--layers", "layers.json"]);
+  expect(preview.code, preview.text).toBe(0);
+  expect(preview.text.match(/Digest: [0-9a-f]{64}/g)).toHaveLength(1);
+  expect(preview.text).toContain("layers.json is not this review's layer map");
+  expect(preview.text).toContain("Instruction rules that compile join this review.");
+  expect(preview.text).toContain("architecture/CA-DEP-001");
+  expect(preview.text).toContain("A new break is not reported by PREGATE; ArkGate already enforces layer direction.");
+  expect(preview.text).not.toContain("not proposed");
+  const preset = p.pendingPreset();
+  expect(preset.layers?.["domain-model"]?.kind).toBe("core");
+  expect(preset.layers?.domain).toBeUndefined();
+  expect(preset.coexist?.arkgate?.config).toBe("ark.config.json");
+  expect(preset.coexist?.arkgate?.ownedByArkgate).toContain("architecture/CA-DEP-001");
+  expect(preset.sources.some(source => source.ns === "project")).toBe(true);
+  expect(p.proposals()).toHaveLength(1);
+  expect(p.bytes()).toEqual([null, null]);
+}, 120_000);
+
+test("a new project's one preview bundles derived layers and rules compiled from instruction files", () => {
+  const p = project("single pass instructions", {
+    "src/domain/order.ts": 'import { db } from "../infra/db";\nexport const order = db;\n',
+    "src/infra/db.ts": "export const db = 1;\n",
+    "AGENTS.md": "# Rules\n\n- Domain must not import infra.\n- UI components must not call `fetch`.\n- Write clear code.\n",
+    "CLAUDE.md": "# Claude\n\n- Do not import lodash.\n",
+  });
+  const preview = p.cli(["guide", "--preview"]);
+  expect(preview.code, preview.text).toBe(0);
+  expect(preview.text.match(/Digest: [0-9a-f]{64}/g)).toHaveLength(1);
+  expect(preview.text).toContain("Instruction rules that compile join this review.");
+  const preset = p.pendingPreset();
+  expect(preset.enforcement).toBe("advisor");
+  expect(preset.layers).toEqual({ domain: { paths: ["src/domain/**"], mayImport: [], kind: "core" },
+    infra: { paths: ["src/infra/**"], mayImport: ["domain"], kind: "adapter" } });
+  expect(preset.sources.some(source => source.ns === "project")).toBe(true);
+  const lock = JSON.parse(p.proposals()[0]!.lockText) as Lock;
+  expect(lock.rules.map(rule => rule.id)).toEqual(expect.arrayContaining([
+    "architecture/HEX-EDGE-001", "project/PROJECT-UI-COMPONENT-CALL-FETCH", "project/PROJECT-IMPORT-LODASH",
+  ]));
+  expect(p.bytes()).toEqual([null, null]);
+  expect(p.proposals()).toHaveLength(1);
+}, 120_000);
+
+test("an existing project keeps layers apply and compile apply as their own reviews", () => {
+  const p = project("layers after contract", { "src/domain/order.ts": "export const order = 1;\n", "src/infra/db.ts": "export const db = 1;\n" });
+  p.init();
+  writeFileSync(join(p.root, "layers.json"), JSON.stringify({ why: "domain stays free of infra.", layers: {
+    domain: { paths: ["src/domain/**"], mayImport: [], kind: "core" }, infra: { paths: ["src/infra/**"], mayImport: ["domain"], kind: "adapter" } } }));
+  const refused = p.cli(["guide", "--preview", "--layers", "layers.json"]);
+  expect(refused.code, refused.text).toBe(1);
+  expect(refused.text).toContain("already has a contract");
+  const review = p.cli(["layers", "apply", "layers.json", "--preview"]);
+  expect(review.code, review.text).toBe(0);
+  expect(review.text).toContain("Digest:");
+  expect(p.bytes()[0]).not.toContain("\"layers\"");
+}, 120_000);
+
+test("compile apply before a contract joins the pending guide review and one approval applies both", () => {
+  const p = project("compile joins guide", {
+    "src/domain/order.ts": 'import { db } from "../infra/db";\nexport const order = db;\n',
+    "src/infra/db.ts": "export const db = 1;\n",
+    "AGENTS.md": "# Rules\n\n- UI components must not call `fetch`.\n",
+  });
+  const first = p.cli(["guide", "--preview"]);
+  expect(first.code, first.text).toBe(0);
+  const digest = first.text.match(/Digest: ([0-9a-f]{64})/)![1]!;
+  writeFileSync(join(p.root, "proposals.json"), JSON.stringify({ file: "CLAUDE.md", rules: [{ line: 12, sentence: "Never import the vendor sdk; call the ai client",
+    fail: ['import Vendor from "@vendor/sdk";\nexport const client = new Vendor();'], pass: ['import { ask } from "./ai-client";\nexport const answer = ask;'] }] }));
+  const merged = p.cli(["compile", "apply", "proposals.json", "--preview"]);
+  expect(merged.code, merged.text).toBe(0);
+  expect(merged.text).toContain("These rules join the pending guide review.");
+  expect(merged.text).toContain("1 verified and staged");
+  const next = merged.text.match(/Digest: ([0-9a-f]{64})/)![1]!;
+  expect(next).not.toBe(digest);
+  expect(p.proposals()).toHaveLength(1);
+  expect(p.cli(["approve", "--yes", "--digest", digest]).code).toBe(1);
+  expect(p.cli(["approve", "--yes", "--digest", next]).code, merged.text).toBe(0);
+  const lock = JSON.parse(readFileSync(join(p.root, ".pregate/pregate.lock.json"), "utf8")) as Lock;
+  expect(lock.rules.map(rule => rule.id)).toEqual(expect.arrayContaining([
+    "project/PROJECT-UI-COMPONENT-CALL-FETCH", "project/PROJECT-IMPORT-VENDOR-SDK-CALL",
+  ]));
+  expect(p.cli(["approve", "--preview"]).text).toContain("No pending");
+}, 120_000);
 
 test.skipIf(process.platform === "win32" || python === null)("an existing incompatible immutable engine prevents guided activation and retains its original bytes", () => {
   const p = project("tty incompatible engine", nextFiles);

@@ -16,11 +16,12 @@ import { INIT_PRESET_NAMES } from "./init-presets.ts";
 import { pendingReview } from "./pending-review.ts";
 import { composePackPlan } from "./pack-command.ts";
 import { sha256 } from "./state.ts";
+import { materializeRules, PROJECT_DIR, type Compiled } from "./rules-add-command.ts";
 import { protectionStatus, statusText } from "./status.ts";
 import type { Files, Preset } from "./types.ts";
 import { contextFile, hasRepository, trackedWorkspacePaths, workspaceFile, workspacePaths, workspaceRegularFile } from "./workspace.ts";
 
-type Result = { code: number; text: string };
+type Result = { code: number; text: string; notes?: string[] };
 export interface InitSelection {
   packs?: string[];
   customPacks?: string[];
@@ -28,6 +29,10 @@ export interface InitSelection {
   enforcement?: "shadow" | "enforce" | "advisor";
   scope?: Preset["scope"];
   layers?: Preset["layers"];
+  // A map the agent supplied. Folder-name derivation is unchanged; this only asks the
+  // review to add a layer methodology when no selected rule would read the map.
+  explicitLayers?: boolean;
+  instructionRules?: Compiled[];
   overrides?: Preset["overrides"];
   customDraft?: { ns: string; files: Files };
 }
@@ -72,28 +77,56 @@ async function initialize(args: string[], selection: InitSelection, directory: s
   const choice = name ?? stack.recommended;
   const built = initialPreset(root, choice, stack, files, selection);
   if ("code" in built) return built;
-  const candidate = built.preset;
+  let candidate = built.preset;
   const draft = selection.customDraft, draftPath = draft ? `.pregate/packs/${draft.ns}` : null;
   const draftError = draft ? addDocumentDraft(root, candidate, draft) : null;
   if (draftError) return draftError;
+  const notes: string[] = [];
+  if (selection.explicitLayers && Object.keys(candidate.layers ?? {}).length > 0) {
+    const { withLayerPolicy } = await import("./scan-command.ts");
+    const layered = withLayerPolicy(root, candidate, files);
+    if ("errors" in layered) return { code: 1, text: [...layered.errors, "Nothing staged."].join("\n") };
+    candidate = layered.preset;
+    notes.push(...layered.notes);
+  }
+  const rules = selection.instructionRules ?? [];
+  let packFiles: Files | null = null;
+  if (rules.length > 0) {
+    const made = materializeRules(root, candidate, rules, {});
+    if ("errors" in made) return { code: 1, text: `${made.errors.join(" ")} Nothing staged.` };
+    candidate = made.preset;
+    if (Object.keys(made.files).length > 0) packFiles = made.files;
+    notes.push(...made.skipped.map((line) => `Not staged, ${line}`));
+  }
   const text = JSON.stringify(candidate, null, 2) + "\n";
   const sourceFiles = sourcesOf(root, true);
-  const compiled = validateContract({ presetText: text, filesOf: source => draft && source.kind === "path" && source.ns === draft.ns ? draft.files : sourceFiles(source), versions: VERSIONS, now: clock });
-  if ("errors" in compiled) return { code: 1, text: compiled.errors.join("\n") };
+  const projectDir = canonical(join(root, PROJECT_DIR));
+  const compiled = validateContract({ presetText: text, filesOf: source => {
+    if (draft && source.kind === "path" && source.ns === draft.ns) return draft.files;
+    if (packFiles !== null && source.kind === "path" && canonical(resolve(root, source.path)) === projectDir) return packFiles;
+    return sourceFiles(source);
+  }, versions: VERSIONS, now: clock });
+  if ("errors" in compiled) return { code: 1, text: rules.length > 0 ? [...compiled.errors, "Nothing staged."].join("\n") : compiled.errors.join("\n") };
   const card = onboardingCard(stack, compiled.lock, files, clock);
   approvalDeadline();
   const proposal = proposeContract({ root, baseline, lockText: compiled.text, activate: true,
     writes: [{ path: join(root, PRESET), before: null, after: text },
-      ...(draft && draftPath ? Object.entries(draft.files).map(([path, after]) => ({ path: join(root, draftPath, path), before: null, after })) : [])] });
+      ...(draft && draftPath ? Object.entries(draft.files).map(([path, after]) => ({ path: join(root, draftPath, path), before: null, after })) : []),
+      ...(packFiles === null ? [] : Object.entries(packFiles).map(([path, after]) => ({ path: join(root, PROJECT_DIR, path), before: null, after })))] });
   const digest = sha256(JSON.stringify(proposal));
   const review = pendingReview(root, digest);
-  const ark = built.lines.length === 0 ? "" : `${built.lines.join("\n")}\n`;
-  if (args.includes("--preview")) return { code: 0, text: `${card}\n${ark}${review.text}\nProject unchanged; local consent has not been enabled.` };
+  // ArkGate evidence stays in this text. Guide's review already prints the layer lines, so the
+  // carried notes are only the short import summary plus rules staged beside it.
+  const shown = [...notes, ...built.lines];
+  const carriedNotes = [...notes, ...built.summary];
+  const lead = shown.length === 0 ? "" : `${shown.join("\n")}\n`;
+  const carried = carriedNotes.length === 0 ? {} : { notes: carriedNotes };
+  if (args.includes("--preview")) return { code: 0, ...carried, text: `${lead}${card}\n${review.text}\nProject unchanged; local consent has not been enabled.` };
   const applied = await approvePending(root, args.includes("--yes"), digest);
-  return { code: applied.code, text: `${card}\n${ark}${applied.text}\n${applied.code === 0 ? nextSteps() : "Project unchanged; inspect the pending proposal with pregate approve --preview."}` };
+  return { code: applied.code, ...carried, text: `${lead}${card}\n${applied.text}\n${applied.code === 0 ? nextSteps() : "Project unchanged; inspect the pending proposal with pregate approve --preview."}` };
 }
 
-function initialPreset(root: string, choice: string, stack: ReturnType<typeof detectStack>, files: Files, selection: InitSelection): { preset: Preset; lines: string[] } | Result {
+function initialPreset(root: string, choice: string, stack: ReturnType<typeof detectStack>, files: Files, selection: InitSelection): { preset: Preset; lines: string[]; summary: string[] } | Result {
   const preset = onboardingPreset(choice, BUILTIN, VERSIONS, stack, choice.endsWith("-starter") ? librarySources() : []);
   if (preset === null) return { code: 1, text: `Unknown preset. Choose ${INIT_PRESET_NAMES.join(", ")}.` };
   preset.scope = selection.scope ?? initialScope(files, preset.scope);
@@ -103,9 +136,12 @@ function initialPreset(root: string, choice: string, stack: ReturnType<typeof de
   const selected = selectedPacks(root, preset, selection);
   if ("code" in selected) return selected;
   const folded = foldArkgate(root, selected, files);
-  if (folded === null) return { preset: selected, lines: [] };
+  if (folded === null) return { preset: selected, lines: [], summary: [] };
   if ("errors" in folded) return { code: 1, text: folded.errors.join("\n") };
-  return { preset: folded.preset, lines: [...folded.notes, ...folded.evidenceLines] };
+  const summary = selection.explicitLayers
+    ? ["ark.config.json supplies this review's layer map, so the supplied layer map is not used.", ...folded.notes]
+    : folded.notes;
+  return { preset: folded.preset, lines: [...summary, ...folded.evidenceLines], summary };
 }
 
 // A recipe written for src/ checks nothing when the code lives elsewhere (source/, packages/x/src/).
@@ -129,9 +165,11 @@ function addDocumentDraft(root: string, candidate: Preset, draft: NonNullable<In
 }
 
 function invalidSelection(selection: InitSelection): Result | null {
-  if (Object.keys(selection).some(key => !["packs", "customPacks", "methodologies", "enforcement", "scope", "layers", "overrides", "customDraft"].includes(key))
+  if (Object.keys(selection).some(key => !["packs", "customPacks", "methodologies", "enforcement", "scope", "layers", "explicitLayers", "instructionRules", "overrides", "customDraft"].includes(key))
     || [selection.packs, selection.customPacks, selection.methodologies].some(values => values !== undefined
       && (!Array.isArray(values) || values.some(value => typeof value !== "string" || !value.trim())))
+    || (selection.explicitLayers !== undefined && typeof selection.explicitLayers !== "boolean")
+    || (selection.instructionRules !== undefined && !Array.isArray(selection.instructionRules))
     || (selection.enforcement !== undefined && !["shadow", "enforce", "advisor"].includes(selection.enforcement))
     || (selection.customDraft !== undefined && (!/^[a-z][a-z0-9-]{0,63}$/.test(selection.customDraft.ns)
       || Object.keys(selection.customDraft.files).some(path => path.startsWith("/") || path.includes("\\") || path.split("/").some(part => !part || part === "." || part === ".."))

@@ -85,14 +85,20 @@ activation is an explicit separate choice.
 The guide review names the layers it derived from folder names and what they
 find today: the production imports that already break each layer, and the
 folders no layer covers. Those folders are unrestricted until a map places
-them. An agent can propose that map with `layers apply <map.json> --preview`.
+them. On a new project the agent passes that map with `guide --preview --layers <map.json>`.
+When `ark.config.json` is present, the same preview imports that config instead,
+including `coexist.arkgate`, and a hand-written map is not the one reviewed.
+Once a contract exists, `layers apply <map.json> --preview` is its own review, and
+`import arkgate --preview` refreshes the ArkGate import.
 
-Rules you already wrote as prose can enter the same way. `compile <file>` sorts
+Rules you already wrote as prose enter the same first review. `compile <file>` sorts
 an instruction file such as `AGENTS.md` into rules, statements that need an
-example, and guidance. For paragraphs and tables the agent completes
-`compile <file> --template` and stages it with `compile apply <proposals.json>
---preview`. Only rules that pass their generated cases are staged, and the
-instruction file is never edited. See [the feature guide](../features/agent-proposed-contract.md).
+example, and guidance. Statements that compile on their own are included.
+For paragraphs and tables the agent completes `compile <file> --template` and
+passes the file with `guide --preview --compile <proposals.json>`. Once a contract
+exists, `compile apply <proposals.json> --preview` is its own review. Only rules
+that pass their generated cases are staged, and the instruction file is never
+edited. See [the feature guide](../features/agent-proposed-contract.md).
 
 At most once a day, SessionStart names advisor rules that reported nothing for
 seven days over at least 20 checked edits. Review them with `promote --preview`.

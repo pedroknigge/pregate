@@ -408,7 +408,18 @@ export async function layers(args: string[], directory = process.cwd()): Promise
   }
   try {
     const root = findRoot(canonical(directory), () => true);
-    if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview. Its review proposes layers from the folder names." };
+    if (root === null) {
+      // `layers --json` is evidence, so a new project can read the derived map before a contract exists.
+      // Bare `layers` and `layers apply` still wait for the guide review that proposes that map.
+      if (!apply && args.length === 1 && args[0] === "--json") {
+        const cwd = canonical(directory);
+        const top = git(cwd, ["rev-parse", "--show-toplevel"])?.trim();
+        if (top === undefined && hasRepository(cwd)) return { code: 1, text: "Git could not identify this worktree; fix Git before reading layers." };
+        await grammars();
+        return layersShow(canonical(top ?? cwd), true);
+      }
+      return { code: 1, text: "Set up PREGATE first: pregate guide --preview. Its review proposes layers from the folder names." };
+    }
     await grammars();
     return apply ? await layersApply(root, resolvePath(directory, args[1]!), flags.includes("--complete")) : layersShow(root, args[0] === "--json");
   } catch (e) { return { code: 1, text: visible(`Layers failed: ${(e as Error).message}. Contract unchanged.`) }; }   // fail-closed: exit 1, nothing staged
@@ -457,11 +468,9 @@ function incompleteMap(preset: Preset, layerMap: LayerMap, paths: string[]): str
 
 async function layersApply(root: string, file: string, complete = false): Promise<{ code: number; text: string }> {
   if (!existsSync(file)) return { code: 1, text: `No file ${file}. Format: ${LAYERS_FORMAT}` };
-  const proposed = proposedLayers(readFileSync(file, "utf8"));
-  if (typeof proposed === "string") return { code: 1, text: `${proposed} Nothing staged. Format: ${LAYERS_FORMAT}` };
   const files = repoFiles(root), paths = Object.keys(files);
-  const empty = Object.entries(proposed.layers).flatMap(([name, layer]) => layer.paths.filter(glob => !paths.some(path => matches(glob, path))).map(glob => `${name} (${glob})`));
-  if (empty.length) return { code: 1, text: `Layer paths matching no file: ${empty.join(", ")}. A layer that matches nothing checks nothing; correct the paths. Nothing staged.` };
+  const proposed = checkedLayerMap(readFileSync(file, "utf8"), paths);
+  if (typeof proposed === "string") return { code: 1, text: proposed.startsWith("Layer paths matching") ? proposed : `${proposed} Nothing staged. Format: ${LAYERS_FORMAT}` };
   const current = JSON.parse(readFileSync(join(root, PRESET), "utf8")) as Preset;
   const gap = complete ? incompleteMap(current, proposed.layers, paths) : null;
   if (gap !== null) return { code: 1, text: `${gap} Nothing staged.` };
@@ -493,9 +502,18 @@ function proposedLayers(text: string): { why: string; layers: LayerMap } | strin
   return { why: why.trim().replace(/\s+/g, " ").slice(0, 300), layers: map as LayerMap };
 }
 
+// Shape errors stay without "Nothing staged"; a path that matches no file already says so.
+// `layers apply` adds the format hint for shape errors. `--layers` on guide uses the same check.
+export function checkedLayerMap(text: string, paths: string[]): { why: string; layers: LayerMap } | string {
+  const proposed = proposedLayers(text);
+  if (typeof proposed === "string") return proposed;
+  const empty = Object.entries(proposed.layers).flatMap(([name, layer]) => layer.paths.filter(glob => !paths.some(path => matches(glob, path))).map(glob => `${name} (${glob})`));
+  return empty.length === 0 ? proposed : `Layer paths matching no file: ${empty.join(", ")}. A layer that matches nothing checks nothing; correct the paths. Nothing staged.`;
+}
+
 // A map no rule reads protects nothing. When the candidate compiles without a layer rule, the
 // layer methodology of each language found in the layers is added to the same review.
-function withLayerPolicy(root: string, preset: Preset, files: Files): { preset: Preset; lock: Lock; notes: string[] } | { errors: string[] } {
+export function withLayerPolicy(root: string, preset: Preset, files: Files): { preset: Preset; lock: Lock; notes: string[] } | { errors: string[] } {
   const compiled = (candidate: Preset) => validateContract({ presetText: JSON.stringify(candidate), filesOf: sourcesOf(root, true), versions: VERSIONS, now: clock });
   const first = compiled(preset);
   if (!("errors" in first) && newBreak(first.lock).startsWith("not checked") === false) return { preset, lock: first.lock, notes: [] };

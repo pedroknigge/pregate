@@ -32,9 +32,9 @@ curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/insta
 
 Or `npm i -g pregate`. Windows and the details are in [Install and adopt, step by step](#install-and-adopt-step-by-step).
 
-**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes what to watch, and reports in plain language. Without the skill, run `pregate guide --preview`.
+**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes the contract, the layer map and the rules from your instruction files, and reports in plain language. Without the skill, run `pregate guide --preview`.
 
-**3. Approve.** This is the only step a human must do, in a terminal:
+**3. Approve.** This is the only step a human must do, in a terminal. That approval applies the contract, the layers and the compiled rules together:
 
 ```sh
 pregate approve --preview     # read the change and see its code
@@ -49,7 +49,7 @@ Nothing blocks on day one. Rules start in advisor mode: the agent sees each find
 | --- | --- | --- |
 | **Core** | Pregate: the integrity of the contract and of generated files | Always |
 | **Packs** | 48 optional packs derived from books, framework documentation and public agent skills, each with its source named | You choose them; `guide` suggests the ones your stack uses |
-| **Yours** | Your own instruction files and your own architecture | You approve each rule |
+| **Yours** | Your own instruction files and your own architecture | Included in the one review you approve |
 
 One mechanism serves all three: the agent or a pack proposes, the engine proves each rule against passing and failing code, and a human approves one exact change.
 
@@ -63,16 +63,18 @@ sorts every statement into one of three groups: it runs as a rule now, it needs 
 
 ```sh
 pregate compile AGENTS.md --template          # the statements, and the steps to complete them
-pregate compile apply proposals.json --preview
+pregate guide --preview --compile proposals.json
 ```
 
-For each rule the agent gives a short sentence, code that must fail, and code that must pass. Pregate keeps only the rules those cases prove and puts them in one review. After approval, the report names the lines that can leave the instruction file, so they stop loading in every session. Pregate never edits that file.
+On a new project, pass that proposals file to `pregate guide --preview` so the rules join the contract review. `pregate compile apply proposals.json --preview` is the later review, once a contract exists. Before a contract exists, `compile apply` updates the pending guide review instead of starting a second approval.
+
+For each rule the agent gives a short sentence, code that must fail, and code that must pass. Pregate keeps only the rules those cases prove and puts them in that one review. After approval, the report names the lines that can leave the instruction file, so they stop loading in every session. Pregate never edits that file.
 
 A statement such as "write clear code" or "run the tests before you finish" is not a rule on a file, and Pregate says so instead of inventing one. [How it works and what it proves](docs/features/agent-proposed-contract.md).
 
 ### Let the agent propose your architecture
 
-`pregate guide --preview` derives layers from conventional folder names and shows what they find today: which imports already break each layer, and which folders no layer covers. For folders it cannot place, the agent writes a layer map and `pregate layers apply <map.json> --preview` reports the evidence before you approve.
+`pregate guide --preview` derives layers from conventional folder names and shows what they find today: which imports already break each layer, and which folders no layer covers. For folders it cannot place, the agent writes a layer map and passes it with `pregate guide --preview --layers <map.json>` on a new project. When `ark.config.json` is already in the repository, that same preview imports its layers and `coexist.arkgate` instead of a hand-written map. Once a contract exists, `pregate layers apply <map.json> --preview` reports the evidence before you approve, and `pregate import arkgate --preview` refreshes the ArkGate import.
 
 A file in no layer is unrestricted, so a partial map leaves a way around it: move the code to a folder the map does not cover. Add `--complete` when you want no such folder. It refuses a map that leaves a source file, or a folder created later, outside every layer; a catch-all layer such as `src/**` closes the gap.
 
@@ -85,7 +87,7 @@ This section is written for an AI agent that reads this file to decide how to ac
 - Pregate is a command-line tool and a set of harness hooks. A repository uses it when `.pregate/preset.json` exists.
 - When a human has enabled it, every file write and edit in scope is checked before it is written. A denial contains `Why`, `Fix` and `Avoid`. Revise the edit to satisfy the rule. Do not route the same change through a shell command, a script, or a different file.
 - An advisor finding does not block. Revise the code, or keep it and tell the user why.
-- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`.
+- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them.
 - You must not run these. Only a human does, in a terminal: `pregate approve`, `pregate enable`, `pregate disable`, `pregate uninstall`.
 - Do not edit `.pregate/`, rule pack sources, or harness hook settings. Propose a change with the preview commands above.
 - When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill has the full procedure. The complete command list is in [docs/CLI.md](docs/CLI.md).

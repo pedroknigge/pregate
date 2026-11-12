@@ -26,9 +26,9 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 | Request | What the agent should do |
 | --- | --- |
 | “Show me what PREGATE protects” | Suggest human `pregate demo` with owned Python, Go, and Rust samples. Explain source and native-tool evidence separately; toy approval is not consumer consent. |
-| “Set up PREGATE here” | Inspect `guide --json`, review documentation, stack and source layout, suggest useful official packs and a custom project pack together. |
-| “Make my AGENTS.md rules real” | Run `compile <file> --template`, keep the statements a check on one source file can decide, give each a short sentence with failing and passing code from this project, and run `compile apply <proposals.json> --preview`. Say which statements became rules and which stay as guidance. |
-| “Protect my architecture” | Read `layers --json`, write a layer map for the folders no layer covers, and run `layers apply <map.json> --preview`. Explain each existing import the map would flag. |
+| “Set up PREGATE here” | Inspect `guide --json`, `layers --json` and each instruction file, then prepare one `guide --preview` that carries the contract, the layer map and the rules that compile. Suggest useful official packs in that same review. |
+| “Make my AGENTS.md rules real” | On a new project, pass the completed proposals to `guide --preview --compile <proposals.json>` so they join the contract review. Once a contract exists, run `compile apply <proposals.json> --preview`. Say which statements became rules and which stay as guidance. |
+| “Protect my architecture” | Read `layers --json`. On a new project, pass the map with `guide --preview --layers <map.json>`. Once a contract exists, run `layers apply <map.json> --preview`. Explain each existing import the map would flag. |
 | “Is it working?” | Read the `Agent loop` line of `pregate report` and repeat it in one sentence. |
 | “Update this project and review new packs” | Compare installed and project versions, inspect the entire catalog, prepare one engine/core/official-pack update with selected additions. Preserve local packs and decisions. |
 | “Audit this repo and freeze existing debt” | Run `audit --plan`, disclose coverage gaps and unverified requirements, propose no-new policy if needed. |
@@ -39,9 +39,9 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 | “Report this tool problem” | Prepare a minimal reviewed issue draft; publish only through your explicit human approval. |
 
 These are prompts, not new slash subcommands. The skill opens with a simple
-path for the common case: the agent runs the inspection, layer, instruction-file
-and promotion commands itself, reports in plain language, and leaves you one
-action, the approval. See [the agent proposes, the engine verifies, a human
+path for the common case: the agent inspects the repository, prepares one review
+of the contract, the layer map and the compiled instruction rules, reports in
+plain language, and leaves you one action, the approval. See [the agent proposes, the engine verifies, a human
 approves](../features/agent-proposed-contract.md). The installed command reference
 is included in the skill. Ask for one pack selection and one concrete review,
 rather than approving each suggested pack separately.
@@ -49,11 +49,20 @@ rather than approving each suggested pack separately.
 ## Review once
 
 The agent can inspect and prepare. You approve the exact reviewed candidate.
-For example, for a new project with documented requirements:
+On a new project that candidate is the contract, the derived layer map and the
+rules compiled from `AGENTS.md`, `CLAUDE.md` and `.cursorrules`. `--layers` replaces
+the map and `--compile` adds rules that needed an example; both stay in the same
+review. When `ark.config.json` exists, the preview imports that config's layers
+and `coexist.arkgate` instead of a `--layers` file. For example, for a new project
+with documented requirements:
 
 ```sh
-pregate guide --preview --packs typescript,react --custom-from-docs
+pregate guide --preview --packs typescript,react --layers layers.json --compile proposals.json --custom-from-docs
 ```
+
+Once a contract exists, a later layer map or a later batch of instruction rules
+is its own review (`layers apply`, `compile apply`). A newer review replaces the
+pending one, so approve the one you were shown before preparing another.
 
 The compact review lists scope, policy changes, consent effect and digest. Use
 `guide --preview --full` or `approve --preview` to inspect complete content.

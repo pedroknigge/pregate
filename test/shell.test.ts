@@ -225,7 +225,8 @@ test("guide inspection permits one literal review and never an interactive or wr
     for (const args of ["--json", "--preview", '--json --projects "/repo one" /repo-two',
       '--preview --projects "/repo one" /repo-two', "--preview --packs typescript,react --enforcement shadow --preset integrity-only",
       "--preview --packs typescript,react --enforcement advisor --preset integrity-only", '--preview --packs "typescript, react"',
-      '--preview --custom-pack .pregate/packs/team --custom-pack "/repo/.pregate/packs/extra"']) {
+      '--preview --custom-pack .pregate/packs/team --custom-pack "/repo/.pregate/packs/extra"',
+      "--preview --layers /tmp/layers.json --compile /tmp/one.json --compile /tmp/two.json"]) {
       const command = `${prefix} guide ${args}`;
       expect(guard(command, ROOT, ctx)).toBeNull();
       for (const suffix of [" --yes", " > .pregate/preset.json", " > src/a.ts", " | cat", "; pregate approve --yes", " &"]) {
@@ -236,6 +237,7 @@ test("guide inspection permits one literal review and never an interactive or wr
     }
     for (const args of ["", "--yes", "--preview --json", "--preview --preview", "--preview --unknown", "--json --packs react",
       "--preview --projects /repo --packs react", "--preview --enforcement invalid", "--preview --packs", "--json --projects", "--preview extra",
+      "--json --layers /tmp/layers.json", "--json --compile /tmp/proposals.json", "--preview --layers", "--preview --layers /tmp/a.json --layers /tmp/b.json",
       '--preview --custom-pack "$(echo .pregate/packs/team)"']) {
       expect(guard(`${prefix} guide ${args}`, ROOT, ctx)).not.toBeNull();
     }

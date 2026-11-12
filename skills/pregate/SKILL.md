@@ -47,41 +47,60 @@ After updating hook definitions, the human reviews them again in `/hooks`.
 1. Look first, without changing anything: `pregate guide --json`,
    `pregate layers --json`, and `pregate compile <file>` for each instruction
    file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
+   `layers --json` works before a contract exists and shows the map derived
+   from folder names.
    Run each `pregate` command as one shell command of its own. The hooks deny
    `pregate guide` when it is joined to another command with `;`, `&&` or a
    pipe. A denial of an inspection command is not a reason to stop the user's
    task: run the command alone, or continue the task without it.
-2. The project has no contract: prepare `pregate guide --preview`. Tell the user what will be watched in their own terms, for example
-   "code in `src/domain` may not import `src/infra`; 3 files already do and
-   are kept as they are; a new one gets a warning with the repair". Say that
-   nothing blocks yet.
-3. The project has a contract. Prepare one review at a time, because a newer
-   review replaces the pending one:
-   - Folders that no layer covers: read which folders they import in
-     `layers --json`, write a layer map to a temporary file outside the
-     repository, and run `pregate layers apply <file> --preview`. Give a
-     one-sentence reason a reviewer can check against the code. Explain each
-     existing import the map would flag. When the user wants no folder left
-     outside the rules, add `--complete` and give the map a catch-all layer
-     (for example `src/**`) for the code no other layer names.
+2. The project has no contract. Inspect everything, then prepare one review.
+   `pregate guide --preview` proposes the contract, the layer map derived from
+   folder names, and every statement in those instruction files that compiles
+   on its own. The mode is advisor unless the user asks otherwise: findings are
+   shown and nothing blocks. Tell the user what will be watched in their own
+   terms, for example "code in `src/domain` may not import `src/infra`; 3 files
+   already do and are kept as they are; a new one gets a warning with the
+   repair".
+   When `ark.config.json` is present, do not rebuild its layers by hand and do
+   not pass `--layers`. That same `guide --preview` imports the config: the
+   layer map and `coexist.arkgate` come from it, and PREGATE does not also
+   enforce the layer rules ArkGate already owns.
+   When folders stay outside the derived map and there is no `ark.config.json`,
+   write a layer map to a temporary file outside the repository and pass
+   `--layers <file>` on that same preview. Give a one-sentence reason a
+   reviewer can check against the code. Explain each existing import the map
+   would flag. When the user wants no folder left outside the rules, the map
+   needs a catch-all layer (for example `src/**`).
+   When statements need an example, run `pregate compile <file> --template`,
+   save the JSON outside the repository, and follow its `steps`: keep only the
+   statements a check on one source file can decide, and give each a short
+   sentence, code from this project that must fail, the correct code, and one
+   similar snippet that is allowed. Read the instruction file itself as well:
+   rules also sit in tables and long paragraphs. Pass that file with
+   `--compile <file>` (repeat the flag for more than one file) on the same
+   `guide --preview`.
+   A refused proposal names its reason. Correct it and prepare the same preview
+   again before asking for approval. Do not run `layers apply`, `compile apply`
+   or `import arkgate` yet: a newer review replaces the pending one. Those
+   commands are for a project that already has a contract. `compile apply`
+   before a contract only updates the pending guide review.
+   Tell the user which statements became rules and which stay as guidance.
+   Do not force guidance or agent actions (run the tests, use pnpm) into a rule.
+3. The project already has a contract. Prepare one review at a time, because a
+   newer review replaces the pending one:
+   - A layer map is `pregate layers apply <file> --preview`. Give a one-sentence
+     reason a reviewer can check against the code. Explain each existing import
+     the map would flag. When the user wants no folder left outside the rules,
+     add `--complete` and give the map a catch-all layer (for example `src/**`).
    - `ark.config.json` is present: do not rebuild its layers by hand. Run
      `pregate import arkgate --preview`. The review proposes the layer map and
-     `coexist.arkgate`, and the human approves it with `pregate approve <code>`.
-     On a new project, `guide --preview` includes that import.
-   - Instruction files. Real ones are paragraphs, so reading them is your
-     part and proving each rule is the engine's. Run `pregate compile <file>
-     --template`, save the JSON to a temporary file outside the repository, and
-     follow its `steps`: keep only the statements a check on one source file can
-     decide (a forbidden import, call, syntax or name), and give each a short
-     sentence, code from this project that must fail, the correct code, and one
-     similar snippet that is allowed. Read the instruction file itself as well:
-     rules also sit in tables and long paragraphs. Then run `pregate compile
-     apply <proposals.json> --preview`. A refused proposal names its reason;
-     correct it and run again, and add a `pattern` when the engine says it could
-     only match the example's own text. Tell the user which statements became
-     rules and which stay as guidance. Do not force guidance or agent actions
-     (run the tests, use pnpm) into a rule.
-   - After the human approves, offer to delete the compiled lines from the
+     `coexist.arkgate`. The human approves it in a separate terminal.
+   - Instruction rules are `pregate compile apply <file> --preview`. A refused
+     proposal names its reason; correct it and run again, and add a `pattern`
+     when the engine says it could only match the example's own text. Tell the
+     user which statements became rules and which stay as guidance. Do not
+     force guidance or agent actions (run the tests, use pnpm) into a rule.
+   - After the human approves compiled lines, offer to delete them from the
      instruction file, and delete them only when the user agrees. The rules
      carry their own reason and repair, so the text no longer has to load in
      every session.
@@ -92,12 +111,17 @@ After updating hook definitions, the human reviews them again in `/hooks`.
    OpenCode and Cursor each need that separate terminal. On agy 1.5.6,
    `! pregate approve <code>` was refused because stdin is not a terminal. The
    earlier agy note was only agy 1.2.17, and it used `approve --yes --digest`
-   without `PREGATE_UNATTENDED_APPROVAL=1`.
-5. A session starts with a `Promotion ready` line: tell the user once, in one
+   without `PREGATE_UNATTENDED_APPROVAL=1`. On a new project that one approval
+   applies the contract, the layers (including an ArkGate import when
+   `ark.config.json` exists) and the compiled rules together.
+5. After that approval, run `pregate audit` and report its opening summary in
+   a few lines: what is watched, how many findings, and that existing ones stay
+   as they are. Do not paste the whole audit.
+6. A session starts with a `Promotion ready` line: tell the user once, in one
    sentence, that those rules warned about nothing for a week and can start to
    block. If the user agrees, run `pregate promote --preview` and give the two
    approval lines.
-6. The user asks whether it works: read the `Agent loop` line of
+7. The user asks whether it works: read the `Agent loop` line of
    `pregate report` and repeat it in one sentence.
 
 Statements that `compile` leaves in the file are guidance or agent actions. Say
@@ -178,8 +202,15 @@ Without a terminal, present the `guide --json` recommendations in one selection,
 including optional packs, tested local packs and the mode: advisor (default),
 enforce or observe-only.
 
-When this repo has no `.pregate`, immediately propose reviewing its stack and
-source layout and selecting packs. `guide --json` and `scan --json` also expose
+When this repo has no `.pregate`, inspect the repository and prepare one review.
+`guide --preview` includes the contract, the layer map derived from folder names,
+and the rules `compile` can make from `AGENTS.md`, `CLAUDE.md` and `.cursorrules`.
+When `ark.config.json` is present, that preview imports it instead of a derived
+or `--layers` map, and records `coexist.arkgate`. Pass `--layers <layers.json>`
+when folder names cannot place a directory and no ArkGate config is present, and
+repeat `--compile <proposals.json>` for rules that needed an example. Both join
+that same review. Do not start `layers apply`, `compile apply` or `import arkgate`
+before that approval. `guide --json` and `scan --json` also expose
 bounded documentation requirements with file/line/hash provenance and a
 custom-pack suggestion. Offer drafting a custom project pack from them as an
 optional extra, not part of the default selection: it adds many reviewed files.
@@ -188,10 +219,12 @@ Explicit requirement lines enter the same initial review only through
 and unverified until meaningful project assertions are reviewed. Read and reject
 irrelevant statements. No statements means no invented rules: propose a custom
 domain/boundary pack and author it from observed evidence and real fixtures.
-Prepare `guide --preview --packs <ns,ns|none> [--enforcement advisor|enforce|shadow]` with
+Prepare `guide --preview --packs <ns,ns|none> [--layers <layers.json>] [--compile <proposals.json>] [--enforcement advisor|enforce|shadow]` with
 repeatable `--custom-pack <path>` as needed. `--preset <name>` selects only an
 initial recipe. Selection flags require preview and cannot combine with JSON or
 multi-project mode. `--packs none` adds nothing; existing recipe policies remain.
+After a contract exists, `--layers` and `--compile` are refused: a layer map is
+`layers apply` and instruction rules are `compile apply`, each its own review.
 Detected source roots and preserved exclusions enter the same review. The guide's
 compact summary is the default; `guide --preview --full` and `approve --preview --full`
 show complete content. Inspect
@@ -741,7 +774,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ```text
 usage:
-  pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--enforcement shadow|advisor|enforce] [--preset <name>]
+  pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--layers <layers.json>] [--compile <proposals.json>] [--enforcement shadow|advisor|enforce] [--preset <name>]
   pregate guide [--json|--preview [--full]] --projects <path...>
   pregate check [--all] [--format agent|sarif]
   pregate audit [--repo <path>] [--json|--jsonl|--sarif|--full] [--plan] [--incremental] [--fresh]

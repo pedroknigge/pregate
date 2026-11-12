@@ -10,6 +10,22 @@ Most people reach all of this through the `/pregate` skill, which runs the comma
 reports in plain language. The commands are documented here for reviewers and for
 anyone who scripts them.
 
+## One review for a new project
+
+`pregate guide --preview` on a project with no contract proposes the contract, the
+layer map derived from folder names, and every statement in `AGENTS.md`, `CLAUDE.md`
+and `.cursorrules` that compiles on its own. `--layers <layers.json>` replaces the
+derived map. Repeatable `--compile <proposals.json>` adds rules the agent completed
+with examples. When `ark.config.json` is present, that same preview imports it:
+the layer map and `coexist.arkgate` come from the config, and a `--layers` file
+is not the map. One `pregate approve <code>`, typed in a separate terminal, applies
+all of it.
+
+`--layers` and `--compile` are refused once a contract exists. The sections below
+are then the way to propose a later map or a later batch of rules, each as its own
+review. `compile apply` before a contract updates the pending guide review instead
+of opening a second one. A newer review replaces the pending one.
+
 ## Layers with evidence
 
 `pregate guide --preview` derives a layer map from conventional folder names. The review
