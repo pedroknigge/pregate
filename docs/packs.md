@@ -76,7 +76,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [react-native](../packs/react-native/REFERENCE.md) | library | 1.2.0 | 10 | `react-native/platform` (complete), `react-native/security` (complete) |
 | [redis](../packs/redis/REFERENCE.md) | library | 1.2.1 | 11 | `redis/client` (complete), `redis/keys` (complete) |
 | [rust](../packs/rust/REFERENCE.md) | language | 1.2.0 | 9 | `rust/architecture` (complete), `rust/quality` (complete) |
-| [security-audit](../packs/security-audit/REFERENCE.md) | practice | 1.0.0 | 18 | `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview) |
+| [security-audit](../packs/security-audit/REFERENCE.md) | practice | 1.0.1 | 18 | `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview) |
 | [senior](../packs/senior/REFERENCE.md) | practice | 1.2.0 | 12 | `senior/fowler` (complete), `senior/style` (complete) |
 | [solana](../packs/solana/REFERENCE.md) | library | 1.2.0 | 12 | `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete) |
 | [supabase](../packs/supabase/REFERENCE.md) | library | 1.2.1 | 10 | `supabase/client` (complete), `supabase/storage` (complete) |

@@ -1,0 +1,7 @@
+package tools
+
+import osexec "os/exec"
+
+func Run(cmd string) error {
+	return osexec.Command("sh", "-c", cmd).Run()
+}

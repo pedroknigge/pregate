@@ -1,0 +1,16 @@
+package tools
+
+import (
+	"context"
+	"os/exec"
+)
+
+func Run(ctx context.Context, cmd string) error {
+	_ = exec.Command("sh", "-c", "ls -la")
+	return exec.CommandContext(
+		ctx,
+		"/bin/bash",
+		"-c",
+		cmd,
+	).Run()
+}

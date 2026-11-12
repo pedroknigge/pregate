@@ -1,0 +1,9 @@
+{
+  "language": "go",
+  "params": {},
+  "target": "internal/tools/run.go",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

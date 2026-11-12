@@ -1,0 +1,11 @@
+package tools
+
+import "os/exec"
+
+func File(script string) error {
+	return exec.Command("bash", script).Run()
+}
+
+func Sh(cmd string) error {
+	return exec.Command("sh", cmd).Run()
+}

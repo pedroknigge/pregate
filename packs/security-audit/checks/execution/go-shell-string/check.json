@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "security-audit/execution/go-shell-string",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "execution",
   "cardinality": "singleton",
   "dimension": "security-audit.execution.go-shell-command",
@@ -15,54 +15,183 @@
     "patterns": {
       "go": [
         {
-          "id": "shell-dash-c-built-string",
+          "id": "shell-dash-c-dynamic-script",
+          "utils": {
+            "shell-name": {
+              "any": [
+                {
+                  "kind": "interpreted_string_literal",
+                  "regex": "^\"(?:/usr)?(?:/bin/)?(?:(?:ba|z|da|k)?sh|cmd(?:\\.exe)?)\"$"
+                },
+                {
+                  "kind": "raw_string_literal",
+                  "regex": "^`(?:/usr)?(?:/bin/)?(?:(?:ba|z|da|k)?sh|cmd(?:\\.exe)?)`$"
+                }
+              ]
+            },
+            "dash-c": {
+              "any": [
+                {
+                  "kind": "interpreted_string_literal",
+                  "regex": "^\"(?:-c|/[cC])\"$"
+                },
+                {
+                  "kind": "raw_string_literal",
+                  "regex": "^`(?:-c|/[cC])`$"
+                }
+              ]
+            },
+            "dynamic-script": {
+              "any": [
+                {
+                  "kind": "identifier"
+                },
+                {
+                  "kind": "selector_expression"
+                },
+                {
+                  "kind": "index_expression"
+                },
+                {
+                  "kind": "slice_expression"
+                },
+                {
+                  "kind": "call_expression",
+                  "has": {
+                    "field": "function",
+                    "regex": "^fmt\\.Sprintf$"
+                  }
+                },
+                {
+                  "kind": "binary_expression",
+                  "has": {
+                    "field": "operator",
+                    "regex": "^\\+$"
+                  }
+                },
+                {
+                  "kind": "parenthesized_expression",
+                  "has": {
+                    "matches": "dynamic-script"
+                  }
+                }
+              ]
+            }
+          },
           "rule": {
             "kind": "call_expression",
-            "all": [
+            "any": [
               {
-                "has": {
-                  "field": "function",
-                  "regex": "^exec\\.Command(?:Context)?$"
-                }
+                "all": [
+                  {
+                    "has": {
+                      "field": "function",
+                      "regex": "^exec\\.Command$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "arguments",
+                      "all": [
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 1,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "shell-name"
+                          }
+                        },
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 2,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "dash-c"
+                          }
+                        },
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 3,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "dynamic-script"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
               },
               {
-                "has": {
-                  "field": "arguments",
-                  "all": [
-                    {
-                      "has": {
-                        "kind": "interpreted_string_literal",
-                        "regex": "^\"(?:/usr)?(?:/bin/)?(?:(?:ba|z|da|k)?sh|cmd(?:\\.exe)?)\"$"
-                      }
-                    },
-                    {
-                      "has": {
-                        "kind": "interpreted_string_literal",
-                        "regex": "^\"(?:-c|/[cC])\"$"
-                      }
-                    },
-                    {
-                      "has": {
-                        "any": [
-                          {
-                            "kind": "call_expression",
-                            "has": {
-                              "field": "function",
-                              "regex": "^fmt\\.Sprintf$"
-                            }
-                          },
-                          {
-                            "kind": "binary_expression",
-                            "has": {
-                              "field": "operator",
-                              "regex": "^\\+$"
-                            }
-                          }
-                        ]
-                      }
+                "all": [
+                  {
+                    "has": {
+                      "field": "function",
+                      "regex": "^exec\\.CommandContext$"
                     }
-                  ]
-                }
+                  },
+                  {
+                    "has": {
+                      "field": "arguments",
+                      "all": [
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 2,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "shell-name"
+                          }
+                        },
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 3,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "dash-c"
+                          }
+                        },
+                        {
+                          "has": {
+                            "nthChild": {
+                              "position": 4,
+                              "ofRule": {
+                                "not": {
+                                  "kind": "comment"
+                                }
+                              }
+                            },
+                            "matches": "dynamic-script"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
               }
             ]
           }
@@ -77,6 +206,6 @@
     "ci"
   ],
   "feedback": {
-    "message": "{symbol} runs a shell with a command built from a value. Call the program directly with exec.Command(name, args...) so the value cannot add shell syntax."
+    "message": "{symbol} runs a shell with a script taken from a value. Call the program directly with exec.Command(name, args...) so the value cannot add shell syntax."
   }
 }

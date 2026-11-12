@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "security-audit/obvious-sinks",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "preview",
   "conflicts": [],
   "invariants": [
@@ -159,9 +159,9 @@
         "locator": "https://github.com/cloudflare/security-audit-skill/blob/c1c8a8c1471069fb0e188eeaff69b8e8db6564a8/skills/security-audit/ATTACK-CLASSES.md — Injection (shell commands); Obvious things (dynamic input to exec and child processes)",
         "paraphrase": "Shell command construction is a dangerous sink: trace whether input reaches it, and look for process execution with dynamic input."
       },
-      "why": "Hardening invariant: sh -c parses its script, so a value formatted into that script can add commands. A finding marks a string-built shell script, not a confirmed injection.",
+      "why": "Hardening invariant: sh -c parses its script, so a script taken from a value, or a value formatted into that script, can add commands. A finding marks that shell call, not a confirmed injection.",
       "fixHint": "Run the program directly with exec.Command(name, arg1, arg2) so each value is one argument. If a shell is required, keep the script literal and pass values as positional parameters (\"sh\", \"-c\", \"grep -r \\\"$1\\\"\", \"sh\", value).",
-      "avoid": "Detects exec.Command and exec.CommandContext calls that pass sh, bash, zsh, dash, ksh or cmd (optionally under /bin or /usr/bin) with -c or /c and an argument built with fmt.Sprintf or + concatenation. A script assembled in an earlier variable, strings.Join and a renamed os/exec import are not detected. A passing check is not a security proof.",
+      "avoid": "Detects exec.Command and exec.CommandContext when the program is a string literal sh, bash, zsh, dash, ksh or cmd, optionally under /bin or /usr/bin, written as an interpreted or raw string, the next argument is -c or /c, and the script argument is an identifier, a selector, an index, a slice, a parenthesized form of one of those, a fmt.Sprintf call, or a + concatenation. A constant string literal script such as exec.Command(\"sh\", \"-c\", \"ls -la\") stays unreported, as does exec.Command(\"git\", \"status\"). A value passed as a positional parameter after a literal script stays unreported. strings.Join, any other call, a shell name or flag held in a variable, and a renamed os/exec import stay undetected. A passing check is not a security proof.",
       "examples": {
         "pass": "pass/direct-argv",
         "fail": "fail/sprintf"

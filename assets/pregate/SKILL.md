@@ -874,7 +874,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `react-native@1.2.0` — library: `react-native/platform` (complete), `react-native/security` (complete)
 - `redis@1.2.1` — library: `redis/client` (complete), `redis/keys` (complete)
 - `rust@1.2.0` — language: `rust/architecture` (complete), `rust/quality` (complete)
-- `security-audit@1.0.0` — practice: `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview)
+- `security-audit@1.0.1` — practice: `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview)
 - `senior@1.2.0` — practice: `senior/fowler` (complete), `senior/style` (complete)
 - `solana@1.2.0` — library: `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete)
 - `supabase@1.2.1` — library: `supabase/client` (complete), `supabase/storage` (complete)

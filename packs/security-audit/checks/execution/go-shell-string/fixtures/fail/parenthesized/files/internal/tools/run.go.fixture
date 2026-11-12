@@ -1,0 +1,7 @@
+package tools
+
+import "os/exec"
+
+func Run(cmd string) error {
+	return exec.Command("sh", "-c", (cmd)).Run()
+}
