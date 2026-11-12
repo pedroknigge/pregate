@@ -1,0 +1,17 @@
+export function indirect(code: string) {
+  const alias = eval;
+  return (0, alias)(code);
+}
+
+export function closed(code: string) {
+  const alias = eval;
+  return function run() {
+    return alias(code);
+  };
+}
+
+export function arrow(code: string) {
+  const alias = eval;
+  const run = () => alias(code);
+  return run;
+}

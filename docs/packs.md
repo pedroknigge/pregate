@@ -58,7 +58,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [firebase](../packs/firebase/REFERENCE.md) | library | 1.2.0 | 11 | `firebase/auth` (complete), `firebase/firestore` (complete) |
 | [go](../packs/go/REFERENCE.md) | language | 1.2.0 | 10 | `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete) |
 | [hono](../packs/hono/REFERENCE.md) | library | 1.0.0 | 4 | `hono/middleware` (complete), `hono/routing` (complete) |
-| [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.1 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
+| [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.2 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
 | [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.2.1 | 209 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete) |
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |
 | [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.2.1 | 10 | `mongodb/models` (complete), `mongodb/queries` (complete) |

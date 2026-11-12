@@ -129,7 +129,7 @@ test("stdin check denies indirect eval and allows names that only contain those 
   const denied = p.run(["check", "--stdin", "--path", "src/proposed.ts"], indirect);
   expect(denied.code, denied.text).toBe(1);
   expect(denied.text).toContain("javascript/JS-EVAL-001");
-  expect(denied.text).toContain("javascript/safety/no-eval-call@1.0.1");
+  expect(denied.text).toContain("javascript/safety/no-eval-call@1.0.2");
   expect(denied.text).toContain("src/proposed.ts:2");
   expect(denied.text).toContain("src/proposed.ts:6,10,14,18");
 

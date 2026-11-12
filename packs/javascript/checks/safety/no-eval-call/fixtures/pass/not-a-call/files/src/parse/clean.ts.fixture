@@ -1,0 +1,44 @@
+export function property(code: string) {
+  const box = {
+    eval(value: string) {
+      return value;
+    },
+  };
+  return box["eval"](code);
+}
+
+export function unread(code: string) {
+  const ref = window["eval"];
+  const name = "eval";
+  return name + code + String(ref);
+}
+
+export class Runner {
+  eval(code: string) {
+    return code;
+  }
+}
+
+export function other(code: string) {
+  const alias = evaluate;
+  return alias(code);
+}
+
+function evaluate(code: string) {
+  return code;
+}
+
+export function shadowed(code: string) {
+  const alias = eval;
+  return function inner(alias: (value: string) => string) {
+    return alias(code);
+  };
+}
+
+export function renamed(code: string) {
+  const alias = eval;
+  function inner(alias: (value: string) => string) {
+    return alias(code);
+  }
+  return inner;
+}
