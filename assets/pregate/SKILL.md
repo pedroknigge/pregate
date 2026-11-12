@@ -64,6 +64,10 @@ After updating hook definitions, the human reviews them again in `/hooks`.
      existing import the map would flag. When the user wants no folder left
      outside the rules, add `--complete` and give the map a catch-all layer
      (for example `src/**`) for the code no other layer names.
+   - `ark.config.json` is present: do not rebuild its layers by hand. Run
+     `pregate import arkgate --preview`. The review proposes the layer map and
+     `coexist.arkgate`, and the human approves it with `pregate approve <code>`.
+     On a new project, `guide --preview` includes that import.
    - Instruction files. Real ones are paragraphs, so reading them is your
      part and proving each rule is the engine's. Run `pregate compile <file>
      --template`, save the JSON to a temporary file outside the repository, and
@@ -757,6 +761,7 @@ usage:
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
   pregate layers [--json] | layers apply <layers.json> --preview [--complete]
+  pregate import arkgate --preview [--config <path>]
   pregate demo [--language python|go|rust|all] [--json]
   pregate report [--days <n>] [--repo <path>] [--json]
   pregate session rebase <harness:session-id> --preview | rebase <harness:session-id> --digest <sha256> [--yes]

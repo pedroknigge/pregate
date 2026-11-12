@@ -1285,6 +1285,20 @@ test("layers and compile read or prepare a review; no form of them applies one",
   expect(guard("CI=1 pregate layers apply /tmp/map.json --preview", ROOT, ctx)).toBe("hook-switch");
 });
 
+test("import arkgate prepares a review and does not apply it", () => {
+  for (const command of [
+    "pregate import arkgate --preview", "pregate import arkgate --config ark.config.json --preview",
+    "pregate import arkgate --preview --config ark.config.json",
+  ]) expect(guard(command, ROOT, ctx), command).toBeNull();
+  for (const command of [
+    "pregate import arkgate", "pregate import arkgate --yes", "pregate import arkgate --preview --yes",
+    "pregate import arkgate --preview --digest 0123456789ab", "pregate import --preview",
+    "pregate import arkgate --config --preview", "pregate import arkgate --config ark.config.json other.json --preview",
+    "pregate import arkgate --preview --config",
+  ]) expect(guard(command, ROOT, ctx), command).toBe("shell-admin");
+  expect(guard("CI=1 pregate import arkgate --preview", ROOT, ctx)).toBe("hook-switch");
+});
+
 test("an installed tool that is a script is read for control commands only; a script on PATH inside a project is project code", () => {
   const texts: Record<string, string> = {
     "/opt/tools/bin/npm": "#!/usr/bin/env node\nrequire('fs').writeFileSync(process.argv[2], 'x');\n",
