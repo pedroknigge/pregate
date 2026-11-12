@@ -42,7 +42,7 @@ The project wrote the tasks, with its coding assistant, and committed them befor
 
 ## Run
 
-Run `2026-11-11T18:11:43.595Z` (real). Engine 0.0.7, darwin arm64. CLI versions: claude-code `2.1.322 (Claude Code)`, codex `codex-cli 0.167.1`. Models: claude-code: claude-opus-5-5; codex: not reported by the CLI; claude-code: claude-fable-5-2.
+Run `2026-11-11T18:11:43.595Z` (real). Recorded on 0.0.7, darwin arm64. CLI versions: claude-code `2.1.322 (Claude Code)`, codex `codex-cli 0.167.1`. Models: claude-code: claude-opus-5-5; codex: not reported by the CLI; claude-code: claude-fable-5-2.
 
 | Repository | Proposed packs | Rules |
 | --- | --- | --- |

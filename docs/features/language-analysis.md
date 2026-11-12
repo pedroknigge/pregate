@@ -1,9 +1,9 @@
 # Language analysis
 
-0.0.7 analyzes JS/TS, Python, Go, and Rust. Rust uses the vendored `tree-sitter-rust` 0.24.2 WASM grammar,
+0.0.8 analyzes JS/TS, Python, Go, and Rust. Rust uses the vendored `tree-sitter-rust` 0.24.2 WASM grammar,
 source metrics, structural patterns, comments and bounded Cargo module resolution.
 Language policies remain optional packs; core policy remains language-independent.
-See [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified, and the [changelog](../../CHANGELOG.md) for 0.0.7. Linux and Windows remain experimental until their native gates close.
+See [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified, and the [changelog](../../CHANGELOG.md) for 0.0.8. Linux and Windows remain experimental until their native gates close.
 
 The TypeScript and TSX grammars accept newline-separated generic type members, type-only wildcard exports, nested generic function type arguments, and valid `in`/`out` interface variance annotations.
 constraints/defaults, AST names/spans and retained import locations pass; malformed
