@@ -54,12 +54,17 @@ patch: valid TypeScript that 0.23.2 parses as ERROR (O18), each change and where
     alternatives so typed method parameters (including multiline signatures) and optional
     object properties keep identifier/property_identifier nodes. Existing `using` assignment
     and abstract class/member productions are unchanged; missing-type controls still error.
+  - import type queries with type arguments (`import("m").Type<Args>`, `import("m").Ns.Type<Args>`,
+    `import("m").Type<import("n").Other<Args>>`, `typeof import("m")`, `typeof import("m").Ns.Type<Args>`):
+    own. The type-position import member accepts optional type arguments. A self-conflict keeps
+    the member and its arguments until the closing `>` decides. The same forms parse in .ts, .d.ts
+    and .tsx. Malformed type arguments still error.
   Not fixed: a generic tagged template after
   await or a prefix unary operator (-, !, typeof, void) parses as a call of that operator, as f<T>()
   already did in 0.23.2.
 files:
-b94a054856b70d37594227f57cdb0d9f3e78ceef12229965e7a353febad5057b  tree-sitter-typescript.wasm
-4b4373dc0b06d0da33c30edddf0de0ebed42d4c8300a52c5773cb90562e8fff3  tree-sitter-tsx.wasm
-3d9928538243f2edcf175cceb208633e11f3b660cbc5517ac8cf04c8ac97b932  grammar.patch
-ecf93f4fa9427c469a66ba2d99a2ace9fa15e07ee6ec149e488ce49df37b19ff  lexer.patch
+81b8da8e7dd566dbe3b9bc6e476cd5f35c8c6d45348bfd817dae21e0a9046464  tree-sitter-typescript.wasm
+80596f4b537f519795128fbd0614a07ade9b06fdba9674b8291c68b7c3823e33  tree-sitter-tsx.wasm
+8583324f0093568e433f45e73f8116aa50bb7adbf84f721cfeea3adb6f743659  grammar.patch
+6798140118e47b47719ca2b0cb49c4e8e29d4f5d5466f21674a11198d9702970  lexer.patch
 49bf33cf78ef5897e4e161ce1517df7de1ae5042a65b6bcfd44401e0fc606559  LICENSE

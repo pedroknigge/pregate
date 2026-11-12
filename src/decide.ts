@@ -3,7 +3,7 @@ import { enforcementOf, LOOP_DEFAULTS, ruleEnforcements } from "./enforcement.ts
 import { staticRulesFor } from "./languages.ts";
 import { inScope } from "./paths.ts";
 import type { CallEvent, Cause, Decision, DecideInput, Form, Lock, Loop, Phase, Violation } from "./types.ts";
-import { adviseText, denyText, formText, notice, stopText, warnText } from "./message.ts";
+import { adviseText, denyText, formText, notice, stopText, syntaxAdvisory, warnText } from "./message.ts";
 import type { Close, Halt, Text } from "./message.ts";
 
 // Policy: severity × enforcement × counters × no-progress × ask → Decision (SPEC §11.3,
@@ -35,9 +35,19 @@ export function decide(i: DecideInput): Decision {
   const stop = i.event === "stop";
   // A form cause hides the violations of the same call: they show once the file can be evaluated.
   if (s.form !== null) return stop ? stopBlock(i, s, formText(s.form, i.path)) : formDeny(i, s.form, own);
-  if (i.lock === null || s.block.length === 0) return stop ? { ...quiet(i, s), notice: approved(i) } : quiet(i, s);
+  if (i.lock === null || s.block.length === 0) return withSyntaxAdvisory(i, s, stop ? { ...quiet(i, s), notice: approved(i) } : quiet(i, s));
   const d = stop ? stopBlock(i, s, stopText(s.block, i.lock, i)) : ruleDeny(i, i.lock, s, own);
-  return { ...d, shadowed: s.muted.length > 0 || s.mutedForm !== null };
+  return withSyntaxAdvisory(i, s, { ...d, shadowed: s.muted.length > 0 || s.mutedForm !== null });
+}
+
+// An advisor parse failure stays non-blocking. Its text replaces a clean result, and it follows a real deny.
+function withSyntaxAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
+  if (i.lock?.enforcement !== "advisor" || s.form !== null || s.mutedForm?.cause !== "syntax") return d;
+  const warning = syntaxAdvisory(s.mutedForm, i.path);
+  if (d.full === "") return { ...d, compact: warning.compact, full: warning.full };
+  const body = d.verdict === "none" ? `${warning.full}\n\n${d.full}` : `${d.full}\n\n${warning.full}`;
+  const full = body.length <= 4000 ? body : body.slice(0, 4000);
+  return d.verdict === "none" ? { ...d, compact: warning.compact, full } : { ...d, full };
 }
 
 // MH-09: reserve room for the other blocked files before clipping the chosen file's details.

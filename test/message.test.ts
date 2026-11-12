@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { adviseText, briefing, contract, denyText, formText, notice, precheck, stopText, warnText } from "../src/message.ts";
+import { adviseText, briefing, contract, denyText, formText, notice, precheck, stopText, syntaxAdvisory, warnText } from "../src/message.ts";
 import type { Close, DenyContext, NoticeArgs, NoticeKey, Text } from "../src/message.ts";
 import { FIXABLE_BY } from "../src/types.ts";
 import type { Cause, Lock, LockRule, Severity, Violation } from "../src/types.ts";
@@ -435,10 +435,26 @@ describe("message content", () => {
     expect(formText({ cause: "git-error", line: null }, null).full).toContain("pregate disable");
   });
 
+  test("advisor parse failure names the file and is not a clean result", () => {
+    const text = syntaxAdvisory({ cause: "syntax", line: 4 }, FILE);
+    expect(text.compact).toBe("PREGATE WARN syntax src/billing/invoice.ts:4: parse failure. This file does not parse, so its rules were not evaluated. Fix the syntax error and resend.");
+    expect(text.full).toBe(`${text.compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`);
+    expect(text.compact.includes("\n")).toBe(false);
+    expect(text.compact.length).toBeLessThanOrEqual(256);
+    expect(text.full.startsWith(text.compact)).toBe(true);
+    expect(text.full).not.toContain("no introduced violations");
+    expect(text.full).not.toContain("informational; no action required");
+    const clipped = syntaxAdvisory({ cause: "syntax", line: 4 }, "src/" + "segment/".repeat(40) + "file.ts");
+    expect(clipped.compact.length).toBeLessThanOrEqual(256);
+    expect(clipped.compact.includes("\n")).toBe(false);
+    expect(clipped.full.startsWith(clipped.compact)).toBe(true);
+  });
+
   test("all product text is English (D23)", () => {
     const spanish = /[áéíóúñ¿]|está|corré|requiere|turno|aprob/;
     expect(denyText([v(1, 1)], LOCK, 1, "retry", CTX).full).not.toMatch(spanish);
     for (const cause of Object.keys(FIXABLE_BY) as Cause[]) expect(formText({ cause, line: 1 }, FILE).full).not.toMatch(spanish);
+    expect(syntaxAdvisory({ cause: "syntax", line: 4 }, FILE).full).not.toMatch(spanish);
     for (const key of ["no-preset", "no-git", "lock-stale", "halt", "stop-cap", "start-failed", "ask", "approved"] as NoticeKey[]) {
       expect(notice(key, { reason: "git-not-repository" })).not.toMatch(spanish);
     }

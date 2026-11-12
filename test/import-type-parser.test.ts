@@ -89,6 +89,52 @@ for (const ext of ["ts", "tsx"] as const) {
   });
 }
 
+const importTypes = [
+  'export type Value = import("m").Type<Args>;',
+  'export type Loaded = typeof import("m");',
+  'export type Member = typeof import("m").Type;',
+  'export type Qualified = import("m").Ns.Type<Args>;',
+  'export type Nested = import("m").Type<import("n").Other<Args>>;',
+  'export type Wrapped = Foo<import("m").Type<Args>>;',
+  'export type Query = typeof import("m").Ns.Type<Args>;',
+  'declare const value: import("m").Type<Args>;',
+  'export type Fallback = import("m").default<Args>;',
+  'export type Pair = import("m").Type<Args, Other> | null;',
+  'export type Listed = import("m").Type<Args>[];',
+  'export function read(value: import("m").Type<Args>): import("m").Type<Args>;',
+];
+const brokenImportTypes = [
+  'export type Value = import("m").Type<;',
+  'export type Value = import("m").<Args>;',
+];
+
+for (const ext of ["ts", "tsx", "d.ts"] as const) {
+  test(`import type queries with type arguments parse in ${ext}`, () => {
+    for (const line of importTypes) {
+      const parsed = parse(`types.${ext}`, line + "\n");
+      expect(errorIn(parsed, null), line).toBeNull();
+      expect(parsed.root.text).toBe(line + "\n");
+      if (line.includes("<Args>")) expect(parsed.root.descendantsOfType("type_arguments").some((node) => node.text.includes("<Args>"))).toBe(true);
+      if (line.startsWith("export type Loaded")) expect(parsed.root.descendantsOfType("type_query")).toHaveLength(1);
+      parsed.root.tree.delete();
+    }
+    for (const line of brokenImportTypes) {
+      const parsed = parse(`types.${ext}`, line + "\n");
+      expect(errorIn(parsed, null), line).not.toBeNull();
+      parsed.root.tree.delete();
+    }
+  });
+}
+
+test("a tsx import type query with type arguments stays a type beside JSX", () => {
+  const text = 'export type Value = import("m").Type<Args>;\nexport const view = <div>ok</div>;\n';
+  const parsed = parse("ui.tsx", text);
+  expect(errorIn(parsed, null)).toBeNull();
+  expect(parsed.root.descendantsOfType("type_arguments").some((node) => node.text === "<Args>")).toBe(true);
+  expect(parsed.root.descendantsOfType("jsx_element")).toHaveLength(1);
+  parsed.root.tree.delete();
+});
+
 test("production audit and stdin checks accept inline import arrays and reject changed malformed syntax", () => {
   const root = join(area, "native"), binary = join(area, ENGINE_FILE);
   mkdirSync(join(root, "src"), { recursive: true }); mkdirSync(join(root, ".pregate"));

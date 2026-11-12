@@ -198,6 +198,9 @@ const CASES: [string, DecideInput, Expect][] = [
     event: "stop", path: null, lock: lock({ enforcement: "shadow" }), introduced: [v("core/CC-FN-001", 42)],
     stop: { blocks: 0, reentry: false, approved: [] },
   }), { verdict: "none", violations: 1 }],
+  ["advisor warns when a file does not parse", input({
+    lock: lock({ enforcement: "advisor" }), form: { cause: "syntax", line: 4 },
+  }), { verdict: "none", halt: false, cause: "syntax", full: /parse failure/ }],
 ];
 
 describe("decide: SPEC §11.3 table", () => {
@@ -345,6 +348,39 @@ test("mixed enforcement keeps syntax failures only for the applicable static pol
     expect(decide(input({ lock: contract, path: "src/domain/price.py", event, form })).verdict).toBe("deny");
     expect(decide(input({ lock: contract, path: "src/infra/store.py", event, form })).verdict).toBe("none");
   }
+});
+
+test("advisor mode warns on a file it could not parse, and enforce still denies that file", () => {
+  const warned = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "syntax", line: 4 } }));
+  expect(warned.verdict).toBe("none");
+  expect(warned.halt).toBe(false);
+  expect(warned.cause).toBe("syntax");
+  expect(warned.shadowed).toBe(true);
+  expect(warned.compact).toBe("PREGATE WARN syntax src/billing/invoice.ts:4: parse failure. This file does not parse, so its rules were not evaluated. Fix the syntax error and resend.");
+  expect(warned.full.startsWith(warned.compact)).toBe(true);
+  expect(warned.full).toContain("This is not a clean result. PREGATE did not check this file for violations.");
+  expect(warned.full).not.toContain("no introduced violations");
+  const mixed = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "syntax", line: 4 }, introduced: [v("core/CC-FN-001", 42)] }));
+  expect(mixed.verdict).toBe("none");
+  expect(mixed.compact).toBe(warned.compact);
+  expect(mixed.full.startsWith(mixed.compact)).toBe(true);
+  expect(mixed.full).toContain("PREGATE ADVISOR core/CC-FN-001");
+  expect(mixed.full).not.toContain("no introduced violations");
+  const shadow = decide(input({ lock: lock({ enforcement: "shadow" }), form: { cause: "syntax", line: 4 } }));
+  expect(shadow.verdict).toBe("none");
+  expect(shadow.compact).toBe("");
+  expect(shadow.full).toBe("");
+  const enforced = decide(input({ form: { cause: "syntax", line: 4 } }));
+  expect(enforced.verdict).toBe("deny");
+  expect(enforced.cause).toBe("syntax");
+  expect(enforced.compact).toContain("PREGATE DENY syntax");
+  expect(enforced.full).not.toContain("parse failure");
+  const promoted = lock({ enforcement: "advisor", rules: lock().rules.map((r) => r.id === "core/CC-FN-001" ? { ...r, enforcement: "enforce" } : r) });
+  const denied = decide(input({ lock: promoted, form: { cause: "syntax", line: 4 } }));
+  expect(denied.verdict).toBe("deny");
+  expect(denied.cause).toBe("syntax");
+  expect(denied.compact).toContain("PREGATE DENY syntax");
+  expect(denied.full).not.toContain("parse failure");
 });
 
 test("an enforcing project requirement is not a source syntax policy", () => {
