@@ -1,0 +1,4 @@
+export function assertBlank(html: string) {
+  expect(html).toContain('target="_blank"');
+  expect(html).toContain('rel="noreferrer"');
+}

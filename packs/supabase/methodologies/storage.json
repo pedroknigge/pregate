@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "supabase/storage",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -31,11 +31,11 @@
       "source": {
         "work": "Supabase documentation, calling Postgres functions",
         "locator": "rpc params pages",
-        "paraphrase": "An rpc call names the function and passes its arguments object. A bare name carries no inputs and no types."
+        "paraphrase": "An rpc call names a Postgres function with a static string so generated types can check it. A zero-argument function is still rpc(\"name\"). A name computed at runtime is not."
       },
-      "why": "A params-less rpc either calls the wrong overload or hides its inputs from review, and generated types cannot check a call that passes nothing.",
-      "fixHint": "Pass the params object as the second argument, matching the generated function signature.",
-      "avoid": "A template-literal function name with no params is still untyped. Quoting style does not change the call shape.",
+      "why": "Generated Database types check a static function name, including a function whose Args are an empty record. A computed name skips that check, so the call can name a function the schema does not have.",
+      "fixHint": "Pass the static function name from the generated types. Add the params object only when the function has arguments.",
+      "avoid": "The rule runs only in a file that imports @supabase/supabase-js or @supabase/ssr. A static string or a static template with no substitution is allowed, with or without a params object. An interpolated or computed name stays untyped. A client that is not Supabase is not this call.",
       "examples": {
         "pass": "pass/with-params",
         "fail": "fail/bare-rpc"

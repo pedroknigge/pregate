@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "nextjs/rendering/no-img-element",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "rendering",
   "cardinality": "singleton",
   "dimension": "nextjs.no-img-element",
@@ -14,19 +14,18 @@
         {
           "id": "img-element",
           "rule": {
-            "kind": "return_statement",
-            "regex": "<img[\\s/>]"
+            "regex": "^<img\\b",
+            "has": {
+              "field": "name",
+              "kind": "identifier",
+              "regex": "^img$"
+            }
           }
         }
       ]
     }
   },
-  "phase": [
-    "pre",
-    "stop",
-    "commit",
-    "ci"
-  ],
+  "phase": ["pre", "stop", "commit", "ci"],
   "feedback": {
     "message": "{symbol} renders a raw img element. Use the next/image component instead."
   }

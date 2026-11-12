@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "testing/tdd",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -23,7 +23,7 @@
       },
       "why": "A focused or skipped test silently switches off the rest of the suite for everyone who runs it.",
       "fixHint": "Remove the focus or skip modifier and make the test pass; if it cannot pass yet, report that instead of hiding the test.",
-      "avoid": "Bracket access, aliases or destructuring of the focused function, and modifiers in the middle of a chain. Not reported: Playwright's runtime skip test.skip(condition, reason) called inside a test body, hook or describe callback, when the condition reads a runtime value (an identifier, member access, call or await) and the reason is a string; from a describe callback it conditionally skips the whole group, which is accepted. A top-level test.skip(cond, reason), a literal or always-true condition (true, 1, !0, !!1, an object, array, new expression, sequence, spread or function, also in parentheses or a cast), test.skip(title, fn), it.skip(...) and every .only stay reported. Known gaps: an always-true condition that still names a value (true || x, a const holding true) and Mocha's TDD-UI test.skip(titleVar, 'reason').",
+      "avoid": "Bracket access, aliases or destructuring of the focused function, and modifiers in the middle of a chain. Not reported: Playwright's runtime skip test.skip(condition, reason) called inside a test body, hook or describe callback, when the condition reads a runtime value (an identifier, member access, call or await) and the reason is a string; from a describe callback it conditionally skips the whole group, which is accepted. Also not reported there: test.skip() and test.skip(true, reason) in the consequence of an if whose condition reads a runtime value and is not always-true. A top-level test.skip(cond, reason), a top-level if, if (true), a literal or always-true condition (true, 1, !0, !!1, an object, array, new expression, sequence, spread or function, also in parentheses or a cast), test.skip(title, fn), it.skip(...) and every .only stay reported. Known gaps: an always-true condition that still names a value (true || x, a const holding true) and Mocha's TDD-UI test.skip(titleVar, 'reason').",
       "examples": {
         "pass": "pass/plain-tests",
         "fail": "fail/only-and-skip"

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "nextjs/routing",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "A plain anchor to an internal route forces a full document reload and skips prefetching, losing the client-side navigation the router exists for.",
       "fixHint": "Replace the anchor with Link from next/link. Keep anchors for external URLs only.",
-      "avoid": "This advisory policy checks actual anchor nodes with literal root-relative href attributes, including expression-wrapped strings, anywhere in JSX. It ignores CMS HTML strings, unrelated attributes, external and protocol-relative URLs. Full reloads and downloads can be intentional; do not promote this suggestion without the project's navigation contract.",
+      "avoid": "This advisory policy checks actual anchor nodes with literal root-relative href attributes, including expression-wrapped strings, anywhere in JSX. It ignores CMS HTML strings, unrelated attributes, external and protocol-relative URLs, an anchor with target=\"_blank\", and an anchor with a download attribute. Full reloads can be intentional; do not promote this suggestion without the project's navigation contract.",
       "examples": {
         "pass": "pass/next-link",
         "fail": "fail/internal-anchor"
@@ -35,7 +35,7 @@
       },
       "why": "A Document import inside app/ silently does nothing while suggesting the Pages Router still controls the shell, so document changes never apply.",
       "fixHint": "Move document-level markup into the app root layout and declare head data with the metadata export.",
-      "avoid": "Re-exporting next/document from a shared module so app files keep importing it indirectly.",
+      "avoid": "Re-exporting next/document from a shared module so app files keep importing it indirectly. A string that mentions next/document without importing it is not an import.",
       "examples": {
         "pass": "pass/app-metadata",
         "fail": "fail/app-document-import"

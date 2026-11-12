@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "supabase/rpc/no-untyped-rpc",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "rpc",
   "cardinality": "singleton",
   "dimension": "supabase.untyped-rpc",
@@ -13,21 +13,66 @@
       "typescript": [
         {
           "id": "untyped-rpc",
+          "utils": {
+            "supabase-import": {
+              "kind": "string_fragment",
+              "regex": "^@supabase/(supabase-js|ssr)(/|$)",
+              "inside": {
+                "kind": "string",
+                "any": [
+                  {
+                    "inside": {
+                      "field": "source",
+                      "any": [
+                        { "kind": "import_statement" },
+                        { "kind": "export_statement" }
+                      ]
+                    }
+                  },
+                  {
+                    "nthChild": {
+                      "position": 1,
+                      "ofRule": { "not": { "kind": "comment" } }
+                    },
+                    "inside": {
+                      "kind": "arguments",
+                      "inside": {
+                        "kind": "call_expression",
+                        "has": {
+                          "field": "function",
+                          "any": [
+                            { "kind": "import" },
+                            { "kind": "identifier", "regex": "^require$" }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
           "rule": {
             "kind": "call_expression",
-            "regex": "\\.rpc\\s*\\(\\s*[\"'`][^\"'`]+[\"'`]\\s*\\)"
+            "regex": "\\.rpc\\s*\\(",
+            "not": {
+              "regex": "\\.rpc\\s*\\(\\s*([\"'][^\"']*[\"']|`[^`$]*`)\\s*[,)]"
+            },
+            "inside": {
+              "stopBy": "end",
+              "kind": "program",
+              "has": {
+                "stopBy": "end",
+                "matches": "supabase-import"
+              }
+            }
           }
         }
       ]
     }
   },
-  "phase": [
-    "pre",
-    "stop",
-    "commit",
-    "ci"
-  ],
+  "phase": ["pre", "stop", "commit", "ci"],
   "feedback": {
-    "message": "{symbol} calls rpc with only a function name and no arguments object. Pass the typed params object so the call carries its inputs."
+    "message": "{symbol} calls rpc with a computed function name. Pass the static name from the generated Database types so the call is checked."
   }
 }

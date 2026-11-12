@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "react/hooks",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "A Hook inside a branch runs on some renders and not others, so every Hook after it reads the wrong slot.",
       "fixHint": "Move the Hook call above the branch and put only its result inside the condition.",
-      "avoid": "A custom Hook is still a plain function: the rule only fires inside a branch or loop, so a helper without JSX is not flagged.",
+      "avoid": "A custom Hook is still a plain function: the rule only fires inside a branch or loop, so a helper without JSX is not flagged. The condition of an if or a ternary runs on every render and is not a branch. A Hook on the right of &&, ||, or ?? is. A Hook inside a function nested in a branch is that function's own top-level call.",
       "examples": {
         "pass": "pass/top-level",
         "fail": "fail/in-if"

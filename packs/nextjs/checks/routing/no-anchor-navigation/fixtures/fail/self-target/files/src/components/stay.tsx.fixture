@@ -1,0 +1,1 @@
+export function Stay() { return <a href="/about" target="_self">About</a>; }

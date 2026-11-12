@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "nextjs/data/no-sync-page-props",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "data",
   "cardinality": "singleton",
   "dimension": "nextjs.sync-page-props",
@@ -46,7 +46,53 @@
                     "has": {
                       "field": "object",
                       "kind": "identifier",
-                      "regex": "^(params|searchParams)$"
+                      "regex": "^params$"
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^params$" }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "matches": "image-metadata"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "member_expression",
+                "all": [
+                  {
+                    "has": {
+                      "field": "object",
+                      "kind": "identifier",
+                      "regex": "^searchParams$"
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^searchParams$" }
+                        }
+                      }
                     }
                   },
                   {
@@ -66,7 +112,53 @@
                     "has": {
                       "field": "object",
                       "kind": "identifier",
-                      "regex": "^(params|searchParams)$"
+                      "regex": "^params$"
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^params$" }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "matches": "image-metadata"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "subscript_expression",
+                "all": [
+                  {
+                    "has": {
+                      "field": "object",
+                      "kind": "identifier",
+                      "regex": "^searchParams$"
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^searchParams$" }
+                        }
+                      }
                     }
                   },
                   {
@@ -109,26 +201,80 @@
             }
           },
           "rule": {
-            "kind": "identifier",
-            "regex": "^(params|searchParams)$",
-            "all": [
+            "any": [
               {
-                "inside": {
-                  "field": "value",
-                  "kind": "variable_declarator",
-                  "has": {
-                    "field": "name",
-                    "kind": "object_pattern"
+                "kind": "identifier",
+                "regex": "^params$",
+                "all": [
+                  {
+                    "inside": {
+                      "field": "value",
+                      "kind": "variable_declarator",
+                      "has": {
+                        "field": "name",
+                        "kind": "object_pattern"
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^params$" }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "matches": "image-metadata"
+                      }
+                    }
                   }
-                }
+                ]
               },
               {
-                "not": {
-                  "inside": {
-                    "stopBy": "end",
-                    "matches": "image-metadata"
+                "kind": "identifier",
+                "regex": "^searchParams$",
+                "all": [
+                  {
+                    "inside": {
+                      "field": "value",
+                      "kind": "variable_declarator",
+                      "has": {
+                        "field": "name",
+                        "kind": "object_pattern"
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^searchParams$" }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "matches": "image-metadata"
+                      }
+                    }
                   }
-                }
+                ]
               }
             ]
           }
@@ -172,6 +318,15 @@
                 "has": {
                   "field": "value",
                   "kind": "object_pattern"
+                }
+              },
+              {
+                "inside": {
+                  "stopBy": "end",
+                  "any": [
+                    { "kind": "required_parameter" },
+                    { "kind": "optional_parameter" }
+                  ]
                 }
               },
               {

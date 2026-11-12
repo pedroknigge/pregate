@@ -1,0 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
+export function selectInput(inputElement: { select(): void }) {
+  inputElement.select();
+}

@@ -1,3 +1,4 @@
-export async function health(): Promise<void> {
-  await supabase.rpc('get_stats');
+import { createClient } from "@supabase/supabase-js";
+export async function health(supabase: { rpc(fn: string): Promise<unknown> }, name: string): Promise<void> {
+  await supabase.rpc(name as string);
 }

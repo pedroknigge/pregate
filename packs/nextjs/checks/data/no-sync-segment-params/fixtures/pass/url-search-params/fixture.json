@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "app/api/search/route.ts",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

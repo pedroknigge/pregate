@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "nextjs/data/no-sync-segment-params",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "data",
   "cardinality": "singleton",
   "dimension": "nextjs.sync-segment-params",
@@ -65,6 +65,19 @@
                     "not": {
                       "inside": {
                         "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^params$" }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
                         "matches": "image-metadata"
                       }
                     }
@@ -79,6 +92,19 @@
                       "field": "object",
                       "kind": "identifier",
                       "regex": "^params$"
+                    }
+                  },
+                  {
+                    "not": {
+                      "inside": {
+                        "stopBy": "end",
+                        "kind": "statement_block",
+                        "has": {
+                          "stopBy": { "kind": "statement_block" },
+                          "kind": "variable_declarator",
+                          "has": { "field": "name", "regex": "^params$" }
+                        }
+                      }
                     }
                   },
                   {
@@ -150,6 +176,19 @@
                 "not": {
                   "inside": {
                     "stopBy": "end",
+                    "kind": "statement_block",
+                    "has": {
+                      "stopBy": { "kind": "statement_block" },
+                      "kind": "variable_declarator",
+                      "has": { "field": "name", "regex": "^params$" }
+                    }
+                  }
+                }
+              },
+              {
+                "not": {
+                  "inside": {
+                    "stopBy": "end",
                     "matches": "image-metadata"
                   }
                 }
@@ -208,6 +247,15 @@
                 "has": {
                   "field": "value",
                   "kind": "object_pattern"
+                }
+              },
+              {
+                "inside": {
+                  "stopBy": "end",
+                  "any": [
+                    { "kind": "required_parameter" },
+                    { "kind": "optional_parameter" }
+                  ]
                 }
               },
               {

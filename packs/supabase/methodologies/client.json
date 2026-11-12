@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "supabase/client",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,7 +17,7 @@
       },
       "why": "A service_role key in client-reachable code hands every reader full bypass of row-level security. Rotation then means reissuing keys and auditing every row.",
       "fixHint": "Build the browser client with the anon key. Move service_role use into server code and expose safe operations through routes.",
-      "avoid": "Reading the key from process.env does not make it safe. A SERVICE_ROLE value in a component or page file still ships to the browser.",
+      "avoid": "Reading the key from process.env does not make it safe. A SERVICE_ROLE value in a component or page file still ships to the browser. App Router and Pages Router handlers (app/api, pages/api, and route.ts) are server-only and are not flagged.",
       "examples": {
         "pass": "pass/anon-key",
         "fail": "fail/service-role-const"
@@ -35,7 +35,7 @@
       },
       "why": "Importing createClient from the wrong package resolves to nothing maintained, so the client silently misses auth, cookie, and typing behavior the documented packages provide.",
       "fixHint": "Import createClient from @supabase/supabase-js in the browser, or from @supabase/ssr where cookies are involved.",
-      "avoid": "Dynamic import and require of the same bare specifier are the same mistake, not an escape.",
+      "avoid": "Dynamic import and require of the same bare specifier are the same mistake, not an escape. A string that only says supabase inside an exported function is not an import.",
       "examples": {
         "pass": "pass/supabase-js",
         "fail": "fail/bare-import"
@@ -52,8 +52,8 @@
         "paraphrase": "Reads should page with range or cap with limit. An unbounded select returns the whole result set in one call."
       },
       "why": "One unbounded read can pull the whole table into memory, the response, and the bill. The failure shows up in production data sizes, not in review.",
-      "fixHint": "Chain .range(from, to) or .limit(n) onto every select, including exports.",
-      "avoid": "Exporting the selection with .csv() is not a bound. Ordering without range or limit still reads every row.",
+      "fixHint": "Chain .range(from, to), .limit(n), .single(), or .maybeSingle() onto a table read. A select that returns rows from insert, update, upsert, or delete is already one row set.",
+      "avoid": "The rule reads a Supabase .from(...).select(...) in a file that imports @supabase/supabase-js or @supabase/ssr. .range(), .limit(), .order(), .single(), and .maybeSingle() are bounds. .csv() is not. A select that is not that chain, including Drizzle db.select().from(...) and DOM element.select(), is not this call.",
       "examples": {
         "pass": "pass/ranged-select",
         "fail": "fail/bare-select"
@@ -71,7 +71,7 @@
       },
       "why": "An admin call from the browser needs the bypass key next to it, so flagging the call also flags the key leak. Either one alone compromises every user row.",
       "fixHint": "Move admin calls into server code and call them from the client through a route that checks the caller's session first.",
-      "avoid": "An invite-shaped createUser is still the admin API. getUser and session reads stay client-safe and are not flagged.",
+      "avoid": "An invite-shaped createUser is still the admin API. getUser and session reads stay client-safe and are not flagged. App Router and Pages Router handlers (app/api, pages/api, and route.ts) are server-only and are not flagged.",
       "examples": {
         "pass": "pass/get-user",
         "fail": "fail/delete-user"
@@ -89,7 +89,7 @@
       },
       "why": "The deprecated helpers no longer get fixes, so session and cookie bugs stay in the app. A new file that imports them also grows a codebase that must migrate later.",
       "fixHint": "Import createBrowserClient or createServerClient from @supabase/ssr and pass cookie getAll/setAll handlers, as in the Supabase SSR guide for your framework.",
-      "avoid": "Do not wrap the helpers in a local barrel to hide the import; the re-export is still flagged. @supabase/auth-ui-react and @supabase/supabase-js are different packages and stay allowed.",
+      "avoid": "Do not wrap the helpers in a local barrel to hide the import; the re-export is still flagged. A string that names the package without importing it is not an import. @supabase/auth-ui-react and @supabase/supabase-js are different packages and stay allowed.",
       "examples": {
         "pass": "pass/ssr-server-client",
         "fail": "fail/nextjs-helpers"

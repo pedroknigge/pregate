@@ -1,0 +1,7 @@
+"use client";
+import { useParams, useSearchParams } from "next/navigation";
+export default function ClientPage() {
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  return <div>{params.id} {searchParams.get("tab")}</div>;
+}

@@ -1,0 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+export async function maybe(supabase: { from(table: string): any }, id: string) {
+  const { data: row } = await supabase.from("items").select("*").eq("id", id).maybeSingle();
+  return row;
+}

@@ -1,6 +1,6 @@
 # supabase
 
-Data-only rule pack for TypeScript `supabase-js` client usage. Source version **1.2.0**, for engine **0.0.8**. The engine parses TS/JS, so this pack enforces client call shapes; RLS policies, storage bucket policies, and edge function bodies need SQL and the Deno runtime and live in BACKLOG.md until then.
+Data-only rule pack for TypeScript `supabase-js` client usage. Source version **1.2.1**, for engine **0.0.8**. The engine parses TS/JS, so this pack enforces client call shapes; RLS policies, storage bucket policies, and edge function bodies need SQL and the Deno runtime and live in BACKLOG.md until then.
 
 Complements `vibe-proof`: that pack's client-public-secret rule covers `NEXT_PUBLIC` service_role *names*, while this pack flags the `createClient` call that *uses* the key. The vibe BACKLOG explicitly punts open RLS; this pack does not claim it.
 
@@ -20,13 +20,13 @@ Ready-made combinations live in `packs/presets/`.
 
 | ID | Flags | Why | Default severity |
 | --- | --- | --- | --- |
-| `SB-KEY-001` | `createClient` with a service_role key in client-reachable files. | The bypass key ships to the browser. | deny |
-| `SB-CLIENT-001` | `createClient` imported from the bare `supabase` package. | Wrong entrypoint; misses auth, cookie, and typing behavior. | deny |
-| `SB-QUERY-001` | `.select()` with no range, limit, or order in the same statement. | One call can read the whole table. | deny |
-| `SB-AUTH-001` | `supabase.auth.admin.*` in client-reachable files. | Admin API bypasses RLS; server only. | deny |
+| `SB-KEY-001` | `createClient` with a service_role key in client-reachable files. Route handlers are server-only and are not flagged. | The bypass key ships to the browser. | deny |
+| `SB-CLIENT-001` | `createClient` imported from the bare `supabase` package. A string that only says `supabase` is not an import. | Wrong entrypoint; misses auth, cookie, and typing behavior. | deny |
+| `SB-QUERY-001` | A Supabase `.from(...).select(...)` with no range, limit, order, single, or maybeSingle. Mutation `.select()` and non-Supabase selects are not this call. | One call can read the whole table. | deny |
+| `SB-AUTH-001` | `supabase.auth.admin.*` in client-reachable files. Route handlers are server-only and are not flagged. | Admin API bypasses RLS; server only. | deny |
 | `SB-HELPERS-001` | Imports, re-exports or requires of a deprecated `@supabase/auth-helpers-*` package. | Deprecated in favor of `@supabase/ssr`; fixes land there. | warn |
 | `SB-STORAGE-001` | `.upload()` into the bucket literally named `public`. | Publishes whatever lands in it. | deny |
-| `SB-RPC-001` | `.rpc("fn")` with no arguments object. | Untyped call; hides inputs from review. | deny |
+| `SB-RPC-001` | `.rpc` with a computed function name in a file that imports `@supabase/supabase-js` or `@supabase/ssr`. A static name, including a zero-argument function, is the typed call. | A computed name skips the generated types. | deny |
 | `SB-REALTIME-001` | `.channel()` subscribed with no `.on()` filter. | Streams everything the key can read. | deny |
 | `SB-EDGE-001` | Raw `fetch` to a `functions/v1` URL. | Skips the client's auth header handling. | deny |
 | `SB-GETUSER-001` | `supabase.auth.getSession()` inside server route handlers (`GET`, `POST`, ...), `'use server'` modules, or `createServerClient` files. | `getSession()` reads cookies without revalidating the token with Supabase Auth; server code must use `getUser()`. | deny |
@@ -38,7 +38,7 @@ Ready-made combinations live in `packs/presets/`.
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/supabase` runs **50** real fixtures. Every check has a failing
+`pregate rules test packs/supabase` runs **65** real fixtures. Every check has a failing
 trap with exact lines: env-read service_role keys, `require("supabase")`, `.csv()` exports
 without bounds, admin `createUser` invites, barrel re-exports of auth-helpers, template-literal bucket names, template-literal
 rpc names, template-literal channel names, and manual `Authorization` headers on raw
@@ -46,7 +46,8 @@ functions fetches. Server-side admin and service_role use, private-bucket upload
 public-bucket downloads, presence filters, and `@supabase/auth-ui-*` imports remain pass guards.
 
 The client-file rules (SB-KEY-001, SB-AUTH-001) scope to `app/**`, `components/**`,
-`pages/**` (plus `src/` variants) and ignore `**/server/**` and `**/*.server.*`. Other
+`pages/**` (plus `src/` variants) and ignore `**/server/**`, `**/*.server.*`, `app/api/**`,
+`src/app/api/**`, `pages/api/**`, `src/pages/api/**`, and `route.ts` handlers. Other
 framework layouts outside those globs, and service_role keys arriving through helpers
 or imports rather than visible arguments, are backlog cases, not claimed coverage.
 Concrete uncaught cases are in [BACKLOG.md](BACKLOG.md).
@@ -57,7 +58,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 10 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 10 distinct check IDs.
 
 Methodologies: `supabase/client` (complete), `supabase/storage` (complete).
 

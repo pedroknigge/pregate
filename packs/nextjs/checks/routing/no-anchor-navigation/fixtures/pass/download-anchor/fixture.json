@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/components/report.tsx",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

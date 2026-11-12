@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "react/components",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -71,7 +71,7 @@
       },
       "why": "The opened page gains opener access and can redirect the original tab to a lookalike.",
       "fixHint": "Add rel=\"noreferrer\" to the anchor. Keep target=\"_blank\" only for destinations outside the app.",
-      "avoid": "Same-tab links need no rel. Any rel value silences the rule; noreferrer is the one that cuts opener access.",
+      "avoid": "The rule matches a JSX target attribute, not the same characters inside a string. Same-tab links need no rel. rel on the same element silences the rule; rel on a different element does not. noreferrer is the value that cuts opener access.",
       "examples": {
         "pass": "pass/with-rel",
         "fail": "fail/bare-blank"

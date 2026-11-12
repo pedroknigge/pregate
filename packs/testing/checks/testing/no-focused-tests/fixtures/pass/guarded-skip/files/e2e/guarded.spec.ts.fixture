@@ -1,0 +1,21 @@
+import { test, expect } from "@playwright/test";
+
+test("checkout", async ({ page, browserName }) => {
+  const hasEnv = process.env.E2E_BASE_URL;
+  if (!hasEnv) {
+    test.skip(true, "Missing env");
+    return;
+  }
+  if (browserName === "webkit") {
+    test.skip();
+    return;
+  }
+  await expect(page).toHaveTitle("Checkout");
+});
+
+test.beforeEach(async ({ browserName }) => {
+  if (browserName === "webkit") {
+    test.skip();
+    return;
+  }
+});

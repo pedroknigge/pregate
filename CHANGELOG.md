@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Bundled pack false positives on engine 0.0.8. Import checks for `SB-CLIENT-001`, `SB-HELPERS-001`, and `NEXT-DOC-001` read the module specifier, not every string inside an exported function. `SB-AUTH-001` and `SB-KEY-001` leave App Router and Pages Router handlers alone. `SB-QUERY-001` requires a Supabase `.from(...).select(...)` and treats `.single()`, `.maybeSingle()`, and a mutation's returning `.select()` as bounded. `SB-RPC-001` allows a static function name, including a zero-argument call, and still denies a computed name on a Supabase import. `NEXT-SEGMENT-001` and `NEXT-PARAMS-001` leave `params` and `searchParams` alone when the enclosing block declares a local of that name. `NEXT-FONT-001` and `NEXT-IMG-001` match JSX elements, not template strings. `NEXT-LINK-001` leaves `target="_blank"` and `download` anchors alone. `REACT-BLANK-001` matches a JSX `target` attribute on that element. `REACT-HOOK-001` does not treat an `if` or ternary condition as a branch. `TDD-FOCUS-001` allows `test.skip()` and `test.skip(true, reason)` in the body of a runtime `if` inside a test, hook, or describe callback. Packs: supabase 1.2.1, nextjs 1.4.1, react 1.2.1, testing 1.2.2. No rule was disabled or downgraded.
+
 ## [0.0.8] - 2026-11-12
 
 Pregate now gates six harnesses, and a project can carry its own hooks. OpenCode joins through a plugin. Cursor, Codex, Claude Code and Antigravity can register hooks in the repository. A Claude Code subagent hears the project's briefing when it starts, and a Grok subagent is judged as its own session. The shell guard lets a project's own JavaScript programs run, and it lets the agent read the skill file Pregate installed. OpenCode starts on Windows. See the [0.0.8 notes](docs/releases/0.0.8.md).

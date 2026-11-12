@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "nextjs/routing/no-next-document-in-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "routing",
   "cardinality": "singleton",
   "dimension": "nextjs.no-next-document-in-app",
@@ -13,49 +13,49 @@
       "typescript": [
         {
           "id": "next-document-in-app",
+          "files": ["app/**/*", "src/app/**/*"],
           "rule": {
             "kind": "string_fragment",
             "regex": "next/document",
             "inside": {
-              "stopBy": "end",
+              "kind": "string",
               "any": [
                 {
-                  "kind": "import_statement"
-                },
-                {
-                  "kind": "export_statement"
-                },
-                {
-                  "kind": "call_expression",
-                  "has": {
-                    "field": "function",
-                    "kind": "import"
+                  "inside": {
+                    "field": "source",
+                    "any": [
+                      { "kind": "import_statement" },
+                      { "kind": "export_statement" }
+                    ]
                   }
                 },
                 {
-                  "kind": "call_expression",
-                  "has": {
-                    "field": "function",
-                    "regex": "^require$"
+                  "nthChild": {
+                    "position": 1,
+                    "ofRule": { "not": { "kind": "comment" } }
+                  },
+                  "inside": {
+                    "kind": "arguments",
+                    "inside": {
+                      "kind": "call_expression",
+                      "has": {
+                        "field": "function",
+                        "any": [
+                          { "kind": "import" },
+                          { "kind": "identifier", "regex": "^require$" }
+                        ]
+                      }
+                    }
                   }
                 }
               ]
             }
-          },
-          "files": [
-            "app/**/*",
-            "src/app/**/*"
-          ]
+          }
         }
       ]
     }
   },
-  "phase": [
-    "pre",
-    "stop",
-    "commit",
-    "ci"
-  ],
+  "phase": ["pre", "stop", "commit", "ci"],
   "feedback": {
     "message": "{symbol} imports from next/document in the App Router. Declare document metadata in the route segment instead."
   }

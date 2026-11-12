@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 export async function recent(): Promise<unknown> {
   const { data } = await supabase.from("orders").select("id").limit(25);
   return data;

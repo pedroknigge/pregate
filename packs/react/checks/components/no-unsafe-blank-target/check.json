@@ -1,1 +1,44 @@
-{"$schema": "../../../../../schema/check.v1.json", "id": "react/components/no-unsafe-blank-target", "version": "1.0.0", "area": "components", "cardinality": "singleton", "dimension": "react.unsafe-blank-target", "minSeverity": null, "params": {}, "impl": {"kind": "pattern", "patterns": {"typescript": [{"id": "unsafe-blank-target", "rule": {"regex": "^target=(\\{\"_blank\"\\}|\"_blank\"|'_blank'|\\{'_blank'\\})$", "not": {"any": [{"follows": {"stopBy": "end", "regex": "^rel="}}, {"precedes": {"stopBy": "end", "regex": "^rel="}}]}}}]}}, "phase": ["pre", "stop", "commit", "ci"], "feedback": {"message": "{symbol} opens a new tab without rel. Add rel=\"noreferrer\" so the new page cannot reach the opener."}}
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "react/components/no-unsafe-blank-target",
+  "version": "1.0.1",
+  "area": "components",
+  "cardinality": "singleton",
+  "dimension": "react.unsafe-blank-target",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "unsafe-blank-target",
+          "rule": {
+            "regex": "^target=(\\{\"_blank\"\\}|\"_blank\"|'_blank'|\\{'_blank'\\})$",
+            "has": {
+              "kind": "property_identifier",
+              "regex": "^target$"
+            },
+            "inside": {
+              "has": {
+                "field": "name",
+                "kind": "identifier"
+              },
+              "not": {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "property_identifier",
+                  "regex": "^rel$"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} opens a new tab without rel. Add rel=\"noreferrer\" so the new page cannot reach the opener."
+  }
+}

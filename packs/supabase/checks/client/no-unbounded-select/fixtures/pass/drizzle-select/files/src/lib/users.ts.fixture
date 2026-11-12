@@ -1,0 +1,7 @@
+import { createClient } from "@supabase/supabase-js";
+declare function eq(column: unknown, value: unknown): unknown;
+declare const users: { id: unknown };
+export async function byId(db: { select(): { from(table: unknown): { where(cond: unknown): Promise<unknown> } } }, id: string) {
+  const rows = await db.select().from(users).where(eq(users.id, id));
+  return rows;
+}
