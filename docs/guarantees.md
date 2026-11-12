@@ -63,7 +63,7 @@ These are heuristics over text, not a sandbox.
 
 | Attack | Pre shell guard | Backstop |
 | --- | --- | --- |
-| Dynamic command or path (`eval`, `$var`, concatenation, `base64 -d`, `chr()`/template-built strings) | Not denied by itself | Stop, `check --ratchet`, CI |
+| A literal dynamic command the scan does not execute (`eval 'echo ok'`, concatenation, `base64 -d`, `chr()`/template-built strings) | Not denied by itself | Stop, `check --ratchet`, CI |
 | Encoded or compressed payloads the decoder does not recognize | Not read as a script | Same |
 | Write sinks only in a module the script imports (no sink token in the file text) | Not denied at Pre | Stop, pre-commit, CI |
 | In a node script file, access built through `constructor`, `prototype`, `globalThis` or a computed member, with no sink name in the text | Not denied at Pre | Same |
@@ -78,7 +78,7 @@ Stop, pre-commit, and the CI ratchet remain the deterministic boundary for anyth
 - Git history commands are judged by the files Git reports for them before they run. A hook, a filter or an alias that Git runs as part of the command is not.
 - Local approval records and consent records can be rewritten by any process of the same user. Stop and pre-commit trust a matching approval record; only the CI ratchet with a repository variable is outside the agent's reach.
 - `pregate prepare`, `pregate setup` and `pregate update` are denied to the agent but do not ask the human for `y`: they add or refresh protection rather than remove it.
-- `script`, `tmux`, and `screen` are denied as interactive sessions. Another pty allocator can still give a child a terminal, and a terminal prints the approval code.
+- `script`, `tmux`, and `screen` are denied as interactive sessions. When the hook evaluates the command, a non-literal script is denied too (`shell-write`), including `bash -c 'while read l; do eval "$l"; done'`. `env -i` and `env -u` of a `PREGATE_` variable are `hook-switch`. Codex can still give `exec_command` a pty when `tty` is true, and `write_stdin` types into that pty without another PreToolUse. The PreToolUse payload is only `{command}`; it does not include `tty`. The read/eval loop above is denied before that child starts, so `write_stdin` has no terminal to type `pregate approve` into (`test/codex-pty-approve.e2e.test.ts`). Another pty allocator, or an obfuscation the lexer does not read as a non-literal script, can still give a child a terminal, and a terminal prints the approval code.
 - Unknown shell syntax is not denied by itself. A command run outside every enabled project, with no project directory variable pointing at one, does not gain machine path protection. That is the same no-consent rule as the rest of Pre.
 
 ## What the adversarial suite holds pregate to
