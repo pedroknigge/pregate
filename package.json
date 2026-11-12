@@ -1,6 +1,6 @@
 {
   "name": "pregate",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Deterministic pre-tool gate, architectural boundary verifier, and static analyzer for AI coding agents (Claude Code, Codex, Cursor, Grok, Antigravity, OpenCode) and CI.",
   "license": "MIT",
   "author": "Pedro Knigge",

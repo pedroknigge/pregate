@@ -253,7 +253,7 @@ function runSection(s: Summary): string[] {
   return [
     "## Run",
     "",
-    `Run \`${s.run.id}\` (${s.run.kind}). Engine ${s.run.engine}, ${s.run.platform}. CLI versions: ${versions || "none"}. Models: ${models || "none"}.`,
+    `Run \`${s.run.id}\` (${s.run.kind}). Recorded on ${s.run.engine}, ${s.run.platform}. CLI versions: ${versions || "none"}. Models: ${models || "none"}.`,
     "",
     "| Repository | Proposed packs | Rules |",
     "| --- | --- | --- |",

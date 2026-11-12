@@ -74,7 +74,7 @@
       "url": "https://github.com/microsoft/tslib.git"
     }
   ],
-  "engine": "0.0.7",
+  "engine": "0.0.8",
   "labels": {
     "agent": 47,
     "maintainer": 17,

@@ -2,19 +2,19 @@
 
 This document explains which parts of the [upstream skill](https://github.com/cloudflare/security-audit-skill/tree/c1c8a8c1471069fb0e188eeaff69b8e8db6564a8) are not checks in this pack and what each one needs before admission. The [pack README](README.md) describes the admitted rules.
 
-## Request sinks (not in 0.0.7)
+## Request sinks (not in 0.0.8)
 
 Open redirects, path traversal and server-side request forgery all depend on whether a request value reaches the sink. A name-only pattern on `redirect(req.query.x)` or `fetch(url)` either misses the common one-hop alias or flags every internal call. Admit them after a pilot measures false positives in advisor mode, and after one-hop alias taint exists (see [engine requests](../ENGINE-REQUESTS.md)).
 
-## Template injection, ReDoS and XXE (not in 0.0.7)
+## Template injection, ReDoS and XXE (not in 0.0.8)
 
 Server-side template injection needs to know that a template string, not a context value, is user-controlled. ReDoS needs a regex complexity analysis, not a syntax match on `new RegExp`. XML external entity options differ per parser and per version, so each parser needs its own reviewed option table and fixtures.
 
-## Electron (not in 0.0.7)
+## Electron (not in 0.0.8)
 
 `webPreferences` with `nodeIntegration: true`, `contextIsolation: false` or `sandbox: false` are exact forms, but their risk depends on whether the window loads remote content. Calibrate on a real Electron project before choosing defaults.
 
-## Trust-boundary evidence (not in 0.0.7)
+## Trust-boundary evidence (not in 0.0.8)
 
 A future `security-audit/trust-boundaries` methodology would hold project-evidence requirements, each bound to a reviewed assertion rather than a syntax match:
 

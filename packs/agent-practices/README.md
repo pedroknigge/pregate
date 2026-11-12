@@ -1,6 +1,6 @@
 # Agent practices
 
-Included in 0.0.7.
+Included in 0.0.8.
 
 22 optional preview evidence rules distilled from user-supplied posts. Choose
 the relevant policy without changing core or adopting every recommendation:
