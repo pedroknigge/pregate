@@ -50,8 +50,9 @@ and the rule's exact scope before adopting blocking policy.
 A synchronous effect may declare an async loader, invoke it and return cleanup.
 The effect rule checks its direct first argument, including transparent wrappers;
 it does not scan nested callback bodies for the word async. Repo recommendations
-are scoped to package manifests that declare React, with nested unrelated owners
-excluded. Reviewed user paths and exclusions remain authoritative. Cross-file
+are scoped to package manifests that declare `react` in dependencies,
+devDependencies, or peer dependencies, with nested unrelated owners
+excluded. A similarly named package does not count. Reviewed user paths and exclusions remain authoritative. Cross-file
 Hook aliases, callback return flow and lifecycle correctness need stronger project
 evidence. The reported-case controls
 record the distinction.

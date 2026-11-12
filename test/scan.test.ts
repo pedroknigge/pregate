@@ -28,6 +28,60 @@ test("scan recognizes exact Vue peer dependencies and confines recommendations t
   expect(recommendPacks({ "package.json": files["package.json"]! }, []).some(item => item.ns === "vue")).toBe(false);
 });
 
+test("scan recommends vue from a devDependency or a .vue file, and react from a devDependency", () => {
+  const server = recommendPacks({
+    "package.json": '{"dependencies":{"express":"4.21.0"},"devDependencies":{"vue":"^3.5.13"}}',
+    "server/server.js": "export const ready = true;\n",
+  }, ["JavaScript"]).find(item => item.ns === "vue")!;
+  expect(server.methodologies).toEqual(["vue/reactivity", "vue/sfc"]);
+  expect(server.reasons).toEqual(["package.json declares vue"]);
+  expect(server.scope).toEqual({ include: ["**"], exclude: [] });
+  const workspace = recommendPacks({
+    "package.json": '{"dependencies":{"express":"4.21.0"}}',
+    "packages/web/package.json": '{"devDependencies":{"vue":"^3.5.13"}}',
+    "packages/web/src/App.vue": "<template><p>Hi</p></template>\n",
+    "packages/api/package.json": "{}",
+  }, ["TypeScript"]).find(item => item.ns === "vue")!;
+  expect(workspace.reasons).toEqual(["packages/web/package.json declares vue", ".vue source detected"]);
+  expect(workspace.scope).toEqual({ include: ["packages/web/**"], exclude: [] });
+  expect(recommendPacks({ "src/App.vue": "<template><p>Hi</p></template>\n" }, []).find(item => item.ns === "vue")).toEqual({
+    ns: "vue", methodologies: ["vue/reactivity", "vue/sfc"], reasons: [".vue source detected"] });
+  const kept = recommendPacks({
+    "package.json": '{"devDependencies":{"vue":"^3.5.13"}}',
+    "src/App.vue": "",
+    "docs/Guide.vue": "",
+    "docs/package.json": '{"devDependencies":{"vue":"^3.5.13"}}',
+    "examples/package.json": '{"dependencies":{"vue":"^3.5.13"}}',
+  }, []);
+  expect(kept.find(item => item.ns === "vue")).toMatchObject({
+    reasons: ["package.json declares vue", ".vue source detected"],
+    scope: { include: ["**"], exclude: ["docs/**", "examples/**"] },
+  });
+  expect(recommendPacks({ "src/App.vue": "", "docs/Guide.vue": "", "examples/Widget.vue": "" }, []).find(item => item.ns === "vue")).toEqual({
+    ns: "vue", methodologies: ["vue/reactivity", "vue/sfc"], reasons: [".vue source detected"] });
+  expect(recommendPacks({ "package.json": '{"dependencies":{"vue-router":"^4","eslint-plugin-vue":"^9","@vue/test-utils":"^2"}}' }, []).some(item => item.ns === "vue")).toBe(false);
+  expect(recommendPacks({ "package.json": '{"optionalDependencies":{"vue":"^3.5.13"}}' }, []).some(item => item.ns === "vue")).toBe(false);
+  expect(recommendPacks({ "docs/App.vue": "", "examples/Widget.vue": "", "fixtures/One.vue": "" }, []).some(item => item.ns === "vue")).toBe(false);
+  expect(recommendPacks({ "packages/docs/package.json": '{"devDependencies":{"vue":"^3.5.13"}}', "docs/App.vue": "" }, []).some(item => item.ns === "vue")).toBe(false);
+  expect(recommendPacks({ "scripts/Widget.vue": "" }, []).some(item => item.ns === "vue")).toBe(false);
+  const react = recommendPacks({
+    "package.json": '{"dependencies":{"express":"4.21.0"},"devDependencies":{"react":"^19.0.0","react-dom":"^19.0.0"}}',
+  }, []).find(item => item.ns === "react")!;
+  expect(react.methodologies).toEqual(["react/components", "react/hooks"]);
+  expect(react.reasons).toEqual(["package.json declares react"]);
+  expect(react.scope).toEqual({ include: ["**"], exclude: [] });
+  expect(recommendPacks({
+    "packages/web/package.json": '{"devDependencies":{"react":"^19.0.0"}}',
+  }, []).find(item => item.ns === "react")).toMatchObject({
+    reasons: ["packages/web/package.json declares react"],
+    scope: { include: ["packages/web/**"], exclude: [] },
+  });
+  expect(recommendPacks({ "package.json": '{"devDependencies":{"react-dom":"^19.0.0"}}' }, []).some(item => item.ns === "react")).toBe(false);
+  expect(recommendPacks({
+    "package.json": '{"devDependencies":{"svelte":"^5","next":"15.0.0","astro":"^5.0.0","hono":"^4.6.0","express":"5.0.0","@nestjs/core":"10.0.0"}}',
+  }, []).map(item => item.ns)).toEqual([]);
+});
+
 test("scan recognizes exact Svelte peer dependencies and confines recommendations to their owning workspace", () => {
   const files = { "package.json": '{"peerDependencies":{"svelte-helper":"1.0.0"}}',
     "packages/store/package.json": '{"peerDependencies":{"svelte":"^5.0.0"}}',

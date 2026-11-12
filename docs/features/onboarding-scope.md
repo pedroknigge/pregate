@@ -63,19 +63,30 @@ rules remain intact until human approval of its exact digest. After approval,
 scan again, audit, and commit the preset and lock.
 
 Framework recommendations follow the package manifests that declare the relevant
-dependency, including dev and peer dependencies. A Next-owning workspace gets Next
+dependency. Dependencies and peer dependencies count. A devDependency counts for
+`vue` and `react`, and a test runner named there suggests testing. Other
+devDependencies do not. A Next-owning workspace gets Next
 rules; a sibling non-Next package does not inherit them. Nested manifests with
 unrelated ownership are excluded from that recommendation. The generated rule
 parameter `within` intersects the check's own file patterns, existing paths and
 exclusions. It never broadens a TypeScript annotation rule into JS/MJS.
 Existing user-authored rule paths, exclusions or `within` are preserved.
-Exact `vue` declarations, including Vue peer dependencies, also recommend Vue
-methodologies in their owning package. This does not add a Vue SFC parser;
+Exact `vue` declarations in dependencies, devDependencies, and peer dependencies
+recommend Vue methodologies in their owning package. A `.vue` file also recommends
+Vue; that file does not add a package owner. This does not add a Vue SFC parser;
 `.vue` bodies remain visibly unsupported. A similarly named dependency does
-not count as a declaration of Vue.
+not count as a declaration of Vue. A `.vue` file or `vue` declaration that appears
+only under a docs site, examples tree, fixtures tree, or website folder does not
+recommend Vue. The same evidence in primary source still does.
+
+Exact `react` declarations in dependencies, devDependencies, and peer dependencies
+recommend React methodologies in their owning package. A similarly named dependency
+does not count. A declaration that appears only under a docs site, examples tree,
+fixtures tree, or website folder does not recommend React.
 
 Exact `svelte` declarations and `@sveltejs/*` dependencies, including peer
 dependencies, recommend the Svelte methodologies in their owning package.
+A devDependency does not.
 A package named `svelte` does too, because that package is Svelte and does not
 depend on `svelte`. A `.svelte` file or `svelte.config.*` also recommends
 Svelte; those files do not add a package owner. A similarly named dependency
