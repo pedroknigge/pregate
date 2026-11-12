@@ -168,7 +168,7 @@ function slugs(layers: unknown[], files: Files, notes: string[], errors: string[
     slugOf.set(name, slug);
     const exclude = entry.exclude === undefined ? [] : stringList(entry.exclude);
     if (exclude === null) { errors.push(`Layer ${name} exclude must be a list of globs. Nothing staged.`); continue; }
-    const paths = keptPatterns(name, patterns, exclude, files, notes, errors);
+    const paths = keptPatterns(name, patterns, exclude, files, { notes, errors });
     named.push({ slug, name, paths, kind: kindOf(slug) });
     noteMechanisms(name, entry, notes);
   }
@@ -176,7 +176,10 @@ function slugs(layers: unknown[], files: Files, notes: string[], errors: string[
   return errors.length ? null : { layers: named, slugOf, order: named.map(layer => layer.slug) };
 }
 
-function keptPatterns(name: string, patterns: string[], exclude: string[], files: Files, notes: string[], errors: string[]): string[] {
+interface LayerReport { notes: string[]; errors: string[] }
+
+function keptPatterns(name: string, patterns: string[], exclude: string[], files: Files, report: LayerReport): string[] {
+  const { notes, errors } = report;
   const paths = Object.keys(files);
   const kept: string[] = [];
   for (const pattern of patterns) {

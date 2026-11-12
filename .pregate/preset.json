@@ -180,6 +180,8 @@
         "src/rules-add-command.ts",
         "src/git-changes.ts",
         "src/loosening.ts",
+        "src/arkgate-import.ts",
+        "src/arkgate-command.ts",
         "src/ci/**"
       ],
       "mayImport": [
