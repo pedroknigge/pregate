@@ -106,6 +106,35 @@ test("approve --no-commit applies without committing; a repository that cannot c
   const refused = await approvePending(root, true);
   expect(refused.code).toBe(0);
   expect(refused.text).toContain(`Applied but not committed. Commit it with: git add -A -- ${PRESET} ${LOCK}`);
+  expect(refused.text).not.toContain("--no-verify");
+}));
+
+test("a refusing pre-commit hook is shown with the command that commits once the hook succeeds", () => project(async (root) => {
+  const head = git(root, "rev-parse", "HEAD");
+  mkdirSync(join(root, ".githooks"));
+  const hook = ["#!/bin/sh", ...Array.from({ length: 12 }, (_, i) => `echo hook-${String(i + 1).padStart(2, "0")} >&2`), 'echo "pnpm install" >&2', "exit 1", ""];
+  writeFileSync(join(root, ".githooks/pre-commit"), hook.join("\n"), { mode: 0o755 });
+  git(root, "config", "core.hooksPath", ".githooks");
+  expect(git(root, "config", "--get", "core.hooksPath")).toBe(".githooks");
+  const text = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
+  text.enforcement = "shadow";
+  await applyPreset(root, JSON.stringify(text, null, 2) + "\n", { preview: true });
+  const refused = await approvePending(root, true);
+  expect(refused.code, refused.text).toBe(0);
+  expect(refused.text).toContain("Applied but not committed.");
+  expect(refused.text).toContain(`Commit it with: git add -A -- ${PRESET} ${LOCK} && git commit -m "chore: apply reviewed PREGATE contract`);
+  expect(refused.text).toMatch(new RegExp(`git commit -m "chore: apply reviewed PREGATE contract [0-9a-f]{12}" -- ${PRESET.replaceAll(".", "\\.")} ${LOCK.replaceAll(".", "\\.")}`));
+  expect(refused.text).not.toContain("--no-verify");
+  expect(refused.text).toContain("earlier lines omitted");
+  expect(refused.text).toContain("pnpm install");
+  expect(refused.text).toContain("hook-12");
+  expect(refused.text).not.toContain("hook-01");
+  expect(refused.text).not.toContain("hook-02");
+  expect(refused.text).not.toContain("hook-03");
+  expect(git(root, "rev-parse", "HEAD")).toBe(head);
+  expect(git(root, "diff", "--cached", "--name-only").split("\n").filter(Boolean).sort()).toEqual([PRESET, LOCK].sort());
+  expect(git(root, "show", `HEAD:${PRESET}`)).toContain('"enforcement": "enforce"');
+  expect(readFileSync(join(root, PRESET), "utf8")).toContain('"enforcement": "shadow"');
 }));
 
 test("an approval during an unfinished merge stages the contract and says to conclude the merge", () => project(async (root) => {

@@ -147,17 +147,22 @@ function settleRequests(root: string, applied: string | undefined): string[] {
 
 // The approval lands as one commit of exactly the contract files it wrote and the rule pack folders
 // it compiled from. Other staged or dirty work stays out of it; a repository that cannot commit now
-// (merge, hook, signing) keeps the applied files and gets the command to finish by hand.
+// (merge, hook, signing) keeps the applied files and gets the command to finish by hand. Hooks are
+// not skipped. Git puts the hook's own output on stderr, and that reason is shown with the command.
 function commitContract(root: string, paths: string[], folders: string[], digest: string): string[] {
   if (git(root, ["rev-parse", "--is-inside-work-tree"])?.trim() !== "true") return ["Not a Git worktree: keep the preset and lock with the project."];
   const ignored = folders.map((dir) => relative(root, dir)).filter((rel) => git(root, ["check-ignore", "-q", "--", rel]) !== null);
   const packs = folders.map((dir) => relative(root, dir)).filter((rel) => !ignored.includes(rel) && existsSync(join(root, rel)));
   const rels = paths.map((path) => relative(root, path)).filter((rel) => existsSync(join(root, rel)) || git(root, ["ls-files", "--", rel])?.trim());
   const message = `chore: apply reviewed PREGATE contract ${digest.slice(0, 12)}`;
-  const ok = (args: string[]) => Bun.spawnSync(["git", ...args], { cwd: root, stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, timeout: 120_000 }).exitCode === 0;
-  const added = ok(["add", "-A", "--", ...rels, ...packs]);
+  const run = (args: string[]) => {
+    const result = Bun.spawnSync(["git", ...args], { cwd: root, stdin: "ignore", stdout: "ignore", stderr: "pipe", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, timeout: 120_000 });
+    return { ok: result.exitCode === 0, stderr: result.stderr.toString() };
+  };
+  const added = run(["add", "-A", "--", ...rels, ...packs]);
   const all = [...rels, ...packs.filter((rel) => git(root, ["ls-files", "--", rel])?.trim())];
-  if (added && ok(["commit", "--quiet", "--only", "-m", message, "--", ...all])) {
+  const committed = added.ok ? run(["commit", "--quiet", "--only", "-m", message, "--", ...all]) : null;
+  if (committed?.ok === true) {
     // Relative to the project, not the repository top: a nested project groups by its own folders.
     const files = (git(root, ["show", "--name-only", "--relative", "--format=", "HEAD"]) ?? "").split("\n").filter(Boolean);
     const left = packs.filter((rel) => uncommittedPackFiles(root, rel).length > 0);
@@ -166,7 +171,18 @@ function commitContract(root: string, paths: string[], folders: string[], digest
   }
   const conclude = inProgress(root);
   if (conclude !== null) return [`Applied and staged but not committed: Git refuses a partial commit while a merge, rebase or cherry-pick is in progress. Conclude it with \`${conclude}\` to record the contract with it.`];
-  return [`Applied but not committed. Commit it with: git add -A -- ${all.join(" ")} && git commit -m "${message}" -- ${all.join(" ")}`];
+  const command = `Applied but not committed. Commit it with: git add -A -- ${all.join(" ")} && git commit -m "${message}" -- ${all.join(" ")}`;
+  const reason = committed !== null && committed.stderr.trim() !== "" ? committed.stderr : added.stderr;
+  return [command, ...failedCommitLines(reason)];
+}
+
+// The useful line of a hook is usually the last one. Keep that tail and drop the pages above it.
+function failedCommitLines(stderr: string): string[] {
+  const lines = stderr.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "").split(/\r?\n/).map((line) => line.trimEnd()).filter((line) => line.trim() !== "");
+  if (lines.length === 0) return [];
+  const tail = lines.slice(-10).map((line) => line.length > 500 ? `${line.slice(0, 500)}...` : line);
+  const omitted = lines.length - tail.length;
+  return [omitted > 0 ? `Git reported (${omitted} earlier lines omitted):` : "Git reported:", ...tail];
 }
 
 // The command that concludes the Git operation in progress, or null when none is.
