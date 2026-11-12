@@ -54,9 +54,12 @@ test("onboarding detects real stack, layers and resolved import edges determinis
   expect(preset.enforcement).toBe("shadow");
 });
 
-test("framework detection ignores devDependencies", () => {
+test("framework detection ignores devDependencies except vue and react", () => {
   expect(detectStack({ "package.json": '{"devDependencies":{"express":"5.0.0"}}' }).frameworks).toEqual([]);
   expect(detectStack({ "package.json": '{"peerDependencies":{"react":"19.0.0"}}' }).frameworks).toEqual(["react"]);
+  expect(detectStack({ "package.json": '{"dependencies":{"express":"5.0.0"},"devDependencies":{"vue":"^3.5.0","react":"19.0.0"}}' }).frameworks).toEqual(["react", "vue", "express"]);
+  expect(detectStack({ "package.json": '{"devDependencies":{"svelte":"^5","next":"15.0.0","astro":"^5","hono":"^4","@nestjs/core":"10"}}' }).frameworks).toEqual([]);
+  expect(detectStack({ "src/App.vue": "" }).frameworks).toEqual([]);
 });
 
 test("layer detection derives a reviewable map from conventional folders under any source root", () => {

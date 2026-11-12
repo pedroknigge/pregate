@@ -12,6 +12,12 @@ export interface Stack {
 interface EngineVersions { engine: string; core: string }
 const LANGUAGES: Record<string, string> = { ts: "TypeScript", tsx: "TypeScript", mts: "TypeScript", cts: "TypeScript", js: "JavaScript", jsx: "JavaScript", mjs: "JavaScript", cjs: "JavaScript", py: "Python", go: "Go", rs: "Rust", java: "Java", rb: "Ruby", vue: "Vue", svelte: "Svelte", astro: "Astro", c: "C", h: "C", cc: "C++", cpp: "C++", hpp: "C++", cs: "C#", php: "PHP", kt: "Kotlin", swift: "Swift", dart: "Dart" };
 const FRAMEWORKS = ["next", "react", "vue", "svelte", "astro", "express", "fastify", "@nestjs/core", "hono"];
+// Vue and React are compiled into a server app's frontend, so the package is often
+// a devDependency and the server never imports it. Other names stay on dependencies
+// and peerDependencies. Svelte is not in this set: a `.svelte` file selects that pack,
+// and a devDependency must not, because the Svelte repository lists `svelte` as a
+// root `workspace:*` devDependency.
+export const DEV_DEPENDENCY_FRAMEWORKS = new Set(["react", "vue"]);
 const LAYERS = new Set(["core", "domain", "application", "ports", "infra", "infrastructure", "shell", "adapters", "presentation"]);
 // Conventional folder names and the inward direction each may import. `app` counts only beside
 // a domain or core folder, so a framework's app/ router is not mistaken for a layer.
@@ -91,9 +97,12 @@ export function detectStack(files: Files): Stack {
     const ext = p.split(".").pop()!.toLowerCase();
     return Object.hasOwn(LANGUAGES, ext) ? LANGUAGES[ext]! : [];
   }))].sort();
-  // A devDependency is tooling for tests or builds; it does not make the shipped code use that framework.
-  const pkg = files["package.json"] === undefined ? {} : JSON.parse(files["package.json"]) as { dependencies?: object; peerDependencies?: object };
-  const dependencies = { ...pkg.dependencies, ...pkg.peerDependencies };
+  // A devDependency is tooling for tests or builds, except Vue and React: a server app
+  // compiles those into static assets and does not import the package at runtime.
+  const pkg = files["package.json"] === undefined ? {} : JSON.parse(files["package.json"]) as { dependencies?: object; devDependencies?: object; peerDependencies?: object };
+  const dev = (pkg.devDependencies ?? {}) as Record<string, unknown>;
+  const bundled = Object.fromEntries(Object.entries(dev).filter(([name]) => DEV_DEPENDENCY_FRAMEWORKS.has(name)));
+  const dependencies = { ...pkg.dependencies, ...pkg.peerDependencies, ...bundled };
   const frameworks = FRAMEWORKS.filter((f) => f in dependencies);
   if (files["tsconfig.json"] !== undefined && !languages.includes("TypeScript")) languages.push("TypeScript");
   if (paths.some((p) => /(^|\/)(pyproject\.toml|requirements\.txt|Pipfile)$/.test(p)) && !languages.includes("Python")) languages.push("Python");

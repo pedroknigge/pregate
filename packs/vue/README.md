@@ -4,6 +4,8 @@ Vue TypeScript syntax checks for composables, services, and router helpers. [Vue
 
 Fixtures are `.ts` files with realistic Composition-API code. There is no `.vue` grammar; template-only shapes are out of scope.
 
+`pregate scan` recommends this pack when a primary package declares exact `vue` in `dependencies`, `devDependencies`, or `peerDependencies`, or when a `.vue` file is present. The declaration is confined to the package that names `vue`. A `.vue` file does not add a package owner. A similarly named package, such as `vue-router`, does not count. Evidence that exists only under a docs site, examples tree, fixtures tree, website, CI workflow, or tiny `scripts/` folder does not count.
+
 ## Rules
 
 | ID | Forbids | Why | Default severity |

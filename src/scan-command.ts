@@ -1,7 +1,7 @@
 import { canonical, findRoot } from "./disk.ts";
 import { visible } from "./contract.ts";
 import { repoFiles } from "./init.ts";
-import { deadGlobLines, deriveLayers, detectedScope, detectLayers, detectStack, emptyLayerLines, layerEvidence, layerEvidenceLines, newBreak, initialScope as newProjectScope, onboardingPreset, scopeCoverage, scopeCoverageText, sourceRole } from "./onboard.ts";
+import { deadGlobLines, deriveLayers, detectedScope, detectLayers, detectStack, DEV_DEPENDENCY_FRAMEWORKS, emptyLayerLines, layerEvidence, layerEvidenceLines, newBreak, initialScope as newProjectScope, onboardingPreset, scopeCoverage, scopeCoverageText, sourceRole } from "./onboard.ts";
 import { imports, parse } from "./ts.ts";
 import { clock, readText, PRESET, sourcesOf, VERSIONS } from "./gate.ts";
 import { applyPreset } from "./approval-command.ts";
@@ -26,19 +26,26 @@ import { discoverDocumentation } from "./project-discovery.ts";
 // Token, CORS and LLM SDKs make the client-and-agents hardening checks applicable.
 // `svelte` and `@sveltejs/*` use that same shipped-dependency evidence. The package
 // named `svelte`, a `.svelte` file, or `svelte.config.*` also select the Svelte pack.
+// A Svelte devDependency does not: the Svelte repository lists `svelte` as `workspace:*`.
+// `vue` is a dependency, a peer dependency, a devDependency, or a `.vue` file.
+// `react` counts from those same manifest fields. A server app often compiles the
+// frontend and does not import `vue` or `react` at runtime, so the package lives in
+// devDependencies. A `.vue` file does not add a package owner.
 // `astro` is only that shipped dependency. `astro.config.*` and `.astro` files do not
 // select it: the engine does not parse `.astro`.
 // TanStack Query framework adapters select that pack. `@tanstack/query-core`, devtools,
 // and a dependency that exists only under a docs, examples, or fixtures tree do not.
 // `hono` is only the package named `hono` in dependencies or peerDependencies.
 const CLIENT_SECURITY: [string, string[]] = ["security-audit", ["security-audit/client-and-agents"]];
+const REACT: [string, string[]] = ["react", ["react/components", "react/hooks"]];
+const VUE: [string, string[]] = ["vue", ["vue/reactivity", "vue/sfc"]];
 const SVELTE: [string, string[]] = ["svelte", ["svelte/runes", "svelte/stores"]];
 const ASTRO: [string, string[]] = ["astro", ["astro/config", "astro/content", "astro/routing"]];
 const TANSTACK_QUERY: [string, string[]] = ["tanstack-query", ["tanstack-query/keys", "tanstack-query/client"]];
 const DEPENDENCIES: Record<string, [string, string[]]> = {
   next: ["nextjs", ["nextjs/rendering", "nextjs/routing"]],
-  react: ["react", ["react/components", "react/hooks"]],
-  vue: ["vue", ["vue/reactivity", "vue/sfc"]],
+  react: REACT,
+  vue: VUE,
   astro: ASTRO,
   svelte: SVELTE,
   "drizzle-orm": ["drizzle", ["drizzle/queries", "drizzle/schema"]],
@@ -98,6 +105,7 @@ export function recommendPacks(files: Files, languages: string[], base: string[]
   const manifests = Object.entries(files).filter(([path]) => /(^|\/)package\.json$/.test(path)).sort(([a], [b]) => a.localeCompare(b));
   manifestRecommendations(add, manifests, peripheral);
   svelteSourceRecommendations(add, files, peripheral);
+  vueSourceRecommendations(add, files, peripheral);
   layeredRecommendations(add, primary, base);
   applicableRecommendations(add, primary, base, selected.has("security-audit"));
   const available = new Set(librarySources().map((pin) => pin.ns));
@@ -130,7 +138,8 @@ function needsCoreLayer(ns: string, method: string): boolean {
 type Selected = Recommendation & { owners?: string[] };
 type Add = (ns: string, methodologies: string[], reason: string, owner?: string) => Selected;
 
-// Shipped dependencies and peers name the frameworks in use; a devDependency only names tooling.
+// Shipped dependencies and peers name the frameworks in use. A devDependency names
+// tooling, except `vue` and `react`: a built frontend often declares only those there.
 // A docs site or other peripheral manifest does not select a pack unless a primary manifest declares it too.
 // The Svelte repository is the package named `svelte`; it does not depend on `svelte`.
 function manifestRecommendations(add: Add, manifests: [string, string][], peripheral: (path: string) => boolean): void {
@@ -141,7 +150,11 @@ function manifestRecommendations(add: Add, manifests: [string, string][], periph
   const hits: { path: string; peripheral: boolean; reason: string; policy: [string, string[]] }[] = [];
   for (const row of rows) {
     if (row.pkg.name === "svelte") hits.push({ path: row.path, peripheral: row.peripheral, reason: `${row.path} is named svelte`, policy: SVELTE });
-    for (const dep of Object.keys({ ...row.pkg.dependencies, ...row.pkg.peerDependencies })) {
+    const declared = new Set([
+      ...Object.keys({ ...row.pkg.dependencies, ...row.pkg.peerDependencies }),
+      ...Object.keys(row.pkg.devDependencies ?? {}).filter((name) => DEV_DEPENDENCY_FRAMEWORKS.has(name)),
+    ]);
+    for (const dep of declared) {
       const policy = DEPENDENCIES[dep] ?? (dep.startsWith("@sveltejs/") ? SVELTE : undefined);
       if (policy) hits.push({ path: row.path, peripheral: row.peripheral, reason: `${row.path} declares ${dep}`, policy });
     }
@@ -216,6 +229,14 @@ function peripheralLanguageOnly(language: string, files: Files, peripheral: (pat
 function svelteSourceRecommendations(add: Add, files: Files, peripheral: (path: string) => boolean): void {
   if (Object.keys(files).some((path) => /\.svelte$/i.test(path) && !peripheral(path))) add(SVELTE[0], SVELTE[1], ".svelte source detected");
   for (const path of Object.keys(files).filter((path) => /(^|\/)svelte\.config\.[^/]+$/i.test(path) && !peripheral(path)).sort()) add(SVELTE[0], SVELTE[1], `${path} detected`);
+}
+
+// File evidence recommends Vue and does not invent an owning workspace. A manifest
+// owner, when one exists, still confines the recommendation. A `.vue` file that exists
+// only under a docs site, examples tree, fixtures tree, website, CI workflow, or tiny
+// scripts/ folder does not select the pack.
+function vueSourceRecommendations(add: Add, files: Files, peripheral: (path: string) => boolean): void {
+  if (Object.keys(files).some((path) => /\.vue$/i.test(path) && !peripheral(path))) add(VUE[0], VUE[1], ".vue source detected");
 }
 
 // Clean architecture and FCIS both resolve deps.layers, so TypeScript gets no second layer policy.
