@@ -2,20 +2,25 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { applyPreset } from "./approval-command.ts";
 import { packCatalog } from "./compile.ts";
+import { validateContract } from "./contract.ts";
 import { canonical, readTree } from "./disk.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { testCheck } from "./fixtures.ts";
-import { clock, LOCK, PRESET, readText } from "./gate.ts";
+import { git } from "./git.ts";
+import { clock, LOCK, PRESET, readText, sourcesOf, VERSIONS, within } from "./gate.ts";
 import { grammarOf, ruleLanguages } from "./languages.ts";
 import { librarySource, librarySources } from "./library.ts";
-import { matches } from "./paths.ts";
+import { matches, pathKey, relativePath } from "./paths.ts";
 import { addInvariant } from "./pack-compose.ts";
 import { type CatalogEntry, catalogMatches, draftCase, draftCheckDir, draftExamples, draftRule, type DraftSample, fixtureTarget, intentDraft,
   ruleIntent, ruleSlug, ruleTokens, snippetCases, statementKind } from "./pack-template.ts";
+import { pendingReview } from "./pending-review.ts";
 import { documentationStatements } from "./project-discovery.ts";
+import { proposeContract, readProposal } from "./proposal.ts";
 import { languageOf, sampleLines, stagePack, synthesize } from "./rules-draft-command.ts";
+import { sha256 } from "./state.ts";
 import type { Check, Files, Lock, Manifest, MatchRule, PatternConfig, Preset, RuleLanguage } from "./types.ts";
-import { workspacePaths } from "./workspace.ts";
+import { hasRepository, workspacePaths } from "./workspace.ts";
 
 // `pregate rules add "<sentence>"`: the shortest path from a team rule to one reviewed change. A
 // bundled catalog rule that says the same is selected; otherwise a check with generated fixtures is
@@ -27,7 +32,7 @@ type Entry = CatalogEntry & { manifest: Manifest };
 type Shape = { language: RuleLanguage; area: string; files?: string; except?: string[]; fix: string; patterns: PatternConfig[]; cases: DraftSample[]; notes: string[] };
 
 export const ADD_USAGE = "usage: pregate rules add \"<sentence>\" [--fail <code>]... [--pass <code>]... [--files <glob>] [--rule <ns/ID>] [--draft]";
-const PROJECT_DIR = ".pregate/packs/project";
+export const PROJECT_DIR = ".pregate/packs/project";
 
 export async function rulesAdd(args: string[], root: string | null): Promise<Result> {
   if (args.includes("--yes")) return { code: 1, text: "rules add only prepares a review; the human approves it with pregate approve <code>. Nothing staged." };
@@ -207,7 +212,7 @@ function draftFiles(before: Files, sentence: string, shape: Shape): { files: Fil
 
 export const COMPILE_USAGE = "usage: pregate compile <rules.md> [--json|--template|--preview] | compile apply <proposals.json> --preview";
 type Statement = { line: number; statement: string };
-type Compiled = Statement & { kind: "catalog" | "draft" | "active" | "example" | "prose"; sentence: string; rule?: string; note: string;
+export type Compiled = Statement & { kind: "catalog" | "draft" | "active" | "example" | "prose"; sentence: string; rule?: string; note: string;
   entry?: Entry; shape?: Shape };
 type Sources = { root: string | null; home: string; lock: Lock | null; entries: Entry[]; languages: Set<RuleLanguage>; project: Files };
 
@@ -320,26 +325,71 @@ function clipped(text: string): string { return text.length > 90 ? `${text.slice
 // Every compilable statement in one proposal: bundled rules switched on in the preset, drafted
 // rules added to the project pack. A statement that cannot be staged is named, and the rest proceed.
 async function stageCompiled(root: string, items: Compiled[]): Promise<Result> {
-  const presetText = readFileSync(join(root, PRESET), "utf8"), skipped: string[] = [];
-  let preset = JSON.parse(presetText) as Preset;
-  for (const item of items.filter((i) => i.kind === "catalog")) {
-    const candidate = catalogCandidate(preset, item.entry!);
-    if ("errors" in candidate) skipped.push(`L${item.line}: ${candidate.errors.join(" ")}`); else preset = candidate.preset;
-  }
-  const drafts = items.filter((i) => i.kind === "draft"), dir = canonical(join(root, PROJECT_DIR));
-  const registered = drafts.length === 0 ? false : projectSource(root, presetText, dir);
+  const presetText = readFileSync(join(root, PRESET), "utf8");
+  const preset = JSON.parse(presetText) as Preset;
+  const dir = canonical(join(root, PROJECT_DIR));
+  const registered = items.some((item) => item.kind === "draft") ? projectSource(root, presetText, dir) : false;
   if (typeof registered === "string") return { code: 1, text: `${registered} Nothing staged.` };
   const before = registered ? readTree(dir, true) : {};
+  const made = materializeRules(root, preset, items, before);
+  if ("errors" in made) return { code: 1, text: `${made.errors.join(" ")} Nothing staged.` };
+  const skipped = made.skipped.map((line) => `Not staged, ${line}`);
+  const next = JSON.stringify(made.preset, null, 2) + "\n";
+  if (Bun.deepEquals(made.preset, JSON.parse(presetText)) && Bun.deepEquals(made.files, before)) return { code: 0, text: ["Nothing new to stage.", ...skipped].join("\n") };
+  const review = Bun.deepEquals(made.files, before) ? await applyPreset(root, next, { preview: true, stable: true })
+    : stagePack(root, { dir, before, after: made.files, preset: next });
+  return { code: review.code, text: [...skipped, review.text].join("\n") };
+}
+
+// Catalog rules switch on in the preset; drafts land in the project pack. Skipped lines are
+// `L12: ...` without a prefix. A project-source error returns `errors` and stages nothing.
+export function materializeRules(root: string, preset: Preset, items: Compiled[], before: Files): { preset: Preset; files: Files; skipped: string[] } | { errors: string[] } {
+  const drafts = items.filter((item) => item.kind === "draft");
+  if (drafts.length > 0) {
+    const registered = projectSource(root, JSON.stringify(preset, null, 2) + "\n", canonical(join(root, PROJECT_DIR)));
+    if (typeof registered === "string") return { errors: [registered] };
+  }
+  let next = preset;
+  const skipped: string[] = [];
+  for (const item of items.filter((entry) => entry.kind === "catalog")) {
+    const candidate = catalogCandidate(next, item.entry!);
+    if ("errors" in candidate) skipped.push(`L${item.line}: ${candidate.errors.join(" ")}`); else next = candidate.preset;
+  }
   let files = before;
   for (const item of drafts) {
     const draft = draftFiles(files, item.sentence, item.shape!);
-    if (typeof draft === "string") skipped.push(`L${item.line}: ${draft.split("\n").at(-1)}`); else files = draft.files;
+    if (typeof draft === "string") skipped.push(`L${item.line}: ${draft.split("\n").at(-1) ?? draft}`); else files = draft.files;
   }
-  const next = JSON.stringify(preset, null, 2) + "\n";
-  if (files === before && next === JSON.stringify(JSON.parse(presetText), null, 2) + "\n") return { code: 0, text: ["Nothing new to stage.", ...skipped.map((line) => `Not staged, ${line}`)].join("\n") };
-  const review = files === before ? await applyPreset(root, next, { preview: true, stable: true })
-    : stagePack(root, { dir, before, after: files, preset: withProjectPack(next) });
-  return { code: review.code, text: [...skipped.map((line) => `Not staged, ${line}`), review.text].join("\n") };
+  if (files !== before) next = JSON.parse(withProjectPack(JSON.stringify(next, null, 2) + "\n")) as Preset;
+  return { preset: next, files, skipped };
+}
+
+const INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md", ".cursorrules"];
+
+// Statements in an instruction file that compile on their own: a bundled rule or a sentence shape.
+// A statement that needs an example stays out; the agent passes it with `--compile`.
+export function compilableStatements(home: string, file: string): Compiled[] {
+  if (!existsSync(file) || !statSync(file).isFile()) return [];
+  const sources = compileSources(null, home);
+  return documentationStatements(readFileSync(file, "utf8")).filter((statement) => statement.statement.length >= 8 && !statement.statement.startsWith("|"))
+    .map((statement) => compiled(statement, sources)).filter((item) => item.kind === "catalog" || item.kind === "draft");
+}
+
+export function instructionFiles(root: string): string[] {
+  return INSTRUCTION_FILES.filter((name) => existsSync(join(root, name))).map((name) => join(root, name));
+}
+
+// The agent's proposals file. Refused lines already say `Not staged, L…`.
+export function instructionProposals(text: string, home: string): { items: Compiled[]; refused: string[] } | { errors: string[] } {
+  const proposals = proposedRules(text);
+  if (typeof proposals === "string") return { errors: [proposals] };
+  const sources = compileSources(null, home), refused: string[] = [];
+  const items = proposals.rules.flatMap((proposal): Compiled[] => {
+    const item = proposedItem(proposal, sources);
+    if (typeof item === "string") { refused.push(`Not staged, L${proposal.line}: ${item}`); return []; }
+    return [item];
+  });
+  return { items, refused };
 }
 
 // `pregate compile apply <proposals.json> --preview`: real instruction files are paragraphs, not
@@ -353,11 +403,11 @@ type Proposed = { line: number; sentence: string; fail: string[]; pass: string[]
 
 async function compileApply(args: string[], root: string | null, cwd: string): Promise<Result> {
   if (args.length !== 2 || args[1] !== "--preview" || args[0]!.startsWith("-")) return { code: 1, text: `compile apply only prepares a review; the human approves it.\n${COMPILE_USAGE}` };
-  if (root === null) return { code: 1, text: "Set up PREGATE first: pregate guide --preview" };
   const path = resolve(cwd, args[0]!);
   if (!existsSync(path) || !statSync(path).isFile()) return { code: 1, text: `No file ${args[0]}. Format: ${PROPOSALS_FORMAT}` };
   const proposals = proposedRules(readFileSync(path, "utf8"));
   if (typeof proposals === "string") return { code: 1, text: `${proposals} Nothing staged. Format: ${PROPOSALS_FORMAT}` };
+  if (root === null) return compileOntoGuide(cwd, proposals);
   const sources = compileSources(root, cwd), refused: string[] = [];
   const items = proposals.rules.flatMap((p): Compiled[] => {
     const item = proposedItem(p, sources);
@@ -365,12 +415,70 @@ async function compileApply(args: string[], root: string | null, cwd: string): P
     return [item];
   });
   const review = items.some((i) => i.kind !== "active") ? await stageCompiled(root, items) : { code: refused.length ? 1 : 0, text: "Nothing new to stage." };
-  const staged = items.filter((i) => i.kind !== "active" && !review.text.includes(`Not staged, L${i.line}:`));
-  const active = items.filter((i) => i.kind === "active").length;
+  return proposedSummary(proposals, items, refused, review);
+}
+
+const GUIDE_FIRST = "Set up PREGATE first: pregate guide --preview. Pass --compile <proposals.json> on that preview so these rules share its one review.";
+
+// Before a contract exists, example-proved rules join the pending initial guide review instead of
+// starting a second one. A review that is not that initial candidate still refuses.
+async function compileOntoGuide(cwd: string, proposals: { file: string; rules: Proposed[] }): Promise<Result> {
+  const here = canonical(cwd);
+  const top = git(here, ["rev-parse", "--show-toplevel"])?.trim();
+  if (top === undefined && hasRepository(here)) return { code: 1, text: "Git could not identify this worktree; fix Git before compiling." };
+  const root = canonical(top ?? here);
+  const proposal = readProposal(root);
+  const presetWrite = proposal?.writes.find((write) => pathKey(write.path) === pathKey(join(root, PRESET)));
+  const initial = proposal !== null && proposal.activate !== false && presetWrite?.before === null && presetWrite.after !== null && !existsSync(join(root, PRESET));
+  if (!initial || proposal === null || presetWrite?.after == null) return { code: 1, text: GUIDE_FIRST };
+  const dir = canonical(join(root, PROJECT_DIR));
+  const pendingFiles: Files = {};
+  for (const write of proposal.writes) if (write.after !== null && within(dir, write.path)) pendingFiles[relativePath(dir, write.path)] = write.after;
+  const languages = new Set(workspacePaths(root, (rel) => grammarOf(rel) !== null).map(languageOf).filter((language) => language !== null));
+  const sources: Sources = { root, home: root, languages, entries: catalogEntries(languages), project: pendingFiles, lock: JSON.parse(proposal.lockText) as Lock };
+  const refused: string[] = [];
+  const items = proposals.rules.flatMap((proposed): Compiled[] => {
+    const item = proposedItem(proposed, sources);
+    if (typeof item === "string") { refused.push(`Not staged, L${proposed.line}: ${item}`); return []; }
+    return [item];
+  });
+  const current = JSON.parse(presetWrite.after) as Preset;
+  const made = items.some((item) => item.kind !== "active") ? materializeRules(root, current, items, pendingFiles) : { preset: current, files: pendingFiles, skipped: [] as string[] };
+  if ("errors" in made) return { code: 1, text: `${made.errors.join(" ")} Nothing staged.` };
+  const skipped = made.skipped.map((line) => `Not staged, ${line}`);
+  if (Bun.deepEquals(made.preset, current) && Bun.deepEquals(made.files, pendingFiles)) {
+    return proposedSummary(proposals, items, refused, { code: refused.length || skipped.length ? 1 : 0, text: ["Nothing new to stage. The pending guide review was kept.", ...skipped].join("\n") });
+  }
+  const presetText = JSON.stringify(made.preset, null, 2) + "\n";
+  const compiled = validateContract({ presetText, versions: VERSIONS, now: clock, filesOf: (source) => {
+    if (source.kind !== "path") return sourcesOf(root, true)(source);
+    const sourceDir = canonical(resolve(root, source.path));
+    if (pathKey(sourceDir) === pathKey(dir)) return made.files;
+    const files = existsSync(sourceDir) ? readTree(sourceDir, true) : {};
+    for (const write of proposal.writes) if (write.after !== null && within(sourceDir, write.path)) files[relativePath(sourceDir, write.path)] = write.after;
+    return files;
+  } });
+  if ("errors" in compiled) return { code: 1, text: [...compiled.errors, "Nothing staged."].join("\n") };
+  const kept = proposal.writes.filter((write) => pathKey(write.path) !== pathKey(join(root, PRESET)) && !within(dir, write.path));
+  // `before` is the file on disk. A pending guide review has not written the pack yet, so a file
+  // that only the earlier proposal held is still absent and must be part of this review too.
+  const onDisk = existsSync(dir) ? readTree(dir, true) : {};
+  const packWrites = Object.entries(made.files).filter(([path, text]) => onDisk[path] !== text)
+    .map(([path, text]) => ({ path: join(dir, path), before: onDisk[path] ?? null, after: text }));
+  const next = proposeContract({ root, baseline: proposal.baseline, lockText: compiled.text, activate: true, ...(proposal.request === undefined ? {} : { request: proposal.request }),
+    writes: [...kept, ...packWrites, { path: join(root, PRESET), before: null, after: presetText }] }, true);
+  const review = pendingReview(root, sha256(JSON.stringify(next)));
+  return proposedSummary(proposals, items, refused, { code: review.code, text: [...skipped, "These rules join the pending guide review.", review.text].join("\n") });
+}
+
+function proposedSummary(proposals: { file: string; rules: Proposed[] }, items: Compiled[], refused: string[], review: Result, extra?: string): Result {
+  const staged = items.filter((item) => item.kind !== "active" && !review.text.includes(`Not staged, L${item.line}:`));
+  const active = items.filter((item) => item.kind === "active").length;
   return { code: review.code, text: [
     `Proposed rules for ${proposals.file}: ${proposals.rules.length}; ${staged.length} verified and staged, ${active} already in the contract, ${proposals.rules.length - staged.length - active} refused.`,
-    ...items.map((i) => `  L${i.line} ${JSON.stringify(clipped(i.sentence))} -> ${i.note}`), ...refused,
-    ...(staged.length ? [`Once approved, lines ${staged.map((i) => i.line).join(", ")} can leave ${proposals.file}.`] : []), review.text].join("\n") };
+    ...items.map((item) => `  L${item.line} ${JSON.stringify(clipped(item.sentence))} -> ${item.note}`), ...refused,
+    ...(staged.length ? [`Once approved, lines ${staged.map((item) => item.line).join(", ")} can leave ${proposals.file}.`] : []),
+    ...(extra === undefined ? [] : [extra]), review.text].join("\n") };
 }
 
 // The agent's file is data. Shape errors are named; the cases still have to prove each rule.

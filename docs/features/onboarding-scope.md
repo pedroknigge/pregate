@@ -121,9 +121,12 @@ adding a new top-level workspace or moving source. Deliberately excluded folders
 remain excluded and require an explicit reviewed decision to add them. Parser
 support is unchanged. Layer ownership and dependency directions still need
 project-specific declarations; a detected folder is not an inferred architecture.
-The guide review shows what a derived map finds in the code today, and
-`pregate layers apply <map.json> --preview` stages a map an agent or a person
-wrote, with the same evidence. See [layers with evidence](agent-proposed-contract.md#layers-with-evidence).
+The guide review shows what a derived map finds in the code today. A new project
+can replace that map with `pregate guide --preview --layers <map.json>`, and
+`pregate layers apply <map.json> --preview` stages a map once a contract exists.
+A new project that already has `ark.config.json` imports that config in the first
+review instead of a hand-written map.
+See [layers with evidence](agent-proposed-contract.md#layers-with-evidence).
 
 An informational `UNVERIFIED` Stop notice does not prevent editing. The engine
 records it once per session unless the coverage notice changes. A harness can

@@ -18,7 +18,7 @@ import { detectedScope, detectStack, emptyLayerLines, scopeCoverage } from "./on
 import { composePackPlan, projectUpdate } from "./pack-command.ts";
 import { packCatalog } from "./compile.ts";
 import { projectUpdates } from "./project-updates.ts";
-import { baseMethodologies, declaresCore, recommendPacks, recommendationOverrides, proposedScope } from "./scan-command.ts";
+import { baseMethodologies, checkedLayerMap, declaresCore, recommendPacks, recommendationOverrides, proposedScope } from "./scan-command.ts";
 import { sha256 } from "./state.ts";
 import { contractDiagnosis, protectionStatus } from "./status.ts";
 import { choose, customPaths, interactiveTerminal, say, selectPacks, question } from "./guided-terminal.ts";
@@ -26,24 +26,25 @@ import { guidedReview, protectionReadiness } from "./guided-review.ts";
 import { updateAndContinue } from "./guided-update.ts";
 import { availableCatalog, catalogDiscovery, previousCatalog } from "./catalog-discovery.ts";
 import { discoverDocumentation, documentationPack } from "./project-discovery.ts";
+import { compilableStatements, instructionFiles, instructionProposals, type Compiled } from "./rules-add-command.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { hasRepository } from "./workspace.ts";
 import { validate } from "./schema.ts";
 import type { Enforcement, Preset } from "./types.ts";
 
-type Result = { code: number; text: string; held?: string[] };
-type Selection = { packs?: string[]; customPacks: string[]; customFromDocs?: boolean; enforcement?: Enforcement; preset?: string };
-type Options = Selection & { json: boolean; preview: boolean; full: boolean; projects: string[] };
+type Result = { code: number; text: string; held?: string[]; lead?: string; notes?: string[] };
+type Selection = { packs?: string[]; customPacks: string[]; customFromDocs?: boolean; enforcement?: Enforcement; preset?: string; layersFile?: string; compiles?: string[] };
+type Options = Omit<Selection, "compiles"> & { json: boolean; preview: boolean; full: boolean; projects: string[]; compiles: string[] };
 type Reviewed = { root: string; digest: string; activate: boolean; warning: boolean; text: string };
 type Installation = { launcherPresent: boolean; enginePresent: boolean; harnessesConfigured: number };
-const USAGE = "usage: pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--enforcement advisor|enforce|shadow] [--preset <name>] | guide [--json|--preview [--full]] --projects <path...>";
+const USAGE = "usage: pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--layers <layers.json>] [--compile <proposals.json>] [--enforcement advisor|enforce|shadow] [--preset <name>] | guide [--json|--preview [--full]] --projects <path...>";
 
 function optionsOf(args: string[]): Options | null {
-  const result: Options = { json: false, preview: false, full: false, customPacks: [], projects: [] };
+  const result: Options = { json: false, preview: false, full: false, customPacks: [], compiles: [], projects: [] };
   const seen = new Set<string>();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
-    if (seen.has(arg) && arg !== "--custom-pack") return null;
+    if (seen.has(arg) && arg !== "--custom-pack" && arg !== "--compile") return null;
     seen.add(arg);
     if (arg === "--json") result.json = true;
     else if (arg === "--preview") result.preview = true;
@@ -52,19 +53,21 @@ function optionsOf(args: string[]): Options | null {
     else if (arg === "--projects") {
       while (args[i + 1] !== undefined && !args[i + 1]!.startsWith("--")) result.projects.push(args[++i]!);
       if (!result.projects.length || result.projects.some(path => !path || path.startsWith("-"))) return null;
-    } else if (["--packs", "--custom-pack", "--enforcement", "--preset"].includes(arg)) {
+    } else if (["--packs", "--custom-pack", "--enforcement", "--preset", "--layers", "--compile"].includes(arg)) {
       const value = args[++i];
       if (!value || value.startsWith("-")) return null;
       if (arg === "--packs") {
         result.packs = value === "none" ? [] : value.split(",").map(name => name.trim());
         if (result.packs.some(name => !/^[a-z][a-z0-9-]*$/.test(name))) return null;
       } else if (arg === "--custom-pack") result.customPacks.push(value);
+      else if (arg === "--layers") result.layersFile = value;
+      else if (arg === "--compile") result.compiles.push(value);
       else if (arg === "--preset") result.preset = value;
       else if (value === "shadow" || value === "enforce" || value === "advisor") result.enforcement = value;
       else return null;
     } else return null;
   }
-  const selection = result.packs !== undefined || result.customPacks.length || result.customFromDocs || result.enforcement !== undefined || result.preset !== undefined;
+  const selection = result.packs !== undefined || result.customPacks.length || result.customFromDocs || result.layersFile !== undefined || result.compiles.length > 0 || result.enforcement !== undefined || result.preset !== undefined;
   return (result.json && result.preview) || (result.full && !result.preview) || (selection && (!result.preview || result.projects.length > 0)) ? null : result;
 }
 
@@ -191,17 +194,30 @@ function methodsFor(names: string[], recommendations: ReturnType<typeof recommen
 
 async function prepare(directory: string, selection: Selection): Promise<Result> {
   const info = await inspectProject(directory);
+  const compiles = selection.compiles ?? [];
+  if ((selection.layersFile !== undefined || compiles.length > 0) && info.state !== "new") {
+    return { code: 1, text: "This project already has a contract. A layer map is pregate layers apply <file> --preview, and instruction rules are pregate compile apply <file> --preview. Each is its own review. Nothing staged." };
+  }
   const names = selection.packs ?? info.recommendations.map(item => item.ns);
   const methodologies = methodsFor(names, info.recommendations);
   const selectedRecommendations = info.recommendations.filter(item => names.includes(item.ns));
   const layers = selectedRecommendations.find(item => item.layers)?.layers;
   const draft = selection.customFromDocs ? documentationPack(info.documentation) : null;
   if (selection.customFromDocs && (!draft || info.state !== "new")) return { code: 1, text: !draft ? "No documented requirement was inferred. Review scan --json and propose domain assertions from the repo; nothing activated." : "This project already has rules. Review its custom pack with --custom-pack instead of creating a second onboarding draft." };
-  if (info.state === "new") return init(["--preview", ...(selection.preset ? ["--preset", selection.preset] : [])], {
-    packs: names, customPacks: selection.customPacks, methodologies, overrides: recommendationOverrides(selectedRecommendations), ...(draft ? { customDraft: draft } : {}),
-    ...(layers ? { layers } : {}),
-    enforcement: selection.enforcement ?? "advisor",
-  }, info.root);
+  if (info.state === "new") {
+    const folded = await foldNewProject(info.root, { ...selection, compiles }, layers);
+    if ("code" in folded) return folded;
+    const prepared = await init(["--preview", ...(selection.preset ? ["--preset", selection.preset] : [])], {
+      packs: names, customPacks: selection.customPacks, methodologies, overrides: recommendationOverrides(selectedRecommendations), ...(draft ? { customDraft: draft } : {}),
+      ...(folded.layers ? { layers: folded.layers } : {}),
+      ...(folded.explicitLayers ? { explicitLayers: true } : {}),
+      ...(folded.instructionRules.length ? { instructionRules: folded.instructionRules } : {}),
+      enforcement: selection.enforcement ?? "advisor",
+    }, info.root);
+    const notes = [...folded.notes, ...(prepared.notes ?? [])];
+    if (prepared.code !== 0 || notes.length === 0) return prepared;
+    return { ...prepared, lead: notes.join("\n"), text: `${folded.notes.length ? `${folded.notes.join("\n")}\n` : ""}${prepared.text}` };
+  }
   if (["needs-update", "needs-repair"].includes(info.state)) {
     if (selection.preset) return { code: 1, text: "Keep this project's recipe. Select packs instead of replacing the preset." };
     if (selection.packs === undefined && !selection.customPacks.length && !selection.enforcement) return projectUpdate(["--preview"], info.root);
@@ -225,6 +241,48 @@ async function prepare(directory: string, selection: Selection): Promise<Result>
   const text = JSON.stringify(candidate, null, 2) + "\n";
   if (text === readText(join(info.root, PRESET))?.replaceAll("\r\n", "\n")) return { code: 0, text: "Selected scope and packs are already current; no contract or consent changed." };
   return applyPreset(info.root, text, { preview: true });
+}
+
+// `--layers` replaces the map folder names produced. It does not change how those names are derived.
+// Statements that compile on their own are included first. `--compile` adds rules that needed an
+// example, and a repeated sentence is kept once so a proposals file does not drop the others.
+async function foldNewProject(root: string, selection: Selection, recommended: Preset["layers"] | undefined): Promise<{ layers?: Preset["layers"]; explicitLayers: boolean; instructionRules: Compiled[]; notes: string[] } | Result> {
+  const notes: string[] = [];
+  let layers = recommended;
+  let explicitLayers = false;
+  // ark.config.json is the layer map. A --layers file stays out of this review: foldArkgate
+  // writes the config's layers and coexist.arkgate into the same candidate.
+  if (existsSync(join(root, "ark.config.json"))) {
+    layers = undefined;
+    if (selection.layersFile !== undefined) notes.push(`ark.config.json is present, so ${selection.layersFile} is not this review's layer map. This review imports ArkGate's layers and coexist.arkgate.`);
+  } else if (selection.layersFile !== undefined) {
+    const path = resolve(root, selection.layersFile);
+    if (!existsSync(path) || !statSync(path).isFile()) return { code: 1, text: `No file ${selection.layersFile}. Nothing staged.` };
+    const checked = checkedLayerMap(readFileSync(path, "utf8"), Object.keys(repoFiles(root)));
+    if (typeof checked === "string") return { code: 1, text: checked.includes("Nothing staged.") ? checked : `${checked} Nothing staged.` };
+    layers = checked.layers;
+    explicitLayers = true;
+    notes.push(`Proposed layer map: ${checked.why}`);
+  }
+  const rules: Compiled[] = [];
+  const seen = new Set<string>();
+  const take = (item: Compiled) => {
+    const key = `${item.kind}:${item.rule ?? item.sentence}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rules.push(item);
+  };
+  for (const file of instructionFiles(root)) for (const item of compilableStatements(root, file)) take(item);
+  for (const file of selection.compiles ?? []) {
+    const path = resolve(root, file);
+    if (!existsSync(path) || !statSync(path).isFile()) return { code: 1, text: `No file ${file}. Nothing staged.` };
+    const parsed = instructionProposals(readFileSync(path, "utf8"), root);
+    if ("errors" in parsed) return { code: 1, text: `${parsed.errors.join(" ")} Nothing staged.` };
+    notes.push(...parsed.refused);
+    for (const item of parsed.items) if (item.kind === "catalog" || item.kind === "draft") take(item);
+  }
+  if (rules.length > 0) notes.push("Instruction rules that compile join this review. Statements that need an example stay out unless --compile names them.");
+  return { layers, explicitLayers, instructionRules: rules, notes };
 }
 
 function requirePack(path: string, root: string) {
@@ -507,7 +565,9 @@ async function guidedAction(options: Options): Promise<Result> {
         const review = reviewOf(root, readProposal(root)?.activate !== false); return review ? [review] : [];
       });
       // Held projects are named only in the batch text, so it is kept whole.
-      return reviews.length && !prepared.held?.length ? { code: 0, text: reviews.map(review => (review.warning ? "Review policy changes below before approving.\n" : "") + review.text).join("\n\n") } : prepared;
+      const body = reviews.map(review => (review.warning ? "Review policy changes below before approving.\n" : "") + review.text).join("\n\n");
+      const lead = "lead" in prepared ? prepared.lead : undefined;
+      return reviews.length && !prepared.held?.length ? { code: 0, text: lead ? `${lead}\n${body}` : body } : prepared;
     }
     if (!interactiveTerminal()) {
       const cards = await Promise.all((options.projects.length ? rootsOf(options.projects) : [process.cwd()]).map(inspectProject));

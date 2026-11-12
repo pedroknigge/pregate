@@ -140,6 +140,11 @@ test("layers apply refuses a map whose shape or paths cannot be checked, and cha
   expect(attempt({ why: "x", layers: { domain: { paths: ["src/nope/**"], mayImport: [], kind: "core" } } })).toMatchObject({ code: 1, text: expect.stringContaining("Layer paths matching no file: domain (src/nope/**)") });
   expect(p.cli("approve", "--preview").text).not.toContain("Digest:");
   expect(repo("layers-new", false).cli("layers")).toMatchObject({ code: 1, text: expect.stringContaining("Set up PREGATE first") });
+  const shown = repo("layers-json-new", false).cli("layers", "--json");
+  expect(shown.code, shown.text).toBe(0);
+  const json = JSON.parse(shown.text) as { source: string; layers: { domain: { paths: string[] } } };
+  expect(json.source).toBe("derived from folder names");
+  expect(json.layers.domain.paths).toEqual(["src/domain/**"]);
 });
 
 test("compile sorts an instruction file into rules, statements that need an example and guidance, then stages the rules as one review", () => {

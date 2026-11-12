@@ -45,7 +45,7 @@ import { commandHelp } from "./shell.ts";
 type Result = { code: number; text: string };
 
 const USAGE = `usage:
-  pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--enforcement shadow|advisor|enforce] [--preset <name>]
+  pregate guide [--json|--preview [--full]] [--packs <ns,ns|none>] [--custom-pack <path>] [--custom-from-docs] [--layers <layers.json>] [--compile <proposals.json>] [--enforcement shadow|advisor|enforce] [--preset <name>]
   pregate guide [--json|--preview [--full]] --projects <path...>
   pregate check [--all] [--format agent|sarif]
   pregate audit [--repo <path>] [--json|--jsonl|--sarif|--full] [--plan] [--incremental] [--fresh]

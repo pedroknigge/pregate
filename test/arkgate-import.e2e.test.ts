@@ -80,7 +80,9 @@ async function approve(root: string, env: Record<string, string | undefined>, pr
     cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 60_000,
   });
   expect(piped.exitCode).toBe(1);
-  expect(piped.stdout.toString()).toContain("interactive stdin");
+  const refused = piped.stdout.toString();
+  expect(refused).toContain("no terminal");
+  expect(refused).toContain(`pregate approve ${code}`);
   if (process.platform !== "win32") {
     const accepted = confirmOnTerminal([binary, "approve", code!], root, env, "y");
     return { code: accepted.code, text: accepted.stdout + accepted.stderr };
