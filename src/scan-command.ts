@@ -285,9 +285,17 @@ function applicableFiles(ns: string, method: string, paths: string[]): number {
 const manifestRoot = (path: string): string => path === "package.json" ? "" : path.slice(0, -"package.json".length);
 const treeGlob = (root: string): string => root + "**";
 
+// packages/<name>/test/ holds that package's test apps and fixtures (SvelteKit's
+// packages/kit/test/apps/async is one). Those manifests are not a second product.
+// Excluding one would also hide an owner nested inside it, and one include/exclude
+// list cannot open that owner again. They stay inside the owning package. A nested
+// owner anywhere else still cannot be represented and stays a scope problem.
+const PACKAGE_TEST = /^packages\/[^/]+\/test\//;
+
 function ownershipScope(owners: string[], roots: string[]) {
+  const boundaries = roots.filter(root => !PACKAGE_TEST.test(root));
   const include = owners.sort().map(treeGlob);
-  const foreign = roots.filter(root => root !== "" && !owners.includes(root) && owners.some(owner => root.startsWith(owner)));
+  const foreign = boundaries.filter(root => root !== "" && !owners.includes(root) && owners.some(owner => root.startsWith(owner)));
   const ambiguous = foreign.filter(root => owners.some(owner => owner.startsWith(root)));
   return { scope: { include, exclude: foreign.sort().map(treeGlob) },
     ...(ambiguous.length ? { scopeProblems: ambiguous.map(root => `Nested owners below ${root} cannot be represented by one include/exclude scope. Choose an explicit reviewed rule scope.`) } : {}) };

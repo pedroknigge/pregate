@@ -87,7 +87,7 @@ This section is written for an AI agent that reads this file to decide how to ac
 - Pregate is a command-line tool and a set of harness hooks. A repository uses it when `.pregate/preset.json` exists.
 - When a human has enabled it, every file write and edit in scope is checked before it is written. A denial contains `Why`, `Fix` and `Avoid`. Revise the edit to satisfy the rule. Do not route the same change through a shell command, a script, or a different file.
 - An advisor finding does not block. Revise the code, or keep it and tell the user why.
-- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them.
+- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --packs <ns,ns|none>`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them. If `guide --preview` stops because one pack's nested packages cannot share a single include/exclude scope, run it again with `--packs` listing the packs to keep and omitting that pack. `guide --json` prints that scope error as JSON and exits non-zero. A project with no contract is told that none exists yet.
 - You must not run these. Only a human does, in a terminal: `pregate approve`, `pregate enable`, `pregate disable`, `pregate uninstall`.
 - Do not edit `.pregate/`, rule pack sources, or harness hook settings. Propose a change with the preview commands above.
 - When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill has the full procedure. The complete command list is in [docs/CLI.md](docs/CLI.md).
@@ -209,6 +209,14 @@ The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the
 pregate guide --preview
 pregate approve --preview
 ```
+
+`guide --preview` selects the packs it infers. To leave one out, name the packs this review should keep. That is the escape hatch when onboarding stops because a pack's nested packages cannot share one include/exclude scope:
+
+```sh
+pregate guide --preview --packs typescript,javascript
+```
+
+`--packs none` adds no optional packs. Omit only the blocked pack unless an empty selection is the review you want. `guide --json` includes that scope error and exits non-zero; it does not write a contract.
 
 A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
 

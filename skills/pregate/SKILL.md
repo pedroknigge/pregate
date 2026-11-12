@@ -223,6 +223,10 @@ Prepare `guide --preview --packs <ns,ns|none> [--layers <layers.json>] [--compil
 repeatable `--custom-pack <path>` as needed. `--preset <name>` selects only an
 initial recipe. Selection flags require preview and cannot combine with JSON or
 multi-project mode. `--packs none` adds nothing; existing recipe policies remain.
+If guide stops because one pack's nested packages cannot share one include/exclude
+scope, `--packs` lists the packs to keep and omits that pack. `guide --json` prints
+that scope error as JSON and exits non-zero. A project with no contract is told
+that none exists yet.
 After a contract exists, `--layers` and `--compile` are refused: a layer map is
 `layers apply` and instruction rules are `compile apply`, each its own review.
 Detected source roots and preserved exclusions enter the same review. The guide's
