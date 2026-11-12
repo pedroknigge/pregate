@@ -1,0 +1,19 @@
+package tools
+
+import "os/exec"
+
+func Zsh(cmd string) error {
+	return exec.Command("zsh", "-c", cmd).Run()
+}
+
+func Dash(cmd string) error {
+	return exec.Command("dash", "-c", cmd).Run()
+}
+
+func Ksh(cmd string) error {
+	return exec.Command("/usr/bin/ksh", "-c", cmd).Run()
+}
+
+func Cmd(cmd string) error {
+	return exec.Command("cmd.exe", "/c", cmd).Run()
+}

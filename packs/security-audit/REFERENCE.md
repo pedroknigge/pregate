@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.0.0`. Category: **practice**.
+Version: `1.0.1`. Category: **practice**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -172,7 +172,7 @@ Source metadata:
 
 ## security-audit/obvious-sinks
 
-Manifest version: `1.0.0`. Status: **preview**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### security-audit/SA-PY-YAML-001
 
@@ -432,19 +432,19 @@ Source metadata:
 
 ### security-audit/SA-GO-SHELL-001
 
-Check: [`security-audit/execution/go-shell-string@1.0.0`](checks/execution/go-shell-string/check.json). Default severity: **deny**.
+Check: [`security-audit/execution/go-shell-string@1.0.1`](checks/execution/go-shell-string/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `go`. Cardinality: `singleton`. Dimension: `security-audit.execution.go-shell-command`. Minimum severity: `none`.
 
-Hardening invariant: sh -c parses its script, so a value formatted into that script can add commands. A finding marks a string-built shell script, not a confirmed injection.
+Hardening invariant: sh -c parses its script, so a script taken from a value, or a value formatted into that script, can add commands. A finding marks that shell call, not a confirmed injection.
 
 Default parameters: `{}`.
 
 **Repair:** Run the program directly with exec.Command(name, arg1, arg2) so each value is one argument. If a shell is required, keep the script literal and pass values as positional parameters ("sh", "-c", "grep -r \"$1\"", "sh", value).
 
-**Scope and limits:** Detects exec.Command and exec.CommandContext calls that pass sh, bash, zsh, dash, ksh or cmd (optionally under /bin or /usr/bin) with -c or /c and an argument built with fmt.Sprintf or + concatenation. A script assembled in an earlier variable, strings.Join and a renamed os/exec import are not detected. A passing check is not a security proof.
+**Scope and limits:** Detects exec.Command and exec.CommandContext when the program is a string literal sh, bash, zsh, dash, ksh or cmd, optionally under /bin or /usr/bin, written as an interpreted or raw string, the next argument is -c or /c, and the script argument is an identifier, a selector, an index, a slice, a parenthesized form of one of those, a fmt.Sprintf call, or a + concatenation. A constant string literal script such as exec.Command("sh", "-c", "ls -la") stays unreported, as does exec.Command("git", "status"). A value passed as a positional parameter after a literal script stays unreported. strings.Join, any other call, a shell name or flag held in a variable, and a renamed os/exec import stay undetected. A passing check is not a security proof.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

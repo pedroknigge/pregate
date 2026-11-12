@@ -28,7 +28,7 @@ Python, Go, Rust and TypeScript forms that disable transport verification, deser
 | `SA-PY-EVAL-001` | Python | Builtin `eval` or `exec` with a non-literal argument (`compile()` of a literal counts as literal) | ask |
 | `SA-PY-DEBUG-001` | Python | `app.run(debug=True)` (Flask, Flask-SocketIO) without a literal loopback `host=` | warn |
 | `SA-GO-TLS-001` | Go | `InsecureSkipVerify` is set to `true` in a TLS config literal or assignment | deny |
-| `SA-GO-SHELL-001` | Go | `exec.Command("sh", "-c", ...)` with a script built by `fmt.Sprintf` or `+` | deny |
+| `SA-GO-SHELL-001` | Go | `exec.Command` or `exec.CommandContext` with `sh`, `bash`, or a `/bin` or `/usr/bin` shell and `-c`, when the script is a variable, `fmt.Sprintf`, or `+` | deny |
 | `SA-RS-TLS-001` | Rust | `.danger_accept_invalid_certs(true)` or `.danger_accept_invalid_hostnames(true)` | deny |
 | `SA-ECB-001` | TS/TSX | A `create(De)Cipher(iv)` algorithm literal ending in `-ecb` | deny |
 | `SA-RANDOM-001` | TS/TSX, Python | `Math.random()` or `random.*` producing a value named like a token, secret, nonce, salt, password or OTP (not `key`, request guards or multipart boundaries), or in a helper a secret generator calls | warn |
@@ -50,7 +50,7 @@ TypeScript browser messaging, credentialed CORS, token verification options and 
 
 ## Coverage and compatibility
 
-Version `1.0.0`; included with engine 0.0.8. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or values that flow through variables. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
+Version `1.0.1`; included with engine 0.0.8. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or where a value was assigned. `SA-GO-SHELL-001` does report a variable, selector, index or slice used as the script of `sh -c`. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
 
 The existing `vibe-proof`, `express` and `agent-practices` packs cover adjacent forms (wildcard CORS with credentials, an open CORS header, security-review practices). Rules here that overlap them declare explicit relations.
 
@@ -85,7 +85,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **practice**. Version: `1.0.0`. 18 distinct check IDs.
+Category: **practice**. Version: `1.0.1`. 18 distinct check IDs.
 
 Methodologies: `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview).
 

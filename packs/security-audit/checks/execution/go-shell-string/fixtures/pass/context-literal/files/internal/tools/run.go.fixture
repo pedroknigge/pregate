@@ -1,0 +1,10 @@
+package tools
+
+import (
+	"context"
+	"os/exec"
+)
+
+func Clean(ctx context.Context, pattern string) error {
+	return exec.CommandContext(ctx, "sh", "-c", "grep -r \"$1\" .", "sh", pattern).Run()
+}

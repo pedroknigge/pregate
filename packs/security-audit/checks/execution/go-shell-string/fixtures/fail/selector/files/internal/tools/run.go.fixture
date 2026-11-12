@@ -1,0 +1,11 @@
+package tools
+
+import "os/exec"
+
+type job struct {
+	Script string
+}
+
+func Run(cfg job) error {
+	return exec.Command("sh", "-c", cfg.Script).Run()
+}

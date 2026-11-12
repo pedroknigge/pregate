@@ -1,0 +1,20 @@
+{
+  "language": "go",
+  "params": {},
+  "target": "internal/tools/run.go",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 10
+      }
+    ]
+  },
+  "trap": {
+    "family": "split-command-context",
+    "origin": "forge",
+    "discovered": "2026-11-12",
+    "note": "CommandContext split across lines, with /bin/bash and a variable script, stays visible. The constant script call in the same function is a separate call."
+  }
+}

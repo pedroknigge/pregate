@@ -1,0 +1,23 @@
+{
+  "language": "go",
+  "params": {},
+  "target": "internal/tools/run.go",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 6
+      },
+      {
+        "line": 10
+      },
+      {
+        "line": 14
+      },
+      {
+        "line": 18
+      }
+    ]
+  }
+}

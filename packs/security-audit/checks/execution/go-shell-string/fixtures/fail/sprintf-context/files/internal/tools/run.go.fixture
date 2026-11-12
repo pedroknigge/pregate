@@ -1,0 +1,11 @@
+package tools
+
+import (
+	"context"
+	"fmt"
+	"os/exec"
+)
+
+func Archive(ctx context.Context, name string) error {
+	return exec.CommandContext(ctx, "bash", "-c", fmt.Sprintf("tar czf %s.tgz build", name)).Run()
+}

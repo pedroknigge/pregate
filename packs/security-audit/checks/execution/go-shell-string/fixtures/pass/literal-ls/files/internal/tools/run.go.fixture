@@ -1,0 +1,7 @@
+package tools
+
+import "os/exec"
+
+func Clean() error {
+	return exec.Command("sh", "-c", "ls -la").Run()
+}
