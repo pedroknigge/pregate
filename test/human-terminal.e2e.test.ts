@@ -27,7 +27,9 @@ test.skipIf(process.platform === "win32")("a release binary enables only after y
     const status = () => Bun.spawnSync([binary, "status"], { cwd: root, env, stdout: "pipe", stderr: "pipe" }).stdout.toString();
     const piped = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe" });
     expect(piped.exitCode).toBe(1);
-    expect(piped.stdout.toString()).toContain("interactive stdin");
+    expect(piped.stdout.toString()).toContain("no terminal");
+    expect(piped.stdout.toString()).toContain(canonical(root));
+    expect(piped.stdout.toString()).toContain("pregate enable");
     expect(status()).toContain("is inactive");
 
     // CI and the test answer are in the environment on purpose. The helper removes them,
@@ -73,7 +75,10 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
       cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
     });
     expect(piped.exitCode).toBe(1);
-    expect(piped.stdout.toString()).toContain("interactive stdin");
+    const refused = piped.stdout.toString();
+    expect(refused).toContain("no terminal");
+    expect(refused).toContain(canonical(root));
+    expect(refused).toContain(`pregate approve ${digest}`);
     expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(false);
     process.env.XDG_DATA_HOME = data;
     const applied = await applyReviewedProposal(canonical(root), digest!, { activate: true, commit: true });

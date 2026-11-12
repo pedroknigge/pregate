@@ -25,15 +25,15 @@ repair was useful or that the task completed.
 The preview identifies the rule, location, symbol, measurement, limit, session,
 observation time, proposed label and note. Inspect the originally reported case
 before judging it; the current file may have changed. Replayable denials can also
-be examined through `pregate dispute`. To save the reviewed label, type the printed
-command inside the harness:
+be examined through `pregate dispute`. To save the reviewed label, run the printed
+command in a separate terminal:
 
 ```text
-! pregate feedback apply <digest> --yes
+pregate feedback apply <digest> --yes
 ```
 
 Every harness denies this digest-bound command when the agent issues it and names
-the human `!` route (a separate terminal in Cursor); see [approval limits](approval-in-harness.md).
+the separate terminal; see [approval limits](approval-in-harness.md).
 Agents can list, draft and show feedback; an ordinary protected shell call cannot
 apply it. Actual human permission and self-approval
 prevention in all harness UIs remain release verification items.

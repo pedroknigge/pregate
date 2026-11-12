@@ -26,7 +26,7 @@ const ARG_MAX = 300;     // a longer path in the pre-check becomes <file>
 const WORD = /^[A-Za-z0-9@/._-]+$/;   // a shell word that needs no quoting (`$` would expand)
 const EMPTY: Text = { compact: "", full: "" };
 
-const ISSUE = "Ask the user whether to report this finding to the native PREGATE GitHub repository. Prepare a review with `pregate issue draft --last`; code is omitted unless explicitly included. Publication requires human approval inside the harness.";
+const ISSUE = "Ask the user whether to report this finding to the native PREGATE GitHub repository. Prepare a review with `pregate issue draft --last`; code is omitted unless explicitly included. Publication requires human approval in a separate terminal.";
 export const POLICY_ADAPTATION = "If a rule blocks a required use case, propose a bounded rule/pack change with a valid example and an invalid counterexample. Preserve the invariant and requested behavior. Inspect `pregate preset show --json` and `pregate preset request-schema`. Draft .pregate/requests/<name>.json. Codex 0.166 reports the command working directory, so name a file outside that directory with an absolute path. `pregate preset apply <request.json> --preview` prepares review without activating it. Only the human approves. Do not suggest disabling PREGATE or its hooks just to unblock the task.";
 // SessionStart's form of POLICY_ADAPTATION; the denial texts carry the full procedure.
 const ADAPTATION_BRIEF = "If a rule blocks a required use case, propose a bounded rule/pack change with a valid example and an invalid counterexample in .pregate/requests/<name>.json for human review. Do not suggest disabling PREGATE or its hooks just to unblock the task.";

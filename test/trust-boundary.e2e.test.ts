@@ -337,7 +337,7 @@ test("CI in the environment neither approves nor reveals codes; the dedicated op
 
 // ── P1-4: Claude's native permission cannot complete an approval command ────────────────
 
-test("Claude Code denies approval commands from the agent and names the human ! route", () => {
+test("Claude Code denies approval commands from the agent and names a separate terminal", () => {
   const r = fresh({ PREGATE_TESTING: "1" });
   put(r, ".pregate/requests/loosen.json", JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
   const preview = cli(r, ["preset", "apply", ".pregate/requests/loosen.json", "--preview"]);
@@ -346,7 +346,8 @@ test("Claude Code denies approval commands from the agent and names the human ! 
   const a = claude(r, "default");
   ok(a.start(), "session");
   const out = a.bash(`pregate approve ${code}`);
-  denied(out, `! pregate approve ${code}`);
+  denied(out, `run pregate approve ${code} in a separate terminal`);
+  expect(said(out)).not.toContain(`! pregate approve ${code}`);
   expect(out.stdout).not.toContain('"ask"');
   for (const command of [`pregate feedback apply ${"a".repeat(64)} --yes`, `pregate storage apply ${"a".repeat(64)} --yes`, `pregate issue submit ${"a".repeat(64)} --yes`]) {
     expect(a.bash(command).stdout, command).not.toContain('"ask"');

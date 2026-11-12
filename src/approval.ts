@@ -33,22 +33,25 @@ export function approvalCodeVisible(): boolean {
 }
 
 // Keep the review text. Remove only the code an approval command would accept.
+// The no-terminal route repeats the command the human must type. Redacting that line would hide
+// the only way to approve. Preview output is still redacted.
+const TERMINAL_ROUTE = /^Open (?:Terminal\/iTerm|a new PowerShell window) in .+ and run `pregate approve [0-9a-f]{12,64}`\.$/;
+
 export function withholdApprovalCode(text: string): string {
   if (approvalCodeVisible()) return text;
   const hidden = "withheld until this preview runs in a human terminal";
-  return text
+  return text.split("\n").map((line) => TERMINAL_ROUTE.test(line) ? line : line
     .replace(/Digest: [0-9a-f]{64}/g, `Digest: ${hidden}`)
     .replace(/pregate approve [0-9a-f]{12,64}/g, "pregate approve <withheld>")
     .replace(/pregate (session rebase \S+ --digest|feedback apply|storage apply|issue submit) [0-9a-f]{64}/g, "pregate $1 <withheld>")
-    .replace(/("pendingApproval": )"[0-9a-f]{12,64}"/g, "$1null");
+    .replace(/("pendingApproval": )"[0-9a-f]{12,64}"/g, "$1null")).join("\n");
 }
 
 // The command applies only where stdin is a terminal and the human can type on /dev/tty (CONIN$ on
-// Windows). A harness `!` line qualifies only when that harness gives it an interactive stdin;
-// otherwise the human opens a terminal of their own.
+// Windows). No harness `!` line has that terminal, so every harness uses a separate terminal.
 export function humanApprovalInstructions(command: string): string[] {
-  return [`After reviewing, the human runs in a terminal: ${command}`,
-    "Inside Claude Code, Codex, Grok or agy, the ! prefix works only when that harness gives the command an interactive stdin; Cursor needs a separate terminal and so does OpenCode. The command then asks for y on the terminal.",
+  return [`After reviewing, the human runs in a separate terminal: ${command}`,
+    "Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal. A harness ! line has no terminal, so it cannot approve. The command then asks for y on that terminal.",
     "The agent must not run the approval command. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in the environment (an unattended CI job)."];
 }
 
@@ -93,11 +96,19 @@ export function hasTerminal(): boolean {
 
 // Why a caller was not allowed to apply. The unattended opt-in and the test hook are the only
 // non-terminal exceptions; an agent tool pipes stdin and cannot type on /dev/tty.
-export function approvalRefusal(): string {
-  if (!unattendedApproval() && testAnswer() === undefined && !process.stdin.isTTY) {
-    return "Human approval requires an interactive stdin and a confirmation typed on the terminal (/dev/tty or CONIN$). An agent tool call cannot supply that. Nothing applied.";
-  }
+// `route` is the real project root and the command a person types there. A batch names every root.
+export function approvalRefusal(route?: { roots: string[]; command: string }): string {
+  if (!unattendedApproval() && testAnswer() === undefined && !process.stdin.isTTY) return noTerminal(route);
   return "Human approval unavailable or rejected; nothing applied.";
+}
+
+function noTerminal(route?: { roots: string[]; command: string }): string {
+  const why = "This process has no terminal, so nothing was approved. Harness ! lines in Claude Code, Codex, Grok, agy, OpenCode and Cursor run this way: stdin is a pipe or /dev/null and the process is detached, so there is no controlling terminal.";
+  if (route === undefined || route.roots.length === 0) return why;
+  const open = WINDOWS
+    ? `Open a new PowerShell window in ${route.roots.join(", ")} and run \`${route.command}\`.`
+    : `Open Terminal/iTerm in ${route.roots.join(", ")} and run \`${route.command}\`.`;
+  return `${why}\n${open}`;
 }
 
 export async function approve(summary: string, warning: boolean, yes = false): Promise<boolean> {

@@ -53,15 +53,15 @@ pregate storage show <digest>
 Both commands prepare or display a review; neither deletes code. `--preview` is
 optional because `prune` always prepares a draft. The review lists the project,
 cutoff, sessions, exact blob paths, content hashes, file counts and bytes.
-After reading it, the human can type:
+After reading it, the human runs this in a separate terminal:
 
 ```sh
-! pregate storage apply <digest> --yes
+pregate storage apply <digest> --yes
 ```
 
 An agent's apply command is denied in every harness; the agent presents the review
-and the human runs the digest-bound command with `!` or in a terminal. Actual UI
-verification across all harnesses remains a release gate.
+and the human runs the digest-bound command in a separate terminal. A harness `!`
+line cannot approve it. Actual UI verification across all harnesses remains a release gate.
 
 The preview expires after 24 hours. Apply rechecks its digest, project and
 current storage, obtains exclusive cleanup markers, then validates again before
@@ -104,7 +104,7 @@ unknown. PREGATE does not remove a marker merely because it is old.
 ```sh
 pregate storage recover --preview
 pregate storage show <digest>
-! pregate storage apply <digest> --yes
+pregate storage apply <digest> --yes
 ```
 
 Recovery always prepares a review, even without `--preview`. It selects only
@@ -142,6 +142,6 @@ and a resumed Stop. All data and approvals belong to a temporary test project;
 this does not certify actual harness UI interaction or erase user state.
 The same smoke kills real cooperating source-helper writer/cleaner processes,
 then checks production-binary PID inspection, the denial of an agent's apply
-with the human `!` route, unattended refusal, approved recovery and unchanged baseline/history. The
+with the separate-terminal route, unattended refusal, approved recovery and unchanged baseline/history. The
 producer helpers use the source coordination module; this is not a claim that
 an actual harness UI or a production gate process was killed during verification.

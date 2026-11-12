@@ -508,7 +508,7 @@ async function guidedAction(options: Options): Promise<Result> {
     }
     if (!interactiveTerminal()) {
       const cards = await Promise.all((options.projects.length ? rootsOf(options.projects) : [process.cwd()]).map(inspectProject));
-      return { code: 0, text: cards.map(card).join("\n\n") + "\nFor guided choices, the human runs ! pregate guide inside a supported harness or pregate in a terminal. If it cannot provide a TTY, ask the agent to present guide --json choices and prepare one guide --preview; approve the displayed digest through the harness's human route." };
+      return { code: 0, text: cards.map(card).join("\n\n") + "\nFor guided choices, the human runs pregate guide in a terminal. If it cannot provide a TTY, ask the agent to present guide --json choices and prepare one guide --preview; approve the displayed digest in a separate terminal." };
     }
     return await wizard(options);
   } catch (e) { return { code: 1, text: visible(`Guided action could not finish: ${(e as Error).message}\nYour valid contract and protection were not reset. Inspect guide --json or preset diagnose; correct the named cause and retry.`) }; }

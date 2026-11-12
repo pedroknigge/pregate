@@ -169,9 +169,8 @@ test("issue draft is offline, omits code and paths, binds the destination and re
   expect(draft.text).not.toContain(root);
   expect(draft.text).not.toContain("private/path");
   const id = idOf(draft.text);
-  expect(draft.text).toContain("Claude Code, Codex, Grok or agy");
   expect(draft.text).toContain(`pregate issue submit ${id} --yes`);
-  expect(draft.text).toContain("Cursor needs a separate terminal");
+  expect(draft.text).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
   expect((await issue(["show", id], unexpected)).text).toBe(draft.text);
   expect((await issue(["submit", id], unexpected)).text).toContain("Report not approved");
   const codeDraft = await issue(["draft", "--last", "--include-code"], unexpected);
@@ -372,20 +371,22 @@ test("no harness approves a submission from the agent; each denial names the hum
   for (const harness of ["codex", "cursor", "grok"] as const) {
     const denied = command({ ...session, harness });
     expect(denied.verdict).toBe("deny");
-    expect(denied.full).toContain(harness === "cursor" ? `pregate issue submit ${id} --yes in a separate human terminal` : "! pregate issue submit");
-    if (harness === "cursor") expect(denied.full).not.toContain("! pregate issue submit");
+    expect(denied.full).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
+    expect(denied.full).not.toContain("! pregate issue submit");
   }
   expect(command({ ...session, harness: "claude-code", interactive: true }).verdict).toBe("deny");
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   const denied = command({ ...session, harness: "agy", interactive: true });
   expect(denied.verdict).toBe("deny");
-  expect(denied.full).toContain(`! pregate issue submit ${id} --yes`);
+  expect(denied.full).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
+  expect(denied.full).not.toContain(`! pregate issue submit ${id} --yes`);
   // An approved Bash command runs without a terminal, so Claude Code's permission prompt could
   // only start a submission that then refuses: the human types it with `!` instead.
   const humanSession = { ...session, harness: "claude-code" as const, interactive: true };
   const routed = command(humanSession);
   expect(routed.verdict).toBe("deny");
-  expect(routed.full).toContain(`type ! pregate issue submit ${id} --yes inside the harness`);
+  expect(routed.full).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
+  expect(routed.full).not.toContain(`! pregate issue submit ${id} --yes`);
   const out = HARNESSES["claude-code"].encode("pre-command", routed);
   expect(out.exit).toBe(2);
   expect(out.stdout).not.toContain('"permissionDecision":"ask"');
@@ -405,7 +406,8 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   const routed = onPreCommand({ session: { ...session, harness: "claude-code", interactive: true }, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve --yes --digest ${digest}` });
   expect(routed.verdict).toBe("deny");
-  expect(routed.full).toContain(`type ! pregate approve --yes --digest ${digest} inside the harness`);
+  expect(routed.full).toContain(`run pregate approve --yes --digest ${digest} in a separate terminal`);
+  expect(routed.full).not.toContain(`! pregate approve --yes --digest ${digest}`);
   const review = pendingReview(root, undefined, true).text;
   expect(review).toContain("WARNING: this may weaken protection.");
   expect(review).toContain("(was enforce)");

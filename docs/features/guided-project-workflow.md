@@ -156,26 +156,23 @@ and disabled consent remain. Adding packs is optional and requires its displayed
 review; declining them retains completed updates. With no missing recommendation,
 the guide finishes with the explicit audit command and no additional menu.
 
-The agent cannot run the interactive guide to approve itself. The human enters
-`! pregate guide` where the supported harness route provides a terminal.
-Without one, the agent reads `guide --json`, presents the relevant choices
+The agent cannot run the interactive guide to approve itself. Without a terminal,
+the agent reads `guide --json`, presents the relevant choices
 together, prepares `guide --preview` and shows the complete review. The human
-enters its exact displayed command:
+runs the displayed command in a separate terminal:
 
 ```text
-! pregate approve <code>
+pregate approve <code>
 ```
 
-Each project preview has its own digest; the interactive confirmation can approve
-the combined set. Existing native Claude permission and human shell routes keep
-their [capability boundaries](approval-in-harness.md). Cursor's fallback requires
-a human terminal. A terminal or an agent's claim is not a trusted human marker.
+Each project preview has its own digest. A harness `!` line has no terminal, so
+it cannot approve. See the [capability boundaries](approval-in-harness.md). A
+terminal or an agent's claim is not a trusted human marker.
 
 For a current cloned/disabled contract, a plain `guide --preview` is a no-op,
 not an activation proposal. Choose activation in the interactive guide, or let
 the human run `pregate enable` in a terminal after reviewing `status` and type `y`.
-A harness `!` line qualifies only when that harness gives the command an interactive
-stdin. `--yes` does not skip the question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates and
+A harness `!` line has no terminal, so it cannot approve. `--yes` does not skip the question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates and
 pack adoption preserve disabled consent; the agent must not run the activation command.
 
 ## Audit and recovery

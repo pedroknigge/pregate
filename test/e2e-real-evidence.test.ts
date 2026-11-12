@@ -42,7 +42,7 @@ test("Claude fitness observation admits only the independently observed read-onl
     {...row,tool_input:{command:text.replace("--json","--json --yes")}}]) expect(claudeFitnessInspection(value,launcher)).toBe(false);
 });
 
-const agyDenial = `tool call denied by pre-tool hook: PREGATE: ask the user to type ! ${command} inside the harness.`;
+const agyDenial = `tool call denied by pre-tool hook: PREGATE: ask the user to run ${command} in a separate terminal.`;
 const agyRecords = [{type:"PLANNER_RESPONSE",step_index:2,tool_calls:[{name:"run_command",args:{CommandLine:command}}]},
   {type:"GENERIC",step_index:3,status:"ERROR",error:agyDenial}];
 

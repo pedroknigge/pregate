@@ -75,10 +75,10 @@ update reviews state that consent is preserved. That intent is digest-bound.
 
 Without a terminal, the agent inspects `guide --json --projects <path...>`,
 presents the relevant choices and prepares `guide --preview --projects <path...>`.
-The human can approve each displayed digest in its project through the supported
-route. `guide` has no `--yes`. Its single combined confirmation requires a human
+The human can approve each displayed digest in its project in a separate
+terminal. `guide` has no `--yes`. Its single combined confirmation requires a human
 terminal; it does not infer approval from a pipe, an agent statement or a preview.
-Native harness interaction retains the documented approval-route limitations.
+A harness `!` line cannot approve.
 
 ## Update several projects from one directory
 
@@ -96,7 +96,7 @@ diff and digest; inspect all reviews. With two or more reviews, the preview also
 prints one batch code:
 
 ```text
-Approve all 2 project updates: ! pregate approve <code>
+Approve all 2 project updates: pregate approve <code>
 ```
 
 The batch binds each project's exact proposal digest, and works from any
@@ -106,15 +106,14 @@ each changed project is named. Each project is then applied and committed on
 its own, as a single approval would commit it, and consent is never changed; a
 project that changes while the human reviews fails alone and is named. The
 per-project codes stay valid; after one of them is approved on its own, the
-batch code applies nothing and names that project. In Claude
-Code the batch dialog shows every project's review; a batch too long for the
-dialog must be approved in a terminal.
+batch code applies nothing and names that project. Run the batch command in a
+separate terminal. No harness `!` line can approve it.
 
 For one human execution that updates the listed projects without a batch code,
-rerun the same path list with `--yes`:
+rerun the same path list with `--yes` in a separate terminal:
 
 ```text
-! pregate update --projects "/path/project-a" "/path/project-b" --yes
+pregate update --projects "/path/project-a" "/path/project-b" --yes
 ```
 
 All paths and candidates must pass preflight before application starts. The
@@ -171,7 +170,7 @@ SessionStart without it.
 worktrees of the same Git repository whose lock pins another engine and prints the
 ready `update --projects <paths> --preview` command for them. It only names them;
 each worktree still changes through its own reviewed update. An agent may prepare the explicit `--preview` form but
-must leave `--yes` to the human; Cursor retains its terminal fallback.
+must leave `--yes` to the human in a separate terminal.
 
 ## Diagnosis without a valid lock
 

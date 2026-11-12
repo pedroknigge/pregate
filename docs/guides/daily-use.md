@@ -270,13 +270,9 @@ before changing visibility or plugins.
 ## Review a contract change inside the harness
 
 The agent can prepare a literal supported preview command. The human reviews
-`approve --preview` and enters its `! pregate approve <code>`
-where the harness supports human shell input.
-The preview names the supported harnesses and shows a separate human terminal
-command for Cursor and OpenCode. The agent must not execute either approval command itself.
-Native interactive Claude Code
-permission can approve a validated edit; agy uses human Bash input in normal
-and skip-permissions sessions. Proposals expire after 24 hours and
+`approve --preview` and runs `pregate approve <code>` in a separate terminal.
+A harness `!` line has no terminal, so it cannot approve. The agent must not
+execute the approval command itself. Proposals expire after 24 hours and
 reject stale contracts or source data. See [the capability boundaries](../features/approval-in-harness.md).
 
 If a request preview expires, renew it with
@@ -284,7 +280,7 @@ If a request preview expires, renew it with
 `pregate approve --preview` again. Review the current diff and use the digest and
 exact human approval command displayed by this fresh review, rather than a saved
 expired command. The agent may prepare the preview; only the human enters the
-approval command through the supported route above. Renewing the preview does
+approval command in that separate terminal. Renewing the preview does
 not apply the request or change consent. The new proposal retains the same
 24-hour lifetime.
 

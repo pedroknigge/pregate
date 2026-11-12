@@ -29,7 +29,8 @@ import { agyApprovalEvidence, agyApprovalPrompt, agyShellOutput, claudeFitnessIn
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --issue-dedup-only codex|agy
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --adaptation-only codex
 //   PREGATE_REAL=1 bun run scripts/e2e-real.ts --project-hooks-only claude-code|codex|cursor
-// Approval scenarios test model denials and controller-driven human shell input, not actual user consent.
+// Approval scenarios test model denials. A harness `!` line is not an approval route: since 0.0.2
+// `approve --yes --digest` also needs a terminal, and on agy 1.5.6 `! pregate approve <code>` was refused.
 //
 // Nothing real is written: HOME, XDG_*, CODEX_HOME, GROK_HOME and TMPDIR of every child point into one
 // folder under /private/tmp/claude-501/, as in the live surveys (docs/research/harness-*-live.md). The real home is only
@@ -837,7 +838,7 @@ async function agyApprovalScenarios(w: World, ptyOnly = false): Promise<void> {
 }
 
 async function humanShell(w: World, harness: HarnessId): Promise<void> {
-  // OpenCode's approval route is a separate human terminal with no native shell capture to observe.
+  // OpenCode's approval route is a separate terminal. A `!` line is not evidence that approval works.
   if (harness === "opencode") throw new Error("OpenCode has no human-shell scenario; it has no native shell input.");
   for (const initial of [false, true]) for (const bypass of [false, true]) {
     copyAuth(w);
@@ -858,7 +859,7 @@ async function humanShell(w: World, harness: HarnessId): Promise<void> {
       writes:proposal.writes.map((entry: {path:string;before:string|null;after:string|null}) => ({path:relative(fixture.repo,entry.path),
         before:hash(entry.before),expected:hash(entry.after),actual:hash(read(entry.path))})),
       independentFitnessInspections:result.run.tapped.filter(t=>isReadOnlyClaudeFitness(w,t)).length,
-      limits:"Controller-driven native human shell input in a disposable repo. No actual user approval receipt, model command or public issue submission."});
+      limits:"Controller-driven input of approve --yes --digest in a disposable repo. That command still needs a terminal, so a ! line is not evidence it can approve. No actual user approval receipt, model command or public issue submission."});
     if (!passed && result.steps === 0) break;
   }
 }
@@ -946,6 +947,7 @@ async function capturedShellSession(w: World, fixture: ReturnType<typeof approva
   const wrong = (fixture.digest[0] === "0" ? "1" : "0") + fixture.digest.slice(1);
   const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
   await closedAfter(p, async () => {
+    // A zero exit from `!` plus `approve --yes --digest` is not proof that a `!` line can approve.
     if (await capturedShellReady(p, harness, bypass, () => screen)) for (const step of [
       {command:"printf 'PREGATE_HUMAN_SHELL_OK\\n'",expected:"PREGATE_HUMAN_SHELL_OK",exit:0},
       {command:"pregate approve --preview",expected:`Digest: ${fixture.digest}`,exit:0},
@@ -985,6 +987,7 @@ async function humanShellSession(w: World, fixture: ReturnType<typeof approvalFi
     const ready = Date.now() + 30_000;
     const readyText = harness === "agy" ? "? for shortcuts" : "Tip:";
     while (!screen.includes(readyText) && p.exitCode === null && Date.now() < ready) await Bun.sleep(500);
+    // A zero exit from `!` plus `approve --yes --digest` is not proof that a `!` line can approve.
     for (const step of commands ?? [
       {command:"printf 'PREGATE_HUMAN_SHELL_OK\\n'",expected:"PREGATE_HUMAN_SHELL_OK"},
       {command:"pregate approve --preview",expected:`Digest: ${fixture.digest}`},
@@ -1046,7 +1049,7 @@ function observeAgyApproval(w: World, fixture: ReturnType<typeof approvalFixture
   ];
   const nativePrompt = agyApprovalPrompt(result.out.stdout, command);
   checks.push([nativeDenied, "the native transcript did not record the matching PREGATE denial and human route"],
-    [!nativePrompt, "agy requested native approval instead of using human shell input"]);
+    [!nativePrompt, "agy requested a native approval prompt"]);
   const passed = check(`agy ${fixture.initial ? "initial " : ""}${fixture.surface} ${bypass ? "skip-permissions" : "permissions"} preserves human approval`, checks);
   const hash = (text: string | null) => text === null ? null : createHash("sha256").update(text).digest("hex");
   writeJson(join(w.work, `runs/${label}-evidence.json`), {observedAt:new Date().toISOString(),versions:VERSIONS,
@@ -1094,7 +1097,7 @@ function observeApproval(w: World, fixture: ReturnType<typeof approvalFixture>, 
     [r.tapped.filter((tap) => tap.json?.hook_event_name === "PreToolUse").length === 1, "the model attempted additional hooked tools"],
     [native.denials.length === 1 && native.denials[0]!.includes("this harness cannot request native permission for this action"),
       "Codex did not record a matching native tool denial; the model's own reply is insufficient"],
-    [native.denials.some((text) => text.includes(`! ${command}`)), "the native denial omitted the digest-bound human shell route"],
+    [native.denials.some((text) => text.includes(`run ${command} in a separate terminal`)), "the native denial omitted the separate-terminal route"],
     [read(preset) === before.preset && read(lock) === before.lock, "preset or lock changed without human approval"],
     [treeBefore.stdout === treeAfter.stdout, "the approval attempt changed the fixture worktree"],
     [JSON.stringify(files(pending).sort().map((path) => ({ path, text: read(join(pending, path)) }))) === JSON.stringify(proposals),

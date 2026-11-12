@@ -63,10 +63,10 @@ proposal, but it does not change the project's preset, lock or local consent.
 An already registered namespace is rejected rather than overwritten. Adding a
 source alone does not activate its methodologies.
 
-Read the displayed diff, then type its exact human command inside the harness:
+Read the displayed diff, then run its exact command in a separate terminal:
 
 ```text
-! pregate approve <displayed code>
+pregate approve <displayed code>
 ```
 
 The proposal expires in 24 hours. Changing the preset, lock or evaluable source

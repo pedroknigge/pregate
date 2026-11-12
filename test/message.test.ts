@@ -275,7 +275,7 @@ describe("message content", () => {
     for (const text of messages) {
       expect(text).toContain("Ask the user whether to report this finding");
       expect(text).toContain("`pregate issue draft --last`");
-      expect(text).toContain("Publication requires human approval inside the harness");
+      expect(text).toContain("Publication requires human approval in a separate terminal");
     }
   });
 

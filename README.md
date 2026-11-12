@@ -214,7 +214,7 @@ A new project is proposed in advisor mode: the agent sees each finding and nothi
 pregate approve <code>
 ```
 
-Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. In Claude Code, Codex, Grok, or agy, the human route is `! pregate approve <code>` when that input has an interactive terminal. Cursor uses a separate terminal. The agent must not execute either approval route.
+Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal: a harness `!` line has no terminal, so it cannot approve. On agy 1.5.6, `! pregate approve <code>` was refused because stdin is not a terminal; the earlier agy note was only 1.2.17. Open Terminal/iTerm on macOS or Linux, or a new PowerShell window on Windows, in the project and run `pregate approve <code>`. The agent must not run the approval command.
 
 ```sh
 pregate status

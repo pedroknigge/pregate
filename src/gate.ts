@@ -146,12 +146,11 @@ function administrativeApproval(root: string | null, c: ProposedCommand): Decisi
   if (!known && contract === null) return null;
   if (root === null && (contract === null || pendingBatch(contract[1] ?? contract[2]!) === null)) return null;
   const reason = c.session.harness === "agy"
-    ? "agy approval uses human shell input because its hook cannot identify an interactive parent."
+    ? "agy has no trusted interactive parent, and a ! line has no terminal."
     : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
     : c.session.harness === "opencode" ? "the OpenCode plugin hook has no trusted human-origin marker."
     : "an approval command needs the human's confirmation on a terminal, which the agent's shell tool does not have.";
-  const route = c.session.harness === "cursor" || c.session.harness === "opencode" ? `run ${c.command} in a separate human terminal`
-    : `type ! ${c.command} inside the harness`;
+  const route = `run ${c.command} in a separate terminal`;
   const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
   return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
 }

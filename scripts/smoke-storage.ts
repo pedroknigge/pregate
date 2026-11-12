@@ -97,7 +97,7 @@ try {
     const agent = run(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "native-retention", cwd: root,
       permission_mode: "default", tool_name: "Bash", tool_use_id: "recover-" + kind,
       tool_input: { command: "pregate storage apply " + id + " --yes" } }, "");
-    assert(agent.exitCode === 2 && (agent.stdout.toString() + agent.stderr.toString()).includes(`type ! pregate storage apply ${id} --yes inside the harness`),
+    assert(agent.exitCode === 2 && (agent.stdout.toString() + agent.stderr.toString()).includes(`run pregate storage apply ${id} --yes in a separate terminal`),
       "Production recovery from the agent was not denied with the human ! route");
     assert(run(["storage", "apply", id!]).exitCode === 1, "Unattended recovery must refuse");
     checked(["storage", "apply", id!, "--yes"]);

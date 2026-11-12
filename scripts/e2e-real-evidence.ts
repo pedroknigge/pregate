@@ -28,7 +28,7 @@ export function agyApprovalEvidence(raw: string, step: number, command: string):
     r.tool_calls?.some(t => t.name === "run_command" && t.args?.CommandLine === command))) return [];
   return records.flatMap(r => r.type === "GENERIC" && r.status === "ERROR" && r.step_index === step
     && typeof r.error === "string" && r.error.startsWith("tool call denied by pre-tool hook: PREGATE:")
-    && r.error.includes(`! ${command} inside the harness.`) ? [r.error] : []);
+    && r.error.includes(`run ${command} in a separate terminal`) ? [r.error] : []);
 }
 
 // This selects a captured native permission screen, not an assistant's claim

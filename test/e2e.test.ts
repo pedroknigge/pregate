@@ -649,7 +649,8 @@ test("compiled issue reporting offers an offline review and sends only the appro
   expect(a.bash(`pregate issue submit ${id} --yes`).code).toBe(2);
   const parent = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "" } }).bash(`pregate issue submit ${id} --yes`);
   expect(parent.code).toBe(2);
-  expect(parent.stdout + parent.stderr).toContain(`type ! pregate issue submit ${id} --yes inside the harness`);
+  expect(parent.stdout + parent.stderr).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
+  expect(parent.stdout + parent.stderr).not.toContain(`! pregate issue submit ${id} --yes`);
   const stub = at(r, "gh-stub");
   mkdirSync(stub);
   const fake = join(stub, "gh"), args = join(stub, "args");
@@ -1301,7 +1302,10 @@ test("a recomputed digest cannot approve without a terminal, and a human TTY con
   for (const args of [["approve", "--yes", "--digest", digest], ["approve", digest]]) {
     const piped = run(["pregate", ...args], r.dir, agent, "y\n");
     expect(piped.code, args.join(" ")).toBe(1);
-    expect(piped.stdout + piped.stderr, args.join(" ")).toContain("interactive stdin");
+    const refused = piped.stdout + piped.stderr;
+    expect(refused, args.join(" ")).toContain("no terminal");
+    expect(refused, args.join(" ")).toContain(r.dir);
+    expect(refused, args.join(" ")).toContain(`pregate approve ${digest}`);
     expect(read(r, ".pregate/pregate.lock.json")).toBe(before);
   }
   const declined = ptyRun(["pregate", "approve", digest], r.dir, agent, "n");
