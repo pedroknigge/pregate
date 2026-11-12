@@ -68,8 +68,10 @@ describe("decode: captured payloads", () => {
     "post-run-terminal-command.json": { unregistered: "PostToolUse is not registered" },
     "user-prompt-submit.json": { unregistered: "UserPromptSubmit is not registered" },
     "subagent-start.json": { unregistered: "SubagentStart is not registered" },
-    // The shared registration names SubagentStop for Claude Code; a Grok subagent is its own session: ignored.
-    "subagent-stop.json": { event: "stop", env: STOP, out: null },
+    // SubagentStop is the child session's Stop. The child's sessionId is the session, and there is no agent id.
+    "subagent-stop.json": {
+      event: "stop", env: STOP, out: { kind: "stop", session: session(11), cwd: PROJECT, reentry: false },
+    },
     "session-end.json": { unregistered: "SessionEnd is not registered" },
   });
 
@@ -94,6 +96,12 @@ describe("decode: captured payloads", () => {
 
   test("a shutdown Stop is ignored whatever else it carries", () => {
     expect(decode("stop", raw({ ...json("stop-shutdown.json"), stopHookActive: "x" }), STOP)).toBeNull();
+  });
+
+  test("a SubagentStop without stopHookActive is refused; reentry still comes from the boolean", () => {
+    const stop = json("subagent-stop.json");
+    expect(causeOf(decode("stop", raw(without(stop, "stopHookActive")), STOP))).toBe(BAD);
+    expect(decode("stop", raw({ ...stop, stopHookActive: true }), STOP)).toMatchObject({ kind: "stop", reentry: true, session: session(11) });
   });
 });
 

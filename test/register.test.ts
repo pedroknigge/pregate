@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, type Sub, type Target, unmerge } from "../src/register.ts";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import pkg from "../package.json" with { type: "json" };
+import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, registered, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -164,22 +167,43 @@ describe("unmerge", () => {
 });
 
 describe("agy", () => {
-  test("the plugin: one named hook, enabled, Pre grouped and Stop flat, no SessionStart", () => {
-    const plugin = agyPlugin(DATA);
+  test("the plugin: one named hook, enabled, Pre grouped and PostInvocation/Stop/SessionStart flat", () => {
+    const plugin = agyPlugin(DATA, pkg.version);
     expect(Object.keys(plugin).sort()).toEqual(["hooks.json", "plugin.json"]);
-    expect(obj(plugin["plugin.json"]!)).toEqual({ name: "pregate-global" });
+    expect(obj(plugin["plugin.json"]!)).toEqual({
+      name: "pregate-global",
+      version: pkg.version,
+      description: "Pre-execution architectural and integrity gate for AI coding agents.",
+    });
     expect(obj(plugin["hooks.json"]!)).toEqual({
       "pregate-global": {
         enabled: true,
         PreToolUse: [{
-          matcher: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input)$",
+          matcher: "^(write_to_file|replace_file_content|multi_replace_file_content|write_file|edit_file|create_file|delete_file|rename_file|notebook_edit|run_command|send_command_input|manage_task)$",
           hooks: [{ type: "command", command: HOOK_COMMAND["pre agy"], timeout: 120 }],
         }],
+        PostInvocation: [{ type: "command", command: HOOK_COMMAND["post-invocation agy"], timeout: 15 }],
         Stop: [{ type: "command", command: HOOK_COMMAND["stop agy"], timeout: 60 }],
-        PreInvocation: [{ type: "command", command: HOOK_COMMAND["session-start agy"], timeout: 15 }],
+        SessionStart: [{ type: "command", command: HOOK_COMMAND["session-start agy"], timeout: 15 }],
       },
     });
     expect(merge(null, "agy", DATA)).toBe(plugin["hooks.json"]!);
+    const agyBin = Bun.which("agy");
+    if (agyBin !== null) {
+      const scratch = mkdtempSync(join(tmpdir(), "pregate-agy-validate-"));
+      const dir = join(scratch, "pregate-global");
+      mkdirSync(dir);
+      for (const [f, text] of Object.entries(plugin)) writeFileSync(join(dir, f), text);
+      try {
+        const v = Bun.spawnSync([agyBin, "plugin", "validate", dir, "--json"], { stdout: "pipe", stderr: "pipe", timeout: 15_000 });
+        expect(v.exitCode, v.stderr.toString()).toBe(0);
+        const report = JSON.parse(v.stdout.toString()) as { name: string; components: { hooks: number }; findings: { severity: string }[] };
+        expect(report).toMatchObject({ name: "pregate-global", components: { hooks: 1 } });
+        expect(report.findings.filter((f) => f.severity !== "note")).toEqual([]);
+      } finally {
+        rmSync(scratch, { recursive: true, force: true });
+      }
+    }
   });
 
   test("merge and unmerge own the pregate key only", () => {
@@ -188,7 +212,22 @@ describe("agy", () => {
     expect(obj(merged)["orca-status"]).toEqual(orca["orca-status"]);
     expect(obj(unmerge(merged, "agy", DATA)!.text)).toEqual(orca);
     const h = obj(merged)["pregate-global"];
-    expect(exact(h.PreToolUse[0], "agy", DATA) && exact(h.Stop[0], "agy", DATA)).toBe(true);
+    expect(exact(h.PreToolUse[0], "agy", DATA) && exact(h.PostInvocation[0], "agy", DATA) && exact(h.Stop[0], "agy", DATA) && exact(h.SessionStart[0], "agy", DATA)).toBe(true);
+  });
+
+  test("project-agy owns pregate-project only, walks up from PWD or workspacePaths[0], and is accepted by drift", () => {
+    const foreign = { "team-hook": { PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "sh lint.sh" }] }] } };
+    const merged = merge(JSON.stringify(foreign), "project-agy", DATA)!;
+    expect(merge(merged, "project-agy", DATA)).toBe(merged);
+    expect(obj(merged)["team-hook"]).toEqual(foreign["team-hook"]);
+    expect(obj(unmerge(merged, "project-agy", DATA)!.text)).toEqual(foreign);
+    const h = obj(merged)[AGY_PROJECT_HOOK];
+    expect(h.PreToolUse[0].matcher).toContain("manage_task");
+    expect(h.PreToolUse[0].hooks[0].command).toContain("hook pre --harness agy");
+    expect(h.PostInvocation[0].command).toContain("hook post-invocation --harness agy");
+    expect(h.Stop[0].command).toContain("hook stop --harness agy");
+    expect(h.SessionStart[0].command).toContain("hook session-start --harness agy");
+    expect(drift({ claude: [], cursorHooks: null, codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null }, { ".agents/hooks.json": merged }, DATA, {})).toEqual([]);
   });
 });
 
@@ -205,12 +244,13 @@ test("exact: an extra key, another timeout or another matcher is not ours", () =
 describe("drift", () => {
   const CODEX_FILE = "/Users/user/.codex/hooks.json";
   const HASH = { PreToolUse: "sha256:aa", Stop: "sha256:bb", SessionStart: "sha256:cc" };
-  const TRUST = { [`${CODEX_FILE}:pre_tool_use:1:0`]: HASH.PreToolUse, [`${CODEX_FILE}:stop:1:0`]: HASH.Stop, [`${CODEX_FILE}:session_start:1:0`]: HASH.SessionStart };
+  const TRUST = { [`${CODEX_FILE}:pre_tool_use:1:0`]: HASH.PreToolUse, [`${CODEX_FILE}:stop:1:0`]: HASH.Stop, [`${CODEX_FILE}:session_start:1:0`]: HASH.SessionStart,
+    [`${CODEX_FILE}:subagent_start:1:0`]: "sha256:dd", [`${CODEX_FILE}:subagent_stop:1:0`]: "sha256:ee" };
   const trusted = `${CODEX_TOML}${Object.entries(TRUST).map(([k, v]) => `\n[hooks.state."${k}"]\ntrusted_hash = "${v}"\n`).join("")}`;
   const gemini = (enabled: boolean): string => JSON.stringify({ plugins: { ...obj(GEMINI).plugins, "pregate-global": { enabled } } });
   const clean = (): MachineFiles => ({
     claude: [merge(CLAUDE, "shared", DATA)], cursorHooks: null, codexHooks: merge(CODEX, "codex", DATA), codexConfig: trusted,
-    grokConfig: GROK_TOML, agyHooks: agyPlugin(DATA)["hooks.json"]!, agyConfig: gemini(true),
+    grokConfig: GROK_TOML, agyHooks: agyPlugin(DATA, pkg.version)["hooks.json"]!, agyConfig: gemini(true),
   });
   const problems = (change: Partial<MachineFiles>, repo: Record<string, string> | null = null, trust: Record<string, string> = TRUST): string[] =>
     drift({ ...clean(), ...change }, repo, DATA, trust);
@@ -238,12 +278,12 @@ describe("drift", () => {
   test("codex: registration missing, file gone after trust, trust removed or changed, index shifted", () => {
     const pre = (m: string[]) => m.filter((p) => p.includes("PreToolUse"));
     expect(pre(problems({ codexHooks: CODEX }))).toEqual(["Codex hooks.json: PREGATE PreToolUse hook missing or modified; run pregate setup."]);
-    expect(problems({ codexHooks: null })).toHaveLength(3);
+    expect(problems({ codexHooks: null })).toHaveLength(5);
     expect(problems({ codexHooks: null }, null, {})).toEqual([]);
     const lost = "Codex does not run PREGATE PreToolUse: setup trust was removed or its index changed. Run pregate setup.";
     expect(problems({ codexConfig: trusted.replace(HASH.PreToolUse, "sha256:ff") })).toEqual([lost]);
-    expect(problems({ codexConfig: CODEX_TOML })).toHaveLength(3);
-    expect(problems({}, null, {})).toHaveLength(3);
+    expect(problems({ codexConfig: CODEX_TOML })).toHaveLength(5);
+    expect(problems({}, null, {})).toHaveLength(5);
     const shifted = obj(merge(CODEX, "codex", DATA));
     shifted.hooks.PreToolUse.unshift({ hooks: [{ type: "command", command: "/usr/local/bin/first" }] });
     expect(problems({ codexHooks: JSON.stringify(shifted) })).toEqual([lost]);
@@ -264,7 +304,7 @@ describe("drift", () => {
     expect(problems({ agyConfig: gemini(false) })).toEqual([
       "agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.",
     ]);
-    const changed = obj(agyPlugin(DATA)["hooks.json"]!);
+    const changed = obj(agyPlugin(DATA, pkg.version)["hooks.json"]!);
     changed["pregate-global"].enabled = false;
     const gone = "agy: pregate-global plugin missing or modified; run pregate setup.";
     expect(problems({ agyHooks: JSON.stringify(changed) })).toEqual([gone]);
@@ -375,11 +415,90 @@ describe("project", () => {
     }
   });
 
+  test("the Cursor project registration is native: version 1, flat entries, no failClosed, and no machine path", () => {
+    const project = obj(merge(null, "project-cursor", DATA));
+    expect(project.version).toBe(1);
+    expect(Object.keys(project.hooks)).toEqual(["preToolUse", "stop", "sessionStart"]);
+    expect(project.hooks.preToolUse).toEqual([{
+      type: "command", timeout: 120, matcher: "^(Write|Delete|Shell)$|^MCP:",
+      command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness cursor; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`,
+    }]);
+    expect(project.hooks.stop[0]).toMatchObject({ timeout: 60, loop_limit: null, command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness cursor; exit 0` });
+    const flat = (text: string | null): string[] => Object.values(obj(text).hooks as Record<string, Json[]>).flatMap((list) => list.map((h) => h.command as string));
+    for (const command of [...flat(merge(null, "project-cursor", DATA)), ...flat(merge(null, "project-cursor", WINDOWS_DATA))]) {
+      expect(commandScript(command)).not.toContain(DATA);
+      expect(commandScript(command)).not.toContain("AppData");
+      expect(commandScript(command)).not.toContain("CLAUDE_PROJECT_DIR");
+    }
+    for (const command of flat(merge(null, "project-cursor", WINDOWS_DATA))) {
+      expect(command).toMatch(/^powershell\.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand [A-Za-z0-9+/=]+$/);
+      expect(commandScript(command)).toContain("$d=if ($env:CURSOR_PROJECT_DIR) { $env:CURSOR_PROJECT_DIR } else { (Get-Location).Path }");
+    }
+    expect(merge('{"version":0,"hooks":{}}', "project-cursor", DATA)).toBeNull();
+  });
+
+  test("the Cursor project registration is idempotent, keeps foreign entries, and does not own the other registrations", () => {
+    const foreign = JSON.stringify({ version: 1, hooks: { preToolUse: [{ command: "sh .cursor/hooks/audit.sh --harness cursor" }], stop: [{ command: "afplay done.aiff" }] } });
+    const merged = merge(foreign, "project-cursor", DATA)!;
+    expect(merge(merged, "project-cursor", DATA)).toBe(merged);
+    expect(obj(merged).hooks.preToolUse[0]).toEqual(obj(foreign).hooks.preToolUse[0]);
+    expect(obj(unmerge(merged, "project-cursor", DATA)!.text)).toEqual(obj(foreign));
+    expect(merge(merge(null, "project-cursor", WINDOWS_DATA), "project-cursor", DATA)).toBe(merge(null, "project-cursor", DATA)!);
+    // The machine's native Cursor Stop belongs to `cursor`, the project's to `project-cursor`.
+    const both = merge(merge(null, "cursor", DATA), "project-cursor", DATA)!;
+    expect(obj(both).hooks.stop).toHaveLength(2);
+    expect(obj(unmerge(both, "project-cursor", DATA)!.text)).toEqual(obj(merge(null, "cursor", DATA)));
+    expect(obj(unmerge(both, "cursor", DATA)!.text)).toEqual(obj(merge(null, "project-cursor", DATA)));
+    expect(registered(merge(null, "project-cursor", DATA), "project-cursor", DATA)).toBe(true);
+    expect(registered(merge(null, "project", DATA), "project-cursor", DATA)).toBe(false);
+  });
+
   test("codexProjectTrust reads the trust level of one project directory and nothing about a hook", () => {
     const config = `model = "x"\n[projects."/home/user/repo"]\ntrust_level = "trusted"\n[projects.'C:\\Users\\user\\repo']\ntrust_level = "untrusted"\n[hooks.state."/home/user/other/.codex/hooks.json:pre_tool_use:0:0"]\ntrusted_hash = "sha256:1"\n`;
     expect(codexProjectTrust(config, "/home/user/repo")).toBe("trusted");
     expect(codexProjectTrust(config, "C:/Users/user/repo")).toBe("untrusted");
     expect(codexProjectTrust(config, "/home/user/other")).toBeNull();
     expect(codexProjectTrust(null, "/home/user/repo")).toBeNull();
+  });
+});
+
+describe("opencode", () => {
+  // register.ts stays pure (it is a core module): the caller resolves the folder and passes it in.
+  const DIR = "/Users/user/.config/opencode/pregate";
+  const ORCA = "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui";
+  const config = (plugins?: unknown[]): string => `${JSON.stringify(plugins === undefined ? { $schema: "https://opencode.ai/config.json" } : { $schema: "https://opencode.ai/config.json", plugins }, null, 2)}\n`;
+
+  test("setup adds one plugins entry and leaves every other entry and key alone", () => {
+    expect(mergeOpencode(config(), DIR)).toBe(config([DIR]));
+    expect(mergeOpencode(config([ORCA]), DIR)).toBe(config([ORCA, DIR]));
+    // A second run writes nothing: the entry is already there, in place.
+    const once = mergeOpencode(config([ORCA]), DIR)!;
+    expect(mergeOpencode(once, DIR)).toBe(once);
+    // A file that is not a JSON object, or whose plugins is not an array, is left alone.
+    expect(mergeOpencode("{ not json", DIR)).toBeNull();
+    expect(mergeOpencode('{"plugins":"x"}', DIR)).toBeNull();
+    expect(obj(mergeOpencode(null, DIR))).toEqual({ plugins: [DIR] });
+  });
+
+  test("unmerge removes our entry and keeps the user's list; an empty key goes", () => {
+    const both = mergeOpencode(config([ORCA]), DIR)!;
+    expect(obj(unmergeOpencode(both, DIR)!.text)).toEqual(obj(config([ORCA])));
+    expect(obj(unmergeOpencode(config([DIR]), DIR)!.text)).toEqual({ $schema: "https://opencode.ai/config.json" });
+    expect(unmergeOpencode(config([ORCA]), DIR)!.text).toBe(config([ORCA]));
+    expect(unmergeOpencode('{"plugins":"x"}', DIR)).toBeNull();
+  });
+
+  test("a disabled entry is the human's switch: setup never turns it back on", () => {
+    for (const marker of ["-", "!"]) {
+      const off = config([`${marker}${DIR}`]);
+      expect(mergeOpencode(off, DIR)).toBe(off);
+      expect(opencodeState(off, DIR)).toBe("disabled");
+    }
+    expect(opencodeState(config([DIR]), DIR)).toBe("ready");
+    expect(opencodeState(config([ORCA]), DIR)).toBe("missing");
+    expect(opencodeState(config(), DIR)).toBe("missing");
+    expect(opencodeState('{"plugins":"x"}', DIR)).toBe("invalid");
+    // A different spelling of the same folder is still ours.
+    expect(opencodeState(config([`${DIR}/`]), DIR)).toBe("ready");
   });
 });

@@ -12,6 +12,7 @@
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
+import { merge } from "../src/register.ts";
 import { ensureCompiledEngine } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "./confirm-terminal.ts";
 import { decideGate, differential, formatDifferential, formatGate, median, nearestRank, parseBaseline, parseBenchArgs, type BenchOptions, type Differential } from "./latency-gate.ts";
@@ -24,8 +25,8 @@ const SHELL_P50_MS = 25;    // p50 of the shell guard and no-preset path (§7.2 
 const LEDGERS = { 200: "src/domain/ledger-200.ts", 300: "src/domain/ledger-300.ts", 2000: "src/domain/ledger-2000.ts", debt: "src/domain/ledger-debt-2000.ts" };
 
 type Env = Record<string, string>;
-interface Repo { dir: string; env: Env; pre: string; start: string }
-interface Route { name: string; prepare: Payload[]; timed: Payload }
+interface Repo { dir: string; env: Env; pre: string; start: string; harness: BenchOptions["harness"] }
+interface Route { name: string; prepare: Payload[]; timed: Payload; denied?: boolean; coldLock?: boolean }
 // One engine under test: its own repository, homes and registered hook commands.
 interface Arm { repo: Repo; routes: Route[] }
 type Payload = Record<string, unknown>;
@@ -38,13 +39,14 @@ function main(): number {
 
 function benchIn(work: string, options: BenchOptions): number {
   try {
-    const arms = [arm(join(work, "candidate"), ROOT, process.env.PREGATE_COMPILED_ENGINE, options.only)];
-    if (options.against !== null) arms.push(arm(join(work, "reference"), realpathSync(options.against), referenceEngine(work, options.against), options.only));
+    const arms = [arm(join(work, "candidate"), ROOT, process.env.PREGATE_COMPILED_ENGINE, options)];
+    if (options.against !== null) arms.push(arm(join(work, "reference"), realpathSync(options.against), referenceEngine(work, options.against), options));
     const series = repeatMeasure(arms, options.runs, options.repeat);
     const stats = combine(series.map((arms) => arms[0]!));
     const over = overBudget(stats);
     const verdict = budgetText(over);
-    console.log(`${table(stats)}\n\n${verdict}`);
+    console.log(`Harness: ${options.harness}\n${table(stats)}\n\n${verdict}`);
+    console.log(JSON.stringify({ harness: options.harness, platform: process.platform, arch: process.arch, routes: stats }));
     const summary = process.env.GITHUB_STEP_SUMMARY;
     if (summary) appendFileSync(summary, markdown(stats, verdict));
     if (options.against !== null) reportDifferential(series, options.againstLabel ?? options.against);
@@ -55,10 +57,10 @@ function benchIn(work: string, options: BenchOptions): number {
   }
 }
 
-function arm(work: string, root: string, engine: string | undefined, only: string[]): Arm {
+function arm(work: string, root: string, engine: string | undefined, options: BenchOptions): Arm {
   mkdirSync(work, { recursive: true });
-  const repo = setUp(work, root, engine);
-  return { repo, routes: selectRoutes(routes(repo.dir), only) };
+  const repo = setUp(work, root, engine, options.harness);
+  return { repo, routes: selectRoutes(options.harness === "codex" ? codexRoutes(repo.dir) : routes(repo.dir), options.only) };
 }
 
 // The reference engine is built from its own source with the Bun that runs this script, by the
@@ -131,7 +133,7 @@ function applyGate(stats: Stats[], path: string): number {
 // ── The repo under test ────────────────────────────────────────────────────────────
 
 // HOME and the XDG folders point into `work`: the engine, its state and git's config stay there.
-function setUp(work: string, root: string, shared: string | undefined): Repo {
+function setUp(work: string, root: string, shared: string | undefined, harness: BenchOptions["harness"]): Repo {
   const dir = join(work, "repo");
   const env: Env = {
     PATH: process.env.PATH ?? "/usr/bin:/bin", TMPDIR: work, HOME: join(work, "home"),
@@ -151,7 +153,11 @@ function setUp(work: string, root: string, shared: string | undefined): Repo {
     run(dir, env, argv);
   }
   enableProject(engine, dir, env);
-  const repo = { dir, env, ...hookCommands(env.HOME!) };
+  if (harness === "codex") {
+    mkdirSync(env.CODEX_HOME!, { recursive: true });
+    writeFileSync(join(env.CODEX_HOME!, "hooks.json"), merge(null, "codex", join(env.XDG_DATA_HOME!, "pregate"))!);
+  }
+  const repo = { dir, env, harness, ...hookCommands(env.HOME!, harness) };
   activeCanary(repo);
   return repo;
 }
@@ -171,7 +177,8 @@ function enableProject(engine: string, dir: string, env: Env): void {
 }
 
 function activeCanary(repo: Repo): void {
-  const payload = envelope(repo.dir, "bench-canary", tool("Write", { file_path: join(repo.dir, "src/domain/canary.ts"), content: "export const invalid = ;\n" }));
+  const invalid = repo.harness === "codex" ? codexPatch(repo.dir, ["src/domain/canary.ts"], true) : tool("Write", { file_path: join(repo.dir, "src/domain/canary.ts"), content: "export const invalid = ;\n" });
+  const payload = envelope(repo.dir, "bench-canary", invalid, repo.harness);
   const r = Bun.spawnSync(hookArgv(repo.pre), { cwd: repo.dir, env: repo.env, stdin: Buffer.from(JSON.stringify(payload)), stdout: "pipe", stderr: "pipe" });
   if (r.exitCode !== 2 || !r.stderr.toString().includes("syntax")) throw new Error("Benchmark gate is inactive or broken: invalid syntax was not denied.");
 }
@@ -188,8 +195,9 @@ function seed(dir: string, root: string): void {
 }
 
 // The commands `setup` wrote to HOME/.claude/settings.json, inline guard included.
-function hookCommands(dir: string): { pre: string; start: string } {
-  const hooks = JSON.parse(readFileSync(join(dir, ".claude/settings.json"), "utf8")).hooks;
+function hookCommands(dir: string, harness: BenchOptions["harness"]): { pre: string; start: string } {
+  const file = harness === "codex" ? ".codex/hooks.json" : ".claude/settings.json";
+  const hooks = JSON.parse(readFileSync(join(dir, file), "utf8")).hooks;
   const first = (event: string): string => hooks[event][0].hooks[0].command;
   return { pre: first("PreToolUse"), start: first("SessionStart") };
 }
@@ -261,6 +269,30 @@ function tool(name: string, input: Payload): Payload {
   return { hook_event_name: "PreToolUse", permission_mode: "acceptEdits", tool_name: name, tool_input: input };
 }
 
+// Native Codex patches, including one script whose two calls reuse the same exec id.
+function codexRoutes(dir: string): Route[] {
+  const start = { hook_event_name: "SessionStart", source: "startup" };
+  const edit = (rel: string) => tool("apply_patch", { command: `*** Begin Patch\n*** Update File: ${join(dir, rel)}\n@@\n-    if (amount.currency !== currency) throw new Error("ledger 9: currency differs");\n+    if (amount.currency !== currency) throw new Error("ledger 9: currency does not match");\n*** End Patch\n` });
+  const first = codexPatch(dir, ["src/domain/first.ts"]);
+  const second = codexPatch(dir, ["src/domain/second.ts"]);
+  return [
+    { name: "shell", prepare: [start], timed: tool("Bash", { command: "git status --short && ls src" }) },
+    { name: "200 lines, cold lock", prepare: [start], timed: edit(LEDGERS[200]), coldLock: true },
+    { name: "200 lines, first touch", prepare: [start], timed: edit(LEDGERS[200]) },
+    { name: "200 lines, second touch", prepare: [start, edit(LEDGERS[200])], timed: edit(LEDGERS[200]) },
+    { name: "2,000 lines, first touch", prepare: [start], timed: edit(LEDGERS[2000]) },
+    { name: "2,000 lines, second touch", prepare: [start, edit(LEDGERS[2000])], timed: edit(LEDGERS[2000]) },
+    { name: "two-file patch", prepare: [start], timed: codexPatch(dir, ["src/domain/first.ts", "src/domain/second.ts"]) },
+    { name: "code mode, second call", prepare: [start, { ...first, tool_use_id: "exec-bench" }], timed: { ...second, tool_use_id: "exec-bench" } },
+    { name: "syntax denial", prepare: [start], timed: codexPatch(dir, ["src/domain/invalid.ts"], true), denied: true },
+  ];
+}
+
+function codexPatch(dir: string, files: string[], invalid = false): Payload {
+  const body = files.map((file) => `*** Add File: ${join(dir, file)}\n+export const value = ${invalid ? ";" : "1;"}\n`).join("");
+  return tool("apply_patch", { command: `*** Begin Patch\n${body}*** End Patch\n` });
+}
+
 // Rounds go through every route in turn, so drift on the machine weighs on all of them alike. The
 // first round warms the page cache and is dropped. With two engines, each sample times both, and
 // the order alternates by round, so neither always runs second.
@@ -280,14 +312,16 @@ function measure(arms: Arm[], runs: number): Map<string, number[]>[] {
 
 function sample(repo: Repo, r: Route, round: number, taken: number): number {
   const session = `bench-${round}-${taken}-${r.name.replace(/\W+/g, "-")}`;
-  for (const p of r.prepare) hook(repo, envelope(repo.dir, session, p));
-  return hook(repo, envelope(repo.dir, session, r.timed));
+  for (const p of r.prepare) hook(repo, envelope(repo.dir, session, p, repo.harness));
+  if (r.coldLock) rmSync(join(repo.env.XDG_STATE_HOME!, "pregate/locks"), { recursive: true, force: true });
+  return hook(repo, envelope(repo.dir, session, r.timed, repo.harness), r.denied);
 }
 
 // What Claude Code sends around every event (test/payloads).
-function envelope(dir: string, session: string, p: Payload): Payload {
+function envelope(dir: string, session: string, p: Payload, harness: BenchOptions["harness"]): Payload {
   const id = `${session}-${String(p.tool_name ?? "start")}`;
-  return { session_id: session, transcript_path: join(dir, "t.jsonl"), cwd: dir, prompt_id: `${session}-prompt`, ...p, tool_use_id: id };
+  const turn = harness === "codex" ? { turn_id: `${session}-turn` } : { prompt_id: `${session}-prompt` };
+  return { session_id: session, transcript_path: join(dir, "t.jsonl"), cwd: dir, ...turn, tool_use_id: id, ...p };
 }
 
 // Each sample has to take the route it names: exit 0, and no objection (Pre prints nothing) or no
@@ -296,14 +330,16 @@ function hookArgv(command: string): string[] {
   return process.platform === "win32" ? ["cmd.exe", "/d", "/c", command] : ["sh", "-c", command];
 }
 
-function hook(repo: Repo, payload: Payload): number {
+function hook(repo: Repo, payload: Payload, denied = false): number {
   const command = payload.hook_event_name === "SessionStart" ? repo.start : repo.pre;
   const stdin = Buffer.from(`${JSON.stringify(payload)}\n`);
   const t0 = performance.now();
   const r = Bun.spawnSync(hookArgv(command), { cwd: repo.dir, env: repo.env, stdin, stdout: "pipe", stderr: "pipe" });
   const ms = performance.now() - t0;
   const quiet = payload.hook_event_name === "SessionStart" ? r.stdout.toString().includes('"additionalContext"') && !r.stdout.toString().includes('"systemMessage"') : r.stdout.length === 0;
-  if (r.exitCode !== 0 || !quiet) throw new Error(`hook objected (exit ${r.exitCode}): ${r.stdout}${r.stderr}`);
+  if (denied) {
+    if (r.exitCode !== 2 || !r.stderr.toString().includes("PREGATE DENY syntax") || r.stdout.length !== 0) throw new Error(`syntax denial route was not denied: ${r.stdout}${r.stderr}`);
+  } else if (r.exitCode !== 0 || !quiet) throw new Error(`hook objected (exit ${r.exitCode}): ${r.stdout}${r.stderr}`);
   return ms;
 }
 

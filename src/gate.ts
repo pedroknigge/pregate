@@ -31,8 +31,10 @@ export { grammars, lockOf, onSessionStart, sourceDirs, sourcesOf };
 const NUDGE_EVERY_MS = 24 * 3_600_000;
 
 export async function sessionStart(e: Extract<HookEvent, { kind: "session-start" }>): Promise<Decision> {
+  if (e.session.harness === "agy") state.clearPostInvocation(state.key(e.session));
   const decision = onSessionStart(e);
   if (!decision.full.includes("PREGATE is active:")) return decision;
+  if (e.session.agentId !== null) return decision;
   const line = await promotionLine(e.cwd);
   return line === null ? decision : { ...decision, full: `${decision.full}\n${line}` };
 }
@@ -61,12 +63,22 @@ type Held = { root: string; loaded: Loaded | Cause; lock: Lock | null; rel: stri
 
 export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const rec = await import("./recorded.ts");
-  return rec.onPreEdit(changes);
+  const d = await rec.onPreEdit(changes);
+  if (changes[0]?.session.harness === "agy") state.queuePostInvocation(state.key(changes[0].session), d);
+  return d;
 }
 
 export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs?: number): Promise<Decision> {
+  if (e.session.harness === "agy") state.clearPostInvocation(state.key(e.session));
   const ses = await import("./session-command.ts");
   return ses.onStop(e, budgetMs);
+}
+
+export function onPostInvocation(e: Extract<HookEvent, { kind: "post-invocation" }>): Decision {
+  if (e.session.harness !== "agy") return told(null);
+  const { halt, warnings } = state.drainPostInvocation(state.key(e.session));
+  if (halt !== null) return { ...told(halt), verdict: "deny", halt: true };
+  return warnings.length > 0 ? told(null, warnings.join("\n\n")) : told(null);
 }
 
 export async function check(root: string, m: CheckMode, format: "agent" | "sarif" = "agent"): Promise<{ code: 0 | 1; text: string }> {
@@ -80,6 +92,12 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
 // no root writes nothing, and the guard denies only what holds machine-wide unless a path of the
 // command reaches a root (MH-17).
 export function onPreCommand(c: ProposedCommand): Decision {
+  const d = evaluatePreCommand(c);
+  if (c.session.harness === "agy") state.queuePostInvocation(state.key(c.session), d);
+  return d;
+}
+
+function evaluatePreCommand(c: ProposedCommand): Decision {
   const startedAt = clock();
   const sid = state.key(c.session);
   const cwd = canonical(c.cwd);
@@ -130,8 +148,9 @@ function administrativeApproval(root: string | null, c: ProposedCommand): Decisi
   const reason = c.session.harness === "agy"
     ? "agy approval uses human shell input because its hook cannot identify an interactive parent."
     : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
+    : c.session.harness === "opencode" ? "the OpenCode plugin hook has no trusted human-origin marker."
     : "an approval command needs the human's confirmation on a terminal, which the agent's shell tool does not have.";
-  const route = c.session.harness === "cursor" ? `run ${c.command} in a separate human terminal`
+  const route = c.session.harness === "cursor" || c.session.harness === "opencode" ? `run ${c.command} in a separate human terminal`
     : `type ! ${c.command} inside the harness`;
   const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
   return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
@@ -173,7 +192,8 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   return {
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
-    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
+    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);
@@ -200,6 +220,23 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   };
 }
 
+// The text the session's snapshot gives as the file's "before": the session's base commit, or the
+// dirty text recorded at the session start. null for a file the session added, an untracked or
+// ignored file, a file outside every enabled root, and a root the session has no snapshot of.
+function sessionBase(sid: string, path: string): string | null {
+  try {
+    const actual = canonical(path), holder = findRoot(dirname(actual), enabled);
+    if (holder === null) return null;
+    const snap = state.snapshot(sid, holder);
+    if (snap === null || snap === "missing") return null;
+    const before = state.beforeText(sid, snap, relative(holder, actual));
+    return typeof before === "string" && !isCause(before) ? before : null;
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return null;
+    throw error;
+  }
+}
+
 // `skill`: the question is about the installed skill file, not about a harness configuration file.
 function configurationRead(sid: string, root: string | null, path: string, skill: boolean): boolean {
   if (path.includes("\0") || /^\/dev\//.test(path)) return false;
@@ -212,7 +249,8 @@ function harnessConfigurationRead(sid: string, root: string | null, path: string
     // The skill is the text setup wrote for the agent to read. Its tree is protected against writes,
     // so a read of that one file discloses only what the installation gave the agent.
     const files = skill ? skillFiles() : harnessConfigFiles(home, {
-      codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
+      codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+      opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"), claudeConfig: env.CLAUDE_CONFIG_DIR || null,
     }, root);
     if (!files.some(file => pathKey(actual) === pathKey(canonical(file))) || !statSync(actual).isFile()) return false;
     const targetRoot = findRoot(dirname(actual), enabled);
@@ -220,7 +258,7 @@ function harnessConfigurationRead(sid: string, root: string | null, path: string
     const sources = roots.flatMap(r => sourceDirs(readText(join(r, PRESET)) ?? "").map(dir => canonical(resolve(r, dir))));
     // Configuration symlinks cannot turn private state, installation or rule sources into inputs.
     return ![canonical(state.stateDir()), canonical(engineHome()), ...sources].some(dir => within(dir, actual))
-      && !["**/.pregate", "**/.git", ...(skill ? [] : ["**/skills/pregate"]), "**/.gemini/config/plugins/pregate"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
+      && !["**/.pregate", "**/.git", ...(skill ? [] : ["**/skills/pregate"]), "**/.gemini/config/plugins/pregate", "**/.gemini/config/plugins/pregate-global"].some(glob => matches(glob, actual) || matches(`${glob}/**`, actual))
       && !matches("**/.local/bin/pregate", actual);
   } catch (error) {
     if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return false;

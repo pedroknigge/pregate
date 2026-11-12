@@ -21,16 +21,22 @@ hook configuration do not mean every project assertion has evidence.
 | Harness | Pre denial | Native approval | Session context | Warnings | Human notice when Stop releases the turn |
 | --- | --- | --- | --- | --- | --- |
 | Claude Code | Deny JSON and stderr, exit 2 | Interactive parent sessions | Yes | Yes | `systemMessage` |
-| Codex | stderr, exit 2 | Human command route | Yes | No | No supported channel |
+| Codex | stderr, exit 2 | Human command route | Yes | Yes | `systemMessage` |
 | Cursor | Deny JSON, exit 0 | Separate human terminal; tested Shell Mode has no trusted human-origin marker | Yes | No | No supported channel |
 | Grok | Compact deny JSON and stderr, exit 2 | Human command route | No | No | No supported channel |
 | agy | Deny JSON, exit 0 | Human Bash `!` route; agent approval is denied because parent context is unavailable | Yes | No | No supported channel |
+| OpenCode | stderr, exit 2, thrown by the plugin | Separate human terminal; the plugin hook has no trusted human-origin marker | Yes | Yes | No supported channel |
 
 A nonblocking Claude Stop emits no
 `hookSpecificOutput.additionalContext`: that channel continues the model's turn
 even with exit 0. Human notices use `systemMessage`, and warning/shadow findings
 stay recorded for `report`. Pre warning context remains available; real denials
 and bounded incomplete-stop behavior retain their existing policy.
+
+Codex also emits a nonblocking `systemMessage` when Stop releases an incomplete
+verification or its launcher cannot evaluate Stop. It does not add Stop context
+or request another model turn. Pre denials still use exit 2 and nonempty stderr;
+`ask` remains unsupported, and no approval or tool-input rewrite is emitted.
 
 Grok's reason is a compact first line, at most 256 characters. The other adapters
 can carry the engine's longer reason. A dropped warning or completion notice

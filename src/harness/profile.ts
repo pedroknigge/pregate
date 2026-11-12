@@ -4,22 +4,24 @@ import * as claude from "./claude.ts";
 import * as codex from "./codex.ts";
 import * as cursor from "./cursor.ts";
 import * as grok from "./grok.ts";
+import * as opencode from "./opencode.ts";
 import { parse } from "./wire.ts";
 
 // The adapter contract (MH-01). null from decode: an event that is recognized and ignored.
 interface Adapter {
   VERIFIED: string;                // the CLI version whose payloads are in test/payloads/<harness>/
   decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null;
-  encode(kind: HookEvent["kind"], d: Decision): Emission;
+  encode(kind: HookEvent["kind"], d: Decision, subagent?: boolean): Emission;
 }
-// The five adapters, for main (which one decodes a call) and doctor (each VERIFIED).
-export const HARNESSES = { "claude-code": claude, codex, cursor, grok, agy } satisfies Record<HarnessId, Adapter>;
+// The six adapters, for main (which one decodes a call) and doctor (each VERIFIED).
+export const HARNESSES = { "claude-code": claude, codex, cursor, grok, agy, opencode } satisfies Record<HarnessId, Adapter>;
 
 // MH-03: the payload names the harness before the flag does, because one registration in
 // ~/.claude/settings.json serves Claude Code, Cursor and Grok. Only top-level keys count: content
 // that spells "cursor_version" inside a Write cannot switch the profile. GROK_HOOK_EVENT alone does
 // not either: harnesses inherit their parent's environment.
 export function profile(flag: HarnessId, raw: string, env: HookEnv): HarnessId {
+  if (flag === "codex" || flag === "agy") return flag;
   const p = parse(raw);
   if (p === null) return flag;
   if (env.grokEvent !== null && Object.hasOwn(p, "hookEventName")) return "grok";

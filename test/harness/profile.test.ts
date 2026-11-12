@@ -20,6 +20,7 @@ test("Grok: GROK_HOOK_EVENT and a top-level hookEventName", () => {
 test("GROK_HOOK_EVENT leaked into another harness: the flag", () => {
   expect(profile("claude-code", payload("pre-write.json"), GROK)).toBe("claude-code");
   expect(profile("codex", payload("codex/pre-bash.json"), GROK)).toBe("codex");
+  expect(profile("agy", payload("agy/pre-write_file.json"), GROK)).toBe("agy");
 });
 
 test("cursor_version inside the content of a Write: still Claude Code", () => {

@@ -34,7 +34,7 @@ Unlike Claude Code, **Grok sends compact JSON with no trailing newline**.
 | `pre-spawn-subagent.json` | PreToolUse `spawn_subagent` | Parent session. `tool_input` carries `description`, `prompt` and more |
 | `pre-write-subagent.json` | PreToolUse `write` inside a subagent | Adds `subagentType: "general-purpose"`. `sessionId` is the **child's** session. No `agent_id` |
 | `subagent-start.json` | SubagentStart | Parent `sessionId`, plus `subagentId` (= the child's `sessionId`) and `subagentType` |
-| `subagent-stop.json` | SubagentStop | Child `sessionId`, `phase: "gate"`, `stopHookActive`, `lastAssistantMessage` |
+| `subagent-stop.json` | SubagentStop | Child `sessionId`, `phase: "gate"`, `stopHookActive`, `lastAssistantMessage`. The adapter decodes it as that session's Stop |
 | `post-write.json` | PostToolUse `write` | `toolResult`/`tool_response` with `type: "SearchReplace"` and `old_string: ""` (write is implemented as a search_replace) |
 | `post-search-replace.json` | PostToolUse `search_replace` | `toolResult.EditsApplied.edits.details[]` with line numbers |
 | `post-run-terminal-command.json` | PostToolUse `run_terminal_command` | `toolResult.type: "Bash"`, `output` as a byte array, `exit_code` |

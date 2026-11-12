@@ -9,7 +9,7 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 export const VERIFIED = "1.0.49";
 
 const BAD: Cause = "payload-unrecognized";
-const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", session_start: "session-start" };
+const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", subagent_stop: "stop", session_start: "session-start" };
 const COMMAND = "run_terminal_command";
 // In the registration's matcher (the codex preset, the opencode agent), but uncaptured: nothing says
 // what they carry, so nothing says where they write.
@@ -17,14 +17,13 @@ const UNCAPTURED = new Set(["apply_patch", "edit", "bash"]);
 
 export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | Rejected | null {
   const p = parse(raw);
-  // The shared registration's SubagentStop: Grok has no subagent Stop the gate judges.
-  if (event === "stop" && p !== null && /^subagent/i.test(String(p.hookEventName))) return null;
   if (p === null || named(p) !== event) return refuse(event, p, env);
   const session = sessionOf(p);
   if (session === null || !absolute(p.cwd)) return refuse(event, p, env);
   if (event === "session-start") return { kind: "session-start", session, cwd: p.cwd };
   if (event === "stop") {
-    // The extra Stop after SessionEnd: Grok ignores its decision.
+    // The extra Stop after SessionEnd: Grok ignores its decision. SubagentStop uses this same
+    // path. The payload's sessionId is the child's, and the payload has no agent id.
     if (p.reason === "shutdown") return null;
     return typeof p.stopHookActive === "boolean" ? { kind: "stop", session, cwd: p.cwd, reentry: p.stopHookActive } : refuse(event, p, env);
   }
@@ -38,10 +37,10 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
 // compact text on one line. Halt has no effect in Grok, ask is denied (MH-05), and the human has no
 // channel of their own: nothing else is emitted.
 export function encode(e: HookEvent["kind"], d: Decision): Emission {
-  if (e !== "stop" && e !== "session-start" && d.verdict === "none" && d.full !== "") {
+  if (e !== "stop" && e !== "session-start" && e !== "post-invocation" && d.verdict === "none" && d.full !== "") {
     return { stdout: json({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.full } }), stderr: "", exit: 0 };
   }
-  if (e === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
+  if (e === "session-start" || e === "post-invocation" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
   const reason = d.compact.replace(/[\r\n]+/g, " ");
   if (e === "stop") return { stdout: json({ decision: "block", reason }), stderr: "", exit: 0 };
   // exit 2 blocks even when the JSON does not reach Grok intact.

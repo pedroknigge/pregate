@@ -11,6 +11,7 @@ import { grammars, sourcesOf } from "./contract-diagnostic.ts";
 import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
 import { isObject, parse } from "./harness/wire.ts";
+import { mergeProjectClaude, projectLauncherRel, projectOwnedCommand } from "./project-claude.ts";
 import { clock, LOCK, PRESET, readText, VERSIONS } from "./inertia.ts";
 import { pendingReview } from "./pending-review.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
@@ -19,15 +20,14 @@ import { merge } from "./register.ts";
 import { pinnedEngine } from "./project-updates.ts";
 import { sha256 } from "./state.ts";
 
-// `pregate install` (MULTI-HARNESS MH-28): only what belongs to the repo, on request: the pre-commit
-// and the CI template. The hooks and the launcher are global (`pregate setup`), so what an install of
-// 0.1.0 left in the repo is removed: its hooks in .claude/settings.json, which would evaluate every
-// call twice, and the committed launcher. Run twice, it leaves the same files. Messages are for the
-// human (A18).
+// `pregate install` (MULTI-HARNESS MH-28): the pre-commit and the CI template, on request. The project
+// launcher stays, and so do repository-owned Claude hooks (`pregate project setup`). A 0.1.0 handler
+// is still removed: its guard only tested that the file existed, and it would run beside the current
+// registration. Run twice, it leaves the same files. Messages are for the human (A18).
 
 const HOOKS_DIR = ".pregate/git-hooks";
-const OLD_LAUNCHER = ".pregate/bin/pregate";
 // The inline guard of every 0.1.0 handler, which ran the committed launcher.
+const OLD_LAUNCHER = ".pregate/bin/pregate";
 const OLD_GUARD = `/${OLD_LAUNCHER}"; [ -f "$f" ]`;
 
 export function install(root: string, opts: { gitHook: boolean; ci: CiProviderId[] }): { code: 0 | 1; text: string } {
@@ -40,7 +40,7 @@ export function install(root: string, opts: { gitHook: boolean; ci: CiProviderId
   const lines: string[] = [];
   if (after !== before) {
     writeAtomic(settings, after!);
-    lines.push("Removed PREGATE 0.1.0 hooks from .claude/settings.json; hooks are now global (pregate setup). Commit the change.");
+    lines.push("Removed PREGATE 0.1.0 hooks from .claude/settings.json. Repository-owned hooks were left in place. Commit the change.");
   }
   if (existsSync(join(root, OLD_LAUNCHER)) && !reviewedLauncher(readText(join(root, OLD_LAUNCHER)) ?? "")) {
     rmSync(join(root, OLD_LAUNCHER));
@@ -49,7 +49,7 @@ export function install(root: string, opts: { gitHook: boolean; ci: CiProviderId
   if (opts.gitHook) lines.push(gitHook(root, top));
   if (opts.ci.includes("github-actions")) lines.push(ci(root, top));
   if (opts.ci.includes("vercel")) lines.push(vercel(root));
-  if (lines.length === 0) lines.push("Nothing to do; hooks are global (pregate setup). Options: --git-hook, --ci github, and --ci vercel.");
+  if (lines.length === 0) lines.push("Nothing to do. Options: --git-hook, --ci github, and --ci vercel.");
   return { code: 0, text: lines.join("\n") };
 }
 
@@ -72,7 +72,7 @@ function withoutOld(text: string): string | null {
     if (!Array.isArray(groups)) continue;
     const kept = groups.flatMap((g: unknown) => {
       if (!isObject(g) || !Array.isArray(g.hooks)) return [g];
-      const handlers = g.hooks.filter((h: unknown) => !(isObject(h) && typeof h.command === "string" && h.command.includes(OLD_GUARD)));
+      const handlers = g.hooks.filter((h: unknown) => !(isObject(h) && typeof h.command === "string" && h.command.includes(OLD_GUARD) && !projectOwnedCommand(h.command)));
       if (handlers.length === g.hooks.length) return [g];
       changed = true;
       return handlers.length === 0 ? [] : [{ ...g, hooks: handlers }];
@@ -251,10 +251,23 @@ export async function projectLauncher(args: string[]): Promise<{ code: number; t
 // `--harness codex` writes the Codex groups into the project's .codex/hooks.json in the same way.
 // It records no Codex trust and writes nothing in the Codex home: Codex runs a hook only after its
 // own review, and that review stays with the human (`/hooks`).
-const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]";
+//
+// `--harness cursor` writes Cursor's native groups into the project's .cursor/hooks.json. Cursor
+// runs them only in a trusted workspace, and its cloud agents load that file from the repository.
+// `--harness agy` writes the `pregate-project` named hook into the project's .agents/hooks.json.
+const HOOKS_USAGE = "usage: pregate project hooks --harness claude-code [--preview|--yes]\n       pregate project hooks --harness codex [--preview|--yes]\n       pregate project hooks --harness cursor [--preview|--yes]\n       pregate project hooks --harness agy [--preview|--yes]";
 export const PROJECT_SETTINGS = ".claude/settings.json";
 export const PROJECT_CODEX_HOOKS = ".codex/hooks.json";
+export const PROJECT_CURSOR_HOOKS = ".cursor/hooks.json";
+export const PROJECT_AGY_HOOKS = ".agents/hooks.json";
 const CODEX_REVIEW = "No Codex trust is recorded and the Codex home is not written. Codex runs a hook only after its own review: start Codex in this project and review the hooks with /hooks. A changed definition needs that review again. Until then, treat Codex as not gated in this project.";
+const CURSOR_REVIEW = "Cursor runs project hooks only in a trusted workspace. Its cloud agents load this file from the repository too: there the hooks deny every write until the pinned engine is cached (pregate prepare), and enforce nothing without a local consent record on that machine.";
+const PROJECT_HOOKS: Record<string, { target: "project" | "project-codex" | "project-cursor" | "project-agy"; file: string; name: string; note: string }> = {
+  "claude-code": { target: "project", file: PROJECT_SETTINGS, name: "Claude Code", note: "" },
+  codex: { target: "project-codex", file: PROJECT_CODEX_HOOKS, name: "Codex", note: ` ${CODEX_REVIEW}` },
+  cursor: { target: "project-cursor", file: PROJECT_CURSOR_HOOKS, name: "Cursor", note: ` ${CURSOR_REVIEW}` },
+  agy: { target: "project-agy", file: PROJECT_AGY_HOOKS, name: "Antigravity", note: "" },
+};
 
 // "ready": every launcher file is the reviewed template. "differs": a launcher is there and is not.
 export function projectLauncherState(root: string): "ready" | "differs" | "missing" {
@@ -265,21 +278,53 @@ export function projectLauncherState(root: string): "ready" | "differs" | "missi
 
 export async function projectHooks(args: string[]): Promise<{ code: number; text: string }> {
   const flags = args.slice(2);
-  if (args[0] !== "--harness" || (args[1] !== "claude-code" && args[1] !== "codex") || flags.length > 1 || flags.some((a) => a !== "--preview" && a !== "--yes")) {
+  const harness = args[0] === "--harness" && args[1] !== undefined && Object.hasOwn(PROJECT_HOOKS, args[1]) ? PROJECT_HOOKS[args[1]]! : null;
+  if (harness === null || flags.length > 1 || flags.some((a) => a !== "--preview" && a !== "--yes")) {
     return { code: 1, text: HOOKS_USAGE };
   }
-  const codex = args[1] === "codex";
   const root = findRoot(canonical(process.cwd()), () => true);
   if (root === null) return { code: 1, text: "Run from a Git project with .pregate/pregate.lock.json." };
   if (projectLauncherState(root) !== "ready") {
     return { code: 1, text: `The project launcher in ${LAUNCHER_DIR} is missing or differs from the reviewed template. Run pregate project launcher --preview first; the hooks run that launcher.` };
   }
-  const path = join(root, codex ? PROJECT_CODEX_HOOKS : PROJECT_SETTINGS);
-  const name = codex ? "Codex" : "Claude Code", note = codex ? ` ${CODEX_REVIEW}` : "";
+  const path = join(root, harness.file);
+  const { name, note } = harness;
   const before = readText(path);
-  const after = merge(before, codex ? "project-codex" : "project", dataHome());
-  if (after === null) return { code: 1, text: `${path} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate project hooks.` };
+  const after = merge(before, harness.target, dataHome());
+  const shape = harness.target === "project-agy" ? "a JSON object" : "a JSON object with event arrays";
+  if (after === null) return { code: 1, text: `${path} must be ${shape}; left unchanged. Fix it and rerun pregate project hooks.` };
   if (after === before) return { code: 0, text: `${name} hooks in ${path} already run the project launcher; nothing changed.${note}` };
   const header = `Register the ${name} hooks in ${path}. They run the project launcher in ${LAUNCHER_DIR}; no file under the user's home is written. Other entries of the file are kept.${note}`;
   return reviewedWrites(root, [{ path, before, after }], header, flags);
+}
+
+// `pregate project setup`: merge repository-owned Claude hooks into .claude/settings.json. The hooks
+// name the project launcher. Preparation, the launcher, workspace trust and policy consent stay
+// separate steps, and nothing is written under HOME.
+const PROJECT_SETUP_USAGE = "usage: pregate project setup";
+
+export function projectClaudeSetup(args: string[]): { code: number; text: string } {
+  if (args.length > 0) return { code: 1, text: PROJECT_SETUP_USAGE };
+  const root = findRoot(canonical(process.cwd()), () => true);
+  if (root === null) return { code: 1, text: "Run from a Git project with .pregate/pregate.lock.json." };
+  const pinned = launcherPin(root);
+  if ("error" in pinned) return { code: 1, text: pinned.error };
+  const missing = projectLauncherRel().filter((rel) => !readyLauncher(join(root, rel)));
+  if (missing.length > 0) {
+    return { code: 1, text: `The project launcher is not installed (${missing.join(", ")}). Run pregate project launcher before pregate project setup. Hooks do not fall back to a global launcher.` };
+  }
+  const settings = join(root, ".claude/settings.json");
+  const before = readText(settings);
+  const after = mergeProjectClaude(before);
+  if (after === null) return { code: 1, text: `${settings} must be a JSON object with event arrays; left unchanged. Fix it and rerun pregate project setup.` };
+  if (after === before) return { code: 0, text: `.claude/settings.json already has the repository-owned Claude hooks for engine ${pinned.pin}.` };
+  mkdirSync(dirname(settings), { recursive: true });
+  writeAtomic(settings, after);
+  const where = join(root, projectLauncherRel().at(-1)!);
+  return { code: 0, text: `Repository-owned Claude hooks merged into .claude/settings.json. They run ${where} for engine ${pinned.pin}. Other hook groups were left in place. Claude workspace trust is separate from policy consent (pregate enable).` };
+}
+
+function readyLauncher(path: string): boolean {
+  const s = statSync(path, { throwIfNoEntry: false });
+  return s !== undefined && s.isFile() && s.size > 0 && (WINDOWS || (s.mode & 0o111) !== 0);
 }

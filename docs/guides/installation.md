@@ -184,7 +184,7 @@ pregate install --ci vercel
 
 ## Prepare an engine without global registration
 
-`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher` and `pregate project hooks`; `pregate setup` still performs the full machine registration.
+`pregate prepare [--version <v> | --engine <v>]` downloads the release archive for this OS and architecture, verifies it against `SHA256SUMS`, and verifies Sigstore bundles with `cosign` when they are published (same rules as `install.sh` and `install.ps1`). It atomically installs that engine under `<DATA>/<version>/` and leaves harness homes, companion skills, PATH, the launcher, and hook registrations untouched. Without a version flag, it uses the engine pin from `.pregate/pregate.lock.json` in the current Git project. Use it to put a pinned engine in the cache before `pregate project launcher`, `pregate project hooks` and `pregate project setup`; `pregate setup` still performs the full machine registration.
 
 ## Project launcher
 
@@ -210,7 +210,15 @@ pregate enable                                         # local consent, by the h
 - **With a global setup.** If `pregate setup` also registered Claude Code, Claude Code runs both registrations and every tool call is evaluated twice. `pregate doctor` reports the scope as project-local only, global only, both or neither, and `pregate status` names the project-local and the double case. In a project-local setup with no other harness, `doctor` states the missing global launcher, skills and PATH entry as information, not as errors. It checks the files; it runs no canary for the project hooks.
 - **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
 
-A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Cursor and Grok reading a project `.claude/settings.json` are not covered.
+A live run on 2026-11-11 with Claude Code 2.1.322 on macOS (`scripts/e2e-real.ts --project-hooks-only claude-code`, headless, isolated home, no global installation) loaded the hooks from the project file, allowed a clean write and denied a forbidden one. Workspace trust was accepted in `~/.claude.json` before that run, so the interactive trust prompt is not established. The automated tests run the registered command as a shell command with the payload on stdin. The Windows form is not validated in a real Claude Code session, and Grok reading a project `.claude/settings.json` is not covered. Cursor 2026.11.11 runs that file too (see [project-local Cursor hooks](#project-local-cursor-hooks)).
+
+## Repository-owned Claude setup
+
+`pregate project setup` also merges Claude Code hooks into `.claude/settings.json`. Those hooks run the project launcher and the engine the lock pins. They do not call a `pregate` on PATH and they do not read a global launcher under `<DATA>/bin`. The events are PreToolUse, Stop, SubagentStop and SessionStart. This is a different registration from `pregate project hooks --harness claude-code`: that command is the one to commit (it includes SubagentStart and names no machine path), and this command is the merge `pregate doctor` treats as its own project scope.
+
+Run it only after `pregate prepare` and `pregate project launcher`. It does not download the engine, install the launcher, write anything under your home directory, accept Claude's workspace-trust dialog, or grant policy consent. `pregate enable` is still required before a hook denies an edit. Accepting the trust dialog in Claude Code is also required before Claude runs repository hooks. Those two acts are separate.
+
+A second run leaves `.claude/settings.json` byte for byte unchanged. Hook groups this command does not own stay in place, including their order. A file that is not a JSON object is left unchanged and the command fails. When this registration is the one in the file, `pregate doctor` reports the project scope on its own, runs a project-hook canary when policy consent is active, and reports workspace trust separately from policy consent. It does not treat a global Claude registration as a fallback for these hooks.
 
 ## Project-local Codex hooks
 
@@ -221,15 +229,15 @@ pregate prepare
 pregate project launcher --preview               # review, then the human approves
 pregate project hooks --harness codex --preview  # review, then the human approves
 pregate enable                                   # local consent, by the human
-# then, in Codex, in this project: /hooks, and review the three Pregate hooks
+# then, in Codex, in this project: /hooks, and review the five Pregate hooks
 ```
 
-- **What it writes.** PreToolUse with the matcher `^(apply_patch|Bash)$`, Stop and SessionStart, with the timeouts of the global Codex registration. It holds no path of this machine, so it can be committed.
+- **What it writes.** PreToolUse with the matcher `^(apply_patch|Bash)$`, Stop, SessionStart, SubagentStart and SubagentStop, with the timeouts of the global Codex registration. It holds no path of this machine, so it can be committed.
 - **It grants no trust.** Codex runs a hook only after its own review. This command does not record that review, does not mark the project trusted, and writes no file in the Codex home (`config.toml`, `hooks.json`). The human reviews the hooks in Codex with `/hooks`. Expect a changed definition to need the review again: Codex binds trust to a hash of the definition.
 - **What it keeps.** Other hooks and unknown keys stay, and other groups keep their index, which is how Codex addresses a hook. A second run changes no byte. The first write re-serializes the file with two-space indentation.
 - **Starting below the root.** Codex gives a hook no project variable. The command walks up from its working directory to the first directory that holds `.pregate/bin`, stops at the first `.git` entry, and runs the launcher from there. A working directory outside the repository finds no launcher and the write is denied.
 - **Failure.** A missing or empty pinned engine denies the write (exit 2, one line on stderr) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
-- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. For a project registration, `doctor` reads whether the Codex `config.toml` marks the project trusted, and always adds "Hook review state unknown: check `/hooks` in Codex". Pregate does not read the review state, so it never reports the project hooks as trusted, and `status` does not list Codex as gated by a project registration alone.
+- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. With Codex on PATH, `doctor` uses read-only `config/read` and `hooks/list` requests for the current directory. It reports how many of the five project hooks are discovered, enabled and trusted, and rejects disabled hooks or failed discovery. It grants no trust and changes no Codex configuration. Without the binary it keeps the review state unknown and names `/hooks`. `status` remains a file-only diagnostic: it does not launch app-server, cache a live trust verdict or list Codex as gated by a project registration alone. Session-specific command-line overrides and native UI behavior remain separate checks.
 - **With a global setup.** If `pregate setup` also registered Codex, both registrations exist and, when Codex runs both, every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
 
 A live run on 2026-11-11 with Codex 0.167.0 on macOS (`scripts/e2e-real.ts --project-hooks-only codex`, headless `codex exec` started in a subdirectory, isolated home) measured four states. (1) Project not marked trusted: Codex does not list the project hooks, and the forbidden write is written. (2) Project marked trusted, hooks not reviewed: Codex lists the three hooks as untrusted, runs none, and the forbidden write is written; the headless output carries no notice. (3) Hooks trusted: the forbidden write is denied and the rule reaches the model. (4) Definition changed after the review (one timeout value): Codex lists the hook as modified, runs none, and the forbidden write is written. A trusted hook of the user ran in all four states.
@@ -237,6 +245,45 @@ A live run on 2026-11-11 with Codex 0.167.0 on macOS (`scripts/e2e-real.ts --pro
 So a project registration gates Codex only after two human steps in Codex, project trust and the `/hooks` review, and any later change to the definition, including an engine update that rewrites the command, removes the gate without a notice until the hooks are reviewed again. Keep the machine setup for Codex if you need the gate to hold across updates without a new review.
 
 Not established: the interactive `/hooks` review and what the TUI shows for an unreviewed hook; whether Codex runs both registrations when both exist; the Windows form in a real Codex session.
+
+## Project-local Cursor hooks
+
+`pregate project hooks --harness cursor [--preview|--yes]` registers Cursor's native hooks in the project's own `.cursor/hooks.json`. The hooks run the project launcher. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview                # review, then the human approves
+pregate project hooks --harness cursor --preview  # review, then the human approves
+pregate enable                                    # local consent, by the human
+```
+
+- **What it writes.** `version: 1` and three entries: `preToolUse` with the matcher `^(Write|Delete|Shell)$|^MCP:` (timeout 120), `stop` (timeout 60, `loop_limit: null`) and `sessionStart` (timeout 15). The commands find the launcher through `$CURSOR_PROJECT_DIR` and hold no path of this machine, so the file can be committed. Other entries and unknown keys stay, and a second run changes no byte.
+- **MCP tools.** Every `MCP:` tool reaches the gate. A call that names no local absolute path is not judged; a call that names a protected file or a file in the contract's scope is denied, and the agent is told to write the file with its file tool instead.
+- **No `failClosed`.** Cursor 2026.11.11 blocks a tool when a `failClosed` hook prints nothing, and printing nothing is how Pregate allows. A crash or a hang of the engine is still a deny: the launcher turns it into exit 2.
+- **Trust.** Cursor runs project hooks only in a trusted workspace. Pregate does not read that record.
+- **Cloud agents.** Cursor's cloud agents load `.cursor/hooks.json` from the repository and never the user's home. On a cloud machine the hooks deny every write until the pinned engine is cached (`pregate prepare` in the environment's setup), and they enforce nothing there without a local consent record. Cloud agents were not exercised.
+- **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. Cursor also runs the project's `.claude/settings.json`, so a project registered for both Claude Code and Cursor is evaluated twice in Cursor, and `doctor` says so. A Claude Code project registration alone is reported as Cursor's registration through that file.
+- **With a global setup.** If `pregate setup` also registered the machine, Cursor runs both registrations and every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
+
+A live run on 2026-11-11 with cursor-agent 2026.11.11 on macOS (`scripts/e2e-real.ts --project-hooks-only cursor`, headless with `--trust`, isolated home, no global installation) allowed a clean write, denied a forbidden one with the rule reaching the model, and denied an MCP tool that tried to write into `src/core`.
+
+Not established: the interactive trust prompt, cloud agents, and the Windows form in a real Cursor session.
+
+## Project-local Antigravity hooks
+
+`pregate project hooks --harness agy [--preview|--yes]` registers the Antigravity hooks in the project's own `.agents/hooks.json`. The hooks run the project launcher, so the project needs no global `pregate setup` on the machine and the command writes no harness home. Run `pregate prepare` and `pregate project launcher` first.
+
+```sh
+pregate prepare
+pregate project launcher --preview             # review, then the human approves
+pregate project hooks --harness agy --preview  # review, then the human approves
+pregate enable                                 # local consent, by the human
+```
+
+- **What it writes.** One named hook `pregate-project` (`enabled: true`) with `PreToolUse` (including `write_file`, `edit_file`, `run_command` and `manage_task`), `PostInvocation`, `Stop` and `SessionStart`. It holds no path of this machine, so it can be committed.
+- **Working directory.** Antigravity runs workspace hooks from `<repo>/.agents`. The command walks up from its working directory first (reaching `<repo>/.pregate/bin` without reading stdin beforehand), and falls back to `workspacePaths[0]` from stdin when started outside the repository.
+- **What it keeps.** Foreign named hooks stay untouched, and a second run changes no byte.
+- **With a global setup.** Antigravity merges workspace `.agents/hooks.json` and global plugins (`~/.gemini/config/plugins/pregate-global`), so if both exist every tool call is evaluated twice. `pregate doctor` and `pregate status` report the scope as project-local only, global only, both or neither.
 
 ## Updates and removal
 

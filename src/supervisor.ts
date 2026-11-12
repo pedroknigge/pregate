@@ -22,8 +22,10 @@ interface EngineRun {
 
 export function launcherFailure(kind: string, claude: boolean, raw: string, why: string, harness: HarnessId = claude ? "claude-code" : "codex"): Emission {
   const reason = `PREGATE could not evaluate: ${why}; report it to the user`;
-  if (kind === "session-start") return { exit: 0, stderr: "", stdout: claude ? JSON.stringify({ systemMessage: reason }) + "\n" : "" };
+  if (kind === "session-start") return { exit: 0, stderr: "", stdout: claude || harness === "codex" ? JSON.stringify({ systemMessage: reason }) + "\n" : "" };
+  if (kind === "post-invocation") return { exit: 0, stderr: "", stdout: "" };
   if (kind === "stop") {
+    if (harness === "codex") return { exit: 0, stderr: "", stdout: JSON.stringify({ systemMessage: reason }) + "\n" };
     if (!claude) return { exit: 0, stderr: "", stdout: "" };
     if (parse(raw)?.stop_hook_active === true) return { exit: 0, stderr: "", stdout: JSON.stringify({ systemMessage: reason }) + "\n" };
     return { exit: 2, stderr: reason + "\n", stdout: JSON.stringify({ decision: "block", reason }) + "\n" };
@@ -41,7 +43,7 @@ function active(raw: string, data: string): boolean {
   const args = isObject(call.args) ? call.args : {};
   const patch = typeof input.command === "string" ? [...input.command.matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)].map((m) => m[1]) : [];
   const dirs = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT,
-    p?.cwd, p?.workspaceRoot, input.file_path, args.TargetFile, args.Cwd, ...patch,
+    p?.cwd, p?.workspaceRoot, input.file_path, args.TargetFile, args.Path, args.Cwd, ...patch,
     ...(Array.isArray(p?.workspacePaths) ? p.workspacePaths : []), ...(Array.isArray(p?.workspace_roots) ? p.workspace_roots : [])];
   return dirs.some((d) => typeof d === "string" && (consented(d, data) || pendingRoot(canonical(d), data) !== null));
 }

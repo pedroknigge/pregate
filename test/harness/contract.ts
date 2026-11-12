@@ -15,7 +15,7 @@ export type Expectation =
 export const ENV: HookEnv = { grokEvent: null, projectDir: null, remote: false };
 
 // The registration each harness runs (MH-04): Cursor and Grok share Claude Code's.
-const FLAG: Record<HarnessId, HarnessId> = { "claude-code": "claude-code", cursor: "claude-code", grok: "claude-code", codex: "codex", agy: "agy" };
+const FLAG: Record<HarnessId, HarnessId> = { "claude-code": "claude-code", cursor: "claude-code", grok: "claude-code", codex: "codex", agy: "agy", opencode: "opencode" };
 
 export function contract(h: HarnessId, dir: string, expectations: Record<string, Expectation>): void {
   const raw = (file: string): string => readFileSync(join(dir, file), "utf8");

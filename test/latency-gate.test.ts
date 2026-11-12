@@ -30,12 +30,15 @@ test("the gate fails closed for a missing OS, a different arch, or a missing rou
 
 test("bench flags accept the regression gate and reject a short run", () => {
   expect(parseBenchArgs(["--runs", "25", "--repeat", "3", "--inform", "--gate", "bench/latency-baseline.json", "--only", "200 lines, first touch"])).toEqual({
-    runs: 25, repeat: 3, inform: true, gate: "bench/latency-baseline.json", against: null, againstLabel: null, only: ["200 lines, first touch"],
+    harness: "claude-code", runs: 25, repeat: 3, inform: true, gate: "bench/latency-baseline.json", against: null, againstLabel: null, only: ["200 lines, first touch"],
   });
   expect(parseBenchArgs(["--against", "../ref", "--against-label", "v0.0.5"])).toMatchObject({ against: "../ref", againstLabel: "v0.0.5" });
   expect(() => parseBenchArgs(["--against-label", "v0.0.5"])).toThrow("usage:");
   expect(() => parseBenchArgs(["--against"])).toThrow("usage:");
   expect(() => parseBenchArgs(["--runs", "10"])).toThrow("usage:");
+  expect(parseBenchArgs(["--harness", "codex"])).toMatchObject({ harness: "codex" });
+  expect(() => parseBenchArgs(["--harness", "cursor"])).toThrow("usage:");
+  expect(() => parseBenchArgs(["--harness", "codex", "--gate", "bench/latency-baseline.json"])).toThrow("own measured baseline");
   expect(() => parseBaseline({ schemaVersion: 1, os: { linux: { arch: "x64", runner: "ubuntu-latest", p95Ms: { slow: 0 } } } })).toThrow("positive");
 });
 

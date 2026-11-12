@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_0a1b2c3d4e5f6a7b",
+  "cwd": "/home/user/project",
+  "tool_name": "shell",
+  "tool_use_id": "call_0000000000000004",
+  "tool_input": {
+    "command": "printf 'n\\n' > notes.txt",
+    "workdir": "/home/user/project"
+  }
+}

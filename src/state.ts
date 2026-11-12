@@ -3,7 +3,7 @@ import { basename, dirname, join } from "node:path";
 import { markReached } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
 import { catFileBatch, git, gitFailure } from "./git.ts";
-import type { CallEvent, Cause, Session, Snapshot } from "./types.ts";
+import type { CallEvent, Cause, Decision, Session, Snapshot } from "./types.ts";
 import { storageDir, WINDOWS } from "./platform.ts";
 import { pathKey } from "./paths.ts";
 import { withStateWrite } from "./state-lease.ts";
@@ -410,4 +410,52 @@ export function sourcesOk(sid: string, root: string, lockHash: string, verify: (
   if (!existsSync(dir)) return ok;
   const saved = io(() => writeAtomic(`${dir}/sources.json`, JSON.stringify({ lockHash, ok })));
   return saved === "state-io" ? saved : ok;
+}
+
+interface PendingPostInvocation { kind: "halt" | "warning"; text: string }
+
+// Antigravity runs PostInvocation once after all PreToolUse calls of a model invocation complete.
+// Each Pre call writes its own immutable file so concurrent tool calls in one step never race.
+export function hasPostInvocation(sid: string): boolean {
+  return existsSync(`${sessionDir(sid)}/post-invocation`);
+}
+
+export function queuePostInvocation(sid: string, d: Decision): void {
+  const entry: PendingPostInvocation | null = d.halt && (d.notice ?? d.compact) !== ""
+    ? { kind: "halt", text: d.notice ?? d.compact }
+    : d.verdict === "none" && d.full !== "" ? { kind: "warning", text: d.full } : null;
+  if (entry === null) return;
+  const dir = `${sessionDir(sid)}/post-invocation`;
+  const name = `${String(Date.now()).padStart(15, "0")}-${process.pid}-${Math.random().toString(36).slice(2, 10)}.json`;
+  io(() => {
+    mkdirSync(dir, { recursive: true });
+    writeAtomic(`${dir}/${name}`, JSON.stringify(entry));
+  });
+}
+
+export function drainPostInvocation(sid: string): { halt: string | null; warnings: string[] } {
+  const dir = `${sessionDir(sid)}/post-invocation`;
+  const drained = io(() => {
+    if (!existsSync(dir)) return { halt: null, warnings: [] };
+    const files = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+    const entries: PendingPostInvocation[] = [];
+    for (const file of files) {
+      const path = `${dir}/${file}`;
+      const raw = readOrNull(path);
+      if (raw !== null) entries.push(JSON.parse(raw) as PendingPostInvocation);
+      rmSync(path, { force: true });
+    }
+    if (readdirSync(dir).length === 0) rmSync(dir, { recursive: true, force: true });
+    const halt = entries.find((e) => e.kind === "halt")?.text ?? null;
+    const warnings = [...new Set(entries.filter((e) => e.kind === "warning").map((e) => e.text))];
+    return { halt, warnings };
+  });
+  return drained === "state-io" ? { halt: null, warnings: [] } : drained;
+}
+
+export function clearPostInvocation(sid: string): void {
+  const dir = `${sessionDir(sid)}/post-invocation`;
+  io(() => {
+    if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+  });
 }

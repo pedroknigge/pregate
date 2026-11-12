@@ -42,6 +42,7 @@ export function evaluationProgress() {
 // MH-19: the engine that must answer this call instead of this one, from the root of what the call
 // targets: each file, the cwd, or the directories of a refused envelope. main exits REDIRECT with it.
 export function redirect(e: HookEvent | Rejected): string | null {
+  if (!("cause" in e) && e.kind === "post-invocation") return null;
   if (!("cause" in e) && e.kind === "pre-command" && (batchApproval(e.command.command, launcher()) !== null
     || recoveryCommand(e.command.command, e.command.cwd, launcher(), engineHome()))) return null;
   const dirs = "cause" in e ? e.dirs
@@ -74,14 +75,18 @@ export function delegate(dir: string, argv: string[], data = engineHome()): { co
 // one of its directories does, or names a machine file (MH-17), or the session already reached one,
 // or it carries no directory at all. Otherwise a changed contract must not block every repo.
 export function rejected(r: Rejected): Decision {
-  if (!reaches(r)) return told(null);
+  if (r.kind === "post-invocation" || !reaches(r)) return told(null);
   const call: Call = { session: NOBODY, kind: r.kind, callId: "", abs: null, root: null, rel: null, startedAt: clock() };
   const input: DecideInput = {
     lock: null, lockHash: null, launcher: launcher(), session: call.session,
     event: call.kind, path: null, introduced: [], form: { cause: r.cause, line: null }, protectedPath: false,
     history: [], turnDenials: 0, astHash: null, stop: r.kind === "stop" ? { blocks: 0, reentry: r.reentry, approved: [] } : null,
   };
-  return decide(input);
+  const d = decide(input);
+  if (r.session?.harness === "agy" && (r.kind === "pre-edit" || r.kind === "pre-command")) {
+    state.queuePostInvocation(state.key(r.session), d);
+  }
+  return d;
 }
 
 function reaches(r: Rejected): boolean {
@@ -181,10 +186,17 @@ export function onSessionStart(e: Extract<HookEvent, { kind: "session-start" }>)
   }
   if (root === null) return told(null);
   const loaded = lockOf(root);
-  const snap = state.ensureSnapshot(sid, root, (rel) => contextFile(rel) || inScope(isCause(loaded) ? null : loaded.lock, rel));
+  // A child's first contact cannot accept unobserved dirty edits as pre-session debt.
+  const child = e.session.harness === "codex" && e.session.agentId !== null;
+  const start = child ? null
+    : (rel: string) => contextFile(rel) || inScope(isCause(loaded) ? null : loaded.lock, rel);
+  const snap = state.ensureSnapshot(sid, root, start);
   if (isCause(snap)) return told(notice("halt", { reason: snap }));
   const valid = verify(sid, root, loaded);
-  if (!isCause(valid)) return told(null, briefing(valid.lock, launcher(), updateReady()));
+  if (!isCause(valid)) {
+    const lead = child ? `Workspace root: ${JSON.stringify(root)}. Codex apply_patch: use absolute paths, name each file once, and include context in update hunks.` : updateReady();
+    return told(null, briefing(valid.lock, launcher(), lead));
+  }
   return told(valid === "lock-stale" || valid === "version-mismatch" ? formText(form(valid, root), null).full : notice("halt", { reason: valid }));
 }
 
@@ -294,6 +306,7 @@ export function machine(): string[] {
   };
   return machineGlobs(home, {
     codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+    opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"),
     claudeConfig: env.CLAUDE_CONFIG_DIR || null, data: engineHome(), state: state.stateDir(),
   }, real);
 }

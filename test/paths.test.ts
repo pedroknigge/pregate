@@ -254,16 +254,19 @@ describe("machineGlobs", () => {
   symlinkSync(`${dot}/claude`, `${home}/.claude`, "dir");             // a folder in dotfiles
   symlinkSync(`${dot}/codex.toml`, `${home}/.codex/config.toml`);     // a single file in dotfiles
   symlinkSync(`${dot}/grok-hooks`, `${home}/.grok/hooks`, "dir");
-  const env = { codexHome: `${home}/.codex`, grokHome: `${home}/.grok`, claudeConfig: null, data: `${home}/.local/share/pregate`, state: `${home}/.local/state/pregate` };
+  const env = { codexHome: `${home}/.codex`, grokHome: `${home}/.grok`, opencodeHome: `${home}/.config/opencode`, claudeConfig: null, data: `${home}/.local/share/pregate`, state: `${home}/.local/state/pregate` };
   const globs = machineGlobs(home, env, canonical);
   const guarded = (p: string): boolean => protects(canonical(p), globs);
 
-  test("the registrations of the five harnesses, through their symlinks", () => {
+  test("the registrations of the six harnesses, through their symlinks", () => {
     for (const p of [
       ".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".codex/requirements.toml",
       ".grok/config.toml", ".grok/hooks-paths", ".grok/managed_config.toml", ".grok/requirements.toml", ".grok/hooks/aa.json",
       ".gemini/config/hooks.json", ".gemini/config/config.json", ".gemini/config/plugins/pregate/hooks.json",
+      ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json", ".gemini/config/plugins/pregate-global/hooks.json",
       ".cursor/hooks.json", ".cursor/cli-config.json", ".cursor/managed/hooks.json",
+      ".config/opencode/opencode.json", ".config/opencode/opencode.jsonc", ".config/opencode/pregate/index.ts",
+      ".config/opencode/plugins/orca.js",
     ]) expect(guarded(`${home}/${p}`)).toBe(true);
     expect(canonical(`${home}/.codex/config.toml`)).toBe(`${dot}/codex.toml`);
     expect(guarded(`${dot}/codex.toml`)).toBe(true);
@@ -288,11 +291,12 @@ describe("machineGlobs", () => {
     }
   });
 
-  test("relocated configuration: CODEX_HOME, GROK_HOME and CLAUDE_CONFIG_DIR", () => {
-    const moved = machineGlobs(home, { ...env, codexHome: "/opt/codex", grokHome: `${home}/grok`, claudeConfig: "/etc/claude" }, (p) => p);
-    for (const p of ["/opt/codex/hooks.json", `${home}/grok/config.toml`, "/cwd/~/grok/hooks/x", "/etc/claude/settings.json", "/cwd/~/.codex/hooks.json"]) {
+  test("relocated configuration: CODEX_HOME, GROK_HOME, OPENCODE_CONFIG_DIR and CLAUDE_CONFIG_DIR", () => {
+    const moved = machineGlobs(home, { ...env, codexHome: "/opt/codex", grokHome: `${home}/grok`, opencodeHome: "/opt/opencode", claudeConfig: "/etc/claude" }, (p) => p);
+    for (const p of ["/opt/codex/hooks.json", `${home}/grok/config.toml`, "/cwd/~/grok/hooks/x", "/etc/claude/settings.json", "/cwd/~/.codex/hooks.json", "/opt/opencode/opencode.json"]) {
       expect(protects(p, moved)).toBe(true);
     }
     expect(protects("/opt/codex/auth.json", moved)).toBe(false);
+    expect(protects("/opt/opencode/notes.txt", moved)).toBe(false);
   });
 });

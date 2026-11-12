@@ -16,7 +16,7 @@ import { removeTree } from "./remove-tree.ts";
 
 // MULTI-HARNESS §6.2, the machine commands: the compiled binary runs `setup`, `update`, `uninstall`
 // and `doctor` on a machine that lives in one temporary folder (HOME, XDG_*, CODEX_HOME, GROK_HOME,
-// TMPDIR), with the five CLIs faked on a PATH of their own. The fake `codex app-server`
+// TMPDIR), with the six CLIs faked on a PATH of their own. The fake `codex app-server`
 // (fixtures/codex-app-server.ts) keeps Codex's trust rules; the configs already on the machine are
 // the real ones of test/fixtures/configs.
 
@@ -28,6 +28,7 @@ const CONFIGS = join(import.meta.dir, "fixtures/configs");
 const APP_SERVER = join(import.meta.dir, "fixtures/codex-app-server.ts");
 const ALL = Object.keys(HARNESSES) as HarnessId[];
 const EVENTS = ["PreToolUse", "Stop", "SessionStart"];
+const CODEX_EVENTS = [...EVENTS, "SubagentStart", "SubagentStop"];
 const TOOLS = ["cp", "git", "gzip", "mkdir", "rm", "sed", "tar"];
 
 beforeAll(() => engineAt(BIN));
@@ -36,7 +37,7 @@ afterAll(() => removeTree(TMP));
 test("D25: setup installs versioned skills; doctor detects missing/stale copies; uninstall removes them", () => {
   const m = machine(["claude-code"]);
   ok(pregate(m, "setup"), "setup");
-  const folders = [".agents/skills", ".claude/skills", ".codex/skills", ".cursor/skills", ".grok/skills", ".gemini/antigravity-cli/skills"];
+  const folders = [".agents/skills", ".claude/skills", ".codex/skills", ".cursor/skills", ".grok/skills", ".gemini/antigravity-cli/skills", ".config/opencode/skills"];
   for (const folder of folders) {
     const file = join(m.home, folder, "pregate/SKILL.md");
     expect(read(file)).toContain(`description: "${pkg.version} — PREGATE:`);
@@ -90,10 +91,11 @@ function machine(found: HarnessId[], fakes: Partial<Record<string, string>> = {}
     "claude-code": [["claude-settings.json", m.settings]], cursor: [], grok: [["grok-config.toml", join(home, ".grok/config.toml")]],
     codex: [["codex-hooks.json", m.hooks], ["codex-config.toml", join(codex, "config.toml")]],
     agy: [["gemini-config.json", join(home, ".gemini/config/config.json")]],
+    opencode: [["opencode.json", join(home, ".config/opencode/opencode.json")]],
   };
   for (const h of found) {
     for (const [from, to] of configs[h]) put(to, readFileSync(join(CONFIGS, from), "utf8"));
-    const name = { "claude-code": "claude", codex: "codex", cursor: "cursor-agent", grok: "grok", agy: "agy" }[h];
+    const name = { "claude-code": "claude", codex: "codex", cursor: "cursor-agent", grok: "grok", agy: "agy", opencode: "opencode" }[h];
     put(join(bin, name), fakes[name] ?? FAKES[h], 0o755);
   }
   for (const [name, text] of Object.entries(fakes)) if (!existsSync(join(bin, name))) put(join(bin, name), text!, 0o755);
@@ -111,6 +113,8 @@ const FAKES: Record<HarnessId, string> = {
   agy: `#!/bin/sh\necho "agy $*" >> "$LOG"\ncase "$1 $2" in\n"--version ") echo '${HARNESSES.agy.VERIFIED}' ;;\n`
     + `"plugin install") p="$HOME/.gemini/config/plugins/\${3##*/}"; rm -rf "$p"; mkdir -p "\${p%/*}"; cp -R "$3" "$p" ;;\n`
     + `"plugin uninstall") rm -rf "$HOME/.gemini/config/plugins/$3" ;;\nesac\n`,
+  // `opencode --version` prints the bare semver.
+  opencode: version("opencode", "@"),
 };
 
 function put(path: string, text: string, mode = 0o644): void {
@@ -145,7 +149,8 @@ const foreign = (m: Machine, o: Json): Json => {
 // Every file setup may write, as bytes plus mtime: equal stamps mean nothing was written.
 function stamps(m: Machine): Record<string, string> {
   const files = [m.settings, m.hooks, join(m.codex, "config.toml"), join(m.plugin, "hooks.json"), join(m.plugin, "plugin.json"),
-    join(m.state, "codex-trust.json"), m.launcher, join(m.data, pkg.version, "pregate")];
+    join(m.state, "codex-trust.json"), m.launcher, join(m.data, pkg.version, "pregate"),
+    join(m.home, ".config/opencode/opencode.json"), join(m.home, ".config/opencode/pregate/index.ts")];
   return Object.fromEntries(files.map((f) => [f, existsSync(f) ? `${statSync(f).mtimeMs} ${createHash("sha256").update(readFileSync(f)).digest("hex")}` : "absent"]));
 }
 
@@ -159,7 +164,7 @@ function trust(m: Machine): Record<string, string> {
 }
 
 describe("setup", () => {
-  test("with the five found: every registration in place, foreign config untouched, Codex trusted; a second run writes nothing", () => {
+  test("with the six found: every registration in place, foreign config untouched, Codex trusted; a second run writes nothing", () => {
     const m = machine(ALL);
     const before = { settings: json(m.settings), hooks: json(m.hooks), trust: trust(m) };
     const out = ok(pregate(m, "setup"), "setup");
@@ -173,13 +178,20 @@ describe("setup", () => {
       for (const e of EVENTS) expect(exact(after.hooks[e].at(-1), t, m.data)).toBe(true);
       expect(read(`${file}.pregate.bak`)).toBe(readFileSync(join(CONFIGS, file === m.settings ? "claude-settings.json" : "codex-hooks.json"), "utf8"));
     }
+    // OpenCode: the plugin folder is ours, and its own `plugins` entry is added after the user's.
+    const opencode = join(m.home, ".config/opencode");
+    expect(read(join(opencode, "pregate/index.ts"))).toContain(`const LAUNCHER = "${m.data}/bin/pregate";`);
+    expect(json(join(opencode, "opencode.json")).plugins).toEqual([
+      "/Users/user/.config/opencode/plugins/orca-opencode2-status-tui", join(opencode, "pregate"),
+    ]);
+    expect(read(join(opencode, "opencode.json.pregate.bak"))).toBe(readFileSync(join(CONFIGS, "opencode.json"), "utf8"));
     // Ours are trusted, and every foreign hook keeps the trust it had.
     const after = trust(m);
     for (const [k, s] of Object.entries(before.trust)) expect(after[k]).toBe(s);
-    const mine = EVENTS.map((e) => `${{ PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" }[e]}:${json(m.hooks).hooks[e].length - 1}:0`);
+    const mine = CODEX_EVENTS.map((e) => `${{ PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" }[e]}:${json(m.hooks).hooks[e].length - 1}:0`);
     for (const k of mine) expect(after[k]).toBe("trusted");
     expect(Object.keys(json(join(m.state, "codex-trust.json"))).sort()).toEqual(mine.map((k) => `${m.hooks}:${k}`).sort());
-    for (const [f, text] of Object.entries(agyPlugin(m.data))) expect(read(join(m.plugin, f))).toBe(text);
+    for (const [f, text] of Object.entries(agyPlugin(m.data, pkg.version))) expect(read(join(m.plugin, f))).toBe(text);
 
     const stamped = stamps(m);
     const again = ok(run([m.link, "setup"], m), "setup through the CLI link");
@@ -265,10 +277,10 @@ describe("setup", () => {
     expect(existsSync(join(m.state, "codex-trust.json"))).toBe(false);
   });
 
-  test("Codex and agy without their binaries: setup registers the Codex hooks (an IDE may bundle codex), skips agy; doctor does not fail", () => {
+  test("Codex and agy without their binaries: setup registers Codex hooks and installs the agy plugin for IDE/App surfaces; doctor does not fail", () => {
     const m = machine([]);
     put(join(m.codex, "config.toml"), "");
-    put(join(m.home, ".gemini/antigravity-cli/settings.json"), "{}");
+    put(join(m.home, ".gemini/antigravity/settings.json"), "{}");
     // An interrupted install left a copy whose process is gone; one whose process runs is kept.
     const stale = join(m.data, pkg.version, "pregate.2147483646.tmp"), live = join(m.data, pkg.version, `pregate.${process.pid}.tmp`);
     put(stale, "partial"); put(live, "partial");
@@ -276,16 +288,20 @@ describe("setup", () => {
     expect(out.stdout).toContain("Removed 1 engine copy left by an interrupted install.");
     expect([existsSync(stale), existsSync(live)]).toEqual([false, true]);
     expect(out.stdout).toContain(`INFO: codex: binary not on PATH; hooks registered in ${m.hooks} but not trusted.`);
-    expect(out.stdout).toContain("INFO: agy: binary not on PATH; skipped. Install it and rerun pregate setup.");
+    expect(out.stdout).toContain(`INFO: agy: binary not on PATH; pregate-global plugin installed at ${m.plugin} for Antigravity IDE/App.`);
     expect(EVENTS.every((e) => (json(m.hooks).hooks[e] as unknown[]).some((g) => exact(g, "codex", m.data)))).toBe(true);
-    expect(existsSync(m.plugin)).toBe(false);
+    for (const [f, text] of Object.entries(agyPlugin(m.data, pkg.version))) expect(read(join(m.plugin, f))).toBe(text);
     const doctor = ok(pregate(m, "doctor"), "doctor");
     expect(doctor.stdout).toContain(`INFO: codex: PREGATE hooks registered in ${m.hooks}; their trust cannot be verified without codex on PATH.`);
+    expect(doctor.stdout).toContain(`INFO: agy: pregate-global plugin installed at ${m.plugin}; runtime canary skipped without agy on PATH.`);
     expect(doctor.stdout).toContain("WARNING: No harness with its binary on PATH; PREGATE gates nothing yet.");
     expect(doctor.stdout).not.toContain("ERROR");
-    // A Codex home whose hooks.json lost the PREGATE groups is not reported as healthy.
+    // A Codex home or Antigravity plugin that lost its registration is not reported as healthy.
     put(m.hooks, "{}");
-    expect(ok(pregate(m, "doctor"), "doctor").stdout).toContain(`WARNING: codex: ${m.hooks} has no PREGATE hooks; Codex sessions an IDE launches from its bundled binary are not protected.`);
+    rmSync(join(m.plugin, "hooks.json"));
+    const degraded = ok(pregate(m, "doctor"), "doctor").stdout;
+    expect(degraded).toContain(`WARNING: codex: ${m.hooks} has no PREGATE hooks; Codex sessions an IDE launches from its bundled binary are not protected.`);
+    expect(degraded).toContain(`WARNING: agy: ${m.plugin} is missing or modified; Antigravity IDE/App sessions are not protected.`);
   });
 
   test("a trusted Codex hooks.json left behind without its binary does not fail doctor", () => {
@@ -321,7 +337,7 @@ describe("setup", () => {
     const m = machine([]);
     const out = pregate(m, "setup");
     expect(out.code).toBe(1);
-    expect(out.stdout).toContain("WARNING: No Claude Code, Codex, Cursor, Grok or agy found");
+    expect(out.stdout).toContain("WARNING: No Claude Code, Codex, Cursor, Grok, agy or OpenCode found");
     expect(out.stdout).not.toContain("ERROR:");
     expect(existsSync(join(m.data, pkg.version, "pregate"))).toBe(true);
     expect(existsSync(m.launcher)).toBe(true);
@@ -396,8 +412,39 @@ describe("doctor", () => {
     expect(out.code).toBe(1);
     expect(out.stdout).toContain("ERROR: ~/.claude/settings.json: PREGATE hooks missing or modified (Stop)");
     expect(out.stdout).toContain("ERROR: agy: pregate-global is disabled");
-    expect(out.stdout).toContain("ERROR: Codex runs 0 of 3 PREGATE hooks");
+    expect(out.stdout).toContain("ERROR: Codex runs 0 of 5 PREGATE hooks");
     expect(out.stdout).toContain("WARNING: grok: version grok 9.9.9; hooks verified with 1.0.49.");
+  });
+
+  test("OpenCode drift: a disabled entry, a changed plugin and a missing entry", () => {
+    const m = machine(["opencode"]);
+    const config = join(m.home, ".config/opencode/opencode.json");
+    const dir = join(m.home, ".config/opencode/pregate");
+    const plugin = () => readFileSync(join(dir, "index.ts"), "utf8");
+    ok(pregate(m, "setup"), "setup");
+    const clean = ok(pregate(m, "doctor"), "doctor");
+    expect(clean.stdout).toContain("Harnesses gated: opencode.");
+    expect(clean.stdout).toContain("opencode: canary denied in its native dialect.");
+
+    // The human's switch: setup left it off, and doctor names it.
+    put(config, JSON.stringify({ ...json(config), plugins: [`-${dir}`] }));
+    const disabled = pregate(m, "doctor");
+    expect(disabled.code).toBe(1);
+    expect(disabled.stdout).toContain(`${config}: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`);
+
+    // A plugin that is not the reviewed one is drift; setup puts it back.
+    const source = plugin();
+    put(config, JSON.stringify({ ...json(config), plugins: [dir] }));
+    put(join(dir, "index.ts"), "export default {};\n");
+    expect(pregate(m, "doctor").stdout).toContain(`${dir}/index.ts: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
+    ok(pregate(m, "setup"), "setup repairs the plugin");
+    expect(plugin()).toBe(source);
+
+    // The folder is there and the list lost the entry: neither half gates on its own.
+    put(config, JSON.stringify({ plugins: [] }));
+    const missing = pregate(m, "doctor");
+    expect(missing.code).toBe(1);
+    expect(missing.stdout).toContain(`${config}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
   });
 
   test("a launcher that is gone: the installation and the canary fail", () => {
@@ -439,6 +486,7 @@ describe("uninstall", () => {
     const toml = read(join(m.codex, "config.toml"))!;
     const grok = read(join(m.home, ".grok/config.toml"));
     const gemini = read(join(m.home, ".gemini/config/config.json"));
+    const opencode = read(join(m.home, ".config/opencode/opencode.json"));
     ok(pregate(m, "setup"), "setup");
     const diagnosis = ok(pregate(m, "doctor"), "doctor");
     for (const h of ALL) expect(diagnosis.stdout).toContain(`${h}: canary denied in its native dialect.`);
@@ -448,6 +496,9 @@ describe("uninstall", () => {
     expect(read(join(m.codex, "config.toml"))).toBe(toml);
     expect(read(join(m.home, ".grok/config.toml"))).toBe(grok);
     expect(read(join(m.home, ".gemini/config/config.json"))).toBe(gemini);
+    // The plugins key was setup's only change: the user's list comes back, byte for byte.
+    expect(read(join(m.home, ".config/opencode/opencode.json"))).toBe(opencode);
+    expect(existsSync(join(m.home, ".config/opencode/pregate"))).toBe(false);
     expect(read(`${m.settings}.pregate.bak`)).toBe(settings);
     expect(read(`${m.hooks}.pregate.bak`)).toBe(hooks);
     for (const text of [settings, hooks]) {
@@ -695,6 +746,37 @@ describe("update", () => {
 });
 
 // gh serving one folder: `release view` names NEXT, `release download` copies the patterns to --dir.
+test("doctor queries effective project Codex trust without writing hooks or granting trust", () => {
+  const m = machine(["codex"]);
+  const project = join(m.root, "project"), below = join(project, "src/nested");
+  mkdirSync(below, { recursive: true });
+  const approved = { ...m, env: { ...m.env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" } };
+  ok(run(["git", "init", "-q"], m, project), "git init");
+  ok(run([BIN, "init", "--yes"], approved, project), "init");
+  engineAt(join(m.data, pkg.version, "pregate"));
+  ok(run([BIN, "project", "launcher", "--yes"], approved, project), "launcher");
+  ok(run([BIN, "project", "hooks", "--harness", "codex", "--yes"], approved, project), "project hooks");
+  const config = join(m.codex, "config.toml"), hooks = join(project, ".codex/hooks.json");
+  const inspect = (extra: Record<string, string> = {}) => {
+    const before = [read(config), read(m.hooks), read(hooks)];
+    const result = run([BIN, "doctor"], { ...m, env: { ...m.env, ...extra } }, below);
+    expect([read(config), read(m.hooks), read(hooks)]).toEqual(before);
+    return result.stdout;
+  };
+  expect(inspect()).toContain("Codex project hooks: 0/5 enabled and trusted; 0 discovered");
+  put(config, `${read(config)}\n[projects.${JSON.stringify(project)}]\ntrust_level = "trusted"\n`);
+  expect(inspect()).toContain("Codex project hooks: 0/5 enabled and trusted; 5 discovered");
+  ok(run(["codex", "trust-all", below], m), "human hook review");
+  expect(inspect()).toContain("Codex project hooks: 5/5 enabled and trusted");
+  expect(inspect({ CODEX_FAKE_DISABLED_EVENT: "SubagentStop" })).toContain("Codex project hooks: 4/5 enabled and trusted");
+  expect(inspect({ CODEX_FAKE_HOOKS_OFF: "1" })).toContain("Codex project hooks are disabled by the effective configuration");
+  expect(inspect({ CODEX_FAKE_DIE_ON: "config/read" })).toContain("Codex project hook review could not be verified");
+  const changed = json(hooks);
+  changed.hooks.PreToolUse[0].hooks[0].timeout = 119;
+  put(hooks, JSON.stringify(changed));
+  expect(inspect()).toContain("PREGATE project hooks are missing, modified or written for another platform");
+});
+
 function ghOf(dir: string): string {
   return `#!/bin/sh\necho "gh $*" >> "$LOG"\ncase "$1 $2" in\n"release view") echo 'v9.9.9' ;;\n`
     + `"release download") prev=; for a; do [ "$prev" = --dir ] && out=$a; prev=$a; done\n`

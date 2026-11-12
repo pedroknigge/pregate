@@ -104,13 +104,14 @@ const HARNESSES: Record<HarnessId, Harness> = {
   grok: { flag: "claude-code", env: capturedEnv("grok"), pre: "grok/pre-write.json", stop: "grok/stop.json", start: "grok/session-start.json" },
   codex: { flag: "codex", env: {}, pre: "codex/pre-apply-patch-add-update.json", stop: "codex/stop.json", start: "codex/session-start.json" },
   agy: { flag: "agy", env: {}, pre: "agy/pre-write_to_file.json", stop: "agy/stop.json", start: null },
+  opencode: { flag: "opencode", env: {}, pre: "opencode/pre-write.json", stop: "opencode/stop.json", start: "opencode/session-start.json" },
 };
 
 const hook = (sh: string, i: Install, event: string, h: Harness): string[] => [sh, i.launcher, "hook", event, "--harness", h.flag];
 
 // ── What the harness reads ─────────────────────────────────────────────────────────────
 
-// MH-15: Pre fails closed alike in the five harnesses: exit 2, stdout empty, one stderr line of at
+// MH-15: Pre fails closed alike in the six harnesses: exit 2, stdout empty, one stderr line of at
 // most 256 characters. Returns the line.
 function deniedPre(o: Out): string {
   expect(o.code).toBe(2);
@@ -488,7 +489,7 @@ const agy = (paths: string | undefined): string => {
 
 test("the fixture holds the registered commands", () => {
   expect(Object.keys(HOOK_COMMAND).sort()).toEqual([
-    "pre agy", "pre claude-code", "pre codex", "session-start agy", "session-start claude-code", "session-start codex", "stop agy", "stop claude-code", "stop codex",
+    "post-invocation agy", "pre agy", "pre claude-code", "pre codex", "session-start agy", "session-start claude-code", "session-start codex", "stop agy", "stop claude-code", "stop codex",
   ]);
 });
 
@@ -536,6 +537,7 @@ test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, P
     neutral(call(agy(JSON.stringify([`${OUTSIDE}/a"b`]))));
     neutral(call(agy("[]")));
     neutral(run([sh, "-c", command(i, "stop", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
+    neutral(run([sh, "-c", command(i, "post-invocation", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
   }
 });
 

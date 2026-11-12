@@ -85,7 +85,7 @@ exec 3<&0 4>&2 2>/dev/null
 
 # $1 = agent reason, $2 = human reason, $3 = what the human should
 # check (default: the installation). Prints the event's fail-closed output and exits. Pre is the same
-# in the five harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
+# in the six harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
 # cut at 256 characters).
 fail_closed() {
   trap '' USR1 USR2 TERM HUP
@@ -113,6 +113,8 @@ fail_closed() {
     printf '{"decision":"block","reason":"%s"}\n' "$why" ;;
   session-start)
     [ -z "$claude" ] || printf '{"systemMessage":"PREGATE could not prepare this session: %s. %s"}\n' "$2" "$hint"
+    exit 0 ;;
+  post-invocation)
     exit 0 ;;
   *) why="PREGATE could not evaluate: $1; report it to the user" ;;
   esac

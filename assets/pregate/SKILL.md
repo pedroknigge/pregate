@@ -37,6 +37,13 @@ digest, lock, ratchet, shadow, fitness, methodology or pack unless the user asks
 how it works. Do not list rule counts per pack. Name real files and real
 imports from this project instead of concepts. Keep a summary under eight lines.
 
+Codex: use absolute paths in `apply_patch`, name each file once and include exact
+context in update hunks. `SubagentStart` gives children the contract and
+`SubagentStop` checks their work; the parent's Stop remains a complete backstop.
+After updating hook definitions, the human reviews them again in `/hooks`.
+`pregate doctor` can inspect current project hook trust when Codex is on PATH;
+`status` alone does not establish that live trust.
+
 1. Look first, without changing anything: `pregate guide --json`,
    `pregate layers --json`, and `pregate compile <file>` for each instruction
    file that exists (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`).
@@ -777,6 +784,9 @@ usage:
   pregate project launcher [--preview|--yes]
   pregate project hooks --harness claude-code [--preview|--yes]
   pregate project hooks --harness codex [--preview|--yes]
+  pregate project hooks --harness cursor [--preview|--yes]
+  pregate project hooks --harness agy [--preview|--yes]
+  pregate project setup
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]

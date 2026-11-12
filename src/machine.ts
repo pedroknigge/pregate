@@ -11,12 +11,12 @@ import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, st
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./inertia.ts";
 import { readProposal } from "./proposal.ts";
-import { cliVersion } from "./harness/codex.ts";
+import { cliVersion, TESTED as CODEX_TESTED } from "./harness/codex.ts";
 import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
-import { AGY_PLUGIN, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, ownedCommand, registered, type Target, unmerge } from "./register.ts";
+import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, registered, type Target, unmerge, unmergeOpencode } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
 import { powershellCommand, PS_MODULES, psQuote } from "./windows-command.ts";
 import { slash } from "./paths.ts";
@@ -26,7 +26,8 @@ import type { HarnessId } from "./types.ts";
 import { latestRelease } from "./release-download.ts";
 import { verifiedEngineExtract } from "./release-install.ts";
 import { pinnedEngine } from "./project-updates.ts";
-import { PROJECT_CODEX_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./install.ts";
+import { PROJECT_AGY_HOOKS, PROJECT_CODEX_HOOKS, PROJECT_CURSOR_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./install.ts";
+import { projectLauncherRel, projectScope } from "./project-claude.ts";
 
 // Machine commands (MULTI-HARNESS MH-18, MH-22 to MH-27). Every write is tmp + fsync + rename and happens only when the bytes change, so a second run
 // writes nothing; whatever cannot be done safely is left untouched and reported. setup exits 1 when no harness was wired or a real error occurred.
@@ -35,7 +36,7 @@ import { PROJECT_CODEX_HOOKS, PROJECT_SETTINGS, projectLauncherState } from "./i
 type Result = { code: 0 | 1; text: string };
 type Line = { level: "ok" | "info" | "warn" | "fail"; text: string; wired?: boolean };
 interface Paths {
-  home: string; data: string; state: string; codexHome: string; grokHome: string;
+  home: string; data: string; state: string; codexHome: string; grokHome: string; opencodeHome: string;
   shared: string[];   // ~/.claude/settings.json, then $CLAUDE_CONFIG_DIR/settings.json when it is another file
   launcher: string; link: string; plugin: string; trust: string;
 }
@@ -43,10 +44,10 @@ interface Paths {
 interface Out { exit: number | null; stdout: string; stderr: string }
 
 // MH-26: a harness is present when its home exists or its binary is on the PATH.
-const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"] };
+const BINARIES: Record<HarnessId, string[]> = { "claude-code": ["claude"], codex: ["codex"], cursor: ["cursor-agent", "agent"], grok: ["grok"], agy: ["agy"], opencode: ["opencode"] };
 const SHARED: HarnessId[] = ["claude-code", "cursor", "grok"];
 // The event part of a Codex trust key (<file>:<event>:<group>:<hook>).
-const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start" };
+const SNAKE: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const ok = (text: string, wired = false): Line => ({ level: "ok", text, ...(wired ? { wired: true } : {}) });
 const info = (text: string, wired = false): Line => ({ level: "info", text, ...(wired ? { wired: true } : {}) });
 const warn = (text: string): Line => ({ level: "warn", text });
@@ -65,15 +66,14 @@ export async function setup(): Promise<Result> {
   saveLauncher(p, VERSIONS.engine);
   lines.push(ok(`Launcher at ${p.launcher}.`), link(p));
   const found = detect(p);
-  if (found.size === 0) lines.push(warn("No Claude Code, Codex, Cursor, Grok or agy found; no hooks registered. Install a harness and rerun pregate setup."));
+  if (found.size === 0) lines.push(warn("No Claude Code, Codex, Cursor, Grok, agy or OpenCode found; no hooks registered. Install a harness and rerun pregate setup."));
   if (SHARED.some((h) => found.has(h))) lines.push(...p.shared.map((f) => register(f, "shared", p.data)));
   if (found.has("cursor")) lines.push(register(join(p.home, ".cursor/hooks.json"), "cursor", p.data));
-  // An IDE may run Codex from a bundled binary that reads ~/.codex/hooks.json: its hooks are
-  // registered either way. agy installs its plugin only through its own binary.
+  // An IDE or desktop app may run Codex or Antigravity without putting its CLI binary on PATH:
+  // both global registrations are written either way.
   if (found.has("codex")) lines.push(await codex(p, found.get("codex") ?? null));
-  const agyBin = found.get("agy");
-  if (agyBin === null) lines.push(info("agy: binary not on PATH; skipped. Install it and rerun pregate setup."));
-  else if (agyBin !== undefined) lines.push(agy(p, agyBin));
+  if (found.has("agy")) lines.push(agy(p, found.get("agy") ?? null));
+  if (found.has("opencode")) lines.push(opencode(p));
   installSkill();
   lines.push(ok("Installed /pregate skills. Global hooks remain inert until local worktree consent."));
   return finishSetup(lines);
@@ -164,9 +164,16 @@ async function trustCodexHooks(i: CodexInstall): Promise<Line> {
 }
 
 // Use a global identity so a disabled project plugin named pregate cannot shadow this installation.
-function agy(p: Paths, bin: string): Line {
-  const files = agyPlugin(p.data);
+// Antigravity 2.0 and Antigravity IDE read ~/.gemini/config/plugins/<name>/ directly, so when agy
+// is not on PATH the plugin directory is written atomically in place.
+function agy(p: Paths, bin: string | null): Line {
+  const files = agyPlugin(p.data, VERSIONS.engine);
   const current = (): boolean => Object.entries(files).every(([f, text]) => read(join(p.plugin, f)) === text);
+  if (bin === null) {
+    for (const [f, text] of Object.entries(files)) save(join(p.plugin, f), text);
+    if (agyDisabled(p)) return fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.");
+    return info(`agy: binary not on PATH; pregate-global plugin installed at ${p.plugin} for Antigravity IDE/App.`, true);
+  }
   let done = "agy plugin: unchanged.";
   if (!current()) {
     const dir = join(mkdtempSync(join(tmpdir(), "pregate-agy-")), AGY_PLUGIN);
@@ -178,6 +185,78 @@ function agy(p: Paths, bin: string): Line {
     done = `pregate-global plugin installed at ${p.plugin}.`;
   }
   return agyDisabled(p) ? fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.") : ok(done, true);
+}
+
+// OpenCode reads a plugin folder named by its own `plugins` array. setup writes the shim and adds
+// that one entry; every other entry of the file, and every other key, stays. A disabled entry (a
+// leading - or !) is the human's switch and is never turned back on here.
+
+// OpenCode's plugin folder. register.ts stays pure: the path, the environment and the asset live here.
+function opencodePluginDir(p: Paths): string {
+  return slash(join(p.opencodeHome, "pregate"));
+}
+
+// opencode.json, or opencode.jsonc when that is the file the user keeps. Neither: opencode.json.
+function opencodeConfigFile(p: Paths): string {
+  const json = join(p.opencodeHome, "opencode.json"), jsonc = join(p.opencodeHome, "opencode.jsonc");
+  return existsSync(json) || !existsSync(jsonc) ? json : jsonc;
+}
+
+// What setup writes at <opencodeHome>/pregate/index.ts: the shim that runs this installation.
+function opencodePluginSource(p: Paths): string {
+  return ASSETS["opencode/pregate/index.ts"]!.replaceAll("@PREGATE_LAUNCHER@", slash(`${p.data}/bin/${WINDOWS ? "pregate.cmd" : "pregate"}`));
+}
+
+// The plugin and its entry are both needed: one without the other gates nothing.
+function opencodeDrift(p: Paths): string[] {
+  const dir = opencodePluginDir(p), file = join(dir, "index.ts"), target = opencodeConfigFile(p);
+  const plugin = read(file), config = read(target);
+  const out: string[] = [];
+  if (plugin === null && config !== null) out.push(`${file}: the PREGATE plugin is missing; run pregate setup.`);
+  else if (plugin !== null && plugin !== opencodePluginSource(p)) out.push(`${file}: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
+  if (config !== null) {
+    const state = opencodeState(config, dir);
+    if (state === "invalid") out.push(`${target}: plugins must be an array; fix it and rerun pregate setup.`);
+    else if (state === "missing") out.push(`${target}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
+    else if (state === "disabled") out.push(`${target}: the PREGATE plugin entry is disabled (leading - or !); enable it to gate OpenCode.`);
+  }
+  return out;
+}
+
+// Registered and unchanged: the folder is ours and the entry names it.
+function opencodeGated(p: Paths): boolean {
+  return read(join(opencodePluginDir(p), "index.ts")) === opencodePluginSource(p) && opencodeState(read(opencodeConfigFile(p)), opencodePluginDir(p)) === "ready";
+}
+
+function opencode(p: Paths): Line {
+  const dir = opencodePluginDir(p), file = join(dir, "index.ts");
+  save(file, opencodePluginSource(p));
+  const target = canonical(opencodeConfigFile(p));
+  const before = read(target), after = mergeOpencode(before, dir);
+  if (after === null) return fail(`${target} must be a JSON object whose "plugins" is an array; left unchanged. Fix it and rerun pregate setup.`);
+  rewrite(target, before, after);
+  const state = opencodeState(read(target), dir);
+  if (state === "disabled") return warn(`OpenCode: the PREGATE plugin entry in ${target} is disabled; remove the leading - or ! to gate OpenCode.`);
+  if (state !== "ready") return fail(`OpenCode: ${target} does not list ${dir} in plugins; run pregate setup.`);
+  return ok(`OpenCode: PREGATE plugin at ${file}, listed in ${target}.`, true);
+}
+
+// The mirror of unregister for the `plugins` array: our entry goes, the user's list stays.
+function unregisterOpencode(p: Paths): Line | null {
+  const target = canonical(opencodeConfigFile(p));
+  const before = read(target);
+  if (before === null) return null;
+  const r = unmergeOpencode(before, opencodePluginDir(p));
+  if (r === null) return fail(`${target} must be a JSON object whose "plugins" is an array; the PREGATE entry was left unchanged. Fix it and rerun pregate uninstall.`);
+  const bak = read(`${target}.pregate.bak`);
+  // The plugins key was setup's only change: the file goes with it.
+  if (bak === null && sameJson(r.text, "{}")) {
+    save(target, null);
+    return ok(`PREGATE plugin entry removed from ${target}.`);
+  }
+  const after = bak !== null && sameJson(r.text, bak) ? bak : r.text;
+  if (!rewrite(target, before, after)) return null;
+  return ok(`PREGATE plugin entry removed from ${target}.`);
 }
 
 // ~/.local/bin/pregate → the launcher. Anything else already there is not ours to replace.
@@ -363,6 +442,12 @@ export async function uninstall(purge: boolean): Promise<Result> {
     rmSync(p.plugin, { recursive: true, force: true });   // agy plugin uninstall is [E2E]
     lines.push(ok(`agy plugin removed from ${p.plugin}.`));
   }
+  lines.push(unregisterOpencode(p));
+  const pluginDir = opencodePluginDir(p);
+  if (existsSync(pluginDir)) {
+    rmSync(pluginDir, { recursive: true, force: true });
+    lines.push(ok(`OpenCode plugin removed from ${pluginDir}.`));
+  }
   const s = stats(p.link, false);
   if (s?.isSymbolicLink() === true && readlinkSync(p.link) === p.launcher) rmSync(p.link);
   lines.push(unpath(p));
@@ -371,7 +456,7 @@ export async function uninstall(purge: boolean): Promise<Result> {
   rmSync(p.trust, { force: true });
   if (purge) rmSync(p.state, { recursive: true, force: true });
   lines.push(ok(`Removed ${p.data}${purge ? ` and ${p.state}` : ""}. Repo .pregate/ directories are preserved.`));
-  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json")].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
+  const kept = [...p.shared, join(p.codexHome, "hooks.json"), join(p.home, ".cursor/hooks.json"), opencodeConfigFile(p)].map((f) => `${canonical(f)}.pregate.bak`).filter((f) => existsSync(f));
   if (kept.length > 0) lines.push(ok(`Backups from before the first setup remain: ${kept.join(", ")}.`));
   return report(lines.filter((l): l is Line => l !== null));
 }
@@ -427,38 +512,80 @@ export async function doctor(): Promise<Result> {
   const ci = describeCi(canonical(process.cwd()));
   const root = findRoot(canonical(process.cwd()), () => true);
   const { coverageLead, protectionStatus } = await import("./status.ts");
-  // A project that carries its own registration for a harness needs no global one for it:
-  // `global` holds the harnesses that still depend on the machine installation.
-  const scope = projectScopes(p, root, found.has("codex"));
-  const local = scope.standalone.size > 0;
-  const global = new Map([...checked].filter(([h]) => !scope.standalone.has(h)));
-  const optional = local && global.size === 0;
-  const lines = [...coverageLead(protectionStatus(root)).map((text) => ok(text)), ...installation(p, optional), ok(status(root)), ci.providers.length === 0 ? info(ci.text) : ok(ci.text)];
-  if (found.size === 0 && !local) lines.push(fail("No harness found; PREGATE gates nothing on this machine."));
-  else if (checked.size === 0 && !local) lines.push(warn("No harness with its binary on PATH; PREGATE gates nothing yet."));
+  // `project hooks` and `project setup` both write .claude/settings.json, and the bytes differ.
+  // The hooks registration is what register.ts calls exact. The setup registration is what
+  // project-claude.ts calls exact. Doctor follows the one that matches. Cursor and Antigravity
+  // project registrations are separate files and stay in `scope`.
+  const setup = root === null
+    ? { active: false, exact: false, lines: [] as Line[], preCommand: null as string | null, consentActive: false }
+    : localClaude(p, root);
+  const scope = projectScopes(p, root, found);
+  const hooksLocal = root !== null && registered(read(join(root, PROJECT_SETTINGS)), "project", p.data);
+  const setupExact = setup.exact && !hooksLocal;
+  const standalone = new Set(scope.standalone);
+  if (setupExact) standalone.add("claude-code");
+  // Harnesses that still depend on the machine installation.
+  const machine = new Map([...checked].filter(([h]) => !standalone.has(h)));
+  const optional = standalone.size > 0 && machine.size === 0;
+  const lines = [...coverageLead(protectionStatus(root)).map((text) => ok(text))];
+  if (setupExact) {
+    lines.push(globalInstalled(p, true));
+    lines.push(...skillProblems().map((text) => info(`${text} Repository hooks do not use the global companion skill.`)));
+  } else lines.push(...installation(p, optional));
+  lines.push(ok(status(root)), ci.providers.length === 0 ? info(ci.text) : ok(ci.text));
+  if (found.size === 0 && setupExact) lines.push(info("No global harness home was found. This project uses repository-owned Claude hooks."));
+  else if (found.size === 0 && standalone.size === 0) lines.push(fail("No harness found; PREGATE gates nothing on this machine."));
+  else if (checked.size === 0 && setupExact) lines.push(info("No harness binary is on PATH. Repository Claude hooks are still checked below."));
+  else if (checked.size === 0 && standalone.size === 0) lines.push(warn("No harness with its binary on PATH; PREGATE gates nothing yet."));
   for (const [h, bin] of found) lines.push(versionOf(h, bin));
-  lines.push(...scope.lines);
-  const m = machineFiles(p, global);
-  const hookTrust = global.has("codex") ? trusts(p) : {}, hookDrift = drift(m, null, p.data, hookTrust);
+  if (setupExact) {
+    lines.push(...setup.lines);
+    // The setup file is owned by the project-hooks matcher but is not that registration.
+    // Reporting it as a broken project-hooks file would hide the scope doctor just stated.
+    lines.push(...scope.lines.filter((line) => !line.text.includes("Claude Code hooks:") && !line.text.startsWith(`${PROJECT_SETTINGS}: PREGATE project hooks are missing`)));
+  } else lines.push(...scope.lines);
+  const m = machineFiles(p, machine);
+  const hookTrust = machine.has("codex") ? trusts(p) : {};
+  let hookDrift = drift(m, null, p.data, hookTrust);
+  if (setupExact && !checked.has("cursor") && !checked.has("grok")) {
+    const kept = hookDrift.filter((line) => !globalClaudeMissing(line));
+    if (kept.length !== hookDrift.length) lines.push(info("This project uses repository-owned Claude hooks. Global Claude settings are not a fallback."));
+    hookDrift = kept;
+  }
+  if (checked.has("opencode")) hookDrift.push(...opencodeDrift(p));
   lines.push(...hookDrift.map(fail));
   const supervisionLimit = "Direct engine hook calls have no launcher crash/timeout protection. Runtime canaries below exercise the launcher route; they do not override registration errors.";
-  const registered = gated(m, null, p.data, hookTrust);
-  if (scope.standalone.has("claude-code")) registered.add("claude-code");
-  lines.push((checked.size === 0 && !local) || [...checked.keys()].some(h => !registered.has(h))
+  const admitted = gated(m, null, p.data, hookTrust);
+  if (standalone.has("claude-code")) admitted.add("claude-code");
+  if (standalone.has("cursor")) admitted.add("cursor");
+  if (standalone.has("agy")) admitted.add("agy");
+  if (checked.has("opencode") && opencodeGated(p)) admitted.add("opencode");
+  lines.push((checked.size === 0 && standalone.size === 0) || [...checked.keys()].some((h) => !admitted.has(h))
     ? warn(`Hook supervision is not established for every detected harness. ${supervisionLimit} Run pregate setup and review the registrations.`)
     : ok(`Hook supervision: required launcher commands are registered. ${supervisionLimit}`));
-  const codexBin = global.get("codex");
+  const codexBin = machine.get("codex");
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
-  else if (found.has("codex") && !scope.standalone.has("codex")) lines.push(codexOffPath(p));
-  if (checked.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
-  if (found.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
+  else if (found.has("codex") && !standalone.has("codex")) lines.push(codexOffPath(p));
+  const projectCodexBin = found.get("codex");
+  if (root !== null && projectCodexBin && registered(read(join(root, PROJECT_CODEX_HOOKS)), "project-codex", p.data)) {
+    lines.push(await projectCodexTrust(p, root, projectCodexBin));
+  }
+  if (machine.has("agy") && m.agyHooks === null) lines.push(fail("agy has no pregate-global plugin; run pregate setup."));
+  else if (found.has("agy") && !checked.has("agy") && !standalone.has("agy")) lines.push(agyOffPath(p));
+  if (checked.has("opencode") && read(join(opencodePluginDir(p), "index.ts")) === null && read(opencodeConfigFile(p)) === null) {
+    lines.push(fail("OpenCode has no PREGATE plugin; run pregate setup."));
+  }
+  if (found.has("cursor") && !scope.standalone.has("cursor") && m.cursorHooks === null) lines.push(fail("Cursor has no native PREGATE Stop hook; run pregate setup."));
   const cli = which(WINDOWS ? "pregate.cmd" : "pregate");
-  lines.push(cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher) ? ok(`pregate on PATH: ${cli}.`)
+  const onPath = cli !== null && canonical(cli) === canonical(WINDOWS ? p.link : p.launcher);
+  lines.push(onPath ? ok(`pregate on PATH: ${cli}.`)
+    : setupExact ? info(`pregate on PATH is not the global launcher (${cli ?? "none"}). This project runs its repository launcher and does not fall back to PATH.`)
     : optional ? info(`pregate on PATH is not the global launcher (${cli ?? "none"}); the project hooks do not use PATH.`)
       : warn(`pregate on PATH is not ${p.link} (${cli ?? "none"}); add ${dirname(p.link)} to PATH.`));
   lines.push(which("gh") !== null && spawn(["gh", "auth", "status"]).exit === 0 ? ok("gh authenticated; private release fallback is available.")
     : warn("Public releases use anonymous HTTPS. Private pilot releases require gh auth login and repository read access; no release access was tested."));
-  for (const h of global.keys()) lines.push(canary(p, h));
+  if (setupExact && setup.consentActive && setup.preCommand !== null && root !== null) lines.push(projectCanary(root, setup.preCommand));
+  for (const h of machine.keys()) lines.push(canary(p, h));
   return report(lines);
 }
 
@@ -513,7 +640,7 @@ function owned(text: string | null, t: Target, data: string): boolean {
 // read. `level` is the trust level the user's config.toml records for the project directory. The
 // review of the project hooks themselves is Codex's own record and is not read here: it is reported
 // as unknown, never as trusted. `present`: Codex was found on this machine.
-function codexScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; level: string | null; lines: Line[] } {
+function codexScope(p: Paths, root: string | null, present: boolean, inspectable = false): { local: boolean; global: boolean; level: string | null; lines: Line[] } {
   const text = root === null ? null : read(join(root, PROJECT_CODEX_HOOKS));
   const local = registered(text, "project-codex", p.data);
   const global = owned(read(join(p.codexHome, "hooks.json")), "codex", p.data);
@@ -521,7 +648,7 @@ function codexScope(p: Paths, root: string | null, present: boolean): { local: b
   const lines: Line[] = [];
   const fix = "pregate project hooks --harness codex --preview";
   const trust = level === "trusted" ? "Codex config.toml marks this project trusted." : `Codex config.toml does not mark this project trusted (trust_level: ${level ?? "no record"}).`;
-  const review = `${trust} Hook review state unknown: check \`/hooks\` in Codex.`;
+  const review = `${trust} ${inspectable ? "Effective project hook review is queried below through Codex app-server." : "Hook review state unknown: check `/hooks` in Codex."}`;
   if (!local && owned(text, "project-codex", p.data)) lines.push(fail(`${PROJECT_CODEX_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
   if (local && global) lines.push(warn(`Codex hooks: project-local and global. When Codex runs both registrations, every tool call is evaluated twice. Keep one: remove the PREGATE groups from ${PROJECT_CODEX_HOOKS}, or the global ones (pregate uninstall removes them for every harness). ${review}`));
   else if (local) lines.push((level === "trusted" ? info : warn)(`Codex hooks: project-local only. ${PROJECT_CODEX_HOOKS} runs the project launcher; no global registration is present. ${review}`));
@@ -536,14 +663,75 @@ export function codexRegistration(root: string | null): { scope: "project" | "gl
   return { scope: local ? (global ? "both" : "project") : global ? "global" : "none", projectTrust: level };
 }
 
-// Both scopes for doctor. `standalone`: the harnesses whose only registration is the project's.
-function projectScopes(p: Paths, root: string | null, codexPresent: boolean): { standalone: Set<HarnessId>; lines: Line[] } {
-  const claude = claudeScope(p, root), codex = codexScope(p, root, codexPresent);
+// ── Cursor scope ─────────────────────────────────────────────────────────────────────
+
+// Where Cursor gets its PREGATE hooks for this project: its own .cursor/hooks.json (`pregate project
+// hooks --harness cursor`), the machine registration (`pregate setup`: the shared Claude Code
+// settings Cursor imports, and the native Stop in ~/.cursor/hooks.json), both or neither. Cursor
+// runs every source it loads, so both means every tool call is evaluated twice. Cursor also runs the
+// project's .claude/settings.json [V 2026.11.11], so a Claude Code project registration is one more
+// Cursor registration. Workspace trust is Cursor's own record and is not read here.
+function cursorScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; double: boolean; lines: Line[] } {
+  const text = root === null ? null : read(join(root, PROJECT_CURSOR_HOOKS));
+  const native = registered(text, "project-cursor", p.data);
+  const imported = root !== null && registered(read(join(root, PROJECT_SETTINGS)), "project", p.data);
+  const local = native || imported;
+  const global = owned(read(join(p.home, ".cursor/hooks.json")), "cursor", p.data) || p.shared.some((f) => owned(read(f), "shared", p.data));
+  const lines: Line[] = [];
+  const fix = "pregate project hooks --harness cursor --preview";
+  const trust = "Cursor runs project hooks only in a trusted workspace.";
+  if (!native && owned(text, "project-cursor", p.data)) lines.push(fail(`${PROJECT_CURSOR_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
+  if (native && imported) lines.push(warn(`Cursor hooks: ${PROJECT_CURSOR_HOOKS} and ${PROJECT_SETTINGS} of this project both register PREGATE, and Cursor runs both, so every tool call is evaluated twice. Keep one for Cursor. ${trust}`));
+  else if (local && global) lines.push(warn(`Cursor hooks: project-local and global. Cursor runs both registrations, so every tool call is evaluated twice. Keep one: remove the PREGATE entries from ${native ? PROJECT_CURSOR_HOOKS : PROJECT_SETTINGS}, or the global ones (pregate uninstall removes them for every harness). ${trust}`));
+  else if (native) lines.push(ok(`Cursor hooks: project-local only. ${PROJECT_CURSOR_HOOKS} runs the project launcher; no global registration is present. ${trust}`));
+  else if (local) lines.push(info(`Cursor hooks: project-local through ${PROJECT_SETTINGS}, which Cursor imports; its Stop in Cursor is not established. ${PROJECT_CURSOR_HOOKS} is Cursor's native registration (${fix}). ${trust}`));
+  else if (global) lines.push(info(`Cursor hooks: global only (pregate setup). ${root === null ? "No project here." : `${PROJECT_CURSOR_HOOKS} of this project holds no complete PREGATE registration.`}`));
+  else lines.push((root === null || !present ? info : warn)(`Cursor hooks: neither project-local nor global. Cursor is not gated${root === null ? "" : " in this project"}. Run ${fix} in a project, or pregate setup.`));
+  return { local, global, double: (native && imported) || (local && global), lines };
+}
+
+// For status: where Cursor gets its hooks for this project; "both" is any double registration.
+export function cursorRegistration(root: string | null): "project" | "global" | "both" | "none" {
+  const { local, global, double } = cursorScope(paths(), root, true);
+  return double ? "both" : local ? "project" : global ? "global" : "none";
+}
+
+// Every scope for doctor. `standalone`: the harnesses whose only registration is the project's.
+function projectScopes(p: Paths, root: string | null, present: Map<HarnessId, string | null>): { standalone: Set<HarnessId>; lines: Line[] } {
+  const claude = claudeScope(p, root), codex = codexScope(p, root, present.has("codex"), present.get("codex") != null), cursor = cursorScope(p, root, present.has("cursor"));
   const standalone = new Set<HarnessId>();
   if (claude.local && !claude.global) standalone.add("claude-code");
   if (codex.local && !codex.global) standalone.add("codex");
-  const checks = claude.local || codex.local ? projectChecks(root!, p.data, claude.local) : [];
-  return { standalone, lines: [...checks, ...claude.lines, ...codex.lines] };
+  if (cursor.local && !cursor.global) standalone.add("cursor");
+  const agy = agyScope(p, root, present.has("agy"));
+  if (agy.local && !agy.global) standalone.add("agy");
+  const checks = claude.local || codex.local || cursor.local || agy.local ? projectChecks(root!, p.data, claude.local) : [];
+  return { standalone, lines: [...checks, ...claude.lines, ...codex.lines, ...cursor.lines, ...agy.lines] };
+}
+
+// ── Antigravity scope ────────────────────────────────────────────────────────────────
+
+// Where Antigravity gets its PREGATE hooks for this project: its own .agents/hooks.json (`pregate
+// project hooks --harness agy`), the global pregate-global plugin (`pregate setup`), both or
+// neither. Antigravity merges workspace hooks and global plugins, so both means every tool call is
+// evaluated twice.
+function agyScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; lines: Line[] } {
+  const text = root === null ? null : read(join(root, PROJECT_AGY_HOOKS));
+  const local = registered(text, "project-agy", p.data);
+  const global = registered(read(join(p.plugin, "hooks.json")), "agy", p.data) && !agyDisabled(p);
+  const lines: Line[] = [];
+  const fix = "pregate project hooks --harness agy --preview";
+  if (!local && owned(text, "project-agy", p.data)) lines.push(fail(`${PROJECT_AGY_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
+  if (local && global) lines.push(warn(`Antigravity hooks: project-local and global. Antigravity runs both registrations, so every tool call is evaluated twice. Keep one: remove ${AGY_PROJECT_HOOK} from ${PROJECT_AGY_HOOKS}, or the global ones (pregate uninstall removes them for every harness).`));
+  else if (local) lines.push(ok(`Antigravity hooks: project-local only. ${PROJECT_AGY_HOOKS} runs the project launcher; no global registration is present.`));
+  else if (global) lines.push(info(`Antigravity hooks: global only (pregate setup). ${root === null ? "No project here." : `${PROJECT_AGY_HOOKS} of this project holds no complete PREGATE registration.`}`));
+  else lines.push((root === null || !present ? info : warn)(`Antigravity hooks: neither project-local nor global. Antigravity is not gated${root === null ? "" : " in this project"}. Run ${fix} in a project, or pregate setup.`));
+  return { local, global, lines };
+}
+
+export function agyRegistration(root: string | null): { scope: "project" | "global" | "both" | "none"; projectLauncher: boolean } {
+  const { local, global } = agyScope(paths(), root, true);
+  return { scope: local ? (global ? "both" : "project") : global ? "global" : "none", projectLauncher: local && projectLauncherState(root!) === "ready" };
 }
 
 // What a project registration depends on, read from the files. No hook runs here.
@@ -559,6 +747,43 @@ function projectChecks(root: string, data: string, claude: boolean): Line[] {
   return lines;
 }
 
+function localClaude(p: Paths, root: string) {
+  const files = projectLauncherRel().map((rel) => join(root, rel));
+  const pin = pinnedEngine(root);
+  return projectScope({
+    root,
+    settings: read(join(root, ".claude/settings.json")),
+    localSettings: read(join(root, ".claude/settings.local.json")),
+    claudeConfig: read(join(p.home, ".claude.json")),
+    launcherPresent: files.some((file) => stats(file)?.isFile() === true),
+    launcherReady: files.every((file) => ready(file)),
+    pin,
+    engineReady: pin !== null && ENGINE_VERSION.test(pin) && ready(join(p.data, pin, ENGINE_FILE)),
+    consentActive: enabled(root),
+  });
+}
+
+function globalInstalled(p: Paths, localExact: boolean): Line {
+  const line = installed(p);
+  if (localExact && line.level === "fail" && line.text.startsWith("Missing launcher")) {
+    return info(`No global launcher at ${p.launcher}. This project uses its repository launcher and does not fall back to it.`);
+  }
+  return line;
+}
+
+function globalClaudeMissing(line: string): boolean {
+  return /^(?:~\/\.claude\/settings\.json|\$CLAUDE_CONFIG_DIR\/settings\.json): PREGATE hooks missing or modified/.test(line);
+}
+
+function projectCanary(root: string, command: string): Line {
+  const c = CANARY["claude-code"];
+  const shell = WINDOWS ? ["cmd.exe", "/d", "/s", "/c", command] : [process.env.SHELL || "/bin/sh", "-c", command];
+  const env = { ...process.env, ...c.env(root) };
+  const o = spawn(shell, 30_000, { cwd: root, env, stdin: JSON.stringify(c.payload(root, join(root, ".pregate/canary.json"))) });
+  if (o.exit === c.exit && c.reason(o)?.includes(MARK) === true) return ok("claude-code: project hook denied in its native dialect.");
+  return fail(`claude-code: project hook was not denied in its native dialect (exit ${o.exit}; stdout: ${clip(o.stdout) || "empty"}; stderr: ${clip(o.stderr) || "empty"}).`);
+}
+
 // The registration files doctor checks; Codex's and agy's only when that harness runs here.
 function machineFiles(p: Paths, checked: Map<HarnessId, string | null>): MachineFiles {
   const codex = checked.has("codex"), agy = checked.has("agy");
@@ -567,7 +792,7 @@ function machineFiles(p: Paths, checked: Map<HarnessId, string | null>): Machine
     codexHooks: codex ? read(join(p.codexHome, "hooks.json")) : null, codexConfig: codex ? read(join(p.codexHome, "config.toml")) : null,
     grokConfig: read(join(p.grokHome, "config.toml")),
     agyHooks: agy ? read(join(p.plugin, "hooks.json")) : null, agyConfig: agy ? read(join(p.home, ".gemini/config/config.json")) : null,
-    cursorHooks: read(join(p.home, ".cursor/hooks.json")),
+    cursorHooks: checked.has("cursor") ? read(join(p.home, ".cursor/hooks.json")) : null,
   };
 }
 
@@ -592,6 +817,7 @@ function versionOf(h: HarnessId, bin: string | null): Line {
       );
     }
     if (cli !== null && compareVersions(cli, verified) >= 0 && cli === verified) return ok(`codex ${verified}.`);
+    if (cli === CODEX_TESTED) return ok(`codex ${cli} (native lifecycle tested; minimum ${verified}).`);
   }
   return v.includes(verified) ? ok(`${h} ${verified}.`)
     : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed contract may cause payload-unrecognized denials.`);
@@ -607,6 +833,15 @@ function codexOffPath(p: Paths): Line {
   return info(`codex: PREGATE hooks registered in ${file}; their trust cannot be verified without codex on PATH. Codex sessions an IDE launches run them only once approved in /hooks.`);
 }
 
+function agyOffPath(p: Paths): Line {
+  const files = agyPlugin(p.data, VERSIONS.engine);
+  if (!Object.entries(files).every(([f, text]) => read(join(p.plugin, f)) === text)) {
+    return warn(`agy: ${p.plugin} is missing or modified; Antigravity IDE/App sessions are not protected. Run pregate setup.`);
+  }
+  if (agyDisabled(p)) return fail("agy: pregate-global is disabled (plugins.pregate-global.enabled = false in ~/.gemini/config/config.json); enable it.");
+  return info(`agy: pregate-global plugin installed at ${p.plugin}; runtime canary skipped without agy on PATH.`);
+}
+
 async function trustOf(p: Paths, bin: string): Promise<Line> {
   const file = join(p.codexHome, "hooks.json");
   const expected = slots(read(file)!, p.data);
@@ -616,11 +851,37 @@ async function trustOf(p: Paths, bin: string): Promise<Line> {
 
 async function codexTrust(server: Server, ours: ReturnType<typeof owner>): Promise<Line> {
   try {
-    const trusted = (await hooksList(server)).filter((h) => ours(h.key) && h.trustStatus === "trusted").length;
+    const trusted = (await hooksList(server)).filter((h) => ours(h.key) && h.trustStatus === "trusted" && h.enabled).length;
     return trusted === Object.keys(SNAKE).length ? ok("Codex runs the PREGATE hooks (trusted).")
       : fail(`Codex runs ${trusted} of ${Object.keys(SNAKE).length} PREGATE hooks; run pregate setup or approve them in /hooks.`);
   } catch (e) {
     return fail(`Codex: ${(e as Error).message}.`);
+  } finally {
+    server.close();
+  }
+}
+
+// Read-only: ask Codex about the current directory's effective layers, including project trust.
+// This never records a hash or treats an unreviewed/disabled hook as protection.
+async function projectCodexTrust(p: Paths, root: string, bin: string): Promise<Line> {
+  const server = appServer(bin);
+  try {
+    const cwd = canonical(process.cwd());
+    const effective = await server.call("config/read", { cwd, includeLayers: false });
+    if (!isObject(effective) || !isObject(effective.config)) throw new Error("Codex config/read: unexpected response");
+    const features = effective.config.features;
+    if (isObject(features) && (features.hooks ?? features.codex_hooks) === false) return fail("Codex project hooks are disabled by the effective configuration; review Codex /hooks and its configuration.");
+    const file = join(root, PROJECT_CODEX_HOOKS);
+    const wanted = slots(read(file)!, p.data, "project-codex");
+    const target = canonical(file), ours = owner(file, target, wanted);
+    const listed = (await hooksList(server, [cwd])).filter((h) => ours(h.key));
+    const active = wanted.filter((slot) => listed.some((h) => owner(file, target, [slot])(h.key) && h.enabled && h.trustStatus === "trusted")).length;
+    const expected = Object.keys(SNAKE).length;
+    return active === expected ? ok(`Codex project hooks: ${active}/${expected} enabled and trusted for this directory (read-only app-server inspection).`)
+      : fail(`Codex project hooks: ${active}/${expected} enabled and trusted; ${listed.length} discovered. Trust the project and review its hooks in Codex /hooks. No trust was changed.`);
+  } catch (e) {
+    // fail-closed: failed discovery never establishes project hook trust.
+    return fail(`Codex project hook review could not be verified: ${(e as Error).message}. Check /hooks; no trust was changed.`);
   } finally {
     server.close();
   }
@@ -667,7 +928,18 @@ const CANARY: Record<HarnessId, { exit: number; env: (dir: string) => Record<str
       const j = parse(o.stdout);
       return j?.decision === "deny" && typeof j.reason === "string" ? j.reason : null;
     },
-    payload: (dir, file) => ({ conversationId: SID, workspacePaths: [dir], stepIdx: 0, toolCall: { name: "write_to_file", args: { TargetFile: file, CodeContent: "{}\n" } } }),
+    payload: (dir, file) => ({
+      conversationId: SID, workspacePaths: [dir], cwd: dir, hookEventName: "PreToolUse", stepIdx: 0,
+      toolCall: { id: SID, name: "write_file", args: { Path: file, Content: "{}\n", Overwrite: true } },
+    }),
+  },
+  // The plugin sends the payload this adapter reads; the deny is stderr with exit 2, as Codex's.
+  opencode: {
+    exit: 2, env: () => ({}), reason: (o) => (o.stdout === "" ? o.stderr : null),
+    payload: (dir, file) => ({
+      hook_event_name: "PreToolUse", session_id: SID, cwd: dir, tool_name: "write", tool_use_id: SID,
+      tool_input: { filePath: file, content: "{}\n" },
+    }),
   },
 };
 
@@ -683,7 +955,7 @@ function runCanary(p: Paths, h: HarnessId, dir: string): Line {
     if (initialized.exit !== 0) return fail("Cannot initialize the isolated doctor canary repository.");
     enable(dir);
     const c = CANARY[h];
-    const flag = h === "codex" || h === "agy" ? h : "claude-code";
+    const flag = h === "cursor" ? "claude-code" : h;
     const command = WINDOWS ? ["cmd.exe", "/d", "/s", "/c", hookCommand(p.data, "pre", flag)]
       : [process.env.SHELL || "/bin/sh", "-c", hookCommand(p.data, "pre", flag)];
     const env = { ...process.env, XDG_STATE_HOME: join(dir, "state"), ...c.env(dir) };
@@ -698,7 +970,7 @@ function runCanary(p: Paths, h: HarnessId, dir: string): Line {
 
 // ── Codex app-server (MH-24) ─────────────────────────────────────────────────────────
 
-interface Listed { key: string; trustStatus: string; currentHash: string }
+interface Listed { key: string; trustStatus: string; currentHash: string; enabled: boolean }
 interface Server { call(method: string, params: unknown): Promise<unknown>; close(): void }
 
 // JSON-RPC lines over `codex app-server` stdio, one call at a time, initialize first. A server that
@@ -744,11 +1016,12 @@ function appServer(bin: string): Server {
   };
 }
 
-async function hooksList(s: Server): Promise<Listed[]> {
-  const r = await s.call("hooks/list", { cwds: [] });
+async function hooksList(s: Server, cwds: string[] = []): Promise<Listed[]> {
+  const r = await s.call("hooks/list", { cwds });
   if (!isObject(r) || !Array.isArray(r.data)) throw new Error("codex app-server hooks/list: unexpected response");
+  if (r.data.some((d: unknown) => !isObject(d) || !Array.isArray(d.hooks) || (Array.isArray(d.errors) && d.errors.length > 0))) throw new Error("codex app-server hooks/list: hook discovery failed");
   return r.data.flatMap((d: unknown) => (isObject(d) && Array.isArray(d.hooks) ? d.hooks : [])).filter((h: unknown): h is Listed =>
-    isObject(h) && typeof h.key === "string" && typeof h.trustStatus === "string" && typeof h.currentHash === "string");
+    isObject(h) && typeof h.key === "string" && typeof h.trustStatus === "string" && typeof h.currentHash === "string" && typeof h.enabled === "boolean");
 }
 
 async function* linesOf(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
@@ -786,11 +1059,11 @@ function oursKeys(file: string, target: string, text: string | null, data: strin
 }
 
 // <event>:<group>:<hook> of every group in a hooks.json text that is exactly what setup writes.
-function slots(text: string, data: string): string[] {
+function slots(text: string, data: string, target: "codex" | "project-codex" = "codex"): string[] {
   const hooks = parse(text)?.hooks;
   return Object.entries(SNAKE).flatMap(([event, snake]) => {
     const list = isObject(hooks) ? hooks[event] : null;
-    const g = Array.isArray(list) ? list.findIndex((x) => exact(x, "codex", data)) : -1;
+    const g = Array.isArray(list) ? list.findIndex((x) => exact(x, target, data)) : -1;
     return g < 0 ? [] : [`${snake}:${g}:0`];
   });
 }
@@ -839,6 +1112,7 @@ function paths(): Paths {
   const moved = env.CLAUDE_CONFIG_DIR ? join(env.CLAUDE_CONFIG_DIR, "settings.json") : null;
   return {
     home, data, state: stateDir(), codexHome: env.CODEX_HOME || join(home, ".codex"), grokHome: env.GROK_HOME || join(home, ".grok"),
+    opencodeHome: env.OPENCODE_CONFIG_DIR || join(home, ".config/opencode"),
     shared: moved === null || canonical(moved) === canonical(own) ? [own] : [own, moved],
     launcher: join(data, WINDOWS ? "bin/launcher.ps1" : "bin/pregate"), link: WINDOWS ? join(data, "bin/pregate.cmd") : join(home, ".local/bin/pregate"),
     plugin: join(home, `.gemini/config/plugins/${AGY_PLUGIN}`), trust: join(stateDir(), "codex-trust.json"),
@@ -847,30 +1121,40 @@ function paths(): Paths {
 
 export function gatedHarnesses(root: string | null): Set<string> {
   const p = paths();
-  const repo = Object.fromEntries([".claude/settings.json", ".claude/settings.local.json", ".codex/config.toml", ".grok/config.toml", ".agents/plugins.json", ".agent/plugins.json"]
-    .flatMap((f) => { const text = root === null ? null : read(join(root, f)); return text === null ? [] : [[f, text]]; }));
+  const repo = Object.fromEntries([
+    ".claude/settings.json", ".claude/settings.local.json", ".codex/config.toml", ".grok/config.toml",
+    ".agents/hooks.json", ".agents/plugins.json", ".agent/hooks.json", ".agent/plugins.json",
+  ].flatMap((f) => { const text = root === null ? null : read(join(root, f)); return text === null ? [] : [[f, text]]; }));
+  const empty: MachineFiles = { claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null };
   const ids = gated({
     claude: p.shared.map(read), codexHooks: read(join(p.codexHome, "hooks.json")), codexConfig: read(join(p.codexHome, "config.toml")),
     grokConfig: read(join(p.grokHome, "config.toml")), agyHooks: read(join(p.plugin, "hooks.json")),
     agyConfig: read(join(p.home, ".gemini/config/config.json")), cursorHooks: read(join(p.home, ".cursor/hooks.json")),
   }, repo, p.data, trusts(p));
+  if (opencodeGated(p)) ids.add("opencode");
   if (process.env.GROK_CLAUDE_HOOKS_ENABLED === "0") ids.delete("grok");
-  // The project's own registration gates Claude Code here without a global one.
+  // The project's own registration gates Claude Code or Antigravity here without a global one.
   if (registered(repo[PROJECT_SETTINGS] ?? null, "project", p.data) && !Object.keys(repo).some((f) => f.startsWith(".claude/") && parse(repo[f]!)?.disableAllHooks === true)) ids.add("claude-code");
+  if (root !== null && registered(read(join(root, PROJECT_CURSOR_HOOKS)), "project-cursor", p.data)) ids.add("cursor");
+  if (registered(repo[PROJECT_AGY_HOOKS] ?? null, "project-agy", p.data) && drift(empty, repo, p.data, {}).length === 0) ids.add("agy");
   return new Set([...ids].flatMap((h) => BINARIES[h]));
 }
 
 // Present harness → its binary on the PATH, or null when only its home exists.
 function detect(p: Paths): Map<HarnessId, string | null> {
-  const homes: Record<HarnessId, string> = {
-    "claude-code": join(p.home, ".claude"), cursor: join(p.home, ".cursor"), grok: p.grokHome, codex: p.codexHome,
-    agy: join(p.home, ".gemini/antigravity-cli"),
+  const homes: Record<HarnessId, string[]> = {
+    "claude-code": [join(p.home, ".claude")], cursor: [join(p.home, ".cursor")], grok: [p.grokHome], codex: [p.codexHome],
+    agy: [join(p.home, ".gemini/antigravity-cli"), join(p.home, ".gemini/antigravity")],
+    opencode: [p.opencodeHome],
   };
   const found = new Map<HarnessId, string | null>();
   for (const h of Object.keys(HARNESSES) as HarnessId[]) {
     const bin = BINARIES[h].map((b) => which(b)).find((b) => b !== null) ?? null;
-    const entries = existsSync(homes[h]) ? readdirSync(homes[h]) : null;
-    if (bin !== null || (entries !== null && (entries.length === 0 || entries.some((name) => name !== "skills")))) found.set(h, bin);
+    const hasHome = homes[h].some((dir) => {
+      const entries = existsSync(dir) ? readdirSync(dir) : null;
+      return entries !== null && (entries.length === 0 || entries.some((name) => name !== "skills"));
+    });
+    if (bin !== null || hasHome) found.set(h, bin);
   }
   return found;
 }

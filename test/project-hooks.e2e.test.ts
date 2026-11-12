@@ -9,7 +9,7 @@ import pkg from "../package.json" with { type: "json" };
 import { engineAt } from "./compiled-engine.ts";
 import { enable } from "../src/consent.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
-import { merge } from "../src/register.ts";
+import { AGY_PROJECT_HOOK, agyPlugin, merge } from "../src/register.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -542,10 +542,10 @@ describe("pregate project hooks --harness codex", () => {
     const hooks = codexHooksOf(project).hooks as Record<string, Json[]>;
     const global = (JSON.parse(codexGlobalRegistration(i)) as Json).hooks as Record<string, Json[]>;
     expect(Object.keys(hooks).sort()).toEqual(Object.keys(global).sort());
-    expect(Object.keys(hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop"]);
+    expect(Object.keys(hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop", "SubagentStart", "SubagentStop"]);
     expect(hooks.PreToolUse![0]!.matcher).toBe(global.PreToolUse![0]!.matcher);
     expect(hooks.PreToolUse![0]!.matcher).toBe("^(apply_patch|Bash)$");
-    for (const [event, kind] of [["PreToolUse", "pre"], ["Stop", "stop"], ["SessionStart", "session-start"]] as const) {
+    for (const [event, kind] of [["PreToolUse", "pre"], ["Stop", "stop"], ["SessionStart", "session-start"], ["SubagentStart", "session-start"], ["SubagentStop", "stop"]] as const) {
       expect(hooks[event]).toHaveLength(1);
       expect(hooks[event]![0]!.matcher).toBe(global[event]![0]!.matcher);
       expect(hooks[event]![0]!.hooks[0].timeout).toBe(global[event]![0]!.hooks[0].timeout);
@@ -718,7 +718,7 @@ describe("pregate project hooks --harness codex", () => {
     expect(uninstall.code, `${uninstall.stdout}\n${uninstall.stderr}`).toBe(0);
     expect(tree()).toEqual(before);
     // uninstall removes the cached engines, so the registration is read from the file, not rerun.
-    expect(Object.keys(codexHooksOf(project).hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop"]);
+    expect(Object.keys(codexHooksOf(project).hooks).sort()).toEqual(["PreToolUse", "SessionStart", "Stop", "SubagentStart", "SubagentStop"]);
   });
 });
 
@@ -792,5 +792,342 @@ describe("doctor and status name the scope of the Codex registration", () => {
     const launcher = join(project, ".pregate/bin", WINDOWS ? "pregate.cmd" : "pregate");
     writeFileSync(launcher, `${readFileSync(launcher, "utf8")}\n`);
     expect(pregate(i, project, "doctor").stdout).toContain("ERROR: The project launcher in .pregate/bin differs from the reviewed template");
+  });
+});
+
+
+// Project-local Cursor registration (`pregate project hooks --harness cursor`): the project's own
+// .cursor/hooks.json, in Cursor's native format, runs the project launcher. No Cursor session runs
+// here: the registered command is run the way Cursor runs a project hook, from the project root with
+// CURSOR_PROJECT_DIR set, on payloads captured from cursor-agent 2026.11.11 (test/payloads/cursor).
+
+const CURSOR = ["project", "hooks", "--harness", "cursor"];
+const CURSOR_HOOKS = ".cursor/hooks.json";
+const CAPTURED = join(import.meta.dir, "payloads/cursor");
+
+function cursorHooksOf(project: string): Json {
+  return JSON.parse(readFileSync(join(project, CURSOR_HOOKS), "utf8")) as Json;
+}
+
+function cursorRegistered(i: Isolated, name: string, existing?: string): string {
+  const project = gitProject(i, name);
+  if (existing !== undefined) {
+    put(join(project, CURSOR_HOOKS), existing);
+    gitCommit(i, project, "cursor hooks of the team");
+  }
+  const out = pregate(i, project, ...CURSOR, "--yes");
+  expect(out.code, `${out.stdout}\n${out.stderr}`).toBe(0);
+  return project;
+}
+
+function cursorHandler(project: string, event: string): string {
+  const ours = (cursorHooksOf(project).hooks[event] as Json[]).filter((h) => commandScript(h.command).includes(".pregate/bin/"));
+  expect(ours).toHaveLength(1);
+  return ours[0]!.command;
+}
+
+// A captured payload moved onto this project, with the tool and input of the case.
+function cursorPayload(project: string, file: string, tool?: { name: string; input: Json }): string {
+  const text = readFileSync(join(CAPTURED, file), "utf8").replaceAll("/home/user/project", project.replaceAll("\\", "/"));
+  const p = JSON.parse(text) as Json;
+  return JSON.stringify(tool === undefined ? p : { ...p, tool_name: tool.name, tool_input: tool.input });
+}
+
+function cursorHook(i: Isolated, command: string, project: string, payload: string): Out {
+  const shell = WINDOWS ? [join(SYSTEM_ROOT, "System32", "cmd.exe"), "/d", "/s", "/c", command] : ["/bin/sh", "-c", command];
+  const env = { ...i.env, PREGATE_TESTING: "1", CURSOR_PROJECT_DIR: project, CLAUDE_PROJECT_DIR: project };
+  const r = Bun.spawnSync(shell, { cwd: project, env, stdin: Buffer.from(payload), stdout: "pipe", stderr: "pipe", timeout: 120_000 });
+  return { code: r.exitCode, stdout: r.stdout.toString(), stderr: r.stderr.toString() };
+}
+
+const denied = (out: Out): string | null => {
+  const reply = (JSON.parse(out.stdout.trim() || "{}") as Json).hookSpecificOutput;
+  return reply?.permissionDecision === "deny" ? reply.permissionDecisionReason as string : null;
+};
+
+describe("pregate project hooks --harness cursor", () => {
+  test("registers Cursor's native events in the project, on the project launcher, after a review", () => {
+    const i = isolated();
+    const project = gitProject(i, "repo");
+    const preview = pregate(i, project, ...CURSOR, "--preview");
+    expect(preview.code, `${preview.stdout}\n${preview.stderr}`).toBe(0);
+    expect(preview.stdout).toContain("Digest: ");
+    expect(preview.stdout).toContain("Cursor runs project hooks only in a trusted workspace.");
+    expect(existsSync(join(project, CURSOR_HOOKS))).toBe(false);
+    expect(pregate(i, project, ...CURSOR, "--yes").code).toBe(0);
+    const file = cursorHooksOf(project);
+    expect(file.version).toBe(1);
+    expect(Object.keys(file.hooks).sort()).toEqual(["preToolUse", "sessionStart", "stop"]);
+    const pre = (file.hooks.preToolUse as Json[])[0]!;
+    expect(pre).toMatchObject({ matcher: "^(Write|Delete|Shell)$|^MCP:", timeout: 120 });
+    // Under failClosed Cursor blocks an empty reply, which is how the gate allows (MH-28c).
+    expect(pre.failClosed).toBeUndefined();
+    expect(file.hooks.stop[0]).toMatchObject({ timeout: 60, loop_limit: null });
+    expect(file.hooks.sessionStart[0].timeout).toBe(15);
+    for (const [event, kind] of [["preToolUse", "pre"], ["stop", "stop"], ["sessionStart", "session-start"]] as const) {
+      const script = commandScript(cursorHandler(project, event));
+      expect(script).toContain("CURSOR_PROJECT_DIR");
+      expect(script).toContain(WINDOWS ? ".pregate/bin/project-launcher.ps1" : "/.pregate/bin/pregate");
+      expect(script).toContain(`hook ${kind} --harness cursor`);
+      for (const machine of [i.home, i.data, project]) {
+        expect(script).not.toContain(machine);
+        expect(script).not.toContain(machine.replaceAll("\\", "/"));
+      }
+    }
+    expect(existsSync(join(project, SETTINGS))).toBe(false);
+    expect(existsSync(join(i.home, ".cursor"))).toBe(false);
+  });
+
+  test("keeps foreign hooks in place and unknown keys, and a second run changes no byte", () => {
+    const i = isolated();
+    const foreign = {
+      version: 1,
+      teamKey: { nested: [1, "two", null] },
+      hooks: {
+        preToolUse: [{ command: "sh .cursor/hooks/audit.sh", timeout: 10 }],
+        afterFileEdit: [{ command: "npx prettier --write" }],
+      },
+    };
+    const project = cursorRegistered(i, "repo", JSON.stringify(foreign, null, 4));
+    const once = readFileSync(join(project, CURSOR_HOOKS), "utf8");
+    const after = JSON.parse(once) as Json;
+    expect(after.teamKey).toEqual(foreign.teamKey);
+    expect(after.hooks.afterFileEdit).toEqual(foreign.hooks.afterFileEdit);
+    expect(after.hooks.preToolUse[0]).toEqual(foreign.hooks.preToolUse[0]);
+    expect(after.hooks.preToolUse).toHaveLength(2);
+    const again = pregate(i, project, ...CURSOR, "--yes");
+    expect(again.stdout).toContain("nothing changed");
+    expect(readFileSync(join(project, CURSOR_HOOKS), "utf8")).toBe(once);
+  });
+
+  test("the registered preToolUse command judges captured Cursor writes and MCP calls, with no global launcher", () => {
+    const i = isolated();
+    const project = cursorRegistered(i, "repo");
+    const command = cursorHandler(project, "preToolUse");
+    const target = join(project, INVOICE_REL);
+    const write = (content: string) => cursorPayload(project, "pre-write-strreplace-1111.json", { name: "Write", input: { file_path: target, content } });
+    const blocked = cursorHook(i, command, project, write(SETTER));
+    expect(blocked.code, `${blocked.stdout}\n${blocked.stderr}`).toBe(0);
+    expect(denied(blocked)).toContain("ddd/DDD-ENT-001");
+    const allowed = cursorHook(i, command, project, write(QUERY));
+    expect(allowed.code, `${allowed.stdout}\n${allowed.stderr}`).toBe(0);
+    expect(denied(allowed)).toBeNull();
+    // An MCP call that names no local file is not judged; one that names the contract or a file in scope is.
+    const mcp = (input: Json) => cursorPayload(project, "pre-mcp-1111.json", { name: "MCP:write_note", input });
+    const remote = cursorHook(i, command, project, mcp({ title: "Fix login", body: "see src/domain/invoice.ts" }));
+    expect(remote.code).toBe(0);
+    expect(remote.stdout.trim()).toBe("");
+    const policy = cursorHook(i, command, project, mcp({ path: join(project, ".pregate/preset.json"), text: "{}" }));
+    expect(denied(policy)).toContain("protected");
+    const source = cursorHook(i, command, project, mcp({ path: target, text: SETTER }));
+    expect(denied(source)).toContain("cannot evaluate this edit");
+    for (const out of [blocked, allowed, remote, policy, source]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
+    expect(readFileSync(target, "utf8")).toBe(INVOICE);
+    rmSync(join(project, ".pregate/bin"), { recursive: true, force: true });
+    const noLauncher = cursorHook(i, command, project, write(QUERY));
+    expect(noLauncher.code).toBe(2);
+    expect(noLauncher.stderr).toContain("the project launcher is missing");
+  });
+});
+
+describe("doctor and status name the scope of the Cursor registration", () => {
+  const scopeLine = (out: Out) => out.stdout.split("\n").filter((line) => line.includes("Cursor hooks:"));
+  const status = (i: Isolated, cwd: string) => JSON.parse(pregate(i, cwd, "status", "--json").stdout) as Json;
+
+  test("neither, project-local only, both, and global only are four distinct reports", () => {
+    const i = isolated();
+    const project = gitProject(i, "repo");
+    expect(scopeLine(pregate(i, project, "doctor"))).toEqual([expect.stringContaining("INFO: Cursor hooks: neither project-local nor global.")]);
+    expect(status(i, project).cursorHooks).toBe("none");
+
+    expect(pregate(i, project, ...CURSOR, "--yes").code).toBe(0);
+    const local = pregate(i, project, "doctor");
+    expect(scopeLine(local)).toEqual([expect.stringContaining("Cursor hooks: project-local only.")]);
+    expect(local.stdout).toContain(`Project launcher matches the reviewed template and engine ${PIN} is cached.`);
+    expect(local.stdout).not.toContain("ERROR:");
+    expect(local.code, local.stdout).toBe(0);
+    const report = status(i, project);
+    expect(report.cursorHooks).toBe("project");
+    expect(report.harnesses.find((h: Json) => h.id === "cursor").configured).toBe(true);
+    expect(pregate(i, project, "status").stdout).toContain("Cursor hooks are project-local; Cursor runs them in a trusted workspace.");
+
+    put(join(i.home, ".cursor/hooks.json"), merge(null, "cursor", i.data.replaceAll("\\", "/"))!);
+    const both = pregate(i, project, "doctor");
+    expect(scopeLine(both)).toEqual([expect.stringContaining("WARNING: Cursor hooks: project-local and global.")]);
+    expect(scopeLine(both)[0]).toContain("every tool call is evaluated twice");
+    expect(status(i, project).cursorHooks).toBe("both");
+
+    const other = gitProject(i, "other");
+    expect(scopeLine(pregate(i, other, "doctor"))).toEqual([expect.stringContaining("INFO: Cursor hooks: global only")]);
+    expect(status(i, other).cursorHooks).toBe("global");
+  });
+
+  test("Cursor also runs the project's Claude Code registration: alone it is named, beside the native one it is a double", () => {
+    const i = isolated();
+    const project = registered(i, "repo");
+    expect(scopeLine(pregate(i, project, "doctor"))).toEqual([expect.stringContaining("INFO: Cursor hooks: project-local through .claude/settings.json, which Cursor imports")]);
+    expect(status(i, project).cursorHooks).toBe("project");
+    expect(pregate(i, project, ...CURSOR, "--yes").code).toBe(0);
+    const double = scopeLine(pregate(i, project, "doctor"));
+    expect(double).toEqual([expect.stringContaining("WARNING: Cursor hooks: .cursor/hooks.json and .claude/settings.json of this project both register PREGATE")]);
+    expect(double[0]).toContain("every tool call is evaluated twice");
+    expect(status(i, project).cursorHooks).toBe("both");
+  });
+
+  test("doctor names a modified registration", () => {
+    const i = isolated();
+    const project = cursorRegistered(i, "repo");
+    const edited = cursorHooksOf(project);
+    edited.hooks.preToolUse[0].matcher = "^Write$";
+    writeFileSync(join(project, CURSOR_HOOKS), JSON.stringify(edited, null, 2));
+    const modified = pregate(i, project, "doctor");
+    expect(modified.code).toBe(1);
+    expect(modified.stdout).toContain("ERROR: .cursor/hooks.json: PREGATE project hooks are missing, modified or written for another platform");
+    expect(modified.stdout).not.toContain("project-local only");
+  });
+});
+
+// ── Project-local Antigravity registration (`pregate project hooks --harness agy`) ───────
+
+const AGY = ["project", "hooks", "--harness", "agy"];
+const AGY_HOOKS = ".agents/hooks.json";
+
+function agyHooksOf(project: string): Json {
+  return JSON.parse(readFileSync(join(project, AGY_HOOKS), "utf8")) as Json;
+}
+
+function agyRegistered(i: Isolated, name: string, existing?: string): string {
+  const project = gitProject(i, name);
+  if (existing !== undefined) {
+    put(join(project, AGY_HOOKS), existing);
+    gitCommit(i, project, "agy hooks of the team");
+  }
+  const out = pregate(i, join(project, BELOW), ...AGY, "--yes");
+  expect(out.code, `${out.stdout}\n${out.stderr}`).toBe(0);
+  return project;
+}
+
+function agyHandler(project: string, event: "PreToolUse" | "PostInvocation" | "Stop" | "SessionStart"): string {
+  const entry = agyHooksOf(project)[AGY_PROJECT_HOOK];
+  return event === "PreToolUse" ? entry.PreToolUse[0].hooks[0].command : entry[event][0].command;
+}
+
+function agyWritePayload(project: string, file: string, content: string, stepIdx = 2, sid = "00000000-0000-4000-8000-000000000099"): string {
+  return JSON.stringify({
+    conversationId: sid,
+    cwd: project,
+    hookEventName: "PreToolUse",
+    stepIdx,
+    toolCall: { id: `call_${stepIdx}`, name: "write_file", args: { Path: join(project, file), Content: content, Overwrite: true } },
+    workspacePaths: [project],
+  });
+}
+
+function agyPostInvocationPayload(project: string, sid = "00000000-0000-4000-8000-000000000099"): string {
+  return JSON.stringify({
+    conversationId: sid,
+    cwd: project,
+    hookEventName: "PostInvocation",
+    invocationNum: 0,
+    workspacePaths: [project],
+  });
+}
+
+describe("pregate project hooks --harness agy", () => {
+  test("registers pregate-project in .agents/hooks.json after a review, keeps foreign named hooks, and is idempotent", () => {
+    const i = isolated();
+    const foreign = { "team-audit": { enabled: true, PreToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "sh scripts/audit.sh" }] }] } };
+    const project = gitProject(i, "repo");
+    put(join(project, AGY_HOOKS), JSON.stringify(foreign, null, 4));
+    gitCommit(i, project, "foreign agy hook");
+    const preview = pregate(i, join(project, BELOW), ...AGY, "--preview");
+    expect(preview.code, `${preview.stdout}\n${preview.stderr}`).toBe(0);
+    expect(preview.stdout).toContain("Digest: ");
+    expect(JSON.parse(readFileSync(join(project, AGY_HOOKS), "utf8"))).toEqual(foreign);
+    const applied = pregate(i, join(project, BELOW), ...AGY, "--yes");
+    expect(applied.code, `${applied.stdout}\n${applied.stderr}`).toBe(0);
+    const once = readFileSync(join(project, AGY_HOOKS), "utf8");
+    const parsed = JSON.parse(once) as Json;
+    expect(parsed["team-audit"]).toEqual(foreign["team-audit"]);
+    expect(Object.keys(parsed[AGY_PROJECT_HOOK]).sort()).toEqual(["PostInvocation", "PreToolUse", "SessionStart", "Stop", "enabled"]);
+    expect(parsed[AGY_PROJECT_HOOK].PreToolUse[0].matcher).toContain("manage_task");
+    for (const event of ["PreToolUse", "PostInvocation", "Stop", "SessionStart"] as const) {
+      const script = commandScript(agyHandler(project, event));
+      for (const machine of [i.home, i.data, project]) {
+        expect(script).not.toContain(machine);
+        expect(script).not.toContain(machine.replaceAll("\\", "/"));
+      }
+    }
+    const again = pregate(i, project, ...AGY, "--yes");
+    expect(again.code).toBe(0);
+    expect(again.stdout).toContain("nothing changed");
+    expect(readFileSync(join(project, AGY_HOOKS), "utf8")).toBe(once);
+  });
+
+  test("executes PreToolUse from .agents/ cwd and from outside via workspacePaths, and delivers warnings and halts on PostInvocation", () => {
+    const i = isolated();
+    const project = agyRegistered(i, "repo");
+    const pre = agyHandler(project, "PreToolUse");
+    const post = agyHandler(project, "PostInvocation");
+    const agentsDir = join(project, ".agents");
+
+    // Denied from .agents/ (Antigravity's workspace hook working directory) and from outside via workspacePaths[0].
+    const deniedFromAgents = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER), null);
+    expect(deniedFromAgents.code).toBe(0);
+    expect(JSON.parse(deniedFromAgents.stdout)).toMatchObject({ decision: "deny" });
+    expect(deniedFromAgents.stdout).toContain("ddd/DDD-ENT-001");
+
+    const deniedFromOutside = hook(i, pre, join(i.root, "tmp"), agyWritePayload(project, INVOICE_REL, SETTER, 3), null);
+    expect(deniedFromOutside.code).toBe(0);
+    expect(JSON.parse(deniedFromOutside.stdout)).toMatchObject({ decision: "deny" });
+
+    const allowed = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, QUERY, 4), null);
+    expect(allowed.code).toBe(0);
+    expect(allowed.stdout).toBe("");
+
+    // Repeated denials reach maxDenialsPerTurn -> PostInvocation emits errorMessage + terminationBehavior: "terminate".
+    const haltSid = "00000000-0000-4000-8000-0000000000aa";
+    for (let step = 1; step <= 4; step++) {
+      hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER, step, haltSid), null);
+    }
+    const halted = hook(i, post, agentsDir, agyPostInvocationPayload(project, haltSid), null);
+    expect(halted.code).toBe(0);
+    const haltedJson = JSON.parse(halted.stdout) as Json;
+    expect(haltedJson.terminationBehavior).toBe("terminate");
+    expect(haltedJson.injectSteps[0].errorMessage.userMessage).toContain("PREGATE stopped the turn");
+
+    // Advisor mode: PreToolUse stays silent (stdout === "") and PostInvocation injects systemMessage warning.
+    const presetPath = join(project, ".pregate/preset.json");
+    put(presetPath, JSON.stringify({ ...JSON.parse(readFileSync(presetPath, "utf8")), enforcement: "advisor" }));
+    expect(pregate(i, project, "preset", "compile", "--yes").code).toBe(0);
+    gitCommit(i, project, "advisor");
+    const warnSid = "00000000-0000-4000-8000-0000000000bb";
+    const warnPre = hook(i, pre, agentsDir, agyWritePayload(project, INVOICE_REL, SETTER, 1, warnSid), null);
+    expect(warnPre.code).toBe(0);
+    expect(warnPre.stdout).toBe("");
+    const warnPost = hook(i, post, agentsDir, agyPostInvocationPayload(project, warnSid), null);
+    expect(warnPost.code).toBe(0);
+    expect(JSON.parse(warnPost.stdout).injectSteps[0].systemMessage.systemMessage).toContain("ddd/DDD-ENT-001");
+  });
+
+  test("doctor and status report Antigravity scope across none, project, both, and global", () => {
+    const i = isolated();
+    const project = gitProject(i, "repo");
+    const status = (cwd: string) => JSON.parse(pregate(i, cwd, "status", "--json").stdout) as Json;
+    expect(status(project).agyHooks).toBe("none");
+
+    expect(pregate(i, project, ...AGY, "--yes").code).toBe(0);
+    expect(status(project).agyHooks).toBe("project");
+    expect(status(project).harnesses.find((h: Json) => h.id === "agy").configured).toBe(true);
+    expect(pregate(i, project, "doctor").stdout).toContain("Antigravity hooks: project-local only.");
+
+    const pluginDir = join(i.home, ".gemini/config/plugins/pregate-global");
+    for (const [f, text] of Object.entries(agyPlugin(i.data.replaceAll("\\", "/"), pkg.version))) put(join(pluginDir, f), text);
+    expect(status(project).agyHooks).toBe("both");
+    expect(pregate(i, project, "doctor").stdout).toContain("WARNING: Antigravity hooks: project-local and global.");
+
+    const other = gitProject(i, "other");
+    expect(status(other).agyHooks).toBe("global");
+    expect(pregate(i, other, "doctor").stdout).toContain("INFO: Antigravity hooks: global only");
   });
 });

@@ -3,9 +3,10 @@
 // The absolute 150 ms budget stays the reference machine's; this gate is the CI regression check.
 
 export const REGRESSION = 1.55;
-export const BENCH_USAGE = "usage: bench.ts [--runs N≥25] [--repeat K≥1] [--inform] [--gate <file>] [--against <checkout> [--against-label <name>]] [--only <route>]...";
+export const BENCH_USAGE = "usage: bench.ts [--harness claude-code|codex] [--runs N≥25] [--repeat K≥1] [--inform] [--gate <file>] [--against <checkout> [--against-label <name>]] [--only <route>]...";
 
 export interface BenchOptions {
+  harness: "claude-code" | "codex";
   runs: number;
   repeat: number;
   inform: boolean;
@@ -84,11 +85,12 @@ export function formatDifferential(label: string, rows: Differential[]): string 
 }
 
 export function parseBenchArgs(args: string[]): BenchOptions {
-  const out: BenchOptions = { runs: 30, repeat: 1, inform: false, gate: null, against: null, againstLabel: null, only: [] };
+  const out: BenchOptions = { harness: "claude-code", runs: 30, repeat: 1, inform: false, gate: null, against: null, againstLabel: null, only: [] };
   const rest = [...args];
   while (rest.length) takeFlag(out, rest);
   if (!Number.isInteger(out.runs) || out.runs < 25 || !Number.isInteger(out.repeat) || out.repeat < 1) throw new Error(BENCH_USAGE);
   if (out.againstLabel !== null && out.against === null) throw new Error(BENCH_USAGE);
+  if (out.harness === "codex" && out.gate !== null) throw new Error("Codex routes need their own measured baseline; the Claude Code gate cannot certify them.");
   return out;
 }
 
@@ -121,6 +123,11 @@ export function formatGate(decision: GateDecision): string {
 function takeFlag(out: BenchOptions, rest: string[]): void {
   const flag = rest.shift() ?? "";
   if (flag === "--inform") out.inform = true;
+  else if (flag === "--harness") {
+    const harness = required(rest, flag);
+    if (harness !== "claude-code" && harness !== "codex") throw new Error(BENCH_USAGE);
+    out.harness = harness;
+  }
   else if (flag === "--runs") out.runs = integerAtLeast(required(rest, flag), 25, flag);
   else if (flag === "--repeat") out.repeat = integerAtLeast(required(rest, flag), 1, flag);
   else if (flag === "--gate") out.gate = required(rest, flag);

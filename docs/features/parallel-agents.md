@@ -20,17 +20,38 @@ is skipped at Stop.
 
 ## Subagents are checked when they finish
 
-In Claude Code, `SubagentStop` checks each subagent on the files it edited, when it
+In Claude Code and Codex, `SubagentStop` checks each subagent on the files it edited, when it
 finishes. A subagent that leaves broken code is told to repair it before it returns.
-The parent's Stop leaves out files a subagent is still editing, so a background agent's
+Claude Code's parent Stop leaves out files a subagent is still editing, so a background agent's
 unfinished work never blocks the parent. Once the subagent has finished, its files
-count as the parent's again. Pre checks still run on every edit, whichever agent
-makes it. Other harnesses have no subagent Stop: their parent Stop judges all of the
-session's files, as before.
+count as the parent's again. Codex's parent Stop continues to check the whole session, so an
+older or disabled child hook cannot hide a child's changes. Pre checks still run on every edit,
+whichever agent makes it. Cursor and agy have no subagent Stop: their parent Stop judges all of
+the session's files. In Grok, SubagentStop is the child session's Stop. The child has its own
+session id, so the check covers every file of that session. The parent's Stop does not see the
+child's files.
+
+Codex also registers `SubagentStart`. The child receives the bounded contract
+briefing, workspace root and exact-patch guidance without a promotion or setup
+notice. It shares the parent's retained snapshot; starting a child never accepts
+new debt as its baseline. An older pinned engine receives neither new child
+lifecycle event: its existing Pre and parent Stop checks continue to apply.
+Updating the Codex hook definitions requires review again in `/hooks`.
+Codex child commands also cause review of changed files without an edit-tool
+owner in roots those commands visited. This is conservative coverage, not proof
+of who authored a runtime write; files owned by another agent remain excluded
+from the child's check.
 
 `pregate update` registers `SubagentStop`; `pregate doctor` reports an older
 registration. A live session checked this on 2026-10-12. A subagent's isolated worktree
 was protected by inherited consent, and its SubagentStop ran on that worktree alone.
+
+On 2026-11-11, `PREGATE_REAL=1 bun scripts/e2e-real.ts --project-hooks-only codex`
+passed on Codex CLI 0.167.1, macOS arm64. A real child received the contract,
+installed a known invalid fixture through a command, was blocked by its own
+SubagentStop, repaired the file and completed. Captured native hook input/output
+and state events distinguish the child's deny and successful completion. This
+does not establish the interactive trust UI or native Windows harness behavior.
 
 ## Subagents start with the project's rules
 
@@ -53,8 +74,8 @@ the first line of the briefing, and its task did not carry that line.
 
 Cursor and Grok read the same settings file. Whether they dispatch this event from it
 is not established. If one does, the command exits 0 with no output, and that harness
-behaves as before. Codex and Antigravity have their own registrations, which did not
-change.
+behaves as before. Codex and Antigravity have their own registrations; this Claude
+Code event does not alter them.
 
 ## Branch switches, pulls and merges
 

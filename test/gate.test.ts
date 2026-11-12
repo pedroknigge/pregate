@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeEach, describe, expect, setDefaultTimeout, spyOn, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
 import { enable, disable, enabled } from "../src/consent.ts";
-import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
+import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPostInvocation, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { decode as claude } from "../src/harness/claude.ts";
 import { decode as codex } from "../src/harness/codex.ts";
 import * as state from "../src/state.ts";
@@ -340,6 +340,55 @@ test("a literal cat call reads the installed skill file, alone or in a sequence,
   symlinkSync(dirname(secret), linked);
   expect(command(`cat ${join(linked, "SKILL.md")}`).cause).toBe("protected-path");
   for (const file of skills.filter(f => !f.startsWith(linked))) expect(readFileSync(file, "utf8")).toBe("name: pregate\n");
+});
+
+test("a project script as it was when the session began runs; one the session changed, added or committed is read for sinks", () => {
+  const root = repo("scripts");
+  const writer = "const fs = require('node:fs');\nfs.writeFileSync('out.txt', 'x');\n";
+  put(join(root, "scripts/gen.js"), writer);
+  put(join(root, "src/domain/a.test.js"), "import { test } from 'node:test';\nimport vm from 'node:vm';\nimport { a } from './a.js';\ntest('a', () => vm.runInNewContext('1') && a);\n");
+  git(root, "add", "."); git(root, "commit", "-qm", "scripts");
+  const run = (s: Session, text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
+  for (const harness of ["claude-code", "codex", "cursor", "grok", "agy"] as const) {
+    const s = session(harness, `scripts-${harness}`);
+    for (const text of ["node scripts/gen.js", "node src/domain/a.test.js", "node --test src/domain/a.test.js", "bun scripts/gen.js"])
+      expect(run(s, text).verdict, `${harness}: ${text}`).toBe("none");
+  }
+  const s = session("claude-code", "scripts-changed");
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
+  // Changed in the session, by any route: the text is no longer the session's base.
+  put(join(root, "scripts/gen.js"), `${writer}fs.writeFileSync('src/domain/a.ts', 'x');\n`);
+  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  // Committed in the session: the base is the commit the session began on.
+  git(root, "add", "."); git(root, "commit", "-qm", "changed in the session");
+  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  // Restored to the base text: the project's program again.
+  put(join(root, "scripts/gen.js"), writer);
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
+  // New in the session, in the project or outside every root.
+  put(join(root, "scripts/new.js"), writer);
+  put(join(area, "outside-writer.js"), writer);
+  expect(run(s, "node scripts/new.js").cause).toBe("shell-write");
+  expect(run(s, `node '${join(area, "outside-writer.js")}'`).cause).toBe("shell-write");
+  // A new test file with literal imports of modules that do not write runs; one that imports a writer does not.
+  put(join(root, "src/domain/b.test.js"), "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from './a.js';\ntest('a', () => assert.equal(a, 1));\n");
+  put(join(root, "src/domain/c.test.js"), "import { test } from 'node:test';\nimport { writeFileSync } from 'node:fs';\ntest('c', () => writeFileSync('src/domain/a.ts', 'x'));\n");
+  expect(run(s, "node --test src/domain/b.test.js").verdict).toBe("none");
+  expect(run(s, "node --test src/domain/c.test.js").cause).toBe("shell-write");
+  // A project test file that already imports `vm`, edited in the session: it runs while it gains no sink.
+  const tested = join(root, "src/domain/a.test.js"), base = readFileSync(tested, "utf8");
+  put(tested, `${base}test('more', () => a === 1);\n`);
+  expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
+  put(tested, `${base}test('more', () => vm.runInNewContext('2'));\n`);
+  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
+  put(tested, `${base}import { writeFileSync } from 'node:fs';\n`);
+  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
+  put(tested, base);
+  // An unchanged script that names a control command is still denied: only the write sink is forgiven.
+  const other = repo("scripts-control");
+  put(join(other, "scripts/off.js"), "require('node:child_process').execSync('pregate uninstall');\n");
+  git(other, "add", "."); git(other, "commit", "-qm", "control");
+  expect(onPreCommand({ session: session("claude-code", "scripts-control"), callId: "off", tool: "Bash", cwd: other, command: "node scripts/off.js" }).verdict).toBe("deny");
 });
 
 test("Claude Code SubagentStart payloads decode as the subagent's session start and reply under that event name", () => {
@@ -891,18 +940,20 @@ test("an agent's isolated worktree inside the project is protected by its own co
   expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).verdict).toBe("none");
 });
 
-test("Claude Code subagents: SubagentStop judges the agent's own files and the parent's Stop waits for agents still working", async () => {
-  const root = repo("subagents");
-  const parent = session("claude-code", "subagents");
+test.each(["claude-code", "codex"] as const)("%s subagents: child checks are scoped and the parent's existing backstop is retained", async (harness) => {
+  const root = repo(`subagents-${harness}`);
+  const parent = session(harness, `subagents-${harness}`);
   const agent = { ...parent, agentId: "worker" };
-  const stop = (s: Session) => onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+  let turn = 0;
+  const stop = (s: Session) => onStop({ kind: "stop", session: { ...s, turnId: `scope-${++turn}` }, cwd: root, reentry: false });
   onSessionStart({ kind: "session-start", session: parent, cwd: root });
   expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, agent)])).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
-  expect((await stop(parent)).verdict).toBe("none");
+  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
   expect((await stop({ ...parent, agentId: "reader" })).verdict).toBe("none");
   expect((await stop(agent)).cause).toBe("syntax");
-  expect((await stop(parent)).verdict).toBe("none");
+  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
+  if (harness === "codex") put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
   expect((await onPreEdit([change(root, "src/domain/c.ts", { form: "full", content: "export const c = 1;\n" }, parent)])).verdict).toBe("none");
   put(join(root, "src/domain/c.ts"), "export const c = ;\n");
   const own = await stop(parent);
@@ -913,9 +964,29 @@ test("Claude Code subagents: SubagentStop judges the agent's own files and the p
   expect((await stop(agent)).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
   expect((await stop(parent)).cause).toBe("syntax");
-  const codex = { ...session("codex", "subagents-codex"), agentId: "worker" };
-  expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 3;\n" }, codex)])).verdict).toBe("none");
-  expect((await onStop({ kind: "stop", session: { ...codex, agentId: null }, cwd: root, reentry: false })).cause).toBe("syntax");
+  // Harnesses without a verified SubagentStop still judge all files at the parent's Stop.
+  for (const other of ["cursor", "grok", "agy"] as const) {
+    const worker = { ...session(other, `subagents-${harness}-${other}`), agentId: "worker" };
+    expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 3;\n" }, worker)])).verdict).toBe("none");
+    expect((await stop({ ...worker, agentId: null })).cause).toBe("syntax");
+  }
+});
+
+test("Codex child commands review unattributed runtime changes without charging another agent's edits", async () => {
+  const root = repo("codex-child-command"), parent = session("codex", "child-command");
+  const child = { ...parent, agentId: "worker" };
+  onSessionStart({ kind: "session-start", session: parent, cwd: root });
+  expect(onPreCommand({ session: child, tool: "Bash", callId: "runtime", cwd: root, command: "git status --short" }).verdict).toBe("none");
+  expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, parent)])).verdict).toBe("none");
+  put(join(root, "src/domain/a.ts"), "export const a = ;\n");
+  put(join(root, "src/domain/runtime.ts"), "export const runtime = ;\n");
+  const blocked = await onStop({ kind: "stop", session: child, cwd: root, reentry: false });
+  expect(blocked.cause).toBe("syntax");
+  expect(blocked.full).toContain("runtime.ts");
+  expect(blocked.full).not.toContain("src/domain/a.ts");
+  put(join(root, "src/domain/runtime.ts"), "export const runtime = 1;\n");
+  expect((await onStop({ kind: "stop", session: child, cwd: root, reentry: false })).verdict).toBe("none");
+  expect((await onStop({ kind: "stop", session: parent, cwd: root, reentry: false })).cause).toBe("syntax");
 });
 
 test("Stop does not charge the session for a branch that existed before it; commits made during it stay its own", async () => {
@@ -1074,14 +1145,17 @@ describe("#62: merge attribution", () => {
   });
 });
 
-test("Claude Code SubagentStop payloads decode as the subagent's Stop", () => {
+test("SubagentStop: Claude Code scopes the agent, Grok judges the child session, Cursor stays ignored", () => {
   const env = { grokEvent: null, projectDir: null, remote: false };
   const base = { session_id: "s", cwd: "/repo", stop_hook_active: false };
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "SubagentStop", agent_id: "a1", agent_type: "general-purpose" }), env))
     .toMatchObject({ kind: "stop", session: { agentId: "a1", interactive: false }, reentry: false });
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "SubagentStop" }), env)).toMatchObject({ cause: "payload-unrecognized" });
   expect(claude("stop", JSON.stringify({ ...base, hook_event_name: "Stop", agent_id: "a1" }), env)).toMatchObject({ cause: "payload-unrecognized" });
-  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo" }), env)).toBeNull();
+  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo" }), env))
+    .toMatchObject({ cause: "payload-unrecognized" });
+  expect(HARNESSES.grok.decode("stop", JSON.stringify({ hookEventName: "subagent_stop", sessionId: "s", cwd: "/repo", stopHookActive: false }), env))
+    .toMatchObject({ kind: "stop", session: { id: "s", harness: "grok", agentId: null }, cwd: "/repo", reentry: false });
   expect(HARNESSES.cursor.decode("stop", JSON.stringify({ hook_event_name: "subagentStop", conversation_id: "s" }), env)).toBeNull();
 });
 
@@ -1140,7 +1214,7 @@ test("Cursor Stop followups share the cap despite new generation IDs, and reset 
   expect((await stop("generation-5")).verdict).toBe("deny");
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop even when the adapter cannot display it", async (harness) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s records incomplete Stop and uses only its supported notice channel", async (harness) => {
   const root = repo();
   const s = session(harness);
   onSessionStart({ kind: "session-start", session: s, cwd: root });
@@ -1153,8 +1227,10 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s record
   expect(last.stopIncomplete).toEqual({ reason: "limit", cause: null });
   const emission = HARNESSES[harness].encode("stop", last);
   expect(emission.exit).toBe(0);
-  if (harness === "claude-code") expect(emission.stdout).toContain("pregate report --json");
-  else expect(emission.stdout).toBe("");
+  if (harness === "claude-code" || harness === "codex") {
+    expect(JSON.parse(emission.stdout)).toEqual({ systemMessage: last.notice });
+    expect(emission.stdout).toContain("pregate report --json");
+  } else expect(emission.stdout).toBe("");
   const result = JSON.parse(report(["--repo", root, "--json"]).text);
   expect(result.incompleteStops).toHaveLength(1);
   expect(result.incompleteStops[0]).toMatchObject({ session: state.key(s), reason: "limit", cause: null });
@@ -1646,4 +1722,59 @@ test("SessionStart raises a promotion once a day when advisor rules stayed clean
   expect(nudged).toContain("`pregate promote --preview`");
   expect((await sessionStart(start)).full).not.toContain("Promotion ready");
   expect(onSessionStart(start).full).not.toContain("Promotion ready");
+});
+
+test("agy queues Pre warnings and halt notices for PostInvocation, clears stale entries on Stop, and protects Antigravity configs", async () => {
+  const root = repo("agy-post"), s = session("agy", "agy-conv");
+  const postEvent = { kind: "post-invocation" as const, session: s, cwd: root };
+  onSessionStart({ kind: "session-start", session: s, cwd: root });
+  expect(inert(postEvent)).toBe(true);
+
+  const advisorText = JSON.stringify({ ...JSON.parse(readFileSync(join(root, PRESET), "utf8")), enforcement: "advisor" });
+  const advisorCompiled = compile(advisorText, sourcesOf(root), VERSIONS);
+  if ("errors" in advisorCompiled) throw new Error(advisorCompiled.errors.join("\n"));
+  put(join(root, PRESET), advisorText); put(join(root, LOCK), advisorCompiled.text);
+  git(root, "add", "."); git(root, "commit", "-qm", "advisor");
+
+  const setterViolation = "export class Invoice {\n  constructor(readonly id: string, private customer: string) {}\n  setCustomer(c: string): void { this.customer = c; }\n}\n";
+  const preWarn = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: "1" }]);
+  expect(preWarn.verdict).toBe("none");
+  expect(inert(postEvent)).toBe(false);
+  const drainedWarn = onPostInvocation(postEvent);
+  expect(drainedWarn.verdict).toBe("none");
+  expect(drainedWarn.halt).toBe(false);
+  expect(drainedWarn.full).toContain("ddd/DDD-ENT-001");
+  expect(inert(postEvent)).toBe(true);
+  expect(onPostInvocation(postEvent).full).toBe("");
+
+  // Restore enforce mode and trigger file-rule retry limit halt.
+  preset(root);
+  git(root, "add", "."); git(root, "commit", "-qm", "enforce");
+  let halted = false;
+  for (let i = 1; i <= 5; i++) {
+    const d = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: `deny-${i}` }]);
+    if (d.halt) { halted = true; break; }
+  }
+  expect(halted).toBe(true);
+  const drainedHalt = onPostInvocation(postEvent);
+  expect(drainedHalt.halt).toBe(true);
+  expect(drainedHalt.notice).toContain("PREGATE stopped the turn");
+
+  // Stale PostInvocation items are cleared when Stop completes a turn.
+  await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: setterViolation }, s), callId: "stale-halt" }]);
+  await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+  expect(inert(postEvent)).toBe(true);
+
+  // Mutating Antigravity plugin or IDE settings (and even reading pregate-global) is denied as protected-path.
+  const pluginHooks = join(process.env.HOME!, ".gemini/config/plugins/pregate-global/hooks.json");
+  put(pluginHooks, "{}\n");
+  expect(onPreCommand({ session: s, callId: "cmd-read", tool: "run_command", command: `cat "${pluginHooks}"`, cwd: root })).toMatchObject({ verdict: "deny", cause: "protected-path" });
+  for (const rel of [".gemini/config/plugins/pregate-global/hooks.json", ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json"]) {
+    const target = join(process.env.HOME!, rel);
+    put(target, "{}\n");
+    const edit = await onPreEdit([change(dirname(target), basename(target), { form: "full", content: "{}\n" }, s)]);
+    expect(edit).toMatchObject({ verdict: "deny", cause: "protected-path" });
+    const cmd = onPreCommand({ session: s, callId: "cmd", tool: "run_command", command: `echo '{}' > "${target}"`, cwd: root });
+    expect(cmd).toMatchObject({ verdict: "deny", cause: "protected-path" });
+  }
 });

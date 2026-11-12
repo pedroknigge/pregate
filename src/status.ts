@@ -10,7 +10,7 @@ import { LOCK, PRESET, readText, VERSIONS, within } from "./inertia.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
 import { HARNESSES } from "./harness/profile.ts";
-import { claudeRegistration, codexRegistration, gatedHarnesses } from "./machine.ts";
+import { agyRegistration, claudeRegistration, codexRegistration, cursorRegistration, gatedHarnesses } from "./machine.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { inScope, relativePath } from "./paths.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
@@ -166,11 +166,12 @@ export function protectionStatus(root: string | null) {
   const consent = localConsent(root, contract.errors);
   const configured = gatedHarnesses(root);
   const data = dataHome();
-  // A project that registers its own Claude Code hooks runs its own launcher: no global one is needed.
+  // A project that registers its own Claude Code or Antigravity hooks runs its own launcher: no global one is needed.
   const claudeCode = claudeRegistration(root);
+  const agy = agyRegistration(root);
   // A project Codex registration does not make Codex configured: its review in Codex is not readable here.
   const codex = codexRegistration(root);
-  const launcherPresent = present(join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate")) || claudeCode.projectLauncher;
+  const launcherPresent = present(join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate")) || claudeCode.projectLauncher || agy.projectLauncher;
   const enginePresent = present(join(data, VERSIONS.engine, ENGINE_FILE));
   const servedLock = contract.valid || root === null ? null : pinnedServedLock(root, data);
   const lock = contract.lock ?? servedLock;
@@ -195,6 +196,8 @@ export function protectionStatus(root: string | null) {
     servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent }, claudeCodeHooks: claudeCode.scope,
     codexHooks: codex.scope, codexProjectTrust: codex.projectTrust, codexHookReview: codex.scope === "project" || codex.scope === "both" ? "unknown" as const : null,
+    cursorHooks: cursorRegistration(root),
+    agyHooks: agy.scope,
     languages: LANGUAGE_COVERAGE, unsupportedInScope: unsupported, uncoveredInScope: uncovered, uncommittedSources: uncommittedSources(root), globWarnings, tsconfig: root === null ? null : tsconfigNotice((rel) => readText(join(root, rel))), rules, harnesses, fitnessCoverage, git: root === null ? null : backstops(root),
     limits: ["Shell inspection is heuristic; encoded/runtime writes need Stop and commit/CI backstops.",
       "Active describes consent and hook configuration, not complete project proof; unverified requirements are not protected assertions.",
@@ -246,7 +249,11 @@ function harnessLine(s: Status): string {
   const review = " Codex review state unknown: check `/hooks` in Codex.";
   const codex = s.codexHooks === "project" ? ` Codex hooks are project-local (.codex/hooks.json of this project).${review}`
     : s.codexHooks === "both" ? ` Codex hooks are registered in this project and globally: when Codex runs both, every tool call is evaluated twice.${review}` : "";
-  return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.${scope}${codex}`;
+  const cursor = s.cursorHooks === "project" ? " Cursor hooks are project-local; Cursor runs them in a trusted workspace."
+    : s.cursorHooks === "both" ? " Cursor hooks are registered twice (in this project and globally, or in two project files): every tool call is evaluated twice." : "";
+  const agy = s.agyHooks === "project" ? " Antigravity hooks are project-local (.agents/hooks.json of this project)."
+    : s.agyHooks === "both" ? " Antigravity hooks are registered in this project and globally: every tool call is evaluated twice." : "";
+  return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.${scope}${codex}${cursor}${agy}`;
 }
 
 function unverifiedLine(s: Status): string {

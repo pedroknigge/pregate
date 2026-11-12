@@ -329,6 +329,7 @@ test("compiled hooks and report retain the session baseline after committing a v
 const CAPTURES: Record<HarnessId, string> = {
   "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json",
   cursor: "cursor/claude-import-pre-write.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json",
+  opencode: "opencode/pre-write.json",
 };
 
 function capturedWrite(h: HarnessId, dir: string, content: string): string {
@@ -338,7 +339,10 @@ function capturedWrite(h: HarnessId, dir: string, content: string): string {
   const input = { file_path: file, content };
   if (h === "codex") p.tool_input = { command: `*** Begin Patch\n*** Add File: ${file}\n${content.trimEnd().split("\n").map((l) => `+${l}`).join("\n")}\n*** End Patch\n` };
   else if (h === "agy") p.toolCall = { ...(p.toolCall as Record<string, unknown>), args: { TargetFile: file, CodeContent: content } };
-  else {
+  else if (h === "opencode") {
+    p.cwd = dir;
+    p.tool_input = { filePath: file, content };
+  } else {
     p.tool_input = input;
     if (h === "grok") p.toolInput = input;
   }
@@ -351,13 +355,13 @@ for (const h of Object.keys(CAPTURES) as HarnessId[]) {
   test(`${h}: captured write denies a violation, accepts clean code, and is stateless without a preset`, () => {
     const r = repo({ ".": "backend-clean-ddd" });
     const env = h === "grok" ? { ...r.env, GROK_HOOK_EVENT: "pre_tool_use" } : r.env;
-    const flag = h === "codex" || h === "agy" ? h : "claude-code";
+    const flag = h === "cursor" ? "claude-code" : h;
     const registered = hookCommand(join(DATA, "pregate"), "pre", flag);
     const pre = (dir: string, text: string): Out => run(["sh", "-c", registered], dir, env, capturedWrite(h, dir, text));
     const bad = pre(r.dir, SETTER);
     expect(bad.code).toBe(h === "cursor" || h === "agy" ? 0 : 2);
     expect(said(bad)).toContain("ddd/DDD-ENT-001");
-    if (h === "codex") expect(bad.stdout).toBe("");
+    if (h === "codex" || h === "opencode") expect(bad.stdout).toBe("");
     else if (h === "agy") expect(JSON.parse(bad.stdout).decision).toBe("deny");
     else expect(json(bad).hookSpecificOutput.permissionDecision).toBe("deny");
     silent(pre(r.dir, INVOICE));

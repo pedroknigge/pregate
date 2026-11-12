@@ -134,6 +134,7 @@
         "src/guided-update.ts",
         "src/status.ts",
         "src/install.ts",
+        "src/project-claude.ts",
         "src/machine.ts",
         "src/release-download.ts",
         "src/release-install.ts",

@@ -1,0 +1,8 @@
+# Variables visible to a project preToolUse hook in cursor-agent 2026.11.11-043ef28 (sanitized).
+CURSOR_PROJECT_DIR=/home/user/project
+CLAUDE_PROJECT_DIR=/home/user/project
+CURSOR_VERSION=2026.11.11-043ef28
+CURSOR_INVOKED_AS=cursor-agent
+CURSOR_USER_EMAIL=user@example.com
+CURSOR_RIPGREP_PATH=/home/user/.local/share/cursor-agent/versions/2026.11.11-043ef28/rg
+# Working directory of the project hook: the workspace root.

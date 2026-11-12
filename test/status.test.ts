@@ -81,7 +81,8 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     expect(statusText(newer)).toContain("Next: the human runs ! pregate update.");
     expect(active.harnesses.find((h) => h.id === "claude-code")?.configured).toBe(true);
     expect(active.harnesses.find((h) => h.id === "grok")?.warnings).toBe(true);
-    expect(active.harnesses.find((h) => h.id === "agy")?.warnings).toBe(false);
+    expect(active.harnesses.find((h) => h.id === "agy")?.warnings).toBe(true);
+    expect(active.harnesses.find((h) => h.id === "agy")?.halt).toBe(true);
     expect(active.harnesses.find((h) => h.id === "agy")?.nativeApproval).toBeNull();
     put(join(root, "src/main.py"), "print('unparsed')\n");
     put(join(root, "src/main.rs"), "fn main() {}\n");

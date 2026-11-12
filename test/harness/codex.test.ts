@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
-import { cliVersion, decode, encode, VERIFIED } from "../../src/harness/codex.ts";
+import { cliVersion, decode, encode, TESTED, VERIFIED } from "../../src/harness/codex.ts";
 import type { Decision, DecideInput, Edit, Emission, HookEvent, HookKind, Lock, ProposedChange, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -32,6 +32,8 @@ const causeOf = (e: HookEvent | Rejected | null): string | null => (e !== null &
 test("VERIFIED minimum is 0.167.0", () => {
   expect(VERIFIED).toBe("0.167.0");
   expect(cliVersion("codex-cli 0.166.0")).toBe("0.166.0");
+  expect(TESTED).toBe("0.167.1");
+  expect(cliVersion(`codex-cli ${TESTED}`)).toBe(TESTED);
 });
 const hunk = (old: string[], neu: string[], anchor: string | null = null, eof = false) => ({ anchor, old, neu, eof });
 
@@ -132,8 +134,8 @@ describe("decode: captured payloads", () => {
     "post-bash.json": { unregistered: UNREGISTERED },
     "post-spawn-agent.json": { unregistered: UNREGISTERED },
     "session-end.json": { unregistered: UNREGISTERED },
-    "subagent-start.json": { unregistered: UNREGISTERED },
-    "subagent-stop.json": { unregistered: UNREGISTERED },
+    "subagent-start.json": { event: "session-start", out: { kind: "session-start", session: { ...session(1, "102"), agentId: "00000000-0000-4000-8000-b00000000101" }, cwd: PROJECT } },
+    "subagent-stop.json": { event: "stop", out: { kind: "stop", session: { ...session(1, "102"), agentId: "00000000-0000-4000-8000-b00000000101" }, cwd: PROJECT, reentry: false } },
     "user-prompt-submit.json": { unregistered: UNREGISTERED },
   });
 
@@ -152,6 +154,15 @@ describe("decode: captured payloads", () => {
 
   test("the envelope admits keys it does not read", () => {
     expect(decode("stop", raw({ ...json("stop.json"), something_new: 1 }), ENV)).toMatchObject({ kind: "stop" });
+  });
+
+  test("lifecycle events require the matching parent or child identity", () => {
+    for (const [file, kind] of [["subagent-start.json", "session-start"], ["subagent-stop.json", "stop"]] as const) {
+      for (const agent_id of [undefined, "", 1]) expect(decode(kind, raw({ ...json(file), agent_id }), ENV)).toMatchObject({ cause: BAD });
+    }
+    for (const [file, kind] of [["session-start.json", "session-start"], ["stop.json", "stop"]] as const) {
+      expect(decode(kind, raw({ ...json(file), agent_id: "child" }), ENV)).toMatchObject({ cause: BAD });
+    }
   });
 });
 
@@ -377,18 +388,26 @@ describe("encode", () => {
     expect(Object.keys(JSON.parse(e.stdout) as object)).toEqual(["decision", "reason"]);
   });
 
-  test("Stop reentry past its cap: the turn ends quietly", () => {
+  test("Stop reentry past its cap: a human notice ends the turn without continuing it", () => {
     const stop = { blocks: LOCK.loop.maxStopBlocks, reentry: true, approved: [] };
     const d = decide(input({ event: "stop", introduced: [v("core/FCIS-IO-001", 4)], stop }));
     expect(d.verdict).toBe("none");
-    expect(enc("stop", d)).toEqual(QUIET);
+    expect(enc("stop", d)).toEqual({ stdout: raw({ systemMessage: d.notice }) + "\n", stderr: "", exit: 0 });
+    expect(d.notice).toContain("not a successful compliance check");
   });
 
   test("SessionStart: context uses the event-specific Codex schema", () => {
     expect(enc("session-start", { ...decide(input({})), full: "PREGATE is active: …", notice: null })).toEqual({
       stdout: raw({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "PREGATE is active: …" } }) + "\n", stderr: "", exit: 0,
     });
-    expect(enc("session-start", rejected({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [] }))).toEqual(QUIET);
+    const failed = rejected({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [] });
+    expect(enc("session-start", failed)).toEqual({ stdout: raw({ systemMessage: failed.notice }) + "\n", stderr: "", exit: 0 });
+  });
+
+  test("SubagentStart names its own event and omits human notices", () => {
+    const context = { ...decide(input({})), full: "PREGATE is active: …", notice: null };
+    expect(encode("session-start", context, true)).toEqual({ stdout: raw({ hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context.full } }) + "\n", stderr: "", exit: 0 });
+    expect(encode("session-start", { ...context, full: "", notice: "human setup notice" }, true)).toEqual(QUIET);
   });
 
   test("a rejected call denies through its event's channel", () => {
@@ -410,7 +429,7 @@ describe("encode", () => {
       if (e.exit === 2) expect([e.stdout, e.stderr.length > 0]).toEqual(["", true]);
       if (e.stdout !== "") {
         const out = JSON.parse(e.stdout);
-        expect(Object.keys(out)).toEqual(out.hookSpecificOutput ? ["hookSpecificOutput"] : ["decision", "reason"]);
+        expect(Object.keys(out)).toEqual(out.hookSpecificOutput ? ["hookSpecificOutput"] : out.systemMessage ? ["systemMessage"] : ["decision", "reason"]);
       }
     }
   });
