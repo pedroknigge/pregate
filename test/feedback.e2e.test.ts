@@ -51,10 +51,9 @@ test("human feedback is local, digest-reviewed, reportable and deliberately repl
   const p = project();
   const digest = p.draft("false-positive", "A deliberate boundary exception.");
   const preview = p.run(["feedback", "show", digest]).text;
-  expect(preview).toContain("the human runs in a terminal: pregate feedback apply " + digest + " --yes");
-  expect(preview).toContain("Claude Code, Codex, Grok or agy");
+  expect(preview).toContain("the human runs in a separate terminal: pregate feedback apply " + digest + " --yes");
   expect(preview).toContain(`pregate feedback apply ${digest} --yes`);
-  expect(preview).toContain("Cursor needs a separate terminal");
+  expect(preview).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
   expect(JSON.parse(p.run(["report", "--json"]).text).calibration.unlabeled).toBe(1);
   expect(p.run(["feedback", "apply", digest]).code).toBe(1);
   expect(p.run(["feedback", "apply", digest, "--yes"]).code).toBe(0);
@@ -128,7 +127,8 @@ test("feedback approval is denied to the parent, children, headless calls and wr
   expect(p.run(["feedback", "show", digest]).text).toContain("Label: correct");
   const parent = hook(payload);
   expect(parent.code).toBe(2);
-  expect(parent.text + parent.error).toContain(`type ! pregate feedback apply ${digest} --yes inside the harness`);
+  expect(parent.text + parent.error).toContain(`run pregate feedback apply ${digest} --yes in a separate terminal`);
+  expect(parent.text + parent.error).not.toContain(`! pregate feedback apply ${digest} --yes`);
   expect(hook({ ...payload, agent_id: "child" }).code).toBe(2);
   expect(hook(payload, "1").code).toBe(2);
   expect(hook({ ...payload, tool_input: { command: "env " + payload.tool_input.command } }).code).toBe(2);

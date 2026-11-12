@@ -169,7 +169,8 @@ test("the short approval form is denied to every agent and names the human ! rou
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   const routed = onPreCommand(call);
   expect(routed.verdict).toBe("deny");
-  expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
+  expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
+  expect(routed.full).not.toContain(`! pregate approve ${code}`);
   expect(onPreCommand({ ...call, session: { ...session, agentId: "sub" } }).verdict).toBe("deny");
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
   expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("deny");
@@ -304,7 +305,8 @@ test("one batch code reviews every project, is routed to the human from any dire
   for (const cwd of [elsewhere, a]) {
     const routed = onPreCommand({ ...call, cwd });
     expect(routed.verdict, routed.full).toBe("deny");
-    expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
+    expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
+  expect(routed.full).not.toContain(`! pregate approve ${code}`);
   }
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
   process.env.CI = "1"; process.env.PREGATE_UNATTENDED_APPROVAL = "1";
@@ -373,7 +375,8 @@ test("the batch route is named from any directory after the session reached a pr
   expect(onPreCommand({ session, tool: "Bash", callId: "ls", cwd: a, command: "ls" }).verdict).toBe("none");
   const routed = onPreCommand({ session, tool: "Bash", callId: "approve", cwd: elsewhere, command: `pregate approve ${code}` });
   expect(routed.verdict, routed.full).toBe("deny");
-  expect(routed.full).toContain(`type ! pregate approve ${code} inside the harness`);
+  expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
+  expect(routed.full).not.toContain(`! pregate approve ${code}`);
 }));
 
 test("a batch approval inside a project pinning an older engine is answered by the engine that wrote the batch", () => project(async (a) => {

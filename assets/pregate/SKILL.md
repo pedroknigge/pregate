@@ -85,10 +85,14 @@ After updating hook definitions, the human reviews them again in `/hooks`.
      instruction file, and delete them only when the user agrees. The rules
      carry their own reason and repair, so the text no longer has to load in
      every session.
-4. Approval is the only step the user performs. Give exactly two lines to type:
-   `! pregate approve --preview` to read the change and see its code, then
-   `! pregate approve <code>`. Never run either command yourself. In Cursor the
-   user types them in a separate terminal.
+4. Approval is the only step the user performs. Give exactly two lines to type
+   in a separate terminal: `pregate approve --preview` to read the change and
+   see its code, then `pregate approve <code>`. Never run either command
+   yourself. No harness `!` line can approve. Claude Code, Codex, Grok, agy,
+   OpenCode and Cursor each need that separate terminal. On agy 1.5.6,
+   `! pregate approve <code>` was refused because stdin is not a terminal. The
+   earlier agy note was only agy 1.2.17, and it used `approve --yes --digest`
+   without `PREGATE_UNATTENDED_APPROVAL=1`.
 5. A session starts with a `Promotion ready` line: tell the user once, in one
    sentence, that those rules warned about nothing for a week and can start to
    block. If the user agrees, run `pregate promote --preview` and give the two
@@ -241,26 +245,27 @@ Propose contract edits through a supported edit tool or literal preview command.
 PREGATE validates fixtures and the candidate before permission. Every harness
 uses a validated queued proposal, and every harness denies an approval command
 the agent issues: no native permission prompt approves on the human's behalf.
-Hand the exact reviewed `!` command to the human in Claude Code, Codex, Grok and
-agy; never execute it as an agent. See the documented approval limits.
+Hand the exact reviewed command to the human and tell them to run it in a
+separate terminal. Never execute it as an agent. See the documented approval limits.
 
 Review `approve --preview`: the mode, one line per pack, every loosening, removal
 and field change, the whole preset diff and every written file. A WARNING appears
 only when protection may weaken; new contracts, added rules and stronger modes do
 not warn. `approve --preview --full` adds every per-rule change and complete file
-contents. Then ask the human to enter the exact displayed
-`pregate approve <code>` in a terminal and type `y`. A harness `!` line qualifies
-only when that harness gives the command an interactive stdin. The code is the
+contents. Then ask the human to open Terminal/iTerm (a new PowerShell window on
+Windows) in the project and run the exact displayed `pregate approve <code>`,
+then type `y`. A harness `!` line has no terminal, so it cannot approve. On agy 1.5.6,
+`! pregate approve <code>` was refused because stdin is not a terminal. The code is the
 first 12 hex digits of the digest. `approve --yes --digest <sha256>` still asks
 for `y` on the terminal unless `PREGATE_UNATTENDED_APPROVAL=1` is already set
 (an unattended CI job; `CI` alone does not count).
 Approval commits exactly the contract files it wrote, plus the rule pack folders the
 lock compiles from, and removes applied or stale requests, so do not stage or commit
 the preset, lock or packs yourself afterwards.
-Controlled human `!` routes are verified in Claude Code, Codex, Grok and agy.
-Cursor Shell Mode invokes gated Pre without a trusted human-origin marker;
-its approval fallback requires a separate human terminal. Show the reviewed
-command and this limitation; never disable PREGATE or route around the guard.
+Claude Code, Codex, Grok, agy, OpenCode and Cursor all
+use a separate terminal. The earlier agy `!` note was only 1.2.17. Cursor Shell Mode invokes gated Pre without a trusted
+human-origin marker. Show the reviewed command and this limitation; never disable
+PREGATE or route around the guard.
 Direct human terminal approval remains available. Stale/replaced/expired
 proposals cannot apply. Never execute approval or activation as agent self-approval.
 Never loosen the contract by editing the preset and recompiling: Stop, pre-commit
@@ -498,7 +503,7 @@ no exception. Add the case to the check, repair it, and test the complete source
 Prepare `issue draft --last --note "Expected behavior"` for a tool issue.
 Ordinary drafts omit code; --include-code or a public --repro can disclose source
 and requires review. Inspect `issue show <digest>`. Only the human approves
-`! pregate issue submit <digest> --yes`. The destination is PREGATE's native GitHub
+`pregate issue submit <digest> --yes` in a separate terminal. The destination is PREGATE's native GitHub
 repository. Missing gh/auth/network preserves drafts; do not bypass uncertain
 interrupted publication by creating another report.
 Each gh command has a 15-second deadline and a 16 MiB limit per output channel.
@@ -630,7 +635,7 @@ Keep disabled consent and custom policies; native harness limits still apply.
 Prepare `update --projects <path...> --preview` to migrate one or
 several explicit project roots from any directory. Quote paths with spaces.
 Show every project's diff, digest and failure. With two or more reviews it
-prints one batch code: `! pregate approve <code>` approves every prepared project
+prints one batch code: `pregate approve <code>` in a separate terminal approves every prepared project
 from any directory, validates them all first and applies none if any changed then;
 each is then applied and committed on its own.
 A human can also rerun the same list with `--yes` for one execution, or approve

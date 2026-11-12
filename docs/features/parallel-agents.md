@@ -10,7 +10,7 @@ repository on this machine. Every other worktree of the same repository is prote
 without another approval: a branch checked out beside the main one, or the isolated
 worktree Claude Code creates for a subagent under `.claude/worktrees/`. Each worktree
 is judged by its own committed contract. A human can still turn one worktree off with
-`! pregate disable --yes`. Disabling a worktree also withdraws the repository-wide
+`pregate disable` in a separate terminal. Disabling a worktree also withdraws the repository-wide
 consent. Worktrees that were enabled by name stay enabled. A clone is a different
 repository and needs its own consent.
 

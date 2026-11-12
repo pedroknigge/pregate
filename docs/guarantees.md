@@ -29,7 +29,7 @@ Pre denies an agent tool call when the command text or the edited bytes are enou
 
 A pipe, including one that contains `y`, is not that channel. Recomputing the digest from the proposal file does not satisfy it. An agent shell cannot set `PREGATE_*` or prefix `CI=` onto `pregate`. A harness that starts the agent with `PREGATE_UNATTENDED_APPROVAL=1` already in its environment gives the agent the same power as that CI job: do not set it where an agent runs.
 
-Every harness denies an approval command the agent issues and names the human route instead: `! pregate approve <code>` typed by the human in Claude Code, Codex, Grok or agy, or the command in a separate terminal for Cursor. No harness permission prompt can approve on the human's behalf.
+Every harness denies an approval command the agent issues and names a separate terminal instead. No harness `!` line can approve. On agy 1.5.6, `! pregate approve <code>` was refused because stdin is not a terminal; the earlier agy note was only 1.2.17. Claude Code, Codex, Grok, OpenCode and Cursor `!` lines have no terminal either. No harness permission prompt can approve on the human's behalf.
 
 ## Contract loosening
 

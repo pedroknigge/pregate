@@ -490,10 +490,10 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial r
   for (const argv of [[binary, ...args], [binary, "--supervise", data, pkg.version, ...args]]) {
     const denied = run(argv);
     const message = denied.stdout.toString() + denied.stderr.toString();
-    expect(message).toContain(h === "cursor" ? `${command} in a separate human terminal` : `! ${command}`);
+    expect(message).toContain(`run ${command} in a separate terminal`);
     expect(message).toContain("agent must not run");
+    expect(message).not.toContain(`! ${command}`);
     if (h === "cursor") {
-      expect(message).not.toContain(`! ${command}`);
       expect(JSON.parse(denied.stdout.toString()).hookSpecificOutput.permissionDecision).toBe("deny");
     }
     const malformed = run(argv, "{invalid");
@@ -538,8 +538,7 @@ test("initial preview works without Git, can be reviewed from a subdirectory and
   const review = cli(join(root, "src"), "approve", "--preview");
   expect(review.exitCode).toBe(0);
   expect(review.stdout.toString()).toContain("pregate approve " + digest.slice(0, 12));
-  expect(review.stdout.toString()).toContain("Claude Code, Codex, Grok or agy");
-  expect(review.stdout.toString()).toContain("Cursor needs a separate terminal");
+  expect(review.stdout.toString()).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
   mkdirSync(join(root, ".pregate"));
   writeFileSync(join(root, ".pregate/pregate.lock.json"), "{}\n");
   expect(cli(root, "approve", "--yes", "--digest", digest).exitCode).toBe(1);

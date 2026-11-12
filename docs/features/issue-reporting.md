@@ -96,15 +96,16 @@ changes to the original example cannot alter the approved issue body.
 This is a reporter-provided public example. Its result is not proof of replaying
 the original private event, which can depend on different configuration and files.
 
-After reviewing, the user can type the following in a harness's human shell input:
+After reviewing, the user runs the following in a separate terminal:
 
 ```text
-! pregate issue submit <digest> --yes
+pregate issue submit <digest> --yes
 ```
 
-Every harness, Claude Code included, rejects an agent's approval command and directs
-it to the human shell route. A normal agent shell call is not human approval. agy's human Bash route works with normal and
-skip-permissions settings; the engine does not infer parent identity from its hook.
+Every harness rejects an agent's approval command and directs the user to that
+separate terminal. A harness `!` line has no terminal, including agy 1.5.6, so it
+cannot submit. A normal agent shell call is not human approval. The engine does
+not infer parent identity from the agy hook.
 See [approval limits](approval-in-harness.md). This operates through the registered
 hooks, rather than treating a chat response as a receipt.
 
@@ -171,14 +172,10 @@ expectation mismatch, exported JSON replay, invalid input refusal, exclusion of
 private notes and immutable reviewed submission after the example changes.
 Actual interactive approval in each supported harness remains a release check.
 
-The human shell interface is documented for
-[Claude Code](https://code.claude.com/docs/en/interactive-mode#shell-mode-with-prefix),
-[Grok](https://docs.x.ai/build/keyboard-shortcuts) and
-[Cursor's current client](https://cursor.com/en-US/download).
-Codex 0.160.0's actual Mac TUI human shell route now has
-contract-approval evidence;
-issue submission in that UI, agy human-command behavior and supported native
-prompts remain separate runtime checks. A captured hook payload does not prove
+Harness `!` lines are not an approval route. On agy 1.5.6, `! pregate approve <code>`
+was refused because stdin is not a terminal. Earlier notes that a `!` line approves
+were only agy 1.2.17, and they used `approve --yes --digest` without
+`PREGATE_UNATTENDED_APPROVAL=1`. A captured hook payload does not prove
 an interactive dialog was shown or approved.
 
 GitHub CLI's official references describe

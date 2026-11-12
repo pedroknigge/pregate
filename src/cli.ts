@@ -124,7 +124,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       if (args.length > 1 || (args.length === 1 && args[0] !== "--yes")) return BAD;
       const root = here();
       if (root === null) return noPreset(process.cwd());
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for worktree ${root}.`, cmd === "disable", args.includes("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal()}` };
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for worktree ${root}.`, cmd === "disable", args.includes("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
       if (cmd === "enable") enable(root); else disable(root);
       return { code: 0, text: statusText(protectionStatus(root)) };
     }
@@ -308,7 +308,7 @@ async function compileTo(root: string, presetText: string, yes = false): Promise
   const diff = diffs.length > 0 && diffs.every((d) => d?.warning === true) ? diffs[0]! : null;
   if (diff !== null) {
     if (!await approve(`Compile a looser lock for ${root}.\n${diff.lines.join("\n")}`, true, yes)) {
-      return { code: 1, text: ["This preset loosens the contract:", ...diff.lines.map((line) => `  ${line}`), approvalRefusal(), "Lock not written."].join("\n") };
+      return { code: 1, text: ["This preset loosens the contract:", ...diff.lines.map((line) => `  ${line}`), approvalRefusal({ roots: [root], command: "pregate preset compile" }), "Lock not written."].join("\n") };
     }
     writeAtomic(join(root, LOCK), r.text);
     recordApproval(root, r.text);

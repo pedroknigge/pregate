@@ -57,16 +57,20 @@ pregate guide --preview --packs typescript,react --custom-from-docs
 
 The compact review lists scope, policy changes, consent effect and digest. Use
 `guide --preview --full` or `approve --preview` to inspect complete content.
-Inside a supported human shell route, enter the displayed command yourself:
+Open a separate terminal in the project and enter the displayed command yourself:
 
 ```text
-! pregate approve <displayed code>
+pregate approve <displayed code>
 ```
 
-Every harness denies an approval command the agent issues. Controlled human `!`
-approval is verified for Claude Code, Codex, Grok and agy. Cursor's tested hook route cannot distinguish human Shell Mode from an
-agent tool; use a separate human terminal there. The agent must not execute an
-approval on your behalf. See [approval routes](../features/approval-in-harness.md).
+Every harness denies an approval command the agent issues. No harness `!` line
+can approve, so Claude Code, Codex, Grok, agy, OpenCode and Cursor all use a
+separate terminal. On agy 1.5.6, `! pregate approve <code>` was refused because
+stdin is not a terminal. The earlier agy observation was only 1.2.17, and it ran
+`pregate approve --yes --digest` without `PREGATE_UNATTENDED_APPROVAL=1`, which
+also requires a terminal. Cursor's tested hook route cannot distinguish human
+Shell Mode from an agent tool. The agent must not execute an approval on your
+behalf. See [approval routes](../features/approval-in-harness.md).
 
 Initial approval can activate this worktree. Updates preserve its consent,
 including a disabled project. A cloned contract still needs local consent.

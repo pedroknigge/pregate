@@ -2,8 +2,8 @@
 
 An agent's proposed contract change is validated before approval. The preview now
 includes actual preset/checker source diffs as well as effective rule, severity,
-scope and policy changes. Native approval does not require a controlling terminal:
-the harness's permission channel is the interaction surface.
+scope and policy changes. Approval needs a separate terminal. A harness `!` line
+has no terminal, so it cannot approve.
 
 For a bounded request in `.pregate/requests/<name>.json`, the agent can run
 `pregate preset apply <request.json> --preview`. This validates the patch and full
@@ -25,15 +25,14 @@ permission protocol for the proposed edit. Known Claude Code subagents,
 noninteractive sessions and CI cannot use this path. The pending lock becomes
 current only after the tool writes the exact validated bytes.
 
-For agy, the engine queues a validated proposal and denies agent approval commands
-with the exact human `!` route. Its hook does not identify a trusted interactive
-parent or permission mode. Earlier native `force_ask` requests stalled in
-skip-permissions mode, so the engine no longer emits them. The actual agy 1.2.17
-Bash input reviews and applies the exact candidate in normal and skip-permissions
-sessions; a different digest applies nothing. These are controller-driven UI
-observations in disposable projects, not receipts for a user's real approval.
-See the human shell repair and the preserved
-earlier native request observations.
+For agy, the engine queues a validated proposal and denies agent approval commands.
+Its hook does not identify a trusted interactive parent or permission mode. Earlier native `force_ask` requests stalled in
+skip-permissions mode, so the engine no longer emits them. On agy 1.5.6,
+`! pregate approve <code>` was refused because stdin is not a terminal. The only
+earlier agy Bash observation was 1.2.17, and it ran `pregate approve --yes --digest`
+without `PREGATE_UNATTENDED_APPROVAL=1`. That command also requires a terminal, so
+it does not show that a `!` line can approve. agy uses a separate terminal, as
+every other harness does. No harness is an in-harness `!` approval route.
 
 For an expiring queued proposal, prepare the complete review:
 
@@ -67,9 +66,11 @@ pregate approve <code>
 ```
 
 The command applies only where stdin is an interactive terminal and the human types
-`y` on `/dev/tty` (`CONIN$` on Windows). A harness `!` line qualifies only when that
-harness gives the command an interactive stdin; otherwise the human runs it in a
-terminal of their own.
+`y` on `/dev/tty` (`CONIN$` on Windows). A harness `!` line in Claude Code, Codex,
+Grok, OpenCode or Cursor has no terminal (stdin is a pipe or `/dev/null` and the
+process is detached). On agy 1.5.6, `! pregate approve <code>` was refused because
+stdin is not a terminal; the earlier agy note was only 1.2.17. Open Terminal/iTerm
+on macOS or Linux, or a new PowerShell window on Windows, in the project and run the command.
 
 The code is the first 12 hex digits of the digest. An agent cannot cheaply create a
 different proposal that starts with the same 12 digits. The long form
@@ -81,15 +82,10 @@ prints the command to commit by hand. `--no-commit` keeps the files uncommitted.
 request that was applied, and any request that can no longer apply to the new preset,
 is removed from `.pregate/requests/`.
 
-The preview names Claude Code, Codex, Grok and agy beside the `!` command and
-prints Cursor's and OpenCode's separate-human-terminal command with the same digest.
-It does not offer Cursor or OpenCode an unsupported in-harness approval path.
-The user types that command in supported human shell input after reviewing it.
-Current controlled observations pass in Claude Code, Codex, Grok and agy.
-Cursor's tested Shell Mode invokes the same gated Pre without a trusted human
-origin marker, and the OpenCode plugin hook has none either; use a separate human
-terminal in both. Do not bypass its guard or
-disable PREGATE. See native observations.
+The preview tells every harness to use a separate terminal. A harness `!` line
+cannot approve. Cursor's tested Shell Mode invokes the same gated Pre without a
+trusted human origin marker, and the OpenCode plugin hook has none either. Do not
+bypass the guard or disable PREGATE. See native observations.
 With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI job; `CI` alone does not count), `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Every harness, Claude Code included,
 rejects the agent's attempt to run the approval command and explains the human route: a
 native permission prompt cannot give the command the terminal it needs. The digest binds the writes, compiled lock, baseline
@@ -98,34 +94,28 @@ the reviewed proposal. It expires 24 hours after preparation.
 
 `pregate approve` retains its direct terminal prompt for existing users. A bare
 `--yes` is an unattended automation interface (`PREGATE_UNATTENDED_APPROVAL=1`), not a way around the terminal; the recommended
-harness workflow always supplies the digest. Protected shell calls reject every
-approval command an agent issues and name the human `!` route (a separate terminal in Cursor and OpenCode).
+route is a separate terminal and the displayed digest. Protected shell calls reject every
+approval command an agent issues and name that separate terminal.
 
 The automation verifies source diffs, altered/stale candidates, exact application,
 no-TTY native hook output, known Claude Code headless/subagent rejection, CI
 rejection and literal-command bounds. agy's native permission identity is not
-inferred; it uses the verified human shell route.
-An earlier Codex 0.160.0 TUI run on macOS ARM64 verifies the human `!` route:
-initial activation, a source-only pack preview, rejection of the prior digest and
-application of the current candidate's exact preset/lock bytes. Its transcript
-classifies these as human shell commands, with no model tool calls. See the
-observation and scope.
-The current Codex 0.160.1 human-shell observation
-passes four initial/existing normal/bypass cases.
-A different digest leaves preset/lock unchanged; the reviewed digest applies
-every expected write. All 68 core defaults remain active, with zero model Pre
-calls. Controlled test inputs are not actual user consent receipts.
+inferred. Earlier Codex, Claude Code, Grok and agy human-shell runs invoked
+`pregate approve --yes --digest` without `PREGATE_UNATTENDED_APPROVAL=1`. Since the
+terminal rule, that command also requires a terminal, so those runs do not show
+that a `!` line can approve. Every harness uses a
+separate terminal. Controlled test inputs are not actual user consent receipts.
 Actual Codex 0.160.0 headless and TUI model turns
 reject one exact approval attempt per surface, record native tool denials and
 completed turns, and preserve the contract and pending proposals. See the
 model scenarios and limits.
 Other approval commands, other harness UIs and native prompts remain separate
-verification. The current human shell checks do not recapture every model tool
-or certify every interaction in all five UIs.
+verification. The earlier human-shell checks do not show that a `!` line can
+approve, and they do not certify every interaction in all five UIs.
 
-Claude Code 2.1.289 and Grok 1.0.49 now also pass four initial/existing,
-normal/bypass human-input cases with exact reviewed writes, wrong-digest
-rejection and all 68 defaults. Read-only reporting probes in Codex and agy review
+Claude Code 2.1.289 and Grok 1.0.49 human-input cases used the same
+`pregate approve --yes --digest` command without `PREGATE_UNATTENDED_APPROVAL=1`.
+They are not evidence that a `!` line approves. Read-only reporting probes in Codex and agy review
 the issue draft and find an existing report on real GitHub without publication.
 The evidence and failed probes
 retain Cursor's limitation and Claude's attempted model continuation.

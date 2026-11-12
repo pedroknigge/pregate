@@ -49,7 +49,11 @@ export async function approvePending(root: string, yes = false, digest?: string,
     return { code: 1, text: failed.text };
   }
   const diff = proposalDiff(proposal);
-  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes)) return { code: 1, text: approvalRefusal() };
+  const id = sha256(JSON.stringify(proposal));
+  const shown = digest !== undefined && approvalCode(id, digest) ? digest : id.slice(0, 12);
+  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes)) {
+    return { code: 1, text: approvalRefusal({ roots: [root], command: `pregate approve ${shown}` }) };
+  }
   return applyReviewedProposal(root, sha256(JSON.stringify(proposal)), { activate: proposal.activate !== false, commit });
 }
 
@@ -67,7 +71,7 @@ export async function approveBatch(code: string, yes: boolean, commit: boolean):
   }
   if (errors.length > 0) return { code: 1, text: [...errors, BATCH_STALE].join("\n") };
   const review = batchReview(batch, false);
-  if (!await approve(review.text, review.warning, yes)) return { code: 1, text: approvalRefusal() };
+  if (!await approve(review.text, review.warning, yes)) return { code: 1, text: approvalRefusal({ roots: batch.items.map((item) => item.root), command: `pregate approve ${code}` }) };
   const { lines, updated } = await applyReviews(batch.items, commit);
   discardBatch();
   return { code: updated === batch.items.length ? 0 : 1, text: [...lines, `${updated}/${batch.items.length} project contracts updated. Each project keeps its consent.`].join("\n") };

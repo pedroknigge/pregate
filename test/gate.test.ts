@@ -553,8 +553,8 @@ test.each(["codex", "agy", "cursor"] as const)("%s initial contract review denie
   expect(inert({ kind: "pre-command", command })).toBe(false);
   const denied = onPreCommand(command);
   expect(denied.verdict).toBe("deny");
-  expect(denied.full).toContain(harness === "cursor" ? `${command.command} in a separate human terminal` : `! ${command.command}`);
-  if (harness === "cursor") expect(denied.full).not.toContain(`! ${command.command}`);
+  expect(denied.full).toContain(`run ${command.command} in a separate terminal`);
+  expect(denied.full).not.toContain(`! ${command.command}`);
   for (const script of [`env pregate approve --yes --digest ${digest}`, `sh -c 'pregate approve --yes --digest ${digest}'`, "pregate init --yes", "rm -rf .pregate",
     "P=pre; ${P}gate approve --yes", "$(echo pregate) approve --yes"]) {
     expect(onPreCommand({ ...command, cwd: root, command: script }).verdict).toBe("deny");
