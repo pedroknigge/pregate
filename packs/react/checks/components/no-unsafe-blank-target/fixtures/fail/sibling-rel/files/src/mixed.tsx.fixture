@@ -1,0 +1,8 @@
+export function Outbound() {
+  return (
+    <p>
+      <a rel="noreferrer" href="/x">safe</a>
+      <a target="_blank" href="/y">open</a>
+    </p>
+  );
+}

@@ -1,0 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
+export async function org(supabase: { rpc(fn: string): Promise<unknown> }) {
+  return supabase.rpc(`current_org_id`);
+}

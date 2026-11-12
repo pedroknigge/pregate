@@ -1,0 +1,3 @@
+export function Save() {
+  return <a href="/report.csv" download>Report</a>;
+}

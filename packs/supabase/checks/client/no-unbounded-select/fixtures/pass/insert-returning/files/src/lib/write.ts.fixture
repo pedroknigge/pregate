@@ -1,0 +1,8 @@
+import { createClient } from "@supabase/supabase-js";
+export async function write(supabase: { from(table: string): any }, payload: unknown) {
+  const { data: created } = await supabase.from("items").insert(payload).select();
+  const { data: updated } = await supabase.from("items").update(payload).select();
+  const { data: upserted } = await supabase.from("items").upsert(payload).select();
+  const { data: removed } = await supabase.from("items").delete().eq("id", "1").select();
+  return { created, updated, upserted, removed };
+}

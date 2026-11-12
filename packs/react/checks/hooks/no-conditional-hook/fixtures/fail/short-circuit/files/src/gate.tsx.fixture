@@ -1,0 +1,4 @@
+import { useState } from "react";
+export function Panel(props: { ok: boolean }) {
+  return props.ok && useState(0);
+}

@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 export async function search(q: string): Promise<unknown> {
   const { data } = await supabase.rpc("search_docs", { query: q, limit: 10 });
   return data;

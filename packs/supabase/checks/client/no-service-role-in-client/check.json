@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "supabase/client/no-service-role-in-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "client",
   "cardinality": "singleton",
   "dimension": "supabase.service-role-in-client",
@@ -40,7 +40,12 @@
           ],
           "ignores": [
             "**/server/**",
-            "**/*.server.*"
+            "**/*.server.*",
+            "app/api/**",
+            "src/app/api/**",
+            "pages/api/**",
+            "src/pages/api/**",
+            "**/route.{js,jsx,ts,tsx}"
           ]
         }
       ]

@@ -18,14 +18,14 @@ Ready-made combinations live in `packs/presets/`.
 
 | ID | Forbids | Why | Default severity |
 | --- | --- | --- | --- |
-| `REACT-HOOK-001` | A Hook call (`useX`) inside an if, loop, or conditional expression. | A Hook inside a branch runs on some renders and not others, so every Hook after it reads the wrong slot. | deny |
+| `REACT-HOOK-001` | A Hook call (`useX`) inside an if body, else, loop, ternary branch, or the right side of `&&`, `||`, or `??`. The condition itself runs every render. | A Hook inside a branch runs on some renders and not others, so every Hook after it reads the wrong slot. | deny |
 | `REACT-CALLBACK-001` | Hook calls inside array iterator, effect, timer, or promise callbacks. | Callbacks do not have a stable render order; components passed to `memo` still pass. | deny |
 | `REACT-EFFECT-001` | A direct async callback or its immediately invoked promise passed to `useEffect` or `React.useEffect`. | A Promise does not satisfy the synchronous setup/cleanup callback contract. Nested async helpers and dependency-array values do not make the callback async. | deny |
 | `REACT-RENDER-001` | A `setX` call inside a function declaration, outside a nested arrow or function expression. | This heuristic cannot resolve setter bindings or distinguish valid convergent updates during render. | off |
 | `REACT-KEY-001` | `key={index}` (or `i`/`idx`), including call-wrapped forms like `key={String(index)}`. | An index key makes React match the wrong item after a reorder, so inputs keep stale values. | deny |
 | `REACT-NEST-001` | An uppercase local function/arrow with actual JSX, nested in an uppercase function declaration with its own JSX. | Bounded syntax slice of unstable nested component identity. | deny |
 | `REACT-REF-001` | A legacy string ref (`ref="panel"` or `ref={'panel'}`). | String refs break under composition and minification, and the checker cannot type them. | deny |
-| `REACT-BLANK-001` | `<a target="_blank">` without a `rel` attribute. | The opened page gains opener access and can redirect the original tab to a lookalike. | deny |
+| `REACT-BLANK-001` | A JSX `target="_blank"` attribute without `rel` on that element. The same characters in a string are not an attribute. | The opened page gains opener access and can redirect the original tab to a lookalike. | deny |
 | `REACT-PROP-001` | The `prop-types` package and `X.propTypes` assignments. | Runtime checks miss every caller the compiler could have stopped. | deny |
 | `REACT-ROOT-001` | `render`, `hydrate`, `unmountComponentAtNode` or `findDOMNode` imported from `react-dom` or called on its default/namespace import. | React 19 removed them; mount with `createRoot`/`hydrateRoot` and use refs. | deny |
 | `REACT-JSURL-001` | A literal `javascript:` URL in `href` or `src`, any case, quoted, braced or templated. | React blocks these URLs; the link only throws. | deny |
@@ -62,7 +62,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 14 distinct check IDs.
+Category: **library**. Version: `1.2.1`. 14 distinct check IDs.
 
 Methodologies: `react/components` (complete), `react/hooks` (complete).
 

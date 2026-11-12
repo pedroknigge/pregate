@@ -8,7 +8,7 @@
     "verdict": "fail",
     "violations": [
       {
-        "line": 2
+        "line": 3
       }
     ]
   },
@@ -16,6 +16,6 @@
     "family": "template-rpc",
     "origin": "forge",
     "discovered": "2026-10-03",
-    "note": "Backticks do not add types. A template-literal function name with no params object is still an untyped rpc call."
+    "note": "An interpolated template is not a static function name. Generated types cannot check a name built at runtime."
   }
 }

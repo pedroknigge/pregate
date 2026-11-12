@@ -1,0 +1,3 @@
+export function Out() {
+  return <a href="/eos" target="_blank" rel="noopener noreferrer">EOS</a>;
+}

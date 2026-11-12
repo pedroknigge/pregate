@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 export async function list(): Promise<void> {
   await supabase.from("orders").select("*").range(0, 49);
 }

@@ -1,0 +1,3 @@
+export async function call(client: { rpc(name: string): Promise<unknown> }) {
+  return client.rpc("method");
+}

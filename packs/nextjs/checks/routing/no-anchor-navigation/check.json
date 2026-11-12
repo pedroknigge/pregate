@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "nextjs/routing/no-anchor-navigation",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "area": "routing",
   "cardinality": "singleton",
   "dimension": "nextjs.no-anchor-navigation",
@@ -55,7 +55,21 @@
                   ]
                 }
               }
-            ]
+            ],
+            "not": {
+              "any": [
+                {
+                  "has": {
+                    "stopBy": "end",
+                    "kind": "property_identifier",
+                    "regex": "^download$"
+                  }
+                },
+                {
+                  "regex": "\\btarget\\s*=\\s*(\\{\\s*[\"']_blank[\"']\\s*\\}|[\"']_blank[\"'])"
+                }
+              ]
+            }
           }
         }
       ]

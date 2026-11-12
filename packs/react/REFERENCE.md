@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## react/components
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **complete**.
 
 ### react/REACT-KEY-001
 
@@ -108,7 +108,7 @@ Source metadata:
 
 ### react/REACT-BLANK-001
 
-Check: [`react/components/no-unsafe-blank-target@1.0.0`](checks/components/no-unsafe-blank-target/check.json). Default severity: **deny**.
+Check: [`react/components/no-unsafe-blank-target@1.0.1`](checks/components/no-unsafe-blank-target/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -120,7 +120,7 @@ Default parameters: `{}`.
 
 **Repair:** Add rel="noreferrer" to the anchor. Keep target="_blank" only for destinations outside the app.
 
-**Scope and limits:** Same-tab links need no rel. Any rel value silences the rule; noreferrer is the one that cuts opener access.
+**Scope and limits:** The rule matches a JSX target attribute, not the same characters inside a string. Same-tab links need no rel. rel on the same element silences the rule; rel on a different element does not. noreferrer is the value that cuts opener access.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -332,11 +332,11 @@ Source metadata:
 
 ## react/hooks
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **complete**.
 
 ### react/REACT-HOOK-001
 
-Check: [`react/hooks/no-conditional-hook@1.0.0`](checks/hooks/no-conditional-hook/check.json). Default severity: **deny**.
+Check: [`react/hooks/no-conditional-hook@1.0.1`](checks/hooks/no-conditional-hook/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -348,7 +348,7 @@ Default parameters: `{}`.
 
 **Repair:** Move the Hook call above the branch and put only its result inside the condition.
 
-**Scope and limits:** A custom Hook is still a plain function: the rule only fires inside a branch or loop, so a helper without JSX is not flagged.
+**Scope and limits:** A custom Hook is still a plain function: the rule only fires inside a branch or loop, so a helper without JSX is not flagged. The condition of an if or a ternary runs on every render and is not a branch. A Hook on the right of &&, ||, or ?? is. A Hook inside a function nested in a branch is that function's own top-level call.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.1`. Category: **practice**.
+Version: `1.2.2`. Category: **practice**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## testing/tdd
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **complete**.
 
 ### testing/TDD-FOCUS-001
 
-Check: [`testing/testing/no-focused-tests@1.1.2`](checks/testing/no-focused-tests/check.json). Default severity: **deny**.
+Check: [`testing/testing/no-focused-tests@1.1.3`](checks/testing/no-focused-tests/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{"paths":["**/*.test.*","**/*.spec.*","**/__tests__/**"]}`.
 
 **Repair:** Remove the focus or skip modifier and make the test pass; if it cannot pass yet, report that instead of hiding the test.
 
-**Scope and limits:** Bracket access, aliases or destructuring of the focused function, and modifiers in the middle of a chain. Not reported: Playwright's runtime skip test.skip(condition, reason) called inside a test body, hook or describe callback, when the condition reads a runtime value (an identifier, member access, call or await) and the reason is a string; from a describe callback it conditionally skips the whole group, which is accepted. A top-level test.skip(cond, reason), a literal or always-true condition (true, 1, !0, !!1, an object, array, new expression, sequence, spread or function, also in parentheses or a cast), test.skip(title, fn), it.skip(...) and every .only stay reported. Known gaps: an always-true condition that still names a value (true || x, a const holding true) and Mocha's TDD-UI test.skip(titleVar, 'reason').
+**Scope and limits:** Bracket access, aliases or destructuring of the focused function, and modifiers in the middle of a chain. Not reported: Playwright's runtime skip test.skip(condition, reason) called inside a test body, hook or describe callback, when the condition reads a runtime value (an identifier, member access, call or await) and the reason is a string; from a describe callback it conditionally skips the whole group, which is accepted. Also not reported there: test.skip() and test.skip(true, reason) in the consequence of an if whose condition reads a runtime value and is not always-true. A top-level test.skip(cond, reason), a top-level if, if (true), a literal or always-true condition (true, 1, !0, !!1, an object, array, new expression, sequence, spread or function, also in parentheses or a cast), test.skip(title, fn), it.skip(...) and every .only stay reported. Known gaps: an always-true condition that still names a value (true || x, a const holding true) and Mocha's TDD-UI test.skip(titleVar, 'reason').
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

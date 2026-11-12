@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.2.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## supabase/client
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **complete**.
 
 ### supabase/SB-KEY-001
 
-Check: [`supabase/client/no-service-role-in-client@1.0.0`](checks/client/no-service-role-in-client/check.json). Default severity: **deny**.
+Check: [`supabase/client/no-service-role-in-client@1.0.1`](checks/client/no-service-role-in-client/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Build the browser client with the anon key. Move service_role use into server code and expose safe operations through routes.
 
-**Scope and limits:** Reading the key from process.env does not make it safe. A SERVICE_ROLE value in a component or page file still ships to the browser.
+**Scope and limits:** Reading the key from process.env does not make it safe. A SERVICE_ROLE value in a component or page file still ships to the browser. App Router and Pages Router handlers (app/api, pages/api, and route.ts) are server-only and are not flagged.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ### supabase/SB-CLIENT-001
 
-Check: [`supabase/client/no-singleton-client-missing@1.0.0`](checks/client/no-singleton-client-missing/check.json). Default severity: **deny**.
+Check: [`supabase/client/no-singleton-client-missing@1.0.1`](checks/client/no-singleton-client-missing/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -56,7 +56,7 @@ Default parameters: `{}`.
 
 **Repair:** Import createClient from @supabase/supabase-js in the browser, or from @supabase/ssr where cookies are involved.
 
-**Scope and limits:** Dynamic import and require of the same bare specifier are the same mistake, not an escape.
+**Scope and limits:** Dynamic import and require of the same bare specifier are the same mistake, not an escape. A string that only says supabase inside an exported function is not an import.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -76,7 +76,7 @@ Source metadata:
 
 ### supabase/SB-QUERY-001
 
-Check: [`supabase/client/no-unbounded-select@1.0.0`](checks/client/no-unbounded-select/check.json). Default severity: **deny**.
+Check: [`supabase/client/no-unbounded-select@1.0.1`](checks/client/no-unbounded-select/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -86,9 +86,9 @@ One unbounded read can pull the whole table into memory, the response, and the b
 
 Default parameters: `{}`.
 
-**Repair:** Chain .range(from, to) or .limit(n) onto every select, including exports.
+**Repair:** Chain .range(from, to), .limit(n), .single(), or .maybeSingle() onto a table read. A select that returns rows from insert, update, upsert, or delete is already one row set.
 
-**Scope and limits:** Exporting the selection with .csv() is not a bound. Ordering without range or limit still reads every row.
+**Scope and limits:** The rule reads a Supabase .from(...).select(...) in a file that imports @supabase/supabase-js or @supabase/ssr. .range(), .limit(), .order(), .single(), and .maybeSingle() are bounds. .csv() is not. A select that is not that chain, including Drizzle db.select().from(...) and DOM element.select(), is not this call.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -108,7 +108,7 @@ Source metadata:
 
 ### supabase/SB-AUTH-001
 
-Check: [`supabase/client/no-auth-admin-in-client@1.0.0`](checks/client/no-auth-admin-in-client/check.json). Default severity: **deny**.
+Check: [`supabase/client/no-auth-admin-in-client@1.0.1`](checks/client/no-auth-admin-in-client/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -120,7 +120,7 @@ Default parameters: `{}`.
 
 **Repair:** Move admin calls into server code and call them from the client through a route that checks the caller's session first.
 
-**Scope and limits:** An invite-shaped createUser is still the admin API. getUser and session reads stay client-safe and are not flagged.
+**Scope and limits:** An invite-shaped createUser is still the admin API. getUser and session reads stay client-safe and are not flagged. App Router and Pages Router handlers (app/api, pages/api, and route.ts) are server-only and are not flagged.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -140,7 +140,7 @@ Source metadata:
 
 ### supabase/SB-HELPERS-001
 
-Check: [`supabase/client/no-deprecated-auth-helpers@1.0.0`](checks/client/no-deprecated-auth-helpers/check.json). Default severity: **warn**.
+Check: [`supabase/client/no-deprecated-auth-helpers@1.0.1`](checks/client/no-deprecated-auth-helpers/check.json). Default severity: **warn**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -152,7 +152,7 @@ Default parameters: `{}`.
 
 **Repair:** Import createBrowserClient or createServerClient from @supabase/ssr and pass cookie getAll/setAll handlers, as in the Supabase SSR guide for your framework.
 
-**Scope and limits:** Do not wrap the helpers in a local barrel to hide the import; the re-export is still flagged. @supabase/auth-ui-react and @supabase/supabase-js are different packages and stay allowed.
+**Scope and limits:** Do not wrap the helpers in a local barrel to hide the import; the re-export is still flagged. A string that names the package without importing it is not an import. @supabase/auth-ui-react and @supabase/supabase-js are different packages and stay allowed.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## supabase/storage
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **complete**.
 
 ### supabase/SB-STORAGE-001
 
@@ -240,19 +240,19 @@ Source metadata:
 
 ### supabase/SB-RPC-001
 
-Check: [`supabase/rpc/no-untyped-rpc@1.0.0`](checks/rpc/no-untyped-rpc/check.json). Default severity: **deny**.
+Check: [`supabase/rpc/no-untyped-rpc@1.1.0`](checks/rpc/no-untyped-rpc/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `supabase.untyped-rpc`. Minimum severity: `none`.
 
-A params-less rpc either calls the wrong overload or hides its inputs from review, and generated types cannot check a call that passes nothing.
+Generated Database types check a static function name, including a function whose Args are an empty record. A computed name skips that check, so the call can name a function the schema does not have.
 
 Default parameters: `{}`.
 
-**Repair:** Pass the params object as the second argument, matching the generated function signature.
+**Repair:** Pass the static function name from the generated types. Add the params object only when the function has arguments.
 
-**Scope and limits:** A template-literal function name with no params is still untyped. Quoting style does not change the call shape.
+**Scope and limits:** The rule runs only in a file that imports @supabase/supabase-js or @supabase/ssr. A static string or a static template with no substitution is allowed, with or without a params object. An interpolated or computed name stays untyped. A client that is not Supabase is not this call.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -266,7 +266,7 @@ Source metadata:
 {
   "work": "Supabase documentation, calling Postgres functions",
   "locator": "rpc params pages",
-  "paraphrase": "An rpc call names the function and passes its arguments object. A bare name carries no inputs and no types."
+  "paraphrase": "An rpc call names a Postgres function with a static string so generated types can check it. A zero-argument function is still rpc(\"name\"). A name computed at runtime is not."
 }
 ```
 

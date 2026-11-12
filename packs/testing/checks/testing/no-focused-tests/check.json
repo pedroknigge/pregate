@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "testing/testing/no-focused-tests",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "area": "testing",
   "cardinality": "singleton",
   "dimension": "tests.focus",
@@ -477,6 +477,87 @@
                 }
               ]
             },
+            "guarded-skip": {
+              "all": [
+                {
+                  "inside": {
+                    "stopBy": { "kind": "if_statement" },
+                    "field": "consequence",
+                    "kind": "if_statement",
+                    "all": [
+                      {
+                        "has": {
+                          "field": "condition",
+                          "all": [
+                            { "not": { "matches": "always-truthy" } },
+                            {
+                              "any": [
+                                { "matches": "runtime-ref" },
+                                { "has": { "stopBy": "end", "matches": "runtime-ref" } }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "inside": {
+                          "stopBy": "end",
+                          "any": [
+                            { "kind": "arrow_function" },
+                            { "kind": "function_expression" },
+                            { "kind": "function_declaration" },
+                            { "kind": "method_definition" }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "any": [
+                    {
+                      "has": {
+                        "field": "arguments",
+                        "not": {
+                          "has": {
+                            "nthChild": { "position": 1, "ofRule": { "not": { "kind": "comment" } } }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "has": {
+                        "field": "arguments",
+                        "all": [
+                          {
+                            "has": {
+                              "nthChild": { "position": 1, "ofRule": { "not": { "kind": "comment" } } },
+                              "kind": "true"
+                            }
+                          },
+                          {
+                            "has": {
+                              "nthChild": { "position": 2, "ofRule": { "not": { "kind": "comment" } } },
+                              "any": [
+                                { "kind": "string" },
+                                { "kind": "template_string" }
+                              ]
+                            }
+                          },
+                          {
+                            "not": {
+                              "has": {
+                                "nthChild": { "position": 3, "ofRule": { "not": { "kind": "comment" } } }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
             "focus-key": {
               "has": {
                 "stopBy": "end",
@@ -510,7 +591,10 @@
                       "inside": {
                         "field": "function",
                         "kind": "call_expression",
-                        "matches": "runtime-skip"
+                        "any": [
+                          { "matches": "runtime-skip" },
+                          { "matches": "guarded-skip" }
+                        ]
                       }
                     }
                   ]
@@ -645,7 +729,7 @@
               }
             ]
           },
-          "x-note": "A reference is enough, not only a call: const focus = it.only and const { only } = it focus as well. The modifier may sit anywhere in the chain (it.concurrent.only). The Jasmine globals fit, fdescribe, xit, xdescribe and xtest count wherever they are referenced, except where the file binds the name itself: not-the-global is the scope walk of architecture/effects/no-clock-random-env (a parameter, variable, destructured name, function or class, looked for in each enclosing scope), so const fit = button and its uses are a local value, while a fit called in another function or a declare still reach the global. Unlike that check, an import never binds, not even from a relative module: paths reaches only the tests, never the helper that re-exports the global. A binding whose value the file shows to be the global is the global: a read of the name off globalThis, window, global or self, or off require() or import() of a package, by member, bracket or destructuring, counts where it is read. A value laundered through a call or a module the file does not show is out of reach. The one spelling left out is the Playwright runtime skip test.skip(condition, reason) called inside a function (a test body, hook or describe callback): it skips only that test, or that group from a describe callback (accepted: a conditional group skip still runs whenever the condition is false), and focuses nothing. The condition must reach a runtime value (an identifier, member access, call or await somewhere inside it) and must not be always true by its syntax: after unwrapping parentheses, as, satisfies, non-null and ! it is not a string, template, true, function, arrow, generator, class, object, array, new expression, sequence, spread or globalThis. And the reason must be a string or template; no third argument. So test.skip(), test.skip(true, r), test.skip(1, r), test.skip(!0, r), test.skip(title, fn), a top-level test.skip(cond, r), it.skip(...) (Mocha's it.skip(title, x) really skips), every .only, describe.skip and the bracket, alias and destructured forms stay reported. Known gaps: an always-true condition that still names a value (test.skip(true || x, r), test.skip(Boolean(1), r), const S = true; test.skip(S, r)) and Mocha's TDD UI test.skip(titleVar, 'str'), which reads as the Playwright form."
+          "x-note": "A reference is enough, not only a call: const focus = it.only and const { only } = it focus as well. The modifier may sit anywhere in the chain (it.concurrent.only). The Jasmine globals fit, fdescribe, xit, xdescribe and xtest count wherever they are referenced, except where the file binds the name itself: not-the-global is the scope walk of architecture/effects/no-clock-random-env (a parameter, variable, destructured name, function or class, looked for in each enclosing scope), so const fit = button and its uses are a local value, while a fit called in another function or a declare still reach the global. Unlike that check, an import never binds, not even from a relative module: paths reaches only the tests, never the helper that re-exports the global. A binding whose value the file shows to be the global is the global: a read of the name off globalThis, window, global or self, or off require() or import() of a package, by member, bracket or destructuring, counts where it is read. A value laundered through a call or a module the file does not show is out of reach. The one spelling left out is the Playwright runtime skip test.skip(condition, reason) called inside a function (a test body, hook or describe callback): it skips only that test, or that group from a describe callback (accepted: a conditional group skip still runs whenever the condition is false), and focuses nothing. The condition must reach a runtime value (an identifier, member access, call or await somewhere inside it) and must not be always true by its syntax: after unwrapping parentheses, as, satisfies, non-null and ! it is not a string, template, true, function, arrow, generator, class, object, array, new expression, sequence, spread or globalThis. And the reason must be a string or template; no third argument. So test.skip(), test.skip(true, r), test.skip(1, r), test.skip(!0, r), test.skip(title, fn), a top-level test.skip(cond, r), it.skip(...) (Mocha's it.skip(title, x) really skips), every .only, describe.skip and the bracket, alias and destructured forms stay reported. Known gaps: an always-true condition that still names a value (test.skip(true || x, r), test.skip(Boolean(1), r), const S = true; test.skip(S, r)) and Mocha's TDD UI test.skip(titleVar, 'str'), which reads as the Playwright form. Also accepted, inside a test, hook or describe callback: test.skip() and test.skip(true, reason) in the consequence of an if whose condition reads a runtime value and is not always-true. if (true), a skip outside that if, and a top-level if stay reported."
         }
       ]
     }

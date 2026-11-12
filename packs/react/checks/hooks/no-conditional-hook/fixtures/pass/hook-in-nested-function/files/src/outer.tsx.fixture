@@ -1,0 +1,11 @@
+import { useState } from "react";
+export function Outer(props: { ok: boolean }) {
+  if (props.ok) {
+    const Inner = () => {
+      const [n] = useState(0);
+      return n;
+    };
+    return <Inner />;
+  }
+  return null;
+}

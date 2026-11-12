@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "supabase/client/no-unbounded-select",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "client",
   "cardinality": "singleton",
   "dimension": "supabase.unbounded-select",
@@ -13,34 +13,72 @@
       "typescript": [
         {
           "id": "unbounded-select",
-          "rule": {
-            "kind": "expression_statement",
-            "regex": "\\.select\\s*\\(",
-            "not": {
-              "regex": "\\.(range|limit|order)\\s*\\("
+          "utils": {
+            "supabase-import": {
+              "kind": "string_fragment",
+              "regex": "^@supabase/(supabase-js|ssr)(/|$)",
+              "inside": {
+                "kind": "string",
+                "any": [
+                  {
+                    "inside": {
+                      "field": "source",
+                      "any": [
+                        { "kind": "import_statement" },
+                        { "kind": "export_statement" }
+                      ]
+                    }
+                  },
+                  {
+                    "nthChild": {
+                      "position": 1,
+                      "ofRule": { "not": { "kind": "comment" } }
+                    },
+                    "inside": {
+                      "kind": "arguments",
+                      "inside": {
+                        "kind": "call_expression",
+                        "has": {
+                          "field": "function",
+                          "any": [
+                            { "kind": "import" },
+                            { "kind": "identifier", "regex": "^require$" }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
             }
-          }
-        },
-        {
-          "id": "assigned-select",
+          },
           "rule": {
-            "kind": "variable_declarator",
-            "regex": "\\.select\\s*\\(",
+            "any": [
+              { "kind": "expression_statement" },
+              { "kind": "variable_declarator" }
+            ],
+            "regex": "\\.from\\s*\\([\\s\\S]*\\.select\\s*\\(",
             "not": {
-              "regex": "\\.(range|limit|order)\\s*\\("
+              "any": [
+                { "regex": "\\.(range|limit|order|maybeSingle|single)\\s*\\(" },
+                { "regex": "\\.(insert|update|upsert|delete)\\s*\\(" }
+              ]
+            },
+            "inside": {
+              "stopBy": "end",
+              "kind": "program",
+              "has": {
+                "stopBy": "end",
+                "matches": "supabase-import"
+              }
             }
           }
         }
       ]
     }
   },
-  "phase": [
-    "pre",
-    "stop",
-    "commit",
-    "ci"
-  ],
+  "phase": ["pre", "stop", "commit", "ci"],
   "feedback": {
-    "message": "{symbol} selects rows with no range, limit, or order in the same statement. Add .range() or .limit() so one call cannot read the whole table."
+    "message": "{symbol} selects rows with no range, limit, order, single, or maybeSingle in the same statement. Add a bound, or return rows from a mutation, so one call cannot read the whole table."
   }
 }

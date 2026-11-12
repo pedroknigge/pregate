@@ -1,0 +1,4 @@
+import { useContext } from "react";
+const PopoverCtx = { open: false };
+const PopoverContent = ({ children }: { children: React.ReactNode }) =>
+  useContext(PopoverCtx).open ? <div>{children}</div> : null;

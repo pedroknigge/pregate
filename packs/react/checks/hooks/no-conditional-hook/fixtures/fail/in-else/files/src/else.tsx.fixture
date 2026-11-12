@@ -1,0 +1,8 @@
+import { useState } from "react";
+export function Panel(props: { ok: boolean }) {
+  if (props.ok) return null;
+  else {
+    const [open] = useState(false);
+    return <div>{open}</div>;
+  }
+}

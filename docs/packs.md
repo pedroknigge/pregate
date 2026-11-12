@@ -65,26 +65,26 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
 | [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.2.0 | 11 | `nestjs/controllers` (complete), `nestjs/providers` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |
-| [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.4.0 | 21 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
+| [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.4.1 | 21 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
 | [node](../packs/node/REFERENCE.md) | library | 1.3.0 | 19 | `node/internals` (complete), `node/runtime` (complete), `node/security` (complete) |
 | [nuxt](../packs/nuxt/REFERENCE.md) | library | 1.2.0 | 12 | `nuxt/data` (complete), `nuxt/server` (complete) |
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |
 | [prisma](../packs/prisma/REFERENCE.md) | library | 1.3.0 | 14 | `prisma/client` (complete), `prisma/writes` (complete) |
 | [pstack](../packs/pstack/REFERENCE.md) | process | 1.2.0 | 97 | `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview) |
 | [python](../packs/python/REFERENCE.md) | language | 1.4.0 | 25 | `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete) |
-| [react](../packs/react/REFERENCE.md) | library | 1.2.0 | 14 | `react/components` (complete), `react/hooks` (complete) |
+| [react](../packs/react/REFERENCE.md) | library | 1.2.1 | 14 | `react/components` (complete), `react/hooks` (complete) |
 | [react-native](../packs/react-native/REFERENCE.md) | library | 1.2.0 | 10 | `react-native/platform` (complete), `react-native/security` (complete) |
 | [redis](../packs/redis/REFERENCE.md) | library | 1.2.1 | 11 | `redis/client` (complete), `redis/keys` (complete) |
 | [rust](../packs/rust/REFERENCE.md) | language | 1.2.0 | 9 | `rust/architecture` (complete), `rust/quality` (complete) |
 | [security-audit](../packs/security-audit/REFERENCE.md) | practice | 1.0.0 | 18 | `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview) |
 | [senior](../packs/senior/REFERENCE.md) | practice | 1.2.0 | 12 | `senior/fowler` (complete), `senior/style` (complete) |
 | [solana](../packs/solana/REFERENCE.md) | library | 1.2.0 | 12 | `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete) |
-| [supabase](../packs/supabase/REFERENCE.md) | library | 1.2.0 | 10 | `supabase/client` (complete), `supabase/storage` (complete) |
+| [supabase](../packs/supabase/REFERENCE.md) | library | 1.2.1 | 10 | `supabase/client` (complete), `supabase/storage` (complete) |
 | [svelte](../packs/svelte/REFERENCE.md) | library | 1.2.0 | 13 | `svelte/runes` (complete), `svelte/stores` (complete) |
 | [sveltekit](../packs/sveltekit/REFERENCE.md) | library | 1.2.0 | 12 | `sveltekit/data` (complete), `sveltekit/routing` (complete) |
 | [tailwind](../packs/tailwind/REFERENCE.md) | library | 1.2.1 | 9 | `tailwind/classes` (complete) |
 | [tanstack-query](../packs/tanstack-query/REFERENCE.md) | library | 1.0.0 | 2 | `tanstack-query/client` (complete), `tanstack-query/keys` (complete) |
-| [testing](../packs/testing/REFERENCE.md) | practice | 1.2.1 | 4 | `testing/tdd` (complete) |
+| [testing](../packs/testing/REFERENCE.md) | practice | 1.2.2 | 4 | `testing/tdd` (complete) |
 | [trpc](../packs/trpc/REFERENCE.md) | library | 1.2.1 | 12 | `trpc/client` (complete), `trpc/router` (complete) |
 | [typescript](../packs/typescript/REFERENCE.md) | language | 1.3.0 | 26 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |
 | [vercel](../packs/vercel/REFERENCE.md) | library | 1.0.0 | 15 | `vercel/configuration` (preview), `vercel/cron` (preview), `vercel/environment` (preview), `vercel/functions` (preview), `vercel/protection` (preview), `vercel/recovery` (preview) |

@@ -1,0 +1,3 @@
+export async function getOrigin(row: { source: string }) {
+  return row.source === "supabase";
+}

@@ -1,1 +1,49 @@
-{"$schema": "../../../../../schema/check.v1.json", "id": "react/hooks/no-conditional-hook", "version": "1.0.0", "area": "hooks", "cardinality": "singleton", "dimension": "react.conditional-hook", "minSeverity": null, "params": {}, "impl": {"kind": "pattern", "patterns": {"typescript": [{"id": "conditional-hook", "rule": {"kind": "call_expression", "has": {"field": "function", "regex": "^use[A-Z][A-Za-z0-9]*$"}, "inside": {"stopBy": "end", "any": [{"kind": "if_statement"}, {"kind": "for_statement"}, {"kind": "for_in_statement"}, {"kind": "while_statement"}, {"kind": "do_statement"}, {"kind": "ternary_expression"}]}}}]}}, "phase": ["pre", "stop", "commit", "ci"], "feedback": {"message": "{symbol} calls a Hook inside a branch or loop. Hooks run in the same order on every render."}}
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "react/hooks/no-conditional-hook",
+  "version": "1.0.1",
+  "area": "hooks",
+  "cardinality": "singleton",
+  "dimension": "react.conditional-hook",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "conditional-hook",
+          "rule": {
+            "kind": "call_expression",
+            "has": {
+              "field": "function",
+              "regex": "^use[A-Z][A-Za-z0-9]*$"
+            },
+            "any": [
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "field": "consequence", "kind": "if_statement" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "field": "alternative", "kind": "if_statement" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "field": "consequence", "kind": "ternary_expression" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "field": "alternative", "kind": "ternary_expression" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "kind": "for_statement" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "kind": "for_in_statement" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "kind": "while_statement" } },
+              { "inside": { "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] }, "kind": "do_statement" } },
+              {
+                "inside": {
+                  "stopBy": { "any": [{ "kind": "arrow_function" }, { "kind": "function_expression" }, { "kind": "function_declaration" }, { "kind": "generator_function" }, { "kind": "generator_function_declaration" }, { "kind": "method_definition" }] },
+                  "field": "right",
+                  "kind": "binary_expression",
+                  "has": { "field": "operator", "regex": "^(&&|\\|\\||\\?\\?)$" }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} calls a Hook inside a branch or loop. Hooks run in the same order on every render."
+  }
+}

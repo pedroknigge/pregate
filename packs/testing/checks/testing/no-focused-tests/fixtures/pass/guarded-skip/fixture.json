@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": [
+      "**/*.test.*",
+      "**/*.spec.*",
+      "**/__tests__/**"
+    ]
+  },
+  "target": "e2e/guarded.spec.ts",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

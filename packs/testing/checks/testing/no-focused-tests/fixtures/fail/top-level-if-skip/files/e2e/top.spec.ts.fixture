@@ -1,0 +1,5 @@
+import { test } from "@playwright/test";
+const hasEnv = process.env.E2E_BASE_URL;
+if (!hasEnv) {
+  test.skip(true, "Missing env");
+}

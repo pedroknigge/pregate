@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 export async function stats(org: string): Promise<void> {
   await supabase.rpc("get_stats", { org_id: org });
 }
