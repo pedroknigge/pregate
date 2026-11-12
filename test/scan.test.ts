@@ -71,6 +71,35 @@ test("scan recommends svelte for the package named svelte, Svelte sources, confi
     ns: "svelte", methodologies: ["svelte/runes", "svelte/stores"], reasons: [".svelte source detected"] });
 });
 
+test("a SvelteKit test app with its own package and a nested owner stays inside the owning package", () => {
+  const repo = {
+    "package.json": '{"name":"kit-monorepo","private":true}',
+    "packages/kit/package.json": '{"name":"@sveltejs/kit","peerDependencies":{"svelte":"^5.0.0"}}',
+    "packages/kit/src/index.ts": "export const kit = 1;\n",
+    "packages/kit/test/apps/async/package.json": '{"name":"test-async","devDependencies":{"svelte":"^5.0.0","@sveltejs/kit":"workspace:*"}}',
+    "packages/kit/test/apps/async/src/routes/+page.svelte": "<h1>Async</h1>\n",
+    "packages/kit/test/apps/async/_test_dependencies/remote-lib/package.json": '{"name":"e2e-test-dep-remote","peerDependencies":{"@sveltejs/kit":"*"}}',
+    "packages/kit/test/apps/async/_test_dependencies/plain-lib/package.json": '{"name":"e2e-test-dep-plain"}',
+  };
+  const svelte = recommendPacks(repo, ["TypeScript"]).find(item => item.ns === "svelte")!;
+  expect(svelte.scopeProblems).toBeUndefined();
+  expect(svelte.scope).toEqual({
+    include: ["packages/kit/**", "packages/kit/test/apps/async/_test_dependencies/remote-lib/**"],
+    exclude: [],
+  });
+  expect(svelte.reasons).toEqual([
+    "packages/kit/package.json declares svelte",
+    "packages/kit/test/apps/async/_test_dependencies/remote-lib/package.json declares @sveltejs/kit",
+    ".svelte source detected",
+  ]);
+  const outside = recommendPacks({
+    "packages/kit/package.json": '{"peerDependencies":{"svelte":"^5"}}',
+    "packages/kit/src/apps/async/package.json": "{}",
+    "packages/kit/src/apps/async/nested/package.json": '{"peerDependencies":{"@sveltejs/kit":"*"}}',
+  }, []).find(item => item.ns === "svelte")!;
+  expect(outside.scopeProblems).toEqual(["Nested owners below packages/kit/src/apps/async/ cannot be represented by one include/exclude scope. Choose an explicit reviewed rule scope."]);
+});
+
 test("proposed scope uses the initial recipe and detected roots without hiding unsupported files or activating a contract", () => {
   const files = { "app/page.tsx": "export const page = 1;\n", "components/Form.rb": "", "src/generated/client.ts": "export const client = 1;\n" };
   const stack = detectStack(files), scope = proposedScope(files, stack), coverage = scopeCoverage(files, scope);

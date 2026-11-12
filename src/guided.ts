@@ -118,6 +118,9 @@ export async function inspectProject(directory: string) {
   const preset = established ? savedPreset(root) : null;
   const validPreset = preset && validate("preset", preset).length === 0 ? preset : null;
   const recommendations = stack ? packRecommendations(files, stack, validPreset, errors) : [];
+  for (const item of recommendations) {
+    if (item.scopeProblems?.length) errors.push(`${item.ns}: ${item.scopeProblems.join(" ")} No automatic scope applied.`);
+  }
   const initialScope = !established && stack ? proposedScope(files, stack) : null;
   const coverage = validPreset ? scopeCoverage(files, validPreset.scope) : initialScope ? scopeCoverage(files, initialScope) : null;
   const coverageState = validPreset ? "current" : initialScope ? "proposed" : "unavailable";
@@ -552,7 +555,14 @@ export async function guide(args: string[]): Promise<Result> {
 
 async function guidedAction(options: Options): Promise<Result> {
   try {
-    if (options.json) return { code: 0, text: JSON.stringify(options.projects.length ? { schemaVersion: 1, projects: await Promise.all(rootsOf(options.projects).map(inspectProject)) } : await inspectProject(process.cwd()), null, 2) };
+    if (options.json) {
+      if (options.projects.length) {
+        const projects = await Promise.all(rootsOf(options.projects).map(inspectProject));
+        return { code: projects.some(scopeBlocked) ? 1 : 0, text: JSON.stringify({ schemaVersion: 1, projects }, null, 2) };
+      }
+      const project = await inspectProject(process.cwd());
+      return { code: scopeBlocked(project) ? 1 : 0, text: JSON.stringify(project, null, 2) };
+    }
     if (options.preview) {
       const roots = options.projects.length ? rootsOf(options.projects) : [projectRoot(process.cwd())];
       const before = new Map(roots.map(root => [root, proposalDigest(root)]));
@@ -574,5 +584,26 @@ async function guidedAction(options: Options): Promise<Result> {
       return { code: 0, text: cards.map(card).join("\n\n") + "\nFor guided choices, the human runs pregate guide in a terminal. If it cannot provide a TTY, ask the agent to present guide --json choices and prepare one guide --preview; approve the displayed digest in a separate terminal." };
     }
     return await wizard(options);
-  } catch (e) { return { code: 1, text: visible(`Guided action could not finish: ${(e as Error).message}\nYour valid contract and protection were not reset. Inspect guide --json or preset diagnose; correct the named cause and retry.`) }; }
+  } catch (e) {
+    const message = (e as Error).message;
+    // A thrown inspection still has to be JSON. Text would hide the cause from guide --json.
+    if (options.json) return { code: 1, text: JSON.stringify({ schemaVersion: 1, errors: [message] }, null, 2) };
+    return { code: 1, text: visible(`Guided action could not finish: ${message}\n${unchangedContract()} Inspect guide --json or preset diagnose; correct the named cause and retry.`) };
+  }
+}
+
+function scopeBlocked(project: { errors: string[] }): boolean {
+  return project.errors.some(error => error.includes("No automatic scope applied."));
+}
+
+// The failure happened before any write. Name that only when a contract is actually there.
+function unchangedContract(): string {
+  try {
+    const root = projectRoot(process.cwd());
+    if (!existsSync(join(root, PRESET))) return "No contract exists yet, so none was changed.";
+  } catch (e) {
+    if (!(e instanceof Error)) throw e;
+    return "No contract was changed.";
+  }
+  return "Your valid contract and protection were not reset.";
 }

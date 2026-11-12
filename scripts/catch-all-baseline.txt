@@ -31,11 +31,11 @@ src/fixtures.ts	catch { return "missing or invalid JSON"; }
 src/git-changes.ts	catch { return null; }
 src/guided-review.ts	catch { return null; // an unreadable lock: every proposed layer is new to the reviewer }
 src/guided-update.ts	catch (e) { return recovery(`Update could not finish: ${(e as Error).message}`); }
+src/guided.ts	catch (e) { const message = (e as Error).message; // A thrown inspection still has to be JSON. Text would hide the cause from guide --json. if (options.json) return { code: 1, text: JSON.stringify({ schemaVersion: 1, errors: [message] }, null, 2) }; return { code: 1, text: visible(`Guided action could not finish: ${message}\n${unchangedContract()} Inspect guide --json or preset diagnose; correct the named cause and retry.`) }; }
 src/guided.ts	catch (e) { errors.push(`Cannot inventory this project: ${(e as Error).message}`); return {}; }
 src/guided.ts	catch (e) { errors.push(packInferenceError(e)); return []; }
 src/guided.ts	catch (e) { errors.push(packInferenceError(e)); return null; }
 src/guided.ts	catch (e) { return { code: 1, text: `Contract application could not finish: ${(e as Error).message}. A write may have completed; inspect preset diagnose --json, fix the filesystem problem and prepare a fresh review. Protection was not disabled.` }; }
-src/guided.ts	catch (e) { return { code: 1, text: visible(`Guided action could not finish: ${(e as Error).message}\nYour valid contract and protection were not reset. Inspect guide --json or preset diagnose; correct the named cause and retry.`) }; }
 src/harness/wire.ts	catch { return null; // not JSON: the payload is unrecognized, a known cause }
 src/inertia.ts	catch { return undefined; // invalid JSON is a known state: callers treat it as absent }
 src/init.ts	catch (e) { return { code: 1, text: visible(`Initialization failed: ${(e as Error).message}. Run pregate status before retrying.`) }; }

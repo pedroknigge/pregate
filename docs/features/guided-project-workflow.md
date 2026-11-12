@@ -78,6 +78,13 @@ pregate guide --preview --packs typescript,react --custom-from-docs
 
 `--custom-pack` can repeat. `--preset <name>` selects an initial recipe.
 `--packs none` adds no optional policies; existing recipe policies remain.
+`--packs <ns,ns>` is also the escape hatch when onboarding stops because one
+inferred pack cannot be given a single include/exclude scope. Name the packs
+this review keeps and omit that pack, for example
+`pregate guide --preview --packs typescript,javascript`. `guide --json` includes
+that scope error and exits non-zero; it still writes no proposal and no consent.
+A failure on a project with no contract says that none exists yet, so none was
+changed.
 Detected recommendations use their applicable methodologies; another bundled
 namespace uses its authored methodologies and diagnoses conflicts. Local packs
 must pass real fixtures. Unknown packs and invalid selections do not apply.

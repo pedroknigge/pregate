@@ -104,10 +104,16 @@ A declaration that appears only under `docs/`, `examples/`, or `fixtures/`
 does not recommend Hono. The same dependency in the app still does.
 
 When nested related and unrelated owners cannot be represented by one include/
-exclude policy, scan reports `scopeProblems`; choose an explicit reviewed scope
-instead of silently applying an overbroad policy. Dependency ownership is
-applicability evidence, not proof that the project complies. Review unknown
-architecture and managed dcouplr boundaries using actual project facts.
+exclude policy, scan reports `scopeProblems` and `guide --json` includes that
+error and exits non-zero. Choose an explicit reviewed scope, or leave the pack
+out of this review with `guide --preview --packs <ns,ns>` (omit the blocked
+pack; `--packs none` adds no optional packs). Test apps and fixtures under
+`packages/<name>/test/` stay inside the owning package. A nested manifest there
+does not split that package into an unrepresentable scope, and the pack is not
+dropped. A nested owner outside that test tree still needs an explicit scope.
+Dependency ownership is applicability evidence, not proof that the project
+complies. Review unknown architecture and managed dcouplr boundaries using
+actual project facts.
 
 The [guided workflow](guided-project-workflow.md) can combine the selected packs,
 local custom pack and detected scope into one initial proposal. For an existing
