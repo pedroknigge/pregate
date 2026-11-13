@@ -18,7 +18,7 @@
 set -eu
 
 # In lockstep with package.json: scripts/build.ts refuses to build otherwise.
-DEFAULT_VERSION=0.0.8
+DEFAULT_VERSION=0.0.9
 REPO=pedroknigge/pregate
 
 die() {

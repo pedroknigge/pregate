@@ -2,7 +2,7 @@
   "$schema": "../../schema/preset.v1.json",
   "name": "musk-algorithm",
   "version": "1.0.0",
-  "engine": "0.0.8",
+  "engine": "0.0.9",
   "sources": [
     {
       "ns": "core",
