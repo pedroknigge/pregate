@@ -201,6 +201,13 @@ const CASES: [string, DecideInput, Expect][] = [
   ["advisor warns when a file does not parse", input({
     lock: lock({ enforcement: "advisor" }), form: { cause: "syntax", line: 4 },
   }), { verdict: "none", halt: false, cause: "syntax", full: /parse failure/ }],
+  ["advisor does not block an unresolvable import", input({
+    lock: lock({ enforcement: "advisor" }), form: { cause: "unresolvable-import", line: 2 },
+  }), { verdict: "none", halt: false, cause: "unresolvable-import", full: /did not block/ }],
+  ["stop in advisor does not block an unresolvable import", input({
+    lock: lock({ enforcement: "advisor" }), event: "stop", form: { cause: "unresolvable-import", line: 2 },
+    stop: { blocks: 0, reentry: false, approved: [] },
+  }), { verdict: "none", halt: false, cause: "unresolvable-import", full: /did not block/ }],
 ];
 
 describe("decide: SPEC §11.3 table", () => {
@@ -311,6 +318,7 @@ describe("blocking: the enforcement check shares with decide", () => {
     ["shadow drops a syntax error", lock({ enforcement: "shadow" }), "syntax", null, ["core/EVA-SUP-001"]],
     ["shadow keeps shell writes", lock({ enforcement: "shadow" }), "shell-write", "shell-write", ["core/EVA-SUP-001"]],
     ["shadow keeps unresolvable imports", lock({ enforcement: "shadow" }), "unresolvable-import", "unresolvable-import", ["core/EVA-SUP-001"]],
+    ["advisor drops an unresolvable import when nothing is enforced", lock({ enforcement: "advisor" }), "unresolvable-import", null, []],
     ["shadow keeps protected paths", lock({ enforcement: "shadow" }), "protected-path", "protected-path", ["core/EVA-SUP-001"]],
     ["shadow keeps invalid requests", lock({ enforcement: "shadow" }), "request-invalid", "request-invalid", ["core/EVA-SUP-001"]],
     ["shadow keeps human causes", lock({ enforcement: "shadow" }), "version-mismatch", "version-mismatch", ["core/EVA-SUP-001"]],
@@ -381,6 +389,61 @@ test("advisor mode warns on a file it could not parse, and enforce still denies 
   expect(denied.cause).toBe("syntax");
   expect(denied.compact).toContain("PREGATE DENY syntax");
   expect(denied.full).not.toContain("parse failure");
+});
+
+test("advisor mode warns and does not block an unresolvable import, and an enforced static rule still denies it", () => {
+  const warned = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "unresolvable-import", line: 2 } }));
+  expect(warned.verdict).toBe("none");
+  expect(warned.halt).toBe(false);
+  expect(warned.cause).toBe("unresolvable-import");
+  expect(warned.shadowed).toBe(true);
+  expect(warned.compact).toStartWith("PREGATE WARN unresolvable-import src/billing/invoice.ts:2:");
+  expect(warned.full.startsWith(warned.compact)).toBe(true);
+  expect(warned.full).toContain("This is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.");
+  expect(warned.full).not.toContain("PREGATE DENY");
+  expect(warned.full).not.toContain("no introduced violations");
+  const mixed = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "unresolvable-import", line: 2 }, introduced: [v("core/CC-FN-001", 42)] }));
+  expect(mixed.verdict).toBe("none");
+  expect(mixed.compact).toBe(warned.compact);
+  expect(mixed.full).toContain("PREGATE ADVISOR core/CC-FN-001");
+  const stopped = decide(input({
+    lock: lock({ enforcement: "advisor" }), event: "stop", form: { cause: "unresolvable-import", line: 2 },
+    stop: { blocks: 0, reentry: false, approved: [] },
+  }));
+  expect(stopped.verdict).toBe("none");
+  expect(stopped.halt).toBe(false);
+  expect(stopped.cause).toBe("unresolvable-import");
+  expect(stopped.compact).toBe(warned.compact);
+  const shadow = decide(input({ lock: lock({ enforcement: "shadow" }), form: { cause: "unresolvable-import", line: 2 } }));
+  expect(shadow.verdict).toBe("deny");
+  expect(shadow.cause).toBe("unresolvable-import");
+  expect(shadow.compact).toContain("PREGATE DENY unresolvable-import");
+  const enforced = decide(input({ form: { cause: "unresolvable-import", line: 2 } }));
+  expect(enforced.verdict).toBe("deny");
+  expect(enforced.cause).toBe("unresolvable-import");
+  const promoted = lock({ enforcement: "advisor", rules: lock().rules.map((r) => r.id === "core/CC-FN-001" ? { ...r, enforcement: "enforce" } : r) });
+  const denied = decide(input({ lock: promoted, event: "stop", form: { cause: "unresolvable-import", line: 2 }, stop: { blocks: 0, reentry: false, approved: [] } }));
+  expect(denied.verdict).toBe("deny");
+  expect(denied.cause).toBe("unresolvable-import");
+  expect(denied.compact).toContain("PREGATE DENY unresolvable-import");
+  expect(denied.full).not.toContain("did not block");
+  const advisor = lock({ enforcement: "advisor" });
+  expect(blocking(advisor, [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBeNull();
+  expect(blocking(advisor, [], "unresolvable-import").cause).toBeNull();
+  expect(blocking(promoted, [], "unresolvable-import", { rel: FILE, phase: "pre" }).cause).toBe("unresolvable-import");
+  expect(blocking(promoted, [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBe("unresolvable-import");
+  expect(blocking(promoted, [], "unresolvable-import", { rel: "notes.md", phase: "pre" }).cause).toBeNull();
+  expect(blocking({ ...promoted, ownedByArkgate: ["core/CC-FN-001"] }, [], "unresolvable-import", { rel: FILE, phase: "pre" }).cause).toBeNull();
+  const integrity = lock({ enforcement: "advisor", rules: advisor.rules.map((r) => r.id === "core/EVA-SUP-001" ? { ...r, enforcement: "enforce" } : r) });
+  expect(blocking(integrity, [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBe("unresolvable-import");
+  const preOnly = lock({ enforcement: "advisor", rules: advisor.rules.map((r) => r.id === "core/CC-FN-001" ? { ...r, enforcement: "enforce", phases: ["pre"] } : r) });
+  expect(blocking(preOnly, [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBeNull();
+  expect(blocking(preOnly, [], "unresolvable-import", { rel: FILE, phase: "pre" }).cause).toBe("unresolvable-import");
+  const fitness: LockRule = { ...rule("core/CORE-INV-001", "core/fitness/boundaries@1.0.0", "deny", false),
+    impl: { kind: "primitive", primitive: "fitness", requirement: "A reviewed assertion supplies evidence." }, enforcement: "enforce" };
+  expect(blocking(lock({ enforcement: "advisor", rules: [fitness] }), [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBeNull();
+  expect(blocking(lock({ enforcement: "shadow" }), [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBe("unresolvable-import");
+  expect(blocking(lock(), [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBe("unresolvable-import");
 });
 
 test("an enforcing project requirement is not a source syntax policy", () => {

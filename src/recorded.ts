@@ -16,7 +16,7 @@ import { fitnessViolations, projectFitness } from "./fitness-command.ts";
 import { catFileBytesBatch, git } from "./git.ts";
 import { type Call, clock, isCause, json, launcher, LOCK, NOTHING, PRESET, PROTECTED, readText, type Rooted, told, VERSIONS, within } from "./inertia.ts";
 import { grammarOf } from "./languages.ts";
-import { adviseText, denyText, formText, syntaxAdvisory, warnText } from "./message.ts";
+import { adviseText, denyText, formText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
 import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { checkpoint, importReviewProgress } from "./progress.ts";
@@ -196,21 +196,21 @@ function report(loaded: Loaded, reviews: (Review & { rel: string })[], phase: Ph
     ...reviews.flatMap((r) => (r.form !== null && blocking(loaded.lock, [], r.form.cause, { rel: r.rel, phase }).cause !== null ? [formText(r.form, r.rel).full] : []))];
   const found = reviews.flatMap((r) => r.violations);
   const blocked = blocking(loaded.lock, found, null).violations;
-  const unparsed = reviews.flatMap((r) => {
+  const held = reviews.flatMap((r) => {
     const cause = r.form;
-    if (loaded.lock.enforcement !== "advisor" || cause?.cause !== "syntax") return [];
-    if (blocking(loaded.lock, [], "syntax", { rel: r.rel, phase }).cause !== null) return [];
-    return [syntaxAdvisory(cause, r.rel).full];
+    if (loaded.lock.enforcement !== "advisor" || (cause?.cause !== "syntax" && cause?.cause !== "unresolvable-import")) return [];
+    if (blocking(loaded.lock, [], cause.cause, { rel: r.rel, phase }).cause !== null) return [];
+    return [cause.cause === "syntax" ? syntaxAdvisory(cause, r.rel).full : unresolvedAdvisory(cause, r.rel).full];
   });
   const code = forms.length > 0 || blocked.length > 0 ? 1 : 0;
-  if (format === "sarif") return { code, text: sarifReport(loaded.lock, found, forms.length === 0 && unparsed.length === 0) };
+  if (format === "sarif") return { code, text: sarifReport(loaded.lock, found, forms.length === 0 && held.length === 0) };
   const policies = ruleEnforcements(loaded.lock);
   const advised = found.filter((v) => (policies[v.rule] ?? loaded.lock.enforcement) === "advisor");
   // The CLI pre-check is where "+N more" points, so it lists every finding (rule lines stay capped).
   const ctx = { launcher: launcher(), lockHash: loaded.hash, max: Infinity };
   const text = [
     ...forms,
-    ...unparsed,
+    ...held,
     denyText(blocked, loaded.lock, 1, "retry", ctx).full,
     adviseText(advised, loaded.lock, ctx, forms.length > 0 || blocked.length > 0).full,
     warnText(found.filter((v) => v.severity === "warn" && (policies[v.rule] ?? loaded.lock.enforcement) !== "advisor"), loaded.lock).full,

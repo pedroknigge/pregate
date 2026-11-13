@@ -187,6 +187,14 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
   return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX) };
 }
 
+// Advisor mode does not block an import it could not resolve when no enforced rule would have judged the file.
+export function unresolvedAdvisory(f: Form, rel: string | null): Text {
+  const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const detail = f.detail ? clip(oneLine(f.detail), 2000) : null;
+  const compact = clip(`PREGATE WARN unresolvable-import${at}: ${detail ?? CAUSE_EN["unresolvable-import"]}`, LINE_MAX);
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.`, TEXT_MAX) };
+}
+
 // The literal invocation the shell guard allows (ARCHITECTURE §4.2; MH-29: `pregate` on the PATH or
 // the global launcher's absolute path). A path that would not survive as one shell word, or that `safe` would alter, becomes <file>: a
 // pre-check on another path can fall in another layer and give another verdict.

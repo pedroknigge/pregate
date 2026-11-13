@@ -168,6 +168,10 @@ Do not claim blocking when the selected policy only advises or observes.
 An applicable static rule in enforce also blocks invalid syntax in its own
 language, scope and phase, even if the optional-rule default is shadow. An
 unrelated enforcing rule does not make all files a syntax gate.
+An unresolved import in a restricted layer is the same kind of gap. Shadow keeps
+it, because integrity stays enforced there. Advisor blocks it only when an
+enforced static rule applies to that file and phase, including a promoted
+integrity rule; otherwise it warns and does not block Stop or the edit.
 An admitted lock must equal the complete canonical compilation of the current
 preset and sources after CRLF normalization. Valid LF/CRLF checkouts remain
 admitted; other formatting changes require regeneration. Matching metadata does
