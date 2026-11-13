@@ -1,0 +1,19 @@
+export function browser(code) {
+  return window["eval"](code);
+}
+
+export function realm(code) {
+  return globalThis["eval"](code);
+}
+
+export function frame(code) {
+  return self["eval"](code);
+}
+
+export function host(code) {
+  return global["eval"](code);
+}
+
+export function quoted(code) {
+  return window['eval'](code);
+}

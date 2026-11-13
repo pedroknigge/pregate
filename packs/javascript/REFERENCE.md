@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.1`. Category: **language**.
+Version: `1.2.2`. Category: **language**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -240,7 +240,7 @@ Source metadata:
 
 ## javascript/safety
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.2`. Status: **complete**.
 
 ### javascript/JS-PROTO-001
 
@@ -276,7 +276,7 @@ Source metadata:
 
 ### javascript/JS-EVAL-001
 
-Check: [`javascript/safety/no-eval-call@1.0.1`](checks/safety/no-eval-call/check.json). Default severity: **deny**.
+Check: [`javascript/safety/no-eval-call@1.0.2`](checks/safety/no-eval-call/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -288,7 +288,7 @@ Default parameters: `{}`.
 
 **Repair:** Parse the value with the parser for its format, or call the named function instead of compiling its name.
 
-**Scope and limits:** Calling eval through another object still compiles the string. A comma expression that yields eval, such as (0, eval)(code), is the same call. A renamed local holding the same builtin is still this call.
+**Scope and limits:** A direct eval(...) call and new Function(...) are this call. A member call whose property is eval, such as window.eval(code) or box.eval(code), is the same call, and so are parentheses or a comma expression around one of those callees, such as (0, eval)(code). A bracket call whose object is window, globalThis, self, or global and whose index is the string literal "eval" or 'eval', such as a call of window["eval"], is the same call, including parentheses, a comma expression, and optional chaining. A const, let, or var initialized to the eval identifier, including in parentheses, an assignment of that identifier to a bare local, or a parameter defaulted to it, and a later call of that name, such as const alias = eval; alias(code), is the same call. A later assignment does not remove the match. Another binding of that name inside the statement or function that follows the initializer keeps the call out of this match. A bracket call on any other object, a template index, the string eval outside a call, and a method declaration named eval are not this call.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

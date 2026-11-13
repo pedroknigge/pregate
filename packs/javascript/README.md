@@ -25,7 +25,7 @@ Ready-made combinations live in `packs/presets/`.
 | `JS-REQ-001` | A require(...) call, including one through another object. | A require call hides the dependency from static analysis, so bundlers and the checker cannot see the edge. | deny |
 | `JS-CJS-001` | Assignment to module.exports or exports.x. | A CommonJS export in an ES module file splits the public surface across two module systems, and importers read a different shape. | deny |
 | `JS-PROTO-001` | The __proto__ name in code. | Writing the prototype changes behavior for every object that shares it, and reading it mistakes shared behavior for own data. | deny |
-| `JS-EVAL-001` | An eval(...) call, including one through another object or a comma expression such as (0, eval)(...), and new Function(...). | A string that reaches eval becomes code with full access, so any injection in the string is an injection in the program. | deny |
+| `JS-EVAL-001` | An eval(...) call, new Function(...), a member call whose property is eval, a bracket call of the string eval on window, globalThis, self, or global, a comma expression such as (0, eval)(...), and a later call of a local initialized to the eval identifier. | A string that reaches eval becomes code with full access, so any injection in the string is an injection in the program. | deny |
 | `JS-ASYNC-001` | An async function passed to the Promise constructor. | A rejection inside an async executor settles the invisible promise, so the constructed promise never settles and the error is lost. | deny |
 | `JS-AWAIT-001` | A direct await inside a for, for-in, for-of, while, or do loop, stopping at nested function/method boundaries. | Serial work may be intentional for ordering or backpressure; use bounded parallel work only when operations are independent. | warn |
 | `JS-THROW-001` | A throw of a string, number, or template literal. | A thrown literal gives the catcher no stack and no type, so every catch falls back to comparing raw values. | deny |
@@ -59,7 +59,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **language**. Version: `1.2.1`. 19 distinct check IDs.
+Category: **language**. Version: `1.2.2`. 19 distinct check IDs.
 
 Methodologies: `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete).
 

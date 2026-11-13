@@ -1,0 +1,15 @@
+export function indirect(code: string) {
+  return (0, window["eval"])(code);
+}
+
+export function grouped(code: string) {
+  return (globalThis["eval"])(code);
+}
+
+export function optional(code: string) {
+  return window?.["eval"](code);
+}
+
+export function parenthesized(code: string) {
+  return (window)["eval"](code);
+}

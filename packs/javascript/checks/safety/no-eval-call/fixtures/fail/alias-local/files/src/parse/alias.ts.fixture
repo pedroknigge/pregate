@@ -1,0 +1,41 @@
+export function bound(code: string) {
+  const alias = eval;
+  return alias(code);
+}
+
+export function rebound(code: string) {
+  let run = eval;
+  return run(code);
+}
+
+export function legacy(code: string) {
+  var run = eval;
+  return run(code);
+}
+
+export function wrapped(code: string) {
+  const alias = (eval);
+  return alias(code);
+}
+
+export function typed(code: string) {
+  const alias: (source: string) => string = eval;
+  return alias(code);
+}
+
+export function assigned(code: string) {
+  let alias = String;
+  alias = eval;
+  return alias(code);
+}
+
+export function parameter(code: string) {
+  const run = (alias = eval) => alias(code);
+  return run;
+}
+
+export function overwritten(code: string) {
+  const alias = eval;
+  alias = other;
+  return alias(code);
+}
