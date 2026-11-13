@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, registered, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
+import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, projectCursorHookOwned, registered, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -341,8 +341,8 @@ describe("project", () => {
     expect(project.hooks.PreToolUse[0].matcher).toBe(shared.hooks.PreToolUse[0].matcher);
     for (const event of Object.keys(shared.hooks)) expect(project.hooks[event][0].hooks[0].timeout).toBe(shared.hooks[event][0].hooks[0].timeout);
     expect(project.hooks.PreToolUse[0].hooks[0].command).toBe(
-      `f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness claude-code; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
-    expect(project.hooks.Stop[0].hooks[0].command).toBe(`f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness claude-code; exit 0`);
+      `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness claude-code; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
+    expect(project.hooks.Stop[0].hooks[0].command).toBe(`export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness claude-code; exit 0`);
     for (const command of [...commands(merge(null, "project", DATA)), ...commands(merge(null, "project", WINDOWS_DATA))]) {
       expect(commandScript(command)).not.toContain(DATA);
       expect(commandScript(command)).not.toContain("AppData");
@@ -415,14 +415,19 @@ describe("project", () => {
     }
   });
 
-  test("the Cursor project registration is native: version 1, flat entries, no failClosed, and no machine path", () => {
+  test("the Cursor project registration is native: version 1, flat entries, failClosed on preToolUse, and no machine path", () => {
     const project = obj(merge(null, "project-cursor", DATA));
     expect(project.version).toBe(1);
     expect(Object.keys(project.hooks)).toEqual(["preToolUse", "stop", "sessionStart"]);
     expect(project.hooks.preToolUse).toEqual([{
-      type: "command", timeout: 120, matcher: "^(Write|Delete|Shell)$|^MCP:",
+      type: "command", timeout: 120, matcher: "^(Write|Delete|Shell)$|^MCP:", failClosed: true,
       command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness cursor; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`,
     }]);
+    expect(project.hooks.stop[0].failClosed).toBeUndefined();
+    expect(projectCursorHookOwned(JSON.stringify(project), "pre")).toBe(true);
+    expect(projectCursorHookOwned(JSON.stringify(project), "stop")).toBe(true);
+    expect(projectCursorHookOwned(merge(null, "cursor", DATA), "pre")).toBe(false);
+    expect(projectCursorHookOwned(merge(null, "cursor", DATA), "stop")).toBe(false);
     expect(project.hooks.stop[0]).toMatchObject({ timeout: 60, loop_limit: null, command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness cursor; exit 0` });
     const flat = (text: string | null): string[] => Object.values(obj(text).hooks as Record<string, Json[]>).flatMap((list) => list.map((h) => h.command as string));
     for (const command of [...flat(merge(null, "project-cursor", DATA)), ...flat(merge(null, "project-cursor", WINDOWS_DATA))]) {

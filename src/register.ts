@@ -86,10 +86,15 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
   const dir = h === "cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR";
   if (!windows) {
     const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
-    return `f="\${${dir}:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
+    // Cursor also runs this Claude command. The marker tells that invocation to stand aside when
+    // the project's native .cursor/hooks.json owns the same event. Claude Code itself is unaffected.
+    // export: a bare assignment stays in the shell and never reaches the launcher or the engine.
+    const mark = h === "claude-code" ? "export PREGATE_PROJECT_HOOK=1; " : "";
+    return `${mark}f="\${${dir}:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
   }
   const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
-  return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
+  const mark = h === "claude-code" ? "$env:PREGATE_PROJECT_HOOK='1'; " : "";
+  return powershellCommand(mark + "$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:${dir}) { $env:${dir} } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
     + `if (Test-Path -LiteralPath $f -PathType Leaf) { $raw | & $f ${args}; exit $LASTEXITCODE }; ${missing}`);
 }
@@ -295,6 +300,22 @@ export function cursorStartOwned(text: string | null, data: string): boolean {
   return typeof version === "number" && Number.isInteger(version) && version >= 1 && placed(text, "cursor", data).sessionStart! >= 0;
 }
 
+// The project's .cursor/hooks.json owns this event: one of its handlers runs the project launcher
+// for Cursor. An older timeout or failClosed still counts. The global Stop registration does not.
+const CURSOR_PROJECT_EVENT: Partial<Record<HookKind, "preToolUse" | "stop" | "sessionStart">> = {
+  pre: "preToolUse", stop: "stop", "session-start": "sessionStart",
+};
+
+export function projectCursorHookOwned(text: string | null, kind: HookKind): boolean {
+  const event = CURSOR_PROJECT_EVENT[kind];
+  if (event === undefined) return false;
+  const version = parse(text ?? "")?.version;
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return false;
+  const hooks = parse(text ?? "")?.hooks;
+  const list = isObject(hooks) ? hooks[event] : null;
+  return Array.isArray(list) && list.some((group) => mine(group, "project-cursor", ""));
+}
+
 // Problems in human language; empty: none. `trust`: codex-trust.json.
 export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, trust: Record<string, string>): string[] {
   const out: string[] = [];
@@ -371,10 +392,12 @@ function ours(t: Target, data: string): Record<string, object> {
     command: project ? projectHookCommand(sub, windowsData(data), h) : hookCommand(data, sub, h),
   });
   if (t === "cursor") return { stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
-  // No failClosed: Cursor 2026.11.11 counts an empty stdout as a failed hook under it, and empty is
-  // how the gate says it has no objection. The launcher turns a crash or a hang into exit 2 itself.
+  // failClosed blocks a crash, a timeout, a non-zero exit and an empty reply on Cursor versions that
+  // honor it (2026.09.26 and 2026.11.11). A native allow prints {"permission":"allow"}, so that empty
+  // reply is the missing runtime, not a pass. stop and sessionStart are not permission hooks.
+  // sessionStart is for the local IDE. Cloud agents do not run it; preToolUse judges the write alone.
   if (t === "project-cursor") {
-    return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t] }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
+    return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t], failClosed: true }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   }
   const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
   if (t === "agy" || t === "project-agy") {

@@ -352,6 +352,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("superviso
   expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
   expect(out.stdout + out.stderr).toContain("engine 9.9.7 is not installed");
   if (h === "agy") expect(JSON.parse(out.stdout).decision).toBe("deny");
+  else if (h === "cursor") expect(JSON.parse(out.stdout).permission).toBe("deny");
   else if (h !== "codex") expect(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision).toBe("deny");
   else expect(out.stderr.length).toBeGreaterThan(0);
 });

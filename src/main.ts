@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
+import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
@@ -38,7 +39,13 @@ async function main(argv: string[]): Promise<number> {
   const ours = (flags.length === 0 || (flags.length === 2 && flags[0] === "--harness"))
     && flag !== undefined && Object.hasOwn(HARNESSES, flag);
   const harness = profile(ours ? flag as HarnessId : "claude-code", raw, env);
-  if (ours && harness === "cursor" && (kind === "stop" || kind === "session-start") && flag === "claude-code" && await nativeCursorOwned(kind)) return 0;
+  // Cursor runs a project Claude hook and the native .cursor/hooks.json hook for the same call.
+  // The Claude one stands aside when the native file owns that event, so the call is evaluated once.
+  // The global Claude registration has no PREGATE_PROJECT_HOOK and still evaluates.
+  if (ours && harness === "cursor" && flag === "claude-code") {
+    if ((kind === "stop" || kind === "session-start") && await nativeCursorOwned(kind)) return 0;
+    if (process.env.PREGATE_PROJECT_HOOK === "1" && KINDS.has(kind) && await projectCursorFileOwned(kind as HookKind)) return 0;
+  }
   // The shared registration's SubagentStart is Claude Code's: another harness that reads that file
   // and dispatches the event gets no reply.
   if (ours && flag === "claude-code" && harness !== "claude-code" && kind === "session-start" && subagentEvent(raw)) return 0;
@@ -46,7 +53,14 @@ async function main(argv: string[]): Promise<number> {
   const decoded = ours && KINDS.has(kind) ? adapter.decode(kind as HookKind, raw, env) : refused(kind);
   const e = input.invalid ? inputRejection(decoded, kind) : decoded;
   const subagent = e !== null && e.kind === "session-start" && (e.session?.agentId ?? null) !== null;
-  if (e === null || inert(e)) return subagent ? 0 : dormant(e, adapter);
+  if (e === null || inert(e)) {
+    // A native preToolUse that prints nothing is a failure under failClosed. An unjudged call allows.
+    if (flag === "cursor" && kind === "pre") {
+      writeAll(1, nativePreAllow().stdout);
+      return 0;
+    }
+    return subagent ? 0 : dormant(e, adapter);
+  }
   checkpoint("admission");
   const gate = await import("./gate.ts");
   const pin = input.invalid ? null : gate.redirect(e);
@@ -57,7 +71,9 @@ async function main(argv: string[]): Promise<number> {
     writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
     return gate.REDIRECT;
   }
-  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut), subagent) : adapter.encode(e.kind, await dispatch(e, gate), subagent);
+  // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
+  const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
+  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut), replyFlag) : adapter.encode(e.kind, await dispatch(e, gate), replyFlag);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -97,6 +113,17 @@ function dormant(e: HookEvent | Rejected | null, adapter: (typeof HARNESSES)[Har
 async function nativeCursorOwned(kind: "stop" | "session-start"): Promise<boolean> {
   const { cursorStopOwned, cursorStartOwned } = await import("./register.ts");
   return cursorHooksOwned(kind === "stop" ? cursorStopOwned : cursorStartOwned);
+}
+
+async function projectCursorFileOwned(kind: HookKind): Promise<boolean> {
+  const { projectCursorHookOwned } = await import("./register.ts");
+  const root = process.env.CURSOR_PROJECT_DIR || process.env.CLAUDE_PROJECT_DIR || process.cwd();
+  try {
+    return projectCursorHookOwned(readFileSync(join(root, ".cursor/hooks.json"), "utf8"), kind);
+  } catch {
+    // fail-closed: a missing or unreadable native file does not stand aside, so the Claude hook still evaluates.
+    return false;
+  }
 }
 
 function cursorHooksOwned(owned: (text: string, data: string) => boolean): boolean {
