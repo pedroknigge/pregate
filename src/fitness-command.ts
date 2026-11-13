@@ -6,7 +6,7 @@ import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { fitnessResult, fitnessSummary, type ProjectFitness } from "./fitness.ts";
 export type { ProjectFitness } from "./fitness.ts";
 import { delegate, grammars, lockOf } from "./contract-diagnostic.ts";
-import { PRESET } from "./inertia.ts";
+import { PRESET } from "./admission.ts";
 import { applyPreset } from "./approval-command.ts";
 import { inScope, matches } from "./paths.ts";
 import { H, sha256, stateDir } from "./state.ts";

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { conflictedContract, contractDiagnostic, form } from "../src/contract-diagnostic.ts";
 import { compile } from "../src/compile.ts";
-import { LOCK, PRESET } from "../src/inertia.ts";
+import { LOCK, PRESET } from "../src/admission.ts";
 import { VERSIONS } from "../src/versions.ts";
 import { policyFixture, policyFixtureSource } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";

@@ -6,7 +6,7 @@ import { dataHome, enabled } from "./consent.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { projectFitness } from "./fitness-command.ts";
 import { conflictDiagnostic, conflictedContract, pinned, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
-import { LOCK, PRESET, readText, VERSIONS, within } from "./inertia.ts";
+import { LOCK, PRESET, readText, VERSIONS, within } from "./admission.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
 import { HARNESSES } from "./harness/profile.ts";

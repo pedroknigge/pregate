@@ -6,7 +6,7 @@ import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
-import { dormantNotice, inert, told } from "./inertia.ts";
+import { dormantNotice, inert, told } from "./admission.ts";
 import { readStdin, STDIN_TIMEOUT } from "./disk.ts";
 import { checkpoint } from "./progress.ts";
 import { blank, NO_COMMAND } from "./product.ts";
@@ -26,6 +26,13 @@ async function main(argv: string[]): Promise<number> {
     return run(argv);
   }
   const [, event = "auto", ...flags] = argv;
+  // Only bare `hook <event>` and `hook <event> --harness <id>` are valid hook invocations. An
+  // unknown flag or value no longer misroutes silently to the Claude Code adapter: it is reported
+  // on stderr and evaluated with the default adapter, whose decode refuses a foreign payload.
+  const flag = flags.length === 0 ? "claude-code" : flags[1] ?? "";
+  const malformed = flags.length > 0 && (flags.length !== 2 || flags[0] !== "--harness" || !Object.hasOwn(HARNESSES, flag));
+  const ours = !malformed && Object.hasOwn(HARNESSES, flag);
+  if (malformed) writeAll(2, `pregate hook: unrecognized invocation flags "${flags.join(" ")}"; evaluating with the default adapter\n`);
   checkpoint("input");
   const input = await readStdin(), raw = input.text;
   // Oversized and stalled input read as empty text but are invalid: they keep their rejection.
@@ -35,9 +42,6 @@ async function main(argv: string[]): Promise<number> {
   }
   const env = harnessEnv();
   const kind = event === "auto" ? (eventOf(raw) ?? "pre") : event;
-  const flag = flags.length === 0 ? "claude-code" : flags[1];
-  const ours = (flags.length === 0 || (flags.length === 2 && flags[0] === "--harness"))
-    && flag !== undefined && Object.hasOwn(HARNESSES, flag);
   const harness = profile(ours ? flag as HarnessId : "claude-code", raw, env);
   // Cursor runs a project Claude hook and the native .cursor/hooks.json hook for the same call.
   // The Claude one stands aside when the native file owns that event, so the call is evaluated once.

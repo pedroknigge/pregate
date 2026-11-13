@@ -5,7 +5,7 @@ import { dataHome } from "./consent.ts";
 import { visible } from "./contract.ts";
 import { canonical, findRoot } from "./disk.ts";
 import { say } from "./guided-terminal.ts";
-import { launcherVersion } from "./inertia.ts";
+import { launcherVersion } from "./admission.ts";
 import { update } from "./machine.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";

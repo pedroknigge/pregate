@@ -14,7 +14,7 @@ import { analyze, placement } from "./evaluate.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { fitnessViolations, projectFitness } from "./fitness-command.ts";
 import { catFileBytesBatch, git } from "./git.ts";
-import { type Call, clock, isCause, json, launcher, LOCK, NOTHING, PRESET, PROTECTED, readText, type Rooted, told, VERSIONS, within } from "./inertia.ts";
+import { type Call, clock, isCause, json, launcher, LOCK, NOTHING, PRESET, PROTECTED, readText, type Rooted, told, VERSIONS, within } from "./admission.ts";
 import { grammarOf } from "./languages.ts";
 import { adviseText, denyText, formText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
 import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";

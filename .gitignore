@@ -10,3 +10,5 @@ dist/
 bench.txt
 # bun build --compile leaves a ~63 MB scratch copy in its working directory (bun 1.3.14).
 *.bun-build
+pregate-backlog-for-claude.md
+*-audit-report.html

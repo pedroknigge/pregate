@@ -1,3 +1,4 @@
+src/admission.ts	catch { return undefined; // invalid JSON is a known state: callers treat it as absent }
 src/approval.ts	catch { return false; }
 src/approval.ts	catch { return null; }
 src/audit-cache.ts	catch { cache.stats.error = "Cache checkpoint unavailable; current analysis results remain valid."; }
@@ -37,7 +38,6 @@ src/guided.ts	catch (e) { errors.push(packInferenceError(e)); return []; }
 src/guided.ts	catch (e) { errors.push(packInferenceError(e)); return null; }
 src/guided.ts	catch (e) { return { code: 1, text: `Contract application could not finish: ${(e as Error).message}. A write may have completed; inspect preset diagnose --json, fix the filesystem problem and prepare a fresh review. Protection was not disabled.` }; }
 src/harness/wire.ts	catch { return null; // not JSON: the payload is unrecognized, a known cause }
-src/inertia.ts	catch { return undefined; // invalid JSON is a known state: callers treat it as absent }
 src/init.ts	catch (e) { return { code: 1, text: visible(`Initialization failed: ${(e as Error).message}. Run pregate status before retrying.`) }; }
 src/issue-command.ts	catch (e) { return { code: 1, text: (e as Error).message }; }
 src/issue-command.ts	catch (e) { return { code: 1, text: `Cannot report finding: ${(e as Error).message}. Draft retained; if submission began, check GitHub before retrying.` }; }

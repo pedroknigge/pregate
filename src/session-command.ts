@@ -12,7 +12,7 @@ import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { fitnessViolations, projectFitness } from "./fitness-command.ts";
 import { catFileBatch, git, gitInput, repositoryFailure } from "./git.ts";
-import { type Call, clock, isCause, LOCK, NOTHING, PRESET, readText, told, VERSIONS, within } from "./inertia.ts";
+import { type Call, clock, isCause, LOCK, NOTHING, PRESET, readText, told, VERSIONS, within } from "./admission.ts";
 import { violationMessage } from "./message.ts";
 import { pathKey, relativePath as relative } from "./paths.ts";
 import { checkpoint, importReviewProgress, stopRootProgress } from "./progress.ts";

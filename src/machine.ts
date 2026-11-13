@@ -9,7 +9,7 @@ import { canonical, removeReleased, renameReleased } from "./disk.ts";
 import { describeCi } from "./ci/detect.ts";
 import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, status } from "./consent.ts";
 import { findRoot } from "./disk.ts";
-import { launcherVersion } from "./inertia.ts";
+import { launcherVersion } from "./admission.ts";
 import { readProposal } from "./proposal.ts";
 import { cliVersion, TESTED as CODEX_TESTED } from "./harness/codex.ts";
 import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";

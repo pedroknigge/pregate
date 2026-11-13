@@ -6,6 +6,10 @@ on:
     branches: [main, 'ci/**']
   workflow_dispatch:
   pull_request:
+# One isolated runtime root per OS, named once (was hardcoded per step and per OS).
+env:
+  ISOLATED_ROOT: /private/tmp/claude-501/pregate-ci
+  ISOLATED_ROOT_WIN: C:/private/tmp/claude-501/pregate-ci
 jobs:
   dcouplr-source:
     runs-on: ${{ matrix.os }}
@@ -49,7 +53,7 @@ jobs:
           /bin/zsh -c 'echo "zsh $ZSH_VERSION"'
       - name: Isolate runtime homes
         run: |
-          root=/private/tmp/claude-501/pregate-ci
+          root="$ISOLATED_ROOT"
           sudo mkdir -p "$root"
           sudo chown "$(id -u):$(id -g)" "$root"
           for entry in HOME:home XDG_DATA_HOME:data XDG_STATE_HOME:state XDG_CONFIG_HOME:config TMPDIR:tmp CODEX_HOME:codex GROK_HOME:grok; do
@@ -135,7 +139,7 @@ jobs:
       - name: Isolate runtime homes
         shell: pwsh
         run: |
-          $root = 'C:/private/tmp/claude-501/pregate-ci'
+          $root = $env:ISOLATED_ROOT_WIN
           $paths = @{ HOME='home'; USERPROFILE='home'; LOCALAPPDATA='data'; APPDATA='config'; XDG_DATA_HOME='data'; XDG_STATE_HOME='state'; XDG_CONFIG_HOME='config'; TMPDIR='tmp'; TEMP='tmp'; TMP='tmp'; CODEX_HOME='codex'; GROK_HOME='grok' }
           foreach ($entry in $paths.GetEnumerator()) {
             $path = "$root/$($entry.Value)"
@@ -150,7 +154,7 @@ jobs:
       - name: Exclude CI work directories from Defender
         shell: pwsh
         run: |
-          $root = 'C:\private\tmp\claude-501\pregate-ci'
+          $root = $env:ISOLATED_ROOT_WIN
           New-Item -ItemType Directory -Path $root -Force | Out-Null
           $targets = @([IO.Path]::GetFullPath($env:GITHUB_WORKSPACE), [IO.Path]::GetFullPath($root))
           foreach ($path in $targets) { Add-MpPreference -ExclusionPath $path }
@@ -192,9 +196,9 @@ jobs:
         shell: pwsh
         working-directory: examples/demo/go
         env:
-          GOCACHE: C:/private/tmp/claude-501/pregate-ci/go-cache
-          GOPATH: C:/private/tmp/claude-501/pregate-ci/gopath
-          GOTMPDIR: C:/private/tmp/claude-501/pregate-ci/tmp
+          GOCACHE: ${{ env.ISOLATED_ROOT_WIN }}/go-cache
+          GOPATH: ${{ env.ISOLATED_ROOT_WIN }}/gopath
+          GOTMPDIR: ${{ env.ISOLATED_ROOT_WIN }}/tmp
           GOPROXY: "off"
           GOSUMDB: "off"
           GOTOOLCHAIN: local

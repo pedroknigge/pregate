@@ -41,8 +41,11 @@
     "build": "bun run scripts/build.ts",
     "manifests": "bun run scripts/release-manifests.ts",
     "test": "bun test",
+    "test:unit": "ls test/*.test.ts | grep -v e2e | xargs bun test",
+    "test:e2e": "ls test/*.e2e.test.ts | xargs bun test",
     "typecheck": "tsc",
-    "bench": "bun run scripts/bench.ts"
+    "bench": "bun run scripts/bench.ts",
+    "clean": "rm -rf dist .*.bun-build"
   },
   "dependencies": {},
   "devDependencies": {

@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { enabled } from "./consent.ts";
 import { canonical, findRoot } from "./disk.ts";
 import { catFileBatch, git, gitFailure, gitInput, repositoryFailure } from "./git.ts";
-import { isCause, PRESET, readText } from "./inertia.ts";
+import { isCause, PRESET, readText } from "./admission.ts";
 import { grammarOf } from "./languages.ts";
 import { pathKey } from "./paths.ts";
 import { normalize } from "./reconstruct.ts";

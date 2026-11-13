@@ -12,7 +12,7 @@ import { visible } from "./contract.ts";
 import { readFixture } from "./fixture-replay.ts";
 import { testFixture } from "./fixtures.ts";
 import { grammars } from "./contract-diagnostic.ts";
-import { clock, VERSIONS } from "./inertia.ts";
+import { clock, VERSIONS } from "./admission.ts";
 import { acquireSubmission, releaseAbandonedSubmission, submissionOwner, type SubmissionLease } from "./issue-submission.ts";
 
 type Result = { code: number; text: string };

@@ -118,7 +118,7 @@
         "src/library-assets.ts",
         "src/disk.ts",
         "src/fixture-replay.ts",
-        "src/inertia.ts",
+        "src/admission.ts",
         "src/state.ts",
         "src/state-lease.ts",
         "src/storage.ts",
