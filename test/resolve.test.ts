@@ -89,6 +89,27 @@ describe("resolve", () => {
     expect(at("zod")).toBe("external");
   });
 
+  test("@/* resolves Next.js dynamic segments and a directory index", () => {
+    const tree: Files = {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }),
+      "src/app/api/projects/[projectCode]/drawings/catalog/handler.ts": "export const catalog = 1;\n",
+      "src/app/api/projects/[projectCode]/drawings/[...path]/load.ts": "export const load = 1;\n",
+      "src/app/api/projects/[[...slug]]/page.ts": "export const page = 1;\n",
+      "src/lib/db/schema/index.ts": "export const users = 1;\n",
+    };
+    const ts = loadTsPaths(reader(tree));
+    const from = "src/app/api/projects/[projectCode]/drawings/[...path]/route.ts";
+    const at = (spec: string) => resolve(from, spec, ts, reader(tree));
+    expect(at("@/app/api/projects/[projectCode]/drawings/catalog/handler")).toEqual({ rel: "src/app/api/projects/[projectCode]/drawings/catalog/handler.ts" });
+    expect(at("@/app/api/projects/[projectCode]/drawings/[...path]/load")).toEqual({ rel: "src/app/api/projects/[projectCode]/drawings/[...path]/load.ts" });
+    expect(at("@/app/api/projects/[[...slug]]/page")).toEqual({ rel: "src/app/api/projects/[[...slug]]/page.ts" });
+    expect(at("@/lib/db/schema")).toEqual({ rel: "src/lib/db/schema/index.ts" });
+    expect(at("@/lib/db/schema/index")).toEqual({ rel: "src/lib/db/schema/index.ts" });
+    expect(at("../catalog/handler")).toEqual({ rel: "src/app/api/projects/[projectCode]/drawings/catalog/handler.ts" });
+    const both = { ...tree, "src/lib/db/schema.ts": "export const users = 2;\n" };
+    expect(resolve(from, "@/lib/db/schema", loadTsPaths(reader(both)), reader(both))).toEqual({ rel: "src/lib/db/schema.ts" });
+  });
+
   test("extends: the config wins over its parents, the later over the earlier; paths are relative to baseUrl, else to their config", () => {
     const tree = {
       ...files,
@@ -251,6 +272,35 @@ describe("analyze: unresolvable imports in a restricted layer", () => {
     expect(run("src/domain/a.ts", 'import { x } from "zod";\nimport { b } from "./b";\n', ky)).toMatchObject({ violations: [] });
     expect(run("src/domain/a.ts", 'import { x } from "~/infra/x";\n', ky)).toEqual({ cause: "unresolvable-import", line: 1 });
     expect(run("src/domain/a.ts", 'import { x } from "zod";\n', { "tsconfig.json": JSON.stringify({ extends: "./missing.json" }) })).toMatchObject({ cause: "unresolvable-import", line: 1 });
+  });
+
+  test("a restricted layer resolves @/* through Next.js segments and a schema index", () => {
+    const route = "src/app/api/projects/[projectCode]/drawings/[...path]/route.ts";
+    const text = [
+      'import { catalog } from "@/app/api/projects/[projectCode]/drawings/catalog/handler";',
+      'import { load } from "@/app/api/projects/[projectCode]/drawings/[...path]/load";',
+      'import { users } from "@/lib/db/schema";',
+      "export function GET() { return { catalog, load, users }; }",
+      "",
+    ].join("\n");
+    const files: Files = {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }),
+      [route]: text,
+      "src/app/api/projects/[projectCode]/drawings/catalog/handler.ts": "export const catalog = { id: \"catalog\" };\n",
+      "src/app/api/projects/[projectCode]/drawings/[...path]/load.ts": "export const load = { id: \"load\" };\n",
+      "src/lib/db/schema/index.ts": "export const users = { id: \"users\" };\n",
+    };
+    const layered = fixtureLock(check, {}, { layers: {
+      domain: { paths: ["src/lib/**"], mayImport: [], kind: "core" },
+      app: { paths: ["src/app/**"], mayImport: ["domain"], kind: "adapter" },
+    } });
+    const result = analyze(layered, "stop", route, text, { read: reader(files), now: clock });
+    expect(result).toMatchObject({ violations: [] });
+    const missing = run("src/domain/a.ts", 'import { missing } from "@/app/api/projects/[projectCode]/missing";\n', {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["./src/*"] } } }),
+    });
+    expect(missing).not.toMatchObject({ cause: "unresolvable-import" });
+    expect(run("src/domain/a.ts", 'import { missing } from "~/not-a-module";\n', files)).toEqual({ cause: "unresolvable-import", line: 1 });
   });
 
   test("outside a restricted layer the same imports are not judged", () => {

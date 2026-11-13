@@ -3,7 +3,7 @@ import { enforcementOf, LOOP_DEFAULTS, ruleEnforcements } from "./enforcement.ts
 import { staticRulesFor } from "./languages.ts";
 import { inScope } from "./paths.ts";
 import type { CallEvent, Cause, Decision, DecideInput, Form, Lock, Loop, Phase, Violation } from "./types.ts";
-import { adviseText, denyText, formText, notice, stopText, syntaxAdvisory, warnText } from "./message.ts";
+import { adviseText, denyText, formText, notice, stopText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
 import type { Close, Halt, Text } from "./message.ts";
 
 // Policy: severity × enforcement × counters × no-progress × ask → Decision (SPEC §11.3,
@@ -14,10 +14,11 @@ export { LOOP_DEFAULTS } from "./enforcement.ts";
 // A grammar gap or a bad reconstruction must not loop forever (ARCHITECTURE §7.2 #14).
 const FORM_RUN_MAX = 3;
 
-// Causes that leave protected paths or integrity rules unevaluated: shadow never mutes them. A
-// non-literal shell target may be a protected path; an unresolved import hides EVA-DYN-001.
+// Causes that leave a protected path unevaluated: shadow never mutes them. A non-literal shell
+// target may be a protected path. An unresolved import is not one of these: shadow still blocks
+// it, and advisor blocks it only when an enforced static rule would be skipped.
 const GUARDS: ReadonlySet<Cause> = new Set<Cause>([
-  "protected-path", "request-invalid", "shell-admin", "shell-write", "unresolvable-import", "hook-switch",
+  "protected-path", "request-invalid", "shell-admin", "shell-write", "hook-switch",
 ]);
 
 const NO_STOP: NonNullable<DecideInput["stop"]> = { blocks: 0, reentry: false, approved: [] };
@@ -35,15 +36,16 @@ export function decide(i: DecideInput): Decision {
   const stop = i.event === "stop";
   // A form cause hides the violations of the same call: they show once the file can be evaluated.
   if (s.form !== null) return stop ? stopBlock(i, s, formText(s.form, i.path)) : formDeny(i, s.form, own);
-  if (i.lock === null || s.block.length === 0) return withSyntaxAdvisory(i, s, stop ? { ...quiet(i, s), notice: approved(i) } : quiet(i, s));
+  if (i.lock === null || s.block.length === 0) return withHeldAdvisory(i, s, stop ? { ...quiet(i, s), notice: approved(i) } : quiet(i, s));
   const d = stop ? stopBlock(i, s, stopText(s.block, i.lock, i)) : ruleDeny(i, i.lock, s, own);
-  return withSyntaxAdvisory(i, s, { ...d, shadowed: s.muted.length > 0 || s.mutedForm !== null });
+  return withHeldAdvisory(i, s, { ...d, shadowed: s.muted.length > 0 || s.mutedForm !== null });
 }
 
-// An advisor parse failure stays non-blocking. Its text replaces a clean result, and it follows a real deny.
-function withSyntaxAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
-  if (i.lock?.enforcement !== "advisor" || s.form !== null || s.mutedForm?.cause !== "syntax") return d;
-  const warning = syntaxAdvisory(s.mutedForm, i.path);
+// An advisor parse failure or unresolved import stays non-blocking. Its text replaces a clean result, and it follows a real deny.
+function withHeldAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
+  const held = s.mutedForm;
+  if (i.lock?.enforcement !== "advisor" || s.form !== null || held === null || (held.cause !== "syntax" && held.cause !== "unresolvable-import")) return d;
+  const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path) : unresolvedAdvisory(held, i.path);
   if (d.full === "") return { ...d, compact: warning.compact, full: warning.full };
   const body = d.verdict === "none" ? `${warning.full}\n\n${d.full}` : `${d.full}\n\n${warning.full}`;
   const full = body.length <= 4000 ? body : body.slice(0, 4000);
@@ -73,19 +75,23 @@ export function merge(ds: Decision[]): Decision {
 }
 
 // Enforcement, shared with `check`: integrity and human/protected-path causes still block in shadow.
-// Syntax also blocks when it prevents an applicable static enforce policy. `warn` never blocks.
+// Syntax and an unresolved import block when they hide an applicable static enforce policy.
+// Shadow keeps every unresolved import, because integrity stays enforced there. `warn` never blocks.
 export function blocking(lock: Lock, vs: Violation[], cause: Cause | null, context?: { rel: string | null; phase: Phase }): { cause: Cause | null; violations: Violation[] } {
   const on = enforced(lock);
   const kept = cause !== null && (lock.enforcement === "enforce" || FIXABLE_BY[cause] === "human" || GUARDS.has(cause)
-    || (cause === "syntax" && enforcedSyntax(lock, context)));
+    || (cause === "syntax" && enforcedStatic(lock, context, false))
+    || (cause === "unresolvable-import" && (lock.enforcement !== "advisor" || enforcedStatic(lock, context, true))));
   return { cause: kept ? cause : null, violations: vs.filter((v) => v.severity !== "warn" && on(v)) };
 }
 
-// A shadow default must not hide failed parsing of an explicitly enforcing static policy.
-// Scope, language, ownership and phase still matter; unrelated enforcement is not a syntax gate.
-function enforcedSyntax(lock: Lock, context: { rel: string | null; phase: Phase } | undefined): boolean {
+// A shadow or advisor default must not hide a file an explicitly enforcing static policy would judge.
+// Syntax ignores integrity rules: in shadow those stay enforce, and a parse gap is not their gate.
+// An unresolved import counts them, because that form is returned instead of their findings.
+// Scope, language, ownership and phase still matter; unrelated enforcement is not a gate.
+function enforcedStatic(lock: Lock, context: { rel: string | null; phase: Phase } | undefined, integrity: boolean): boolean {
   if (!context?.rel || !inScope(lock, context.rel)) return false;
-  const rules = lock.rules.filter(r => !r.integrity && r.phases.includes(context.phase)
+  const rules = lock.rules.filter(r => (integrity || !r.integrity) && r.phases.includes(context.phase)
     && (r.severity === "deny" || r.severity === "ask") && enforcementOf(lock, r) === "enforce");
   return staticRulesFor({ ...lock, rules }, context.rel).length > 0;
 }
