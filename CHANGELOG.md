@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The repository's own dogfood jobs read `PREGATE_ACCEPT_CONTRACT` from the repository variable, as the published CI template already does. A pull request still cannot set that digest.
 - `bun test` no longer writes user state into the real home when a test file forgets its own isolation: the preload gives every unset `HOME`, `USERPROFILE`, `XDG_*_HOME`, `CODEX_HOME`, `GROK_HOME` and `CLAUDE_CONFIG_DIR` a throwaway directory, and the deliberate per-file isolations still win.
 
 ## [0.0.9] - 2026-11-13

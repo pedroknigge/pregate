@@ -108,9 +108,13 @@ jobs:
             dist/SHA256SUMS
       # A push that creates the branch has 0000000 as its before, and a force push may name a commit
       # that is gone: the base is then the merge base with main or, failing that, the first commit.
+      # The digest is a repository variable, which a pull request cannot edit. An empty
+      # value still fails the ratchet. The published template (assets/ci-github.yml) already
+      # reads it; these dogfood jobs have to as well, or a maintainer acceptance never arrives.
       - name: Dogfooding
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PREGATE_ACCEPT_CONTRACT: ${{ vars.PREGATE_ACCEPT_CONTRACT }}
         run: |
           set -eu
           if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
@@ -241,6 +245,7 @@ jobs:
         shell: pwsh
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PREGATE_ACCEPT_CONTRACT: ${{ vars.PREGATE_ACCEPT_CONTRACT }}
         run: |
           git cat-file -e "$env:BASE^{commit}" 2>$null
           if ($LASTEXITCODE -ne 0) {
