@@ -538,6 +538,20 @@ const allowed: string[] = [
   // #69: a closed inline node inspection
   "node -e 'const a=require(\"./package.json\");const b=require(\"./src/x.json\");console.log(a.version,b)'",
   "node -p 'require(\"./package.json\").version'",
+  // A path or a script name that contains a hook stem is not a bypass flag.
+  "git add src/disable-hooks.ts",
+  "git add test/disable-hooks.test.ts",
+  "npm test -- test/disable-hooks.test.ts",
+  "npm run disable-hooks",
+  "npm run build",
+  "echo disable-hooks",
+  "cat docs/hooks-off.md",
+  "git log -S disable-hooks",
+  "git log -Sdisable-hooks",
+  "git grep disable-hooks",
+  "git commit -m 'disable-hooks'",
+  "some-tool disable-hooks",
+  "some-tool bypass-hooks",
 ];
 
 const denied: [string, Cause][] = [
@@ -950,6 +964,16 @@ const denied: [string, Cause][] = [
   ["codex features disable hooks", "hook-switch"],
   ["codex --disable hooks exec x", "hook-switch"],
   ["grok --no-hooks -p x", "hook-switch"],
+  ["some-tool --disable-hooks", "hook-switch"],
+  ["some-tool --skip-hooks", "hook-switch"],
+  ["some-tool --no-hooks=1", "hook-switch"],
+  ["some-tool --bypass-hooks", "hook-switch"],
+  ["some-tool --hooks-off", "hook-switch"],
+  ["codex --skip-hooks", "hook-switch"],
+  ["codex disable-hooks", "hook-switch"],
+  ["grok hooks-off", "hook-switch"],
+  ["claude bypass-hooks", "hook-switch"],
+  ["agent disable-hooks", "hook-switch"],
   ["codex -c 'hooks.state={}' exec x", "hook-switch"],
   ["grok config set compat.claude.hooks false", "hook-switch"],
   ['claude -p "fix the git hooks"', "shell-admin"],

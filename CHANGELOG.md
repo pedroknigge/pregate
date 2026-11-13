@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `bun run clean` removes the compiled `dist/` and the ~63 MB `.bun-build` scratch copies that `bun build --compile` leaves in the working directory. `test:unit` and `test:e2e` run the non-e2e and e2e suites separately, so the fast half does not wait for the compiled-binary runs.
+- `bun run clean` removes `dist/` and every `*.bun-build` scratch copy `bun build --compile` can leave in the working directory, including a hidden `.name.bun-build` and a bare `.bun-build`. `test:unit` and `test:e2e` split the whole suite, including tests in subfolders: `e2e.test.ts` and `*.e2e.test.ts` are the compiled-binary half, and every other test file is the fast half.
 
 ### Changed
 
 - `src/inertia.ts` is `src/admission.ts`. The name now says what the module holds: the admission constants (preset and lock paths, the launcher protocol, the floor) and the rootless and inert judgment. Import sites only.
 - A rule whose impl names a primitive outside the closed vocabulary fails closed in `analyze` instead of being silently skipped: unknown primitives throw, and the four primitives handled elsewhere (`layer-edge` and `banned-import` in `checkImports`, `placement` in `placement()`, `fitness` in the fitness gate) are skipped on purpose. The vocabulary lives in named constants (`EVALUATED_PRIMITIVES`, `IMPORT_PRIMITIVES`, `NODE_PRIMITIVES`) shared by the places that repeated literal names.
 - Malformed `pregate hook` invocation flags (`--harness` without a known harness, extra operands) are reported on stderr and evaluated with the default adapter instead of misrouting silently. Valid forms stay `hook <event>` and `hook <event> --harness <id>`.
-- The shell guard's hook-word list adds generic disable and bypass stems (`--no-hooks`, `disable-hooks`, `bypass-hooks`, …) beside the verbatim flags, so a renamed or newly added bypass flag in an updated harness CLI is still caught.
+- The shell guard's hook-word list adds generic disable and bypass flags (`--no-hooks`, `--disable-hooks`, `--skip-hooks`, `--bypass-hooks`, …) as a whole argv word, and the same bare stems on a harness command, so a renamed or newly added bypass flag is still caught. A path or an npm script whose name contains those words stays an ordinary command.
 - CI names the isolated runtime root once per OS (`ISOLATED_ROOT`, `ISOLATED_ROOT_WIN`) instead of hardcoding the path per step and per OS.
 
 ### Fixed
