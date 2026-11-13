@@ -50,7 +50,7 @@ The corpus contains no project that uses tRPC, Vue, Tailwind, Auth.js, MongoDB o
 
 This run audited 49 packs on 8 pinned trees (238 source files) and recorded **5508 findings**. Sample precision is shown for 14 labeled packs. Every other pack is unmeasured.
 
-Engine 0.0.8, core 0.0.1.
+Engine 0.0.9, core 0.0.1.
 
 Labeled sample: 60 true-positive, 4 false-positive. Packs that do not appear in that sample are unmeasured.
 

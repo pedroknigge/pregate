@@ -47,7 +47,7 @@ Private sources use the consumer's Git credentials. Follow the
 
 Committed local packs travel with the project. Bundled packs require a compatible
 installed engine. External Git packs reside in a local content-addressed cache:
-cloning the consuming project does not populate it. 0.0.8 provides
+cloning the consuming project does not populate it. 0.0.9 provides
 `pregate pack restore` to fetch exactly the committed pins and validate their
 recorded content hashes and fixtures. It preserves preset, lock and local consent.
 `pack update` is not equivalent: it selects upstream HEAD and prepares a contract

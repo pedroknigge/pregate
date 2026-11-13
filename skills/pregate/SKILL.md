@@ -1,6 +1,6 @@
 ---
 name: pregate
-description: "0.0.8 — PREGATE: guide project setup and recovery, pre-check edits, audit debt, compose packs and prepare reviewed approvals"
+description: "0.0.9 — PREGATE: guide project setup and recovery, pre-check edits, audit debt, compose packs and prepare reviewed approvals"
 ---
 
 # PREGATE
@@ -19,7 +19,7 @@ only if installed, absent tools remain not verified, and the 64 core fitness
 requirements stay unverified. It demonstrates no-new, a denied new dependency
 before writing, and accepted repairs; it does not test a live model or human UI.
 
-Skill version: 0.0.8. Run `pregate --version` and compare the engine with
+Skill version: 0.0.9. Run `pregate --version` and compare the engine with
 this skill and the lock's engine. Warn the human about mismatches. `doctor`
 diagnoses missing/stale registrations and companion instructions. Do not repair
 global settings without explicit authorization.
@@ -189,7 +189,7 @@ application code there or edit lock bytes.
 
 ## Start and compose a project
 
-The guided coordinator is included in 0.0.8.
+The guided coordinator is included in 0.0.9.
 Check installed help before relying on a flag. The human
 can run `pregate` in an interactive terminal or `! pregate guide` where the harness
 provides one. Bare no-argument input redirected by a hook retains hook-auto;
@@ -643,7 +643,7 @@ never type. Full library coverage remains incomplete.
 
 For an existing project, inspect installed versus project/lock versions rather
 than assuming `--version` identifies the engine used by every hook. Unified
-migration forms are in 0.0.8; check `--help` when the installed engine is older.
+migration forms are in 0.0.9; check `--help` when the installed engine is older.
 Prepare `update --project --preview` or
 `pack update --all --preview`: engine, core and every registered pack enter one
 candidate and one digest-bound human approval. A single-pack update uses the

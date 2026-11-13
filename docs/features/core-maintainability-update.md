@@ -1,6 +1,6 @@
 # Core maintainability requirements
 
-Requested on 2026-10-05 and included in 0.0.8, after the paired experiment
+Requested on 2026-10-05 and included in 0.0.9, after the paired experiment
 and the ordered optional packs. Exact macOS artifact verification passes;
 native Linux/Windows validation remains deferred. These are enforcing
 project-evidence obligations, not assertions that any product meets them.
