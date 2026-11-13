@@ -4,8 +4,11 @@ import type { GitChanges } from "./shell.ts";
 
 // The files a git command that moves history or the worktree would change, found with read-only
 // git queries before it runs. `worktree`: files it writes or deletes; `index`: entries it stages.
-// null: a form not read here (an in-progress sequence, a `--stdin` list, a prefix), which the
-// guard treats as a write to anything. The shell layer runs git; the core only judges the paths.
+// The shell denies an in-scope worktree path and a protected path on either list. A plain checkout
+// or switch of an existing branch on a clean worktree reports the differing files on the index
+// only: they arrive with that branch. null: a form not read here (an in-progress sequence, a
+// `--stdin` list, a prefix), which the guard treats as a write to anything. The shell layer runs
+// git; the core only judges the paths.
 const MAX_PATHS = 50_000;
 
 export function gitChanges(cwd: string, args: string[]): GitChanges | null {
@@ -40,6 +43,27 @@ class Repo {
   }
   commit(rev: string): string | null {
     return git(this.top, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${rev}^{commit}`])?.trim() || null;
+  }
+  // A local branch, `-` when the previous checkout was a local branch, or the single
+  // remote-tracking branch `git switch` / `git checkout` would use for this name.
+  // A commit, a tag, a path, or two remotes with the same name are not a branch.
+  branchCommit(name: string): string | null {
+    if (name === "-") {
+      const previous = git(this.top, ["rev-parse", "--verify", "--symbolic-full-name", "--end-of-options", "@{-1}"])?.trim() ?? "";
+      return previous.startsWith("refs/heads/") ? this.commit("@{-1}") : null;
+    }
+    const full = git(this.top, ["rev-parse", "--verify", "--symbolic-full-name", "--end-of-options", name])?.trim() ?? "";
+    if (full.startsWith("refs/heads/")) return this.commit(full);
+    if (full !== "" || !oneRemoteName(this.top, name)) return null;
+    const listed = git(this.top, ["for-each-ref", "--format=%(refname)", "--", `refs/remotes/*/${name}`]);
+    const refs = listed?.split("\n").map((line) => line.trim()).filter((line) => line.startsWith("refs/remotes/")) ?? [];
+    return refs.length === 1 ? this.commit(refs[0]!) : null;
+  }
+  // No staged, unstaged, or untracked file. A status Git cannot read is not clean.
+  clean(): boolean {
+    const status = git(this.top, ["status", "--porcelain=v1", "--untracked-files=all"]);
+    if (status === null) throw new Error("git status failed");
+    return status === "";
   }
   tree(rev: string): string | null {
     return git(this.top, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${rev}^{tree}`])?.trim() || null;
@@ -94,9 +118,13 @@ function reset(repo: Repo, rest: string[]): Change | null {
 
 // `checkout <rev>`, `checkout -b new <start>`, `checkout --detach <rev>`: the files that differ
 // between HEAD and the target, plus local changes that -f discards. A single operand that is no
-// revision is a path checked out from the index.
+// revision is a path checked out from the index. A plain checkout of an existing branch is an
+// arrival (see plainBranch).
 function checkout(repo: Repo, rest: string[]): Change | null {
-  const { flags, operands, paths } = options(rest, ["-b", "-B", "--orphan"]);
+  const parsed = options(rest, ["-b", "-B", "--orphan"]);
+  const plain = plainBranch(repo, parsed, false);
+  if (plain !== undefined) return plain;
+  const { flags, operands, paths } = parsed;
   const creates = flags.some((f) => ["-b", "-B"].includes(f));
   if (paths !== null || operands.length > 1) return null;
   const target = operands[0];
@@ -108,8 +136,12 @@ function checkout(repo: Repo, rest: string[]): Change | null {
 }
 
 // `switch <branch>`, `switch --detach <rev>`, `switch -c new <start>`, `switch --orphan new`.
+// A plain switch of an existing branch is an arrival (see plainBranch).
 function switchTo(repo: Repo, rest: string[]): Change | null {
-  const { flags, operands, paths } = options(rest, ["-c", "-C", "--create", "--force-create", "--orphan"]);
+  const parsed = options(rest, ["-c", "-C", "--create", "--force-create", "--orphan"]);
+  const plain = plainBranch(repo, parsed, true);
+  if (plain !== undefined) return plain;
+  const { flags, operands, paths } = parsed;
   if (paths !== null) return null;
   const creates = flags.some((f) => ["-c", "-C", "--create", "--force-create"].includes(f));
   if (flags.includes("--orphan")) { const all = repo.names(["ls-files"]); return { worktree: all, index: all }; }
@@ -121,10 +153,35 @@ function switchTo(repo: Repo, rest: string[]): Change | null {
 }
 
 function moved(repo: Repo, commit: string, discard: boolean): Change {
-  const head = repo.commit("HEAD");
-  const files = head === null ? repo.names(["ls-tree", "-r", "--name-only", commit]) : repo.between(head, commit);
-  const all = [...files, ...(discard ? repo.dirty() : [])];
+  const all = [...differ(repo, commit), ...(discard ? repo.dirty() : [])];
   return { worktree: all, index: all };
+}
+
+// `checkout <branch>` / `switch <branch>` with no other option, including `switch -- <branch>`.
+// undefined: not that form, so the caller keeps the revision or path rules. On a clean worktree
+// the files that differ arrive with the branch: they are index entries, where a protected path
+// still denies, and not worktree writes. A dirty tree still lists those files as writes.
+function plainBranch(repo: Repo, parsed: { flags: string[]; operands: string[]; paths: string[] | null }, dashNamesBranch: boolean): Change | undefined {
+  const { flags, operands, paths } = parsed;
+  if (flags.length !== 0) return undefined;
+  const name = paths === null ? (operands.length === 1 ? operands[0] : undefined)
+    : dashNamesBranch && operands.length === 0 && paths.length === 1 ? paths[0] : undefined;
+  if (name === undefined) return undefined;
+  const commit = repo.branchCommit(name);
+  if (commit === null) return undefined;
+  if (!repo.clean()) return moved(repo, commit, false);
+  return { worktree: [], index: differ(repo, commit) };
+}
+
+function differ(repo: Repo, commit: string): string[] {
+  const head = repo.commit("HEAD");
+  return head === null ? repo.names(["ls-tree", "-r", "--name-only", commit]) : repo.between(head, commit);
+}
+
+// A name Git can store as a branch, and not `HEAD`. Used only to find one remote-tracking ref.
+function oneRemoteName(top: string, name: string): boolean {
+  if (name === "" || name === "HEAD" || name.includes("\\") || name.startsWith("-")) return false;
+  return git(top, ["check-ref-format", "--branch", name])?.trim() === name;
 }
 
 // `stash` / `stash push` / `stash save` reverts local changes (and untracked files with -u, ignored
