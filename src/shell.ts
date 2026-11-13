@@ -50,6 +50,8 @@ export interface GuardContext {
   outsideRoots?: (abs: string) => boolean;
   // The files a git command that moves history or the worktree would change (`args` from the
   // subcommand on), or null when they cannot be known. Without it such a command may write anything.
+  // `worktree` paths are edits when they are in scope. `index` paths deny only when protected.
+  // A clean checkout of an existing branch reports its files on `index` only.
   gitChanges?: (cwd: string, args: string[]) => GitChanges | null;
 }
 export interface GitChanges { worktree: string[]; index: string[] }
@@ -1390,6 +1392,8 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
       && flags.every(([flag, v]) => flag === "-C" || (flag === "-c" && v?.literal === true && !/^core\.(worktree|bare)\b/i.test(v.text)));
     const change = literal ? ctx.gitChanges?.(base, [sub, ...rest.map((w) => w.text)]) ?? null : null;
     if (change === null) return "shell-write";
+    // Index entries are not edits. A clean checkout of an existing branch lists its files there
+    // so a protected path still denies, and leaves the worktree list empty.
     if ([...change.worktree, ...change.index].some((p) => ctx.isProtected(p))) return "protected-path";
     return writes(change.worktree.map((text) => ({ text, literal: true, subs: [] })), base, ctx.inScope);
   }

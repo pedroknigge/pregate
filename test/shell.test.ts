@@ -1058,6 +1058,10 @@ describe("git commands that move history or the worktree are writes of the files
       expect(guard(command, ROOT, answering({ worktree: [`${ROOT}/.pregate/pregate.lock.json`], index: [] }).context)).toBe("protected-path");
     });
   }
+  test("files reported only on the index are not worktree writes, and a protected path there still denies", () => {
+    expect(guard("git switch tutorial", ROOT, answering({ worktree: [], index: [`${ROOT}/src/a.ts`] }).context)).toBeNull();
+    expect(guard("git checkout tutorial", ROOT, answering({ worktree: [], index: [`${ROOT}/.pregate/preset.json`] }).context)).toBe("protected-path");
+  });
   test("the repository is asked from the command's directory with the literal arguments", () => {
     const { asked, context } = answering({ worktree: [], index: [] });
     expect(guard("git -C sub checkout v1", ROOT, context)).toBeNull();
