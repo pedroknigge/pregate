@@ -250,7 +250,7 @@ function harnessLine(s: Status): string {
   const codex = s.codexHooks === "project" ? ` Codex hooks are project-local (.codex/hooks.json of this project).${review}`
     : s.codexHooks === "both" ? ` Codex hooks are registered in this project and globally: when Codex runs both, every tool call is evaluated twice.${review}` : "";
   const cursor = s.cursorHooks === "project" ? " Cursor hooks are project-local; Cursor runs them in a trusted workspace."
-    : s.cursorHooks === "both" ? " Cursor hooks are registered twice (in this project and globally, or in two project files): every tool call is evaluated twice." : "";
+    : s.cursorHooks === "both" ? " Cursor hooks are registered twice. A project Claude hook stands aside in Cursor when .cursor/hooks.json owns that event, so those two project files are one evaluation. A global registration beside a project one still evaluates that call a second time." : "";
   const agy = s.agyHooks === "project" ? " Antigravity hooks are project-local (.agents/hooks.json of this project)."
     : s.agyHooks === "both" ? " Antigravity hooks are registered in this project and globally: every tool call is evaluated twice." : "";
   return `Harnesses gated: ${gated.length === 0 ? "none" : gated.join(", ")}. Not configured: ${open.length === 0 ? "none" : open.join(", ")}.${scope}${codex}${cursor}${agy}`;

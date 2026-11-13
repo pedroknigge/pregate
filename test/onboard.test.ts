@@ -497,7 +497,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial r
     expect(message).toContain("agent must not run");
     expect(message).not.toContain(`! ${command}`);
     if (h === "cursor") {
-      expect(JSON.parse(denied.stdout.toString()).hookSpecificOutput.permissionDecision).toBe("deny");
+      expect(JSON.parse(denied.stdout.toString()).permission).toBe("deny");
     }
     const malformed = run(argv, "{invalid");
     expect(malformed.stdout.toString() + malformed.stderr.toString()).toContain("payload-unrecognized");

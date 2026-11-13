@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Project Cursor hooks answer native `preToolUse` with `{"permission":"allow"}` or `{"permission":"deny","user_message","agent_message"}`, and `preToolUse` sets `failClosed`. A missing pinned engine exits 2 and names `pregate prepare`; the hook does not fall back to a global launcher. A project Claude hook stands aside in Cursor when `.cursor/hooks.json` owns that event, so the two project files record one evaluation per tool call. `sessionStart` is not required for that judgment. A global registration beside the project one still evaluates the call again. A real Cursor session was not re-run for the `permission` allow under `failClosed`.
+
 ### Fixed
 
 - A clean `git switch <branch>` or `git checkout <branch>` of a branch that already exists is allowed. The files that differ arrive with that branch, which matches the rule that checking out a branch that existed before the session is not charged to it. A dirty worktree, `--force`, `--discard-changes`, `--detach`, a new branch, a commit or tag, a path checkout (`git checkout -- <file>`), and any change under `.pregate/` stay denied.

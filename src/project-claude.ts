@@ -19,7 +19,7 @@ export function projectLauncherRel(windows = WINDOWS): string[] {
 // The command Claude runs. A missing launcher denies. It does not exec `pregate` from PATH.
 export function projectHookCommand(sub: Sub, windows = WINDOWS): string {
   if (windows) return windowsProjectHook(sub);
-  const run = `f="\${CLAUDE_PROJECT_DIR:-$PWD}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook ${sub} --harness claude-code; `;
+  const run = `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-$PWD}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook ${sub} --harness claude-code; `;
   if (sub === "session-start") return `${run}printf '%s\\n' '{"systemMessage":"PREGATE could not prepare this session: the project launcher is missing. Run pregate project launcher."}'; exit 0`;
   if (sub === "stop") return `${run}printf '%s\\n' '{"decision":"block","reason":"PREGATE could not verify this turn: the project launcher is missing; run pregate project launcher"}'; exit 2`;
   return `${run}printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user' >&2; exit 2`;
@@ -31,7 +31,7 @@ function windowsProjectHook(sub: Sub): string {
     : sub === "stop"
       ? `[Console]::Out.WriteLine('{"decision":"block","reason":"PREGATE could not verify this turn: the project launcher is missing; run pregate project launcher"}'); exit 2`
       : `[Console]::Error.WriteLine('PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user'); exit 2`;
-  const script = `$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $dir=if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }; $f=Join-Path $dir '.pregate/bin/project-launcher.ps1'; if (!(Test-Path -LiteralPath $f -PathType Leaf)) { ${missing} }; $raw=[Console]::In.ReadToEnd(); $raw | & $f hook ${sub} --harness claude-code; exit $LASTEXITCODE`;
+  const script = `$env:PREGATE_PROJECT_HOOK='1'; $ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $dir=if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }; $f=Join-Path $dir '.pregate/bin/project-launcher.ps1'; if (!(Test-Path -LiteralPath $f -PathType Leaf)) { ${missing} }; $raw=[Console]::In.ReadToEnd(); $raw | & $f hook ${sub} --harness claude-code; exit $LASTEXITCODE`;
   return powershellCommand(script);
 }
 

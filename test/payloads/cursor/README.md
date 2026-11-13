@@ -88,7 +88,9 @@ File paths are absolute. Write and Delete payloads carry **no top-level `cwd`**.
 Also observed and not kept as files: `subagentStart` and `subagentStop` did not fire, headless or in a pty, natively or
 through the imported `SubagentStop`; `preCompact` did not fire. A foreign native `preToolUse` answering
 `{"permission":"allow"}` beside a Claude-format deny from `.claude/settings.json`: the deny won and the file was not
-written. A native `preToolUse` with `failClosed: true` that printed nothing blocked the tool.
+written. A native `preToolUse` with `failClosed: true` that printed nothing blocked the tool. The project registration
+now prints `{"permission":"allow"}` for a call it does not block, and it sets `failClosed`. That allow was not re-run
+in a Cursor session.
 
 ## Not captured
 

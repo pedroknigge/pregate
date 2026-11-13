@@ -7,6 +7,7 @@ import { pendingRoot } from "./proposal.ts";
 import { blank, ENGINE_VERSION, NO_COMMAND } from "./product.ts";
 import { eventOf } from "./harness/claude.ts";
 import { isObject, parse } from "./harness/wire.ts";
+import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile } from "./harness/profile.ts";
 import type { Decision, Emission, HarnessId } from "./types.ts";
 import { ENGINE_FILE } from "./platform.ts";
@@ -20,7 +21,7 @@ interface EngineRun {
   harness: HarnessId; dir: string; watch: Watch; inputTimeout?: boolean;
 }
 
-export function launcherFailure(kind: string, claude: boolean, raw: string, why: string, harness: HarnessId = claude ? "claude-code" : "codex"): Emission {
+export function launcherFailure(kind: string, claude: boolean, raw: string, why: string, harness: HarnessId = claude ? "claude-code" : "codex", native = false): Emission {
   const reason = `PREGATE could not evaluate: ${why}; report it to the user`;
   if (kind === "session-start") return { exit: 0, stderr: "", stdout: claude || harness === "codex" ? JSON.stringify({ systemMessage: reason }) + "\n" : "" };
   if (kind === "post-invocation") return { exit: 0, stderr: "", stdout: "" };
@@ -33,7 +34,7 @@ export function launcherFailure(kind: string, claude: boolean, raw: string, why:
   const text = reason.slice(0, 256) + "\n";
   const deny: Decision = { verdict: "deny", halt: true, cause: null, violations: [], warnings: [], attempt: 0,
     compact: text, full: reason.slice(0, 4000) + "\n", notice: null, lockHash: null, shadowed: false };
-  return HARNESSES[harness].encode("pre-edit", deny);
+  return HARNESSES[harness].encode("pre-edit", deny, harness === "cursor" && native);
 }
 
 function active(raw: string, data: string): boolean {
@@ -86,6 +87,11 @@ function spawnEngine(engine: string, argv: string[], raw: string | Buffer, fds: 
   }
 }
 
+function cursorNativePre(args: string[]): boolean {
+  const at = args.indexOf("--harness");
+  return args[1] === "pre" && at >= 0 && args[at + 1] === "cursor";
+}
+
 function installed(data: string, version: string): string {
   if (!ENGINE_VERSION.test(version)) throw new Error("the engine named no valid version (exit 3)");
   const engine = join(data, version, ENGINE_FILE);
@@ -109,7 +115,10 @@ export async function supervise(data: string, version: string, args: string[], i
   // SessionStart passes without consent: the engine's dormant notice is for users with no project yet.
   // Stop does once a session reached a consented root, so it can warn when consent was removed.
   const passes = kind === "session-start" || (kind === "stop" && existsSync(join(data, "reached")));
-  if (!passes && (!existsSync(consent) || !readdirSync(consent).some((f) => f.endsWith(".json"))) && !active(raw, data)) return { exit: 0, stdout: "", stderr: "" };
+  if (!passes && (!existsSync(consent) || !readdirSync(consent).some((f) => f.endsWith(".json"))) && !active(raw, data)) {
+    // No consent allows. A native preToolUse still prints permission allow, or failClosed would block it.
+    return cursorNativePre(argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
+  }
   const dir = mkdtempSync(join(tmpdir(), "pregate-supervisor-"));
   const watch = { end: (entry.startedAt ?? performance.now()) + (kind === "stop" ? 45_000 : kind === "session-start" ? 10_000 : 5_000), extension: join(dir, "approval") };
   return await engineEmission({ data, version, argv, input, raw, kind, harness, dir, watch, inputTimeout: entry.inputTimeout });
@@ -136,7 +145,7 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
     // fail-closed: any engine failure in a call that reached a project denies. Only a call with no
     // redirect and no consenting directory, which is no project's call, passes.
     if (!routed && !active(run.raw, run.data)) return { exit: 0, stdout: "", stderr: "" };
-    return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness);
+    return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness, cursorNativePre(run.argv));
   } finally {
     rmSync(run.dir, { recursive: true, force: true });
   }

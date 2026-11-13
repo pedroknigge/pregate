@@ -667,10 +667,10 @@ export function codexRegistration(root: string | null): { scope: "project" | "gl
 
 // Where Cursor gets its PREGATE hooks for this project: its own .cursor/hooks.json (`pregate project
 // hooks --harness cursor`), the machine registration (`pregate setup`: the shared Claude Code
-// settings Cursor imports, and the native Stop in ~/.cursor/hooks.json), both or neither. Cursor
-// runs every source it loads, so both means every tool call is evaluated twice. Cursor also runs the
-// project's .claude/settings.json [V 2026.11.11], so a Claude Code project registration is one more
-// Cursor registration. Workspace trust is Cursor's own record and is not read here.
+// settings Cursor imports, and the native Stop in ~/.cursor/hooks.json), both or neither. A project
+// Claude registration beside the native file is one evaluation: that Claude hook stands aside.
+// A global registration beside a project one is still two evaluations. Workspace trust is Cursor's
+// own record and is not read here.
 function cursorScope(p: Paths, root: string | null, present: boolean): { local: boolean; global: boolean; double: boolean; lines: Line[] } {
   const text = root === null ? null : read(join(root, PROJECT_CURSOR_HOOKS));
   const native = registered(text, "project-cursor", p.data);
@@ -681,7 +681,7 @@ function cursorScope(p: Paths, root: string | null, present: boolean): { local: 
   const fix = "pregate project hooks --harness cursor --preview";
   const trust = "Cursor runs project hooks only in a trusted workspace.";
   if (!native && owned(text, "project-cursor", p.data)) lines.push(fail(`${PROJECT_CURSOR_HOOKS}: PREGATE project hooks are missing, modified or written for another platform; run ${fix}.`));
-  if (native && imported) lines.push(warn(`Cursor hooks: ${PROJECT_CURSOR_HOOKS} and ${PROJECT_SETTINGS} of this project both register PREGATE, and Cursor runs both, so every tool call is evaluated twice. Keep one for Cursor. ${trust}`));
+  if (native && imported) lines.push(info(`Cursor hooks: ${PROJECT_CURSOR_HOOKS} and ${PROJECT_SETTINGS} of this project both register PREGATE. In Cursor the project Claude hook stands aside when the native hook owns that event, so the tool call is evaluated once. ${trust}`));
   else if (local && global) lines.push(warn(`Cursor hooks: project-local and global. Cursor runs both registrations, so every tool call is evaluated twice. Keep one: remove the PREGATE entries from ${native ? PROJECT_CURSOR_HOOKS : PROJECT_SETTINGS}, or the global ones (pregate uninstall removes them for every harness). ${trust}`));
   else if (native) lines.push(ok(`Cursor hooks: project-local only. ${PROJECT_CURSOR_HOOKS} runs the project launcher; no global registration is present. ${trust}`));
   else if (local) lines.push(info(`Cursor hooks: project-local through ${PROJECT_SETTINGS}, which Cursor imports; its Stop in Cursor is not established. ${PROJECT_CURSOR_HOOKS} is Cursor's native registration (${fix}). ${trust}`));

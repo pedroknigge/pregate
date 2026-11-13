@@ -211,7 +211,7 @@ test("production hooks deny normalized neutral-cwd guide calls in all five nativ
       expect(decoded).not.toBeNull(); expect(decoded !== null && !("cause" in decoded) && decoded.kind).toBe("pre-command");
       const out = Bun.spawnSync([installed, "hook", "pre", "--harness", harness], { cwd: outside, env: process.env, stdin: Buffer.from(raw), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
       if (harness === "agy") { expect(out.exitCode).toBe(0); expect(JSON.parse(out.stdout.toString()).decision).toBe("deny"); }
-      else if (harness === "cursor") { expect(out.exitCode).toBe(0); expect(JSON.parse(out.stdout.toString()).hookSpecificOutput.permissionDecision).toBe("deny"); }
+      else if (harness === "cursor") { expect(out.exitCode).toBe(0); expect(JSON.parse(out.stdout.toString()).permission).toBe("deny"); }
       else { expect(out.exitCode).toBe(2); expect(out.stderr.toString().length).toBeGreaterThan(0); }
     }
     for (const command of ["pregate guide --json", 'echo "pre\'gate\' guide"']) {
