@@ -1,6 +1,6 @@
 # Vercel platform pack
 
-Included in 0.0.8: 15 optional preview evidence gates in six separately
+Included in 0.0.9: 15 optional preview evidence gates in six separately
 selectable methodologies.
 No live customer deployment was inspected or certified.
 

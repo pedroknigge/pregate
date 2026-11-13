@@ -1,6 +1,6 @@
 # redis
 
-TypeScript client-side Redis pack (node-redis / ioredis). Source version **1.2.1**, for engine **0.0.8**. The engine parses only TS/JS. Rules requiring key-lifetime intent or multi-statement tracking are off; naming conventions are advisory. Server-side policy (ACL users, persistence, eviction, cluster) needs the server config and lives in [BACKLOG.md](BACKLOG.md).
+TypeScript client-side Redis pack (node-redis / ioredis). Source version **1.2.1**, for engine **0.0.9**. The engine parses only TS/JS. Rules requiring key-lifetime intent or multi-statement tracking are off; naming conventions are advisory. Server-side policy (ACL users, persistence, eviction, cluster) needs the server config and lives in [BACKLOG.md](BACKLOG.md).
 
 ## User control
 

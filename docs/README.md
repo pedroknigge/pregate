@@ -1,8 +1,8 @@
 # PREGATE documentation
 
-Use this index for the current product contract. 0.0.8 is the published release.
+Use this index for the current product contract. 0.0.9 is the published release.
 [v0.0.1 release notes](releases/0.0.1.md) record the first public tag, and the
-[changelog](../CHANGELOG.md) records 0.0.8. Historical research is evidence for
+[changelog](../CHANGELOG.md) records 0.0.9. Historical research is evidence for
 its recorded candidate, not proof that a later candidate passes.
 
 ## Start and use the tool
@@ -153,6 +153,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.6.md](releases/0.0.6.md) | Product/reference |
 | [releases/0.0.7.md](releases/0.0.7.md) | Product/reference |
 | [releases/0.0.8.md](releases/0.0.8.md) | Product/reference |
+| [releases/0.0.9.md](releases/0.0.9.md) | Product/reference |
 | [research/harness-opencode-live.md](research/harness-opencode-live.md) | Dated research/evidence |
 | [ROADMAP.md](ROADMAP.md) | Product/reference |
 | [SPEC.md](SPEC.md) | Product/reference |
