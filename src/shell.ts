@@ -1211,6 +1211,34 @@ function inHarnessApproval(args: Word[]): boolean {
   return code || yes;
 }
 
+// Every direct `pregate approve` this command runs, in the form the shell guard allows.
+// Quote-concatenation (`pre''gate`) and a leading `!` are that command. A wrapper, a
+// substitution, a script and a brace group are not: the guard denies those, and this
+// list is only used to turn an already-allowed command into a prompt.
+export function directApprovalArgv(command: string): string[][] {
+  if (!command.includes("approve")) return [];
+  const sources = [command, ...(command.includes("\\") ? [command.replace(/\\(?=[\w.-])/g, "/")] : [])];
+  const found: string[][] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    for (const call of lex(source)) {
+      if (call.grouped || call.words.length === 0) continue;
+      const head = call.words[0]!;
+      if (!head.literal || head.subs.length !== 0) continue;
+      const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
+      if (name !== "pregate") continue;
+      const args = call.words.slice(1);
+      if (!inHarnessApproval(args)) continue;
+      const argv = args.map((word) => word.text);
+      const key = argv.join("\0");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push(argv);
+    }
+  }
+  return found;
+}
+
 // `layers` and `compile` read the project, or prepare one pending review that only the human
 // approves, like `rules add`. Every word is literal and no form applies anything.
 function proposal(args: Word[]): boolean {

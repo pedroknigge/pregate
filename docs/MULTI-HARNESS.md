@@ -83,7 +83,7 @@ Grok and headless sessions deny contract edits and direct the human to
 | agy | `conversationId` | null | null (its own session [V]) | `String(stepIdx)` | `run_command.Cwd`; otherwise, `workspacePaths[0]` |
 
 - State is indexed by `<id>:<Session.id>`, so two harnesses do not share a session by chance.
-- `interactive` is `false` on every harness other than Claude Code. So `decide` never emits `ask` where it cannot be trusted: Codex treats it as fail-open [D], Cursor does not apply it [D], Grok approves it with `--always-approve` [V], and headless agy has no one to ask [S].
+- `interactive` is `false` on every harness other than Claude Code. So `decide` never emits `ask` where it cannot be trusted: Codex treats it as fail-open [D], Cursor does not apply it [D], Grok approves it with `--always-approve` [V], and headless agy has no one to ask [S]. The approval command is not this path. Only an interactive Claude Code parent turns an already-allowed literal `pregate approve` into a hook ask. See [in-harness approval](features/approval-in-harness.md).
 
 **MH-06. `decode` returns `HookEvent | Rejected | null`.**
 - `null` is an event that is recognized and ignored, with a neutral output: only Grok's shutdown Stop (`reason:"shutdown"`) [V]. Grok SubagentStop is a Stop of the child session.

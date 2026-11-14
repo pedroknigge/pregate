@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- An interactive Claude Code parent session returns PreToolUse `permissionDecision: "ask"` when the agent runs a literal `pregate approve <code>`, `pregate approve --yes`, or `pregate approve --yes --digest <sha>`. Accept runs that command. Reject runs nothing. A subagent, `dontAsk`, `bypassPermissions`, a remote session and `CI` do not ask and keep the in-harness command. The approval log stays `via: "yes"` for a non-terminal confirmation, because the approve process cannot tell a click from a command the agent ran itself. The other harnesses are unchanged.
 - A literal `pregate approve <code>`, or `pregate approve --yes` with an optional `--digest`, works again from the harness shell on Claude Code, Codex, Grok, Cursor, OpenCode and agy, including a `!` line. It does not need a terminal. An agent could run that command; the approval log records a non-terminal confirmation (`via: "yes"`) instead of making it impossible. A bare `approve` still asks for `y` on a terminal. `enable`, `disable`, `init`, `promote`, `pack` and the other `--yes` commands stay denied from the harness shell.
 
 ## [0.0.10] - 2026-11-14

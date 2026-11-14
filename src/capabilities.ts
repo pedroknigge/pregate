@@ -1,7 +1,7 @@
 import type { HarnessId } from "./types.ts";
 
 export const CAPABILITIES = {
-  "claude-code": { nativeApproval: "interactive parent sessions", sessionContext: true, warnings: true, halt: true, stopLimitNotice: true, subagentStop: true },
+  "claude-code": { nativeApproval: "interactive parent sessions, for a contract edit and the approval command", sessionContext: true, warnings: true, halt: true, stopLimitNotice: true, subagentStop: true },
   codex: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: true, subagentStop: true },
   cursor: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: false, subagentStop: false },
   grok: { nativeApproval: null, sessionContext: false, warnings: true, halt: false, stopLimitNotice: false, subagentStop: false },

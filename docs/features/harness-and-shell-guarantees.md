@@ -20,7 +20,7 @@ hook configuration do not mean every project assertion has evidence.
 
 | Harness | Pre denial | Native approval | Session context | Warnings | Human notice when Stop releases the turn |
 | --- | --- | --- | --- | --- | --- |
-| Claude Code | Deny JSON and stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | Yes | Yes | `systemMessage` |
+| Claude Code | Deny JSON and stderr, exit 2 | Interactive parent: `permissionDecision: "ask"` for a literal `pregate approve` with a code or `--yes`. Other Claude sessions: that command in this shell, including a `!` line | Yes | Yes | `systemMessage` |
 | Codex | stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | Yes | Yes | `systemMessage` |
 | Cursor | Deny JSON, exit 0 | Same command; Shell Mode has no trusted human-origin marker, and the command is allowed anyway | Yes | No | No supported channel |
 | Grok | Compact deny JSON and stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | No | No | No supported channel |
@@ -44,7 +44,7 @@ does not mean the engine found nothing. Informational warnings and incomplete
 Stop outcomes are retained in local events when recording succeeds. Review
 [in-harness approval](approval-in-harness.md) for exact human consent and digest
 requirements; a native permission packet is not proof of a successful UI prompt.
-A literal `pregate approve` with a code or `--yes` is allowed from the harness shell on every adapter above, including a `!` line. An agent could run it. The approval log records a non-terminal confirmation, and a denial of any other approval attempt tells the agent to ask the human. Other control commands stay on a separate terminal. Cursor's Shell Mode still reaches the same gated Pre as agent tools. See the native observations and limits.
+A literal `pregate approve` with a code or `--yes` is allowed from the harness shell on every adapter above, including a `!` line. An agent could run it. The approval log records a non-terminal confirmation as `via: "yes"`. An interactive Claude Code parent turns that allowed command into `permissionDecision: "ask"` first; the other adapters do not. A denial of any other approval attempt tells the agent to ask the human, and in that Claude parent it may propose the literal command. Other control commands stay on a separate terminal. Cursor's Shell Mode still reaches the same gated Pre as agent tools. See the native observations and limits.
 
 Hook inputs must be valid UTF-8, at most 16 MiB and reach EOF within five seconds
 after the engine starts reading. Rejected input cannot redirect to another engine

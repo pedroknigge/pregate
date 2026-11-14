@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { engineLabel, readBatch, readProposal, type Batch, type Proposal } from "./proposal.ts";
+import { engineLabel, pendingRoot, readBatch, readProposal, type Batch, type Proposal } from "./proposal.ts";
 import { launcherVersion } from "./admission.ts";
 import { dataHome } from "./consent.ts";
 import { bundledBetween, reviewDiff, sourceDiff, type ContractDiff } from "./contract.ts";
@@ -24,7 +24,7 @@ export function currentProposal(proposal: Proposal): boolean {
     && proposal.writes.every((w) => text(w.path) === w.before);
 }
 
-export { pendingRoot } from "./proposal.ts";
+export { pendingRoot };
 
 // The approval code a human types is the digest or a prefix of it long enough that no agent can
 // grind a different proposal to match it inside the review window.
@@ -50,7 +50,7 @@ export function pendingReview(root: string, digest?: string, full = false, globs
     "Pending human review. The active contract still applies.",
     `Digest: ${id}`, ...humanApprovalInstructions(`pregate approve ${id.slice(0, 12)}`, "harness"), ...engineNote(proposal),
     ...(full ? [] : ["Full per-rule and file detail: pregate approve --preview --full"]),
-    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files. Do not run pregate approve yourself. The human runs the command above in this shell."].join("\n") };
+    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files. In an interactive Claude Code parent session you may propose the exact command above, so the human gets Claude Code's permission prompt. Accept runs it. Reject runs nothing. The agent must not run the approval command in any other session. The human runs the command above in this shell."].join("\n") };
 }
 
 // A review prepared by another engine than the installed launcher runs (a source checkout, another
@@ -91,10 +91,10 @@ export function literalPregate(command: string, launcher: string): string | null
   return head === null ? null : body.slice(head.length + 1);
 }
 
-// The code or digest a literal `pregate approve` names, or null when it does not. `--no-commit`
-// may sit on either side. `--yes` without a digest names nothing (it approves the pending review
-// in the working directory). A code operand and `--digest` together are not a command.
-export function namedApprovalCode(rest: string): string | null {
+// A literal `pregate approve` the shell guard allows. `code` is the operand or the `--digest`
+// value. `{ yes: true }` is bare `--yes`: it approves the pending review in the working directory
+// and names no digest. null for a code combined with `--digest`, or for anything else.
+export function literalApproval(rest: string): { code: string } | { yes: true } | null {
   const words = rest.split(" ");
   if (words[0] !== "approve") return null;
   let yes = false, digest: string | null = null, code: string | null = null;
@@ -111,8 +111,47 @@ export function namedApprovalCode(rest: string): string | null {
     if (word.startsWith("-") || code !== null || !/^[0-9a-f]{12,64}$/.test(word)) return null;
     code = word;
   }
-  if (code !== null && digest === null) return code;
-  return yes && digest !== null ? digest : null;
+  if (code !== null && digest === null) return { code };
+  if (yes && digest !== null && code === null) return { code: digest };
+  if (yes && code === null && digest === null) return { yes: true };
+  return null;
+}
+
+// The code or digest a literal `pregate approve` names, or null when it does not. `--no-commit`
+// may sit on either side. `--yes` without a digest names nothing (it approves the pending review
+// in the working directory). A code operand and `--digest` together are not a command.
+export function namedApprovalCode(rest: string): string | null {
+  const parsed = literalApproval(rest);
+  return parsed !== null && "code" in parsed ? parsed.code : null;
+}
+
+// The review a native permission prompt can show for one allowed `pregate approve`. null when the
+// command names no current proposal or batch: the CLI then explains the mismatch, and the prompt
+// must not invent a summary. The detail is the compact review without the digest line, so a
+// command that did not already carry the digest does not reveal it.
+export function approvalAskReview(cwd: string, argv: string[]): { warning: boolean; summary: string; detail: string } | null {
+  const parsed = literalApproval(argv.join(" "));
+  if (parsed === null) return null;
+  if ("code" in parsed) {
+    const batch = pendingBatch(parsed.code);
+    if (batch !== null) {
+      try {
+        const review = batchReview(batch, false, false);
+        const summary = batch.items.map(({ root }) => proposalDiff(readProposal(root)!).summary.join("\n")).join("\n");
+        return { warning: review.warning, summary, detail: review.text };
+      } catch (e) {
+        if (!(e instanceof Error)) throw e;
+        return null;
+      }
+    }
+  }
+  const root = pendingRoot(cwd);
+  if (root === null) return null;
+  const proposal = readProposal(root);
+  if (proposal === null || !currentProposal(proposal)) return null;
+  if ("code" in parsed && !approvalCode(sha256(JSON.stringify(proposal)), parsed.code)) return null;
+  const diff = proposalDiff(proposal);
+  return { warning: diff.warning, summary: diff.summary.join("\n"), detail: reviewLines(root, proposal, false, false).join("\n") };
 }
 
 // The pending batch one literal approval command names. That command is answered by the engine

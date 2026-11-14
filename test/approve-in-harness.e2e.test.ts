@@ -28,8 +28,18 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
     expect(allowed.code, `${harness}\n${allowed.text}`).toBe(0);
     expect(allowed.text, harness).not.toContain("DENY");
     if (harness === "cursor") expect(JSON.parse(allowed.stdout).permission).toBe("allow");
+    if (harness === "claude-code") {
+      const ask = claudeAsk(allowed);
+      expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
+      expect(ask.reason).toContain("Mode:");
+      expect(ask.reason).toContain(`pregate approve ${codeProject.code}`);
+    } else {
+      expect(allowed.text, harness).not.toContain('"permissionDecision":"ask"');
+      expect(allowed.text, harness).not.toContain('"permission":"ask"');
+    }
     const bang = hook(codeProject, harness, `! pregate approve --yes --digest ${codeProject.digest}`);
     expect(bang.code, `${harness} bang\n${bang.text}`).toBe(0);
+    if (harness === "claude-code") expect(claudeAsk(bang).reason).toContain(codeProject.digest);
     expect(existsSync(join(codeProject.root, ".pregate/preset.json")), harness).toBe(false);
   }
   const bare = run(codeProject, ["approve"], "y\n");
@@ -42,7 +52,7 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
   const env = hook(codeProject, "claude-code", `PREGATE_UNATTENDED_APPROVAL=1 pregate approve --yes --digest ${codeProject.digest}`);
   expect(env.code, env.text).toBe(2);
   expect(env.text).toContain("hook-switch");
-  expect(env.text).toContain("Ask the user to approve. Do not run the approval command yourself.");
+  expect(env.text).toContain("You may propose the literal command pregate approve <code>");
   const state = hook(codeProject, "claude-code", "echo x > .pregate/preset.json");
   expect(state.code, state.text).toBe(2);
   expect(state.text).toContain("protected-path");
@@ -62,6 +72,43 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
   expect(recorded(codeProject.root), JSON.stringify(lines)).toBe(true);
   expect(recorded(yesProject.root), JSON.stringify(lines)).toBe(true);
 }, 180_000);
+
+// The hook payload has no field for `claude -p`. An unanswered ask there is denied by Claude Code.
+// These are the sessions the payload and the environment can distinguish from an interactive parent.
+test("an interactive Claude parent gets a schema-valid ask; a subagent, CI, dontAsk, bypass and a remote session do not", () => {
+  const asked = project("claude-ask", data);
+  const command = `pregate approve ${asked.code}`;
+  const parent = hook(asked, "claude-code", command);
+  const ask = claudeAsk(parent);
+  expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
+  expect(ask.reason).toContain("Mode:");
+  expect(ask.context.length).toBeGreaterThan(0);
+  expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  const bare = hook(asked, "claude-code", "pregate approve --yes");
+  const bareAsk = claudeAsk(bare);
+  expect(bareAsk.reason).toContain("pregate approve --yes");
+  expect(bareAsk.reason).not.toContain(asked.digest);
+  expect(bareAsk.context).not.toContain(asked.digest);
+  const wrong = hook(asked, "claude-code", `pregate approve --yes --digest ${"a".repeat(64)}`);
+  expect(wrong.code, wrong.text).toBe(0);
+  expect(wrong.text).not.toContain('"permissionDecision":"ask"');
+  const quiet = (result: { code: number; text: string }) => {
+    expect(result.code, result.text).toBe(0);
+    expect(result.text).not.toContain("DENY");
+    expect(result.text).not.toContain('"permissionDecision":"ask"');
+    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  };
+  for (const mode of ["auto", "plan", "default"]) {
+    const same = hook(asked, "claude-code", command, { patch: (payload) => { payload.permission_mode = mode; } });
+    expect(claudeAsk(same).reason, mode).toContain("Accept runs this command. Reject runs nothing.");
+  }
+  quiet(hook(asked, "claude-code", command, { patch: (payload) => { delete payload.permission_mode; } }));
+  quiet(hook(asked, "claude-code", command, { patch: (payload) => { payload.agent_id = "worker"; } }));
+  quiet(hook(asked, "claude-code", command, { patch: (payload) => { payload.permission_mode = "dontAsk"; } }));
+  quiet(hook(asked, "claude-code", command, { patch: (payload) => { payload.permission_mode = "bypassPermissions"; } }));
+  quiet(hook(asked, "claude-code", command, { env: { CI: "1" } }));
+  quiet(hook(asked, "claude-code", command, { env: { CLAUDE_CODE_REMOTE: "true" } }));
+}, 60_000);
 
 interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string }
 
@@ -104,7 +151,23 @@ function run(p: Project, args: string[], stdin = ""): { code: number; text: stri
   return { code: result.exitCode ?? -1, text: result.stdout.toString() + result.stderr.toString() };
 }
 
-function hook(p: Project, harness: typeof HARNESSES[number], command: string): { code: number; text: string; stdout: string } {
+const PERMISSION_DECISIONS = ["allow", "deny", "ask", "defer"];
+
+function claudeAsk(result: { code: number; stdout: string; text: string }): { reason: string; context: string } {
+  expect(result.code, result.text).toBe(0);
+  expect(result.text).toBe(result.stdout);
+  const body = JSON.parse(result.stdout) as { hookSpecificOutput?: { hookEventName?: string; permissionDecision?: string; permissionDecisionReason?: string; additionalContext?: string } };
+  const out = body.hookSpecificOutput;
+  expect(out?.hookEventName).toBe("PreToolUse");
+  expect(out?.permissionDecision).toBe("ask");
+  expect(PERMISSION_DECISIONS).toContain(out?.permissionDecision ?? "");
+  expect(typeof out?.permissionDecisionReason).toBe("string");
+  expect(out!.permissionDecisionReason!.length).toBeGreaterThan(0);
+  expect(typeof out?.additionalContext).toBe("string");
+  return { reason: out!.permissionDecisionReason!, context: out!.additionalContext! };
+}
+
+function hook(p: Project, harness: typeof HARNESSES[number], command: string, extra: { env?: Record<string, string>; patch?: (payload: Record<string, unknown>) => void } = {}): { code: number; text: string; stdout: string } {
   const names = {
     "claude-code": "pre-bash.json", codex: "codex/pre-bash.json", cursor: "cursor/pre-shell.json",
     grok: "grok/pre-run-terminal-command.json", agy: "agy/pre-run_command.json", opencode: "opencode/pre-shell.json",
@@ -117,8 +180,9 @@ function hook(p: Project, harness: typeof HARNESSES[number], command: string): {
     if (harness === "cursor") payload.tool_input.cwd = p.root;
     if (harness === "opencode") payload.tool_input.workdir = p.root;
   }
+  extra.patch?.(payload);
   const result = Bun.spawnSync([binary, "hook", "pre", "--harness", harness], {
-    cwd: p.root, env: p.env, stdin: Buffer.from(JSON.stringify(payload)), stdout: "pipe", stderr: "pipe", timeout: 30_000,
+    cwd: p.root, env: { ...p.env, ...extra.env }, stdin: Buffer.from(JSON.stringify(payload)), stdout: "pipe", stderr: "pipe", timeout: 30_000,
   });
   const stdout = result.stdout.toString();
   return { code: result.exitCode ?? -1, stdout, text: stdout + result.stderr.toString() };
