@@ -327,7 +327,7 @@ function versionLine(s: Status): string {
 function nextStep(s: Status): string {
   const order = pinOrder(s);
   if (!s.consent) return "the human runs pregate enable in a separate terminal.";
-  if (s.pendingApproval !== null) return `the human approves the pending review in a separate terminal: pregate approve ${s.pendingApproval}.`;
+  if (s.pendingApproval !== null) return `the human approves the pending review in this shell: pregate approve ${s.pendingApproval}. The agent must not run it.`;
   if (order !== null && order < 0) return "pregate guide --preview (or the human runs ! pregate update).";
   if (order !== null && order > 0) return "the human runs ! pregate update.";
   if (!s.contract.valid) return `${s.contract.errors[0] ?? "Contract not ready."} Inspect pregate preset diagnose.`;

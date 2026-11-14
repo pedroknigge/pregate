@@ -276,17 +276,18 @@ before changing visibility or plugins.
 ## Review a contract change inside the harness
 
 The agent can prepare a literal supported preview command. The human reviews
-`approve --preview` and runs `pregate approve <code>` in a separate terminal.
-A harness `!` line has no terminal, so it cannot approve. The agent must not
-execute the approval command itself. Proposals expire after 24 hours and
-reject stale contracts or source data. See [the capability boundaries](../features/approval-in-harness.md).
+`approve --preview` and runs `pregate approve <code>` in this shell, including
+a harness `!` line. A code or `--yes` needs no terminal. An agent could run
+that command; the approval log records it, and the agent must not run it.
+Proposals expire after 24 hours and reject stale contracts or source data.
+See [the capability boundaries](../features/approval-in-harness.md).
 
 If a request preview expires, renew it with
 `pregate preset apply /absolute/path/to/request.json --preview`, then inspect
 `pregate approve --preview` again. Review the current diff and use the digest and
 exact human approval command displayed by this fresh review, rather than a saved
-expired command. The agent may prepare the preview; only the human enters the
-approval command in that separate terminal. Renewing the preview does
+expired command. The agent may prepare the preview. The human runs the approval
+command in this shell. The agent must not run it. Renewing the preview does
 not apply the request or change consent. The new proposal retains the same
 24-hour lifetime.
 

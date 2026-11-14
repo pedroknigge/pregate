@@ -152,7 +152,14 @@ describe("D24 gated harness invocation", () => {
     "pregate rules draft rules/team net/no-raw-fetch --fail src/bad.ts --pass src/good.ts",
     "pregate rules add \"domain must not import infra\"", "pregate rules add x --files \"src/**\" --fail 'fetch(1)'", "pregate rules add --help",
     "pregate pack add --library python --source-only --preview",
-    "pregate approve --preview", "pregate approve --preview --full", "pregate issue draft --last", "pregate issue list", "pregate issue draft --no-event --title t --note n", "pregate issue show digest", "pregate status --json", "pregate status --verbose", "pregate audit --json", "pregate audit --plan --json",
+    "pregate approve --preview", "pregate approve --preview --full",
+    "pregate approve --yes", "pregate approve --yes --no-commit",
+    "pregate approve --yes --digest " + "a".repeat(64),
+    "pregate approve --digest " + "ab".repeat(32) + " --yes",
+    "pregate approve " + "abc123def456",
+    "pregate approve " + "abc123def456" + " --no-commit",
+    "pregate rules add x; pregate approve --yes",
+    "pregate issue draft --last", "pregate issue list", "pregate issue draft --no-event --title t --note n", "pregate issue show digest", "pregate status --json", "pregate status --verbose", "pregate audit --json", "pregate audit --plan --json",
     "pregate audit --jsonl", "pregate audit --repo /repo --jsonl --incremental",
     "pregate feedback list --json", "pregate feedback draft id --as correct", "pregate feedback show digest",
     "pregate storage inspect --json", "pregate storage prune --older-than 30 --preview", "pregate storage recover --preview", "pregate storage show digest",
@@ -168,6 +175,11 @@ describe("D24 gated harness invocation", () => {
   ])("allows %s only with a gated target", (command) => {
     expect(guard(command, ROOT, { ...ctx, gated })).toBeNull();
     if (!command.startsWith("pregate")) expect(guard(command, ROOT, ctx)).toBe("shell-admin");
+  });
+  test("a leading harness bang is the same approval command", () => {
+    for (const command of ["! pregate approve " + "abc123def456", "! pregate approve --yes --digest " + "a".repeat(64)]) {
+      expect(guard(command, ROOT, ctx)).toBeNull();
+    }
   });
   test.each([
     "HOME=/tmp codex exec review", "CODEX_HOME=/tmp codex exec review", "GROK_HOME=/tmp grok -p review",
@@ -229,9 +241,10 @@ test("guide inspection permits one literal review and never an interactive or wr
       "--preview --layers /tmp/layers.json --compile /tmp/one.json --compile /tmp/two.json"]) {
       const command = `${prefix} guide ${args}`;
       expect(guard(command, ROOT, ctx)).toBeNull();
-      for (const suffix of [" --yes", " > .pregate/preset.json", " > src/a.ts", " | cat", "; pregate approve --yes", " &"]) {
+      for (const suffix of [" --yes", " > .pregate/preset.json", " > src/a.ts", " | cat", " &"]) {
         expect(guard(command + suffix, ROOT, ctx)).not.toBeNull();
       }
+      expect(guard(`${command}; pregate approve --yes`, ROOT, ctx)).not.toBeNull();
       expect(guard(`env ${command}`, ROOT, ctx)).not.toBeNull();
       expect(guard(`sh -c '${command}'`, ROOT, ctx)).not.toBeNull();
     }
@@ -262,9 +275,10 @@ test("installed versioned engines permit read-only inspection while unknown exec
     expect(guard(`${engines}/0.2.6/pregate ${command}`, ROOT, context)).toBeNull();
     expect(guard(`${engines}/0.2.6/pregate ${command} > .pregate/preset.json`, ROOT, context)).not.toBeNull();
   }
-  for (const command of [`${engines}/arbitrary/pregate --help`, `${engines}/0.2.6/other --help`, `${engines}/0.2.6/pregate update`, `${engines}/0.2.6/pregate approve --yes`]) {
+  for (const command of [`${engines}/arbitrary/pregate --help`, `${engines}/0.2.6/other --help`, `${engines}/0.2.6/pregate update`]) {
     expect(guard(command, ROOT, context)).not.toBeNull();
   }
+  expect(guard(`${engines}/0.2.6/pregate approve --yes`, ROOT, context)).not.toBeNull();
 });
 
 test("preset apply and check help are literal read-only commands with protected outputs", () => {
@@ -272,9 +286,10 @@ test("preset apply and check help are literal read-only commands with protected 
     for (const command of ["check", "preset apply", "update", "pack update", "fitness bind", "approve", "storage apply", "issue list", "issue draft", "rules test", "demo"]) {
       for (const flag of ["--help", "-h"]) {
         expect(guard(`${prefix} ${command} ${flag}`, ROOT, ctx)).toBeNull();
-        for (const tail of [" --yes", " > .pregate/preset.json", " > src/a.ts", "; pregate approve --yes"]) {
+        for (const tail of [" --yes", " > .pregate/preset.json", " > src/a.ts"]) {
           expect(guard(`${prefix} ${command} ${flag}${tail}`, ROOT, ctx)).not.toBeNull();
         }
+        expect(guard(`${prefix} ${command} ${flag}; pregate approve --yes`, ROOT, ctx)).toBeNull();
       }
     }
   }
@@ -300,9 +315,10 @@ test("request schema inspection keeps shell writes and administrative commands p
 test("migration previews and invalid-contract diagnosis are allowed but activation and protected outputs deny", () => {
   for (const command of ["pregate update --project --preview", "pregate update --preview --project", "pregate pack update --all --preview", "pregate preset diagnose", "pregate preset diagnose --json", "pregate preset schema"]) {
     expect(guard(command, ROOT, ctx)).toBeNull();
-    for (const suffix of [" --yes", " > .pregate/preset.json", " > src/a.ts", "; pregate approve --yes"]) {
+    for (const suffix of [" --yes", " > .pregate/preset.json", " > src/a.ts"]) {
       expect(guard(command + suffix, ROOT, ctx)).not.toBeNull();
     }
+    expect(guard(`${command}; pregate approve --yes`, ROOT, ctx)).toBeNull();
   }
   for (const command of ["pregate update", "pregate update --project", "pregate update --project --yes", "pregate update --project --preview --engine 0.2.5", "pregate pack update --all --yes"]) {
     expect(guard(command, ROOT, ctx)).not.toBeNull();
@@ -322,9 +338,10 @@ test("literal preset request preview permits only its input and never administra
   for (const prefix of ["pregate", "/repo/.pregate/bin/pregate"]) {
     for (const args of [".pregate/requests/adapt.json --preview", "--preview .pregate/requests/adapt.json"]) {
       expect(guard(`${prefix} preset apply ${args}`, ROOT, ctx)).toBeNull();
-      for (const tail of [" --yes", " > .pregate/preset.json", " > src/a.ts", "; pregate approve --yes", " --unknown", " extra.json"]) {
+      for (const tail of [" --yes", " > .pregate/preset.json", " > src/a.ts", " --unknown", " extra.json"]) {
         expect(guard(`${prefix} preset apply ${args}${tail}`, ROOT, ctx)).not.toBeNull();
       }
+      expect(guard(`${prefix} preset apply ${args}; pregate approve --yes`, ROOT, ctx)).toBeNull();
     }
     for (const args of [".pregate/requests/adapt.json", "$(echo x > .pregate/preset.json) --preview", "--preview --preview", "--preview $REQUEST",
       ".pregate/preset.json --preview", ".pregate/pregate.lock.json --preview", "/home/u/.local/state/pregate/consent --preview",
@@ -337,7 +354,7 @@ test("literal preset request preview permits only its input and never administra
 test("pack inputs do not exempt contract writes, substitutions or approval from the shell guard", () => {
   for (const command of ["pregate pack show --path .pregate/packs/acme > .pregate/preset.json",
     "pregate pack add --path .pregate/packs/acme --preview --yes", "pregate pack add --path .pregate/packs/acme --yes", "pregate pack add --library python --yes",
-    "pregate rules add x --yes", "pregate rules add $SENTENCE", "pregate rules add x; pregate approve --yes", "pregate rules add x > .pregate/preset.json",
+    "pregate rules add x --yes", "pregate rules add $SENTENCE", "pregate rules add x > .pregate/preset.json",
     "pregate pack add --library python --source-only --yes",
     "pregate pack show --path $(echo x > .pregate/preset.json)", "pregate pack show --path .pregate/packs/acme; pregate pack remove core --yes",
     "pregate pack apply plan.json --yes", "pregate pack apply plan.json --preview --yes", "pregate pack restore --yes",
@@ -831,11 +848,11 @@ const denied: [string, Cause][] = [
   ["pregate preset apply", "shell-admin"],
   ["pregate preset apply request.json --yes", "shell-admin"],
   ["pregate approve", "shell-admin"],
-  ["pregate approve --yes", "shell-admin"],
+  ["pregate approve --digest " + "a".repeat(64), "shell-admin"],
   ["pregate approve --preview --full --yes", "shell-admin"],
   ["pregate approve --full", "shell-admin"],
   ["pregate approve --preview --full --full", "shell-admin"],
-  ["! pregate approve --yes --digest " + "a".repeat(64), "shell-admin"],
+  ["pregate approve " + "abc123def456" + " --yes --digest " + "a".repeat(64), "shell-admin"],
   ["! pregate issue submit " + "a".repeat(64) + " --yes", "shell-admin"],
   ["sh -c '! pregate approve --yes --digest " + "a".repeat(64) + "'", "shell-admin"],
   ["printf 'y\n' | pregate approve", "shell-admin"],

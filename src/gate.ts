@@ -8,7 +8,7 @@ import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
-import { APPROVE_CODE, literalPregate, pendingBatch } from "./pending-review.ts";
+import { literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import { pendingRoot } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
@@ -92,9 +92,20 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
 // no root writes nothing, and the guard denies only what holds machine-wide unless a path of the
 // command reaches a root (MH-17).
 export function onPreCommand(c: ProposedCommand): Decision {
-  const d = evaluatePreCommand(c);
+  const d = askAboutApproval(evaluatePreCommand(c), c.command);
   if (c.session.harness === "agy") state.queuePostInvocation(state.key(c.session), d);
   return d;
+}
+
+// A denied approval attempt should tell the agent to ask the human, and never to run approve.
+// Compact leads with that sentence because Grok shows only the first 256 characters.
+function askAboutApproval(decision: Decision, command: string): Decision {
+  if (decision.verdict !== "deny" || (decision.cause !== "shell-admin" && decision.cause !== "hook-switch") || !/\bapprove\b/.test(command)) return decision;
+  const ask = "Ask the user to approve. Do not run the approval command yourself.";
+  const full = decision.full.includes(ask) ? decision.full : `${decision.full} ${ask}`.slice(0, 4000);
+  const compact = `${ask} ${decision.compact}`.slice(0, 256);
+  const notice = decision.notice === null || decision.notice.includes(ask) ? decision.notice : `${decision.notice} ${ask}`.slice(0, 4000);
+  return { ...decision, full, compact, notice };
 }
 
 function evaluatePreCommand(c: ProposedCommand): Decision {
@@ -134,24 +145,15 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
 }
 
-// An approval command reads the human's y on a terminal, which an agent's shell tool does not
-// have, so no harness can complete one from the agent: a permission prompt would only run a
-// command that then refuses. The agent is told the human route instead. A batch code needs no
-// root: it names its projects. Any other approval needs the pending root.
+// issue submit, feedback apply and storage apply stay on a separate terminal. `pregate approve`
+// with a code or `--yes` is not in this list: the shell guard allows that exact command, and the
+// approval log records a non-terminal confirmation. A batch code needs no root.
 function administrativeApproval(root: string | null, c: ProposedCommand): Decision | null {
   const command = literalPregate(c.command, launcher());
   if (command === null) return null;
   const known = [/^issue submit [0-9a-f]{64} --yes$/, /^feedback apply [0-9a-f]{64} --yes$/, /^storage apply [0-9a-f]{64} --yes$/].some((re) => re.test(command));
-  const contract = APPROVE_CODE.exec(command);
-  if (!known && contract === null) return null;
-  if (root === null && (contract === null || pendingBatch(contract[1] ?? contract[2]!) === null)) return null;
-  const reason = c.session.harness === "agy"
-    ? "agy has no trusted interactive parent, and a ! line has no terminal."
-    : c.session.harness === "cursor" ? "Cursor Shell Mode has no trusted human-origin marker in its Pre hook."
-    : c.session.harness === "opencode" ? "the OpenCode plugin hook has no trusted human-origin marker."
-    : "an approval command needs the human's confirmation on a terminal, which the agent's shell tool does not have.";
-  const route = `run ${c.command} in a separate terminal`;
-  const text = `PREGATE: ${reason} Show the complete preview and ask the user to ${route}. The agent must not run the approval command.`;
+  if (!known || root === null) return null;
+  const text = `PREGATE: Ask the user to approve. Do not run the approval command yourself. Show the complete preview and ask the user to run ${c.command} in a separate terminal. The agent must not run the approval command.`;
   return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
 }
 

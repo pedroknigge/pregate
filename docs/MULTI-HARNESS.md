@@ -4,8 +4,10 @@
 [approval routes](features/approval-in-harness.md), [capability guarantees](features/harness-and-shell-guarantees.md)
 and [v0.0.1 release notes](releases/0.0.1.md). The dated protocol/design and acceptance records
 below describe their specific candidates. Current proposals can be reviewed and
-approved by the human in a separate terminal. A harness `!` line has no terminal,
-so it cannot approve. Replay/native smoke is
+approved by the human in this shell, including a harness `!` line, with
+`pregate approve <code>` or `--yes`. An agent could run that command; the
+approval log records a non-terminal approval, and the agent must not run it.
+Replay/native smoke is
 distinct from current real harness interaction evidence.
 
 **Status:** design to build (2026-10-02), reviewed in two adversarial reviews (fail-open and simplicity; §9 says what was applied and what was discarded). Implements D20: Codex CLI, Claude Code, Cursor (`cursor-agent`), Grok Build, Antigravity (`agy`) and OpenCode 2.2.7, with a global install, no per-repo configuration, plus update and uninstall.

@@ -599,8 +599,8 @@
     },
     {
       "id": "pregate-approve",
-      "decision": "deny",
-      "cause": "shell-admin"
+      "decision": "allow",
+      "cause": null
     },
     {
       "id": "pregate-disable",

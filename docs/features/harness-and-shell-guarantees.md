@@ -20,12 +20,12 @@ hook configuration do not mean every project assertion has evidence.
 
 | Harness | Pre denial | Native approval | Session context | Warnings | Human notice when Stop releases the turn |
 | --- | --- | --- | --- | --- | --- |
-| Claude Code | Deny JSON and stderr, exit 2 | Separate terminal; a `!` line has no terminal | Yes | Yes | `systemMessage` |
-| Codex | stderr, exit 2 | Separate terminal; a `!` line has no terminal | Yes | Yes | `systemMessage` |
-| Cursor | Deny JSON, exit 0 | Separate terminal; tested Shell Mode has no trusted human-origin marker | Yes | No | No supported channel |
-| Grok | Compact deny JSON and stderr, exit 2 | Separate terminal; a `!` line has no terminal | No | No | No supported channel |
-| agy | Deny JSON, exit 0 | Separate terminal; on 1.5.6 a `!` line was refused because stdin is not a terminal, and the hook cannot identify an interactive parent | Yes | No | No supported channel |
-| OpenCode | stderr, exit 2, thrown by the plugin | Separate terminal; a `!` line has no terminal | Yes | Yes | No supported channel |
+| Claude Code | Deny JSON and stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | Yes | Yes | `systemMessage` |
+| Codex | stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | Yes | Yes | `systemMessage` |
+| Cursor | Deny JSON, exit 0 | Same command; Shell Mode has no trusted human-origin marker, and the command is allowed anyway | Yes | No | No supported channel |
+| Grok | Compact deny JSON and stderr, exit 2 | `pregate approve` with a code or `--yes` in this shell, including a `!` line | No | No | No supported channel |
+| agy | Deny JSON, exit 0 | Same command; the hook cannot identify an interactive parent, and the command is allowed anyway | Yes | No | No supported channel |
+| OpenCode | stderr, exit 2, thrown by the plugin | `pregate approve` with a code or `--yes` in this shell, including a `!` line | Yes | Yes | No supported channel |
 
 A nonblocking Claude Stop emits no
 `hookSpecificOutput.additionalContext`: that channel continues the model's turn
@@ -44,7 +44,7 @@ does not mean the engine found nothing. Informational warnings and incomplete
 Stop outcomes are retained in local events when recording succeeds. Review
 [in-harness approval](approval-in-harness.md) for exact human consent and digest
 requirements; a native permission packet is not proof of a successful UI prompt.
-No harness `!` line is an approval route. In Claude Code, Codex, Grok, OpenCode and Cursor that line's stdin is a pipe or `/dev/null` and the process is detached, so it has no terminal. On agy 1.5.6, `! pregate approve <code>` was refused because stdin is not a terminal. The earlier agy note was only 1.2.17, and those human-shell runs invoked `pregate approve --yes --digest` without `PREGATE_UNATTENDED_APPROVAL=1`. That command also requires a terminal, so those runs do not show that a `!` line can approve. Every harness uses a separate terminal. Cursor's Shell Mode still reaches the same gated Pre as agent tools and does not establish a trusted approval route. See the native observations and limits.
+A literal `pregate approve` with a code or `--yes` is allowed from the harness shell on every adapter above, including a `!` line. An agent could run it. The approval log records a non-terminal confirmation, and a denial of any other approval attempt tells the agent to ask the human. Other control commands stay on a separate terminal. Cursor's Shell Mode still reaches the same gated Pre as agent tools. See the native observations and limits.
 
 Hook inputs must be valid UTF-8, at most 16 MiB and reach EOF within five seconds
 after the engine starts reading. Rejected input cannot redirect to another engine

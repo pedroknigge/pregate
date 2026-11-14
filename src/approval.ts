@@ -4,7 +4,7 @@ import { writeAll } from "./write-all.ts";
 import { approvalText } from "./contract.ts";
 import { dataHome, enable } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
-import { recordApproval } from "./loosening.ts";
+import { recordApproval, type ApprovalVia } from "./loosening.ts";
 import { H, sha256 } from "./state.ts";
 import { WINDOWS } from "./platform.ts";
 
@@ -24,12 +24,21 @@ export function unattendedApproval(): boolean {
   return process.env.PREGATE_UNATTENDED_APPROVAL === "1";
 }
 
-// The approval code is a secret the human types. An agent tool captures stdout, so it is not a
-// terminal. `PREGATE_TESTING=1` is the test hook; the shell guard rejects an agent setting it.
+// The approval code stays off a non-terminal stdout, which is what an agent tool captures.
+// That is not what stops the agent: `pregate approve --yes` names no code, and a code the human
+// already has works in the harness shell. A non-terminal approval is written to the approval log.
+// `PREGATE_TESTING=1` is the test hook; the shell guard rejects an agent setting it.
 export function approvalCodeVisible(): boolean {
   if (process.stdout.isTTY) return true;
   if (process.env.PREGATE_TESTING === "1") return true;
   return unattendedApproval();
+}
+
+// How the confirmation that produced a record was given. `yes` is the in-harness convenience:
+// a code or `--yes` with no terminal. `unattended` is CI. `terminal` typed y. `test` is the test hook.
+let lastVia: ApprovalVia = "terminal";
+export function approvalRecordVia(): ApprovalVia {
+  return lastVia;
 }
 
 // Keep the review text. Remove only the code an approval command would accept.
@@ -47,11 +56,17 @@ export function withholdApprovalCode(text: string): string {
     .replace(/("pendingApproval": )"[0-9a-f]{12,64}"/g, "$1null")).join("\n");
 }
 
-// The command applies only where stdin is a terminal and the human can type on /dev/tty (CONIN$ on
-// Windows). No harness `!` line has that terminal, so every harness uses a separate terminal.
-export function humanApprovalInstructions(command: string): string[] {
+// `harness`: the human can run this exact `pregate approve` form in the harness shell, including a
+// `!` line. Other commands stay on a separate terminal. An agent could run the harness form; the
+// approval log records that. The agent is told not to.
+export function humanApprovalInstructions(command: string, route: "harness" | "terminal" = "terminal"): string[] {
+  if (route === "harness") return [
+    `After reviewing, the human runs in this shell, including a harness ! line: ${command}`,
+    "A code or --yes needs no terminal. Claude Code, Codex, Grok, agy, OpenCode and Cursor can run that command in the agent shell. A bare approve still asks for y on a terminal.",
+    "An agent could run that command. Pregate records a non-terminal approval in the approval log instead of making it impossible. The agent must not run the approval command; ask the human to.",
+  ];
   return [`After reviewing, the human runs in a separate terminal: ${command}`,
-    "Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal. A harness ! line has no terminal, so it cannot approve. The command then asks for y on that terminal.",
+    "Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal. A harness ! line has no terminal for this command, so it cannot approve. The command then asks for y on that terminal.",
     "The agent must not run the approval command. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in the environment (an unattended CI job)."];
 }
 
@@ -94,8 +109,9 @@ export function hasTerminal(): boolean {
   return true;
 }
 
-// Why a caller was not allowed to apply. The unattended opt-in and the test hook are the only
-// non-terminal exceptions; an agent tool pipes stdin and cannot type on /dev/tty.
+// Why a caller was not allowed to apply. A code or `--yes` on `pregate approve` does not need a
+// terminal (`bound`). Every other command still needs the unattended opt-in, the test hook, or a
+// typed y. A pipe that contains "y" is not that typed y.
 // `route` is the real project root and the command a person types there. A batch names every root.
 export function approvalRefusal(route?: { roots: string[]; command: string }): string {
   if (!unattendedApproval() && testAnswer() === undefined && !process.stdin.isTTY) return noTerminal(route);
@@ -103,34 +119,44 @@ export function approvalRefusal(route?: { roots: string[]; command: string }): s
 }
 
 function noTerminal(route?: { roots: string[]; command: string }): string {
-  const why = "This process has no terminal, so nothing was approved. Harness ! lines in Claude Code, Codex, Grok, agy, OpenCode and Cursor run this way: stdin is a pipe or /dev/null and the process is detached, so there is no controlling terminal.";
+  const why = "This process has no terminal, so nothing was approved.";
   if (route === undefined || route.roots.length === 0) return why;
   const open = WINDOWS
     ? `Open a new PowerShell window in ${route.roots.join(", ")} and run \`${route.command}\`.`
     : `Open Terminal/iTerm in ${route.roots.join(", ")} and run \`${route.command}\`.`;
-  return `${why}\n${open}`;
+  const harness = route.command.startsWith("pregate approve")
+    ? ` In this shell, including a harness ! line, \`${route.command}\` applies when it carries that code or --yes. An agent could run it; the approval log records a non-terminal approval. The agent must not run the approval command. Ask the human to.`
+    : " The agent must not run the approval command. Ask the human to.";
+  return `${why}\n${open}${harness}`;
 }
 
-export async function approve(summary: string, warning: boolean, yes = false): Promise<boolean> {
+// `bound`: this call is `pregate approve` with a code or `--yes`. That confirmation does not need
+// a terminal. Other commands pass false, so `--yes` still needs `PREGATE_UNATTENDED_APPROVAL=1`.
+export async function approve(summary: string, warning: boolean, yes = false, bound = false): Promise<boolean> {
   const answer = testAnswer();
-  // Unattended jobs pass --yes without a person at the keyboard. A digest alone is not that channel.
-  const prompting = answer !== undefined ? !yes : !(unattendedApproval() && yes);
+  const confirmed = yes && (bound || unattendedApproval());
+  const prompting = answer !== undefined ? !yes : !confirmed;
   const text = Buffer.from(approvalText(summary, warning, prompting), "utf8");
   if (answer !== undefined) {
     writeAll(1, text);
-    return /^(y|yes)$/i.test(answer.trim());
+    const ok = /^(y|yes)$/i.test(answer.trim());
+    if (ok) lastVia = "test";
+    return ok;
   }
-  if (unattendedApproval() && yes) {
+  if (confirmed) {
     writeAll(1, text);
+    lastVia = unattendedApproval() ? "unattended" : "yes";
     return true;
   }
-  // The caller's stdin must be a terminal. A pipe that contains "y" is the agent, not the human.
+  // The caller's stdin must be a terminal. A pipe that contains "y" is not a typed confirmation.
   if (!process.stdin.isTTY) return false;
   const fd = openTerminal();
   if (fd === null) return false;
   const abort = new AbortController();
   const deadline = setTimeout(() => abort.abort(), APPROVAL_MS);
-  return terminalAnswer(fd, text, abort.signal, deadline);
+  const ok = await terminalAnswer(fd, text, abort.signal, deadline);
+  if (ok) lastVia = "terminal";
+  return ok;
 }
 
 async function terminalAnswer(fd: number, text: Buffer, signal: AbortSignal, deadline: ReturnType<typeof setTimeout>): Promise<boolean> {
@@ -189,7 +215,7 @@ export function finishContract(root: string): void {
   const done = pending.writes.every((w) => w.hash === null ? !existsSync(w.path) : existsSync(w.path) && sha256(readFileSync(w.path, "utf8")) === w.hash);
   if (!done) return;
   writeAtomic(join(root, ".pregate/pregate.lock.json"), pending.lockText);
-  recordApproval(root, pending.lockText);
+  recordApproval(root, pending.lockText, "terminal");
   enable(root);
   rmSync(file);
 }

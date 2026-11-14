@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A literal `pregate approve <code>`, or `pregate approve --yes` with an optional `--digest`, works again from the harness shell on Claude Code, Codex, Grok, Cursor, OpenCode and agy, including a `!` line. It does not need a terminal. An agent could run that command; the approval log records a non-terminal confirmation (`via: "yes"`) instead of making it impossible. A bare `approve` still asks for `y` on a terminal. `enable`, `disable`, `init`, `promote`, `pack` and the other `--yes` commands stay denied from the harness shell.
+
 ## [0.0.10] - 2026-11-14
 
 A rule whose primitive the engine does not evaluate now fails closed, instead of disappearing from a mistyped lock. The shell guard still catches a hook bypass, and a file path or an npm script whose name merely contains those words is an ordinary command again. A malformed `pregate hook` flag is reported instead of being routed to the wrong harness. `bun run clean` removes the scratch copies a compiled build can leave behind. See the [0.0.10 notes](docs/releases/0.0.10.md).

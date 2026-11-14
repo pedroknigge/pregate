@@ -218,13 +218,13 @@ pregate guide --preview --packs typescript,javascript
 
 `--packs none` adds no optional packs. Omit only the blocked pack unless an empty selection is the review you want. `guide --json` includes that scope error and exits non-zero; it does not write a contract.
 
-A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In a separate human terminal, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
+A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In this shell, including a harness `!` line, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
 
 ```text
 pregate approve <code>
 ```
 
-Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal: a harness `!` line has no terminal, so it cannot approve. On agy 1.5.6, `! pregate approve <code>` was refused because stdin is not a terminal; the earlier agy note was only 1.2.17. Open Terminal/iTerm on macOS or Linux, or a new PowerShell window on Windows, in the project and run `pregate approve <code>`. The agent must not run the approval command.
+A code or `--yes` needs no terminal. An agent could run that same command. Pregate records a non-terminal approval in the approval log so that is visible, and the agent is told to ask the human and not to run it. A bare `pregate approve` still asks for `y` on a terminal. Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. `enable`, `disable` and the other control commands stay on a separate terminal.
 
 ```sh
 pregate status

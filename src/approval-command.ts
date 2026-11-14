@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathKey, relativePath as relative } from "./paths.ts";
-import { approvalRefusal, approve, discardProposal, proposeContract, readProposal, type Proposal } from "./approval.ts";
+import { approvalRecordVia, approvalRefusal, approve, discardProposal, proposeContract, readProposal, type Proposal } from "./approval.ts";
 import { BUILTIN } from "./assets.ts";
 import { enable } from "./consent.ts";
 import { applyRequest, compile } from "./compile.ts";
@@ -51,7 +51,7 @@ export async function approvePending(root: string, yes = false, digest?: string,
   const diff = proposalDiff(proposal);
   const id = sha256(JSON.stringify(proposal));
   const shown = digest !== undefined && approvalCode(id, digest) ? digest : id.slice(0, 12);
-  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes)) {
+  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes, yes)) {
     return { code: 1, text: approvalRefusal({ roots: [root], command: `pregate approve ${shown}` }) };
   }
   return applyReviewedProposal(root, sha256(JSON.stringify(proposal)), { activate: proposal.activate !== false, commit });
@@ -71,7 +71,7 @@ export async function approveBatch(code: string, yes: boolean, commit: boolean):
   }
   if (errors.length > 0) return { code: 1, text: [...errors, BATCH_STALE].join("\n") };
   const review = batchReview(batch, false);
-  if (!await approve(review.text, review.warning, yes)) return { code: 1, text: approvalRefusal({ roots: batch.items.map((item) => item.root), command: `pregate approve ${code}` }) };
+  if (!await approve(review.text, review.warning, yes, yes)) return { code: 1, text: approvalRefusal({ roots: batch.items.map((item) => item.root), command: `pregate approve ${code}` }) };
   const { lines, updated } = await applyReviews(batch.items, commit);
   discardBatch();
   return { code: updated === batch.items.length ? 0 : 1, text: [...lines, `${updated}/${batch.items.length} project contracts updated. Each project keeps its consent.`].join("\n") };
@@ -112,7 +112,7 @@ export async function applyReviewedProposal(root: string, digest: string, option
     else { mkdirSync(dirname(w.path), { recursive: true }); writeAtomic(w.path, w.after); }
   }
   writeAtomic(join(root, LOCK), checked.text);
-  recordApproval(root, checked.text);
+  recordApproval(root, checked.text, approvalRecordVia());
   if (options.activate) enable(root);
   discardProposal(root);
   const settled = settleRequests(root, proposal.request);
@@ -282,6 +282,6 @@ export async function applyPreset(root: string, text: string, mode: ApplyMode = 
   }
   writeAtomic(join(root, PRESET), text);
   writeAtomic(join(root, LOCK), result.text);
-  recordApproval(root, result.text);
+  recordApproval(root, result.text, approvalRecordVia());
   return { code: 0, text: `${PRESET} updated and ${LOCK} written (${result.lock.rules.length} rules); commit it.` };
 }
