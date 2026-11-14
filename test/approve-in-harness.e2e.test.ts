@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { VERSIONS } from "../src/gate.ts";
 import { engineAt } from "./compiled-engine.ts";
@@ -56,8 +57,10 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
   expect(byYes.code, byYes.text).toBe(0);
   expect(existsSync(join(yesProject.root, ".pregate/pregate.lock.json"))).toBe(true);
   const lines = readFileSync(logPath, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { via: string; tty: boolean; root: string });
-  expect(lines.some((line) => line.root === codeProject.root && line.via === "yes" && line.tty === false)).toBe(true);
-  expect(lines.some((line) => line.root === yesProject.root && line.via === "yes" && line.tty === false)).toBe(true);
+  // The log stores canonical(root): forward slashes, and the real path on Windows.
+  const recorded = (root: string) => lines.some((line) => line.root === canonical(root) && line.via === "yes" && line.tty === false);
+  expect(recorded(codeProject.root), JSON.stringify(lines)).toBe(true);
+  expect(recorded(yesProject.root), JSON.stringify(lines)).toBe(true);
 }, 180_000);
 
 interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string }
