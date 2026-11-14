@@ -34,9 +34,10 @@ function git(args: string[]): void {
 }
 
 // init --preview runs with CI set so its digest is printed. Applying that review does not.
-// POSIX types y on a pty with CI removed. Windows has no /dev/tty, so the starter
-// contract is applied by the same in-process function the CLI calls after that
-// confirmation. That function is not a CLI flag.
+// A bare `approve` still asks for y on a terminal. POSIX declines that prompt, which applies
+// nothing, then `approve <digest>` applies the same review with no terminal. Windows has no
+// /dev/tty, so the starter contract is applied by the same in-process function the CLI calls
+// after a confirmation. That function is not a CLI flag.
 async function acceptStarter(binary: string, starter: string, digest: string): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   if (process.platform === "win32") {
     const previous = process.env.XDG_DATA_HOME;
@@ -53,8 +54,13 @@ async function acceptStarter(binary: string, starter: string, digest: string): P
     ...process.env, HOME: join(area, "home"), XDG_DATA_HOME: join(area, "data"), XDG_STATE_HOME: join(area, "state"),
   };
   delete env.CI; delete env.PREGATE_UNATTENDED_APPROVAL; delete env.PREGATE_TESTING; delete env.PREGATE_TEST_ANSWER;
-  const confirmed = confirmOnTerminal([binary, "approve", digest], starter, env);
-  return { exitCode: confirmed.code, stdout: confirmed.stdout, stderr: confirmed.stderr };
+  const declined = confirmOnTerminal([binary, "approve"], starter, env, "n");
+  assert(declined.code !== 0 && declined.stdout.includes("Approve?") && !declined.stdout.includes("Approved contract applied"),
+    `a bare approve must still ask, and a decline must apply nothing:\n${declined.stdout}${declined.stderr}`);
+  const child: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) if (value !== undefined) child[key] = value;
+  const accepted = runNative({ binary, args: ["approve", digest], cwd: starter, env: child, stdin: "" });
+  return { exitCode: accepted.exitCode ?? 1, stdout: accepted.stdout.toString(), stderr: accepted.stderr.toString() };
 }
 try {
   mkdirSync(root, { recursive: true });

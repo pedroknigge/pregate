@@ -2,9 +2,10 @@ import { spawnSync } from "node:child_process";
 
 // Drive a human-only pregate command the way a person at the keyboard does: stdin is a
 // pseudo-terminal, and this process types the answer on that terminal's /dev/tty.
-// `CI`, `PREGATE_UNATTENDED_APPROVAL`, `PREGATE_TESTING` and `PREGATE_TEST_ANSWER` are removed first, so `--yes` and
-// `approve <code>` cannot take the product's non-interactive shortcuts. This is not a
-// product flag and it is not available to an agent running the installed CLI.
+// `CI`, `PREGATE_UNATTENDED_APPROVAL`, `PREGATE_TESTING` and `PREGATE_TEST_ANSWER` are removed first.
+// Another command's `--yes` then still needs this typed y. `pregate approve <code>` and
+// `pregate approve --yes` apply without a prompt, so this helper is the wrong check for those
+// forms. This is not a product flag and it is not available to an agent running the installed CLI.
 const PYTHON = `
 import os, pty, select, sys, time
 answer = os.environ.pop("PREGATE_PTY_ANSWER").encode() + b"\\n"
