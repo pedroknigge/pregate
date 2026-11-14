@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
-import { LOCK, PRESET } from "../src/inertia.ts";
+import { LOCK, PRESET } from "../src/admission.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { engineAt } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";

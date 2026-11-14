@@ -12,7 +12,7 @@ import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
 import { isObject, parse } from "./harness/wire.ts";
 import { mergeProjectClaude, projectLauncherRel, projectOwnedCommand } from "./project-claude.ts";
-import { clock, LOCK, PRESET, readText, VERSIONS } from "./inertia.ts";
+import { clock, LOCK, PRESET, readText, VERSIONS } from "./admission.ts";
 import { pendingReview } from "./pending-review.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { ENGINE_VERSION } from "./product.ts";

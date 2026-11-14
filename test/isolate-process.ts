@@ -1,7 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 
 // `bun test` interleaves files in one process. `process.chdir` would otherwise
 // point every later file at a temporary repo, so relative catalog reads and
@@ -12,7 +14,19 @@ if (Reflect.get(globalThis, installed) === true) {
   // A second preload evaluation must not wrap the wrappers.
 } else {
   Reflect.set(globalThis, installed, true);
+  isolateEnvironment();
   installIsolation();
+}
+
+// Every test resolves its user state under a throwaway HOME unless the file isolates the
+// environment itself: a file that forgets the manual isolation used to write the real
+// `~/.local/state/pregate` (XDG_STATE_HOME fallback in src/state.ts). `??=` keeps every
+// deliberate per-file isolation intact.
+function isolateEnvironment(): void {
+  const root = mkdtempSync(join(tmpdir(), "pregate-test-home-"));
+  for (const key of ["HOME", "USERPROFILE", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CONFIG_HOME", "CODEX_HOME", "GROK_HOME", "CLAUDE_CONFIG_DIR"]) {
+    process.env[key] ??= join(root, key.toLowerCase());
+  }
 }
 
 function installIsolation(): void {

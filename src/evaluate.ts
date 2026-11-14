@@ -20,6 +20,16 @@ import { cacheComponentsEnabled } from "./next-config.ts";
 
 const MODULE = "<module>";
 const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missing or invalid, so a bare import may be an alias of any path. Fix the tsconfig, or import by a relative path.";
+
+// The closed primitive vocabulary mirrors types.ts `Impl` and schema/check.v1.json. analyze
+// evaluates EVALUATED here; the others have one other home and are skipped on purpose:
+// layer-edge and banned-import in checkImports below, placement in placement(), fitness in the
+// fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
+// (throw) instead of silently never evaluating the rule.
+const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", ...NODE_PRIMITIVES];
+const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
+const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
 
 // state null: the file does not exist in this state; only the diff rules have something to count
@@ -46,7 +56,8 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   const measurements: Measurements = { report };
   for (const r of rules) {
     const impl = r.impl;
-    if (impl.kind === "primitive" && !["diff", "metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"].includes(impl.primitive)) continue;
+    if (impl.kind === "primitive" && !KNOWN_PRIMITIVES.has(impl.primitive)) throw new Error(`unknown primitive "${impl.primitive}" in rule ${r.id}: refusing to skip it silently`);
+    if (impl.kind === "primitive" && !EVALUATED_PRIMITIVES.includes(impl.primitive)) continue;
     const form = ruleProgress(host, r, (): Form | null => {
       if (impl.kind === "pattern") {
         const g = grammarOf(rel);
@@ -66,7 +77,7 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   const importRules = rules.filter(r => isImportRule(r) && !(r.impl.kind === "primitive" && r.impl.primitive === "drizzle-bounded-select"));
   const form = p && importRules.length ? checkImports(lock, p, importRules, host, report) : null;
   if (form) return form;
-  const named = rules.some((r) => r.impl.kind === "pattern" || ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"].includes(r.impl.primitive));
+  const named = rules.some((r) => r.impl.kind === "pattern" || (r.impl.kind === "primitive" && NODE_PRIMITIVES.includes(r.impl.primitive)));
   // Body hashes only when the ratchet has a violation to follow across a rename, move or extraction:
   // a "before" with none frees nothing, and an "after" with none claims nothing.
   return { symbols: p ? (named ? symbols(p) : [MODULE]) : [], violations: found, counts, markerSites,
@@ -102,7 +113,7 @@ function measureRule(rule: LockRule, parsed: Parsed, host: Host, measurements: M
 
 // Rules whose findings depend on other files, for unchanged-importer review.
 export function isImportRule(r: LockRule): boolean {
-  return r.impl.kind === "primitive" && ["layer-edge", "banned-import", "drizzle-bounded-select"].includes(r.impl.primitive);
+  return r.impl.kind === "primitive" && IMPORT_PRIMITIVES.includes(r.impl.primitive);
 }
 
 // created: the file did not exist before this change; current: its content before it (null if new).
@@ -114,7 +125,7 @@ export function placement(lock: Lock, phase: Phase, rel: string, created: boolea
   const excluded = lock.scope.exclude.some((glob) => matches(glob, rel));
   const grammar = grammarOf(rel);
   const foreign = grammar === "python" || grammar === "go" || grammar === "rust";
-  const covered = lock.rules.some((r) => (r.impl.kind === "pattern" || (r.impl.kind === "primitive" && ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"].includes(r.impl.primitive)))
+  const covered = lock.rules.some((r) => (r.impl.kind === "pattern" || (r.impl.kind === "primitive" && (r.impl.primitive === "metric" || IMPORT_PRIMITIVES.includes(r.impl.primitive) || NODE_PRIMITIVES.includes(r.impl.primitive))))
     && languageApplies(r, rel) && applies(r, rel));
   const unparsed = layerOf(lock, rel) !== null && (grammar === null || (foreign && !covered));
   const ext = /\.([^./]+)$/.exec(rel)?.[1]?.toLowerCase() ?? "";

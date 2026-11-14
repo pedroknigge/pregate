@@ -41,8 +41,11 @@
     "build": "bun run scripts/build.ts",
     "manifests": "bun run scripts/release-manifests.ts",
     "test": "bun test",
+    "test:unit": "bun scripts/test-split.ts unit",
+    "test:e2e": "bun scripts/test-split.ts e2e",
     "typecheck": "tsc",
-    "bench": "bun run scripts/bench.ts"
+    "bench": "bun run scripts/bench.ts",
+    "clean": "rm -rf dist *.bun-build .*.bun-build .bun-build"
   },
   "dependencies": {},
   "devDependencies": {

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { consentedRoots, disable, enable } from "../src/consent.ts";
 import { canonical } from "../src/disk.ts";
-import { dormantNotice, launcherVersion, updateReady } from "../src/inertia.ts";
+import { dormantNotice, launcherVersion, updateReady } from "../src/admission.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { compareVersions } from "../src/product.ts";
 import { pinnedEngine, staleProjects } from "../src/project-updates.ts";

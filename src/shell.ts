@@ -188,8 +188,16 @@ const HARNESS = /(^|[/@])(claude|claude-code|codex|grok|gemini|gemini-cli|qwen|q
 // Git takes any unambiguous prefix of a long option: `--no-veri` is the shortest --no-verify.
 const ADMIN_WORD = /--no-veri|core\.hookspath/i;
 const GIT_SWITCH = /^(HUSKY|HUSKY_SKIP_HOOKS|LEFTHOOK|SKIP|PRE_COMMIT_ALLOW_NO_CONFIG|GIT_CONFIG\w*|KILO_PURE)$/;
-// A harness run without the user's configuration runs without PREGATE (MH-17, MH-29).
+// A harness run without the user's configuration runs without PREGATE (MH-17, MH-29). Specific
+// flags first (verbatim, so help text and config keys match). Generic disable and bypass flags
+// match a whole argv word, including `--flag=value`, so a renamed bypass flag is still caught.
+// A path or a script name that merely contains those words (`src/disable-hooks.ts`,
+// `npm run disable-hooks`) is an ordinary command. Bare stems without the leading dashes are
+// a hook switch only on a harness command. Refresh the list when a new Claude Code, Codex,
+// Cursor, Grok or OpenCode release ships a hooks-related flag (`test/shell.test.ts`).
 const HOOK_WORD = /--ignore-user-config|--setting-sources|--settings|disableallhooks|features\.hooks|--dangerously-bypass-hook-trust|compat\.claude\.hooks/i;
+const HOOK_FLAG = /^--(?:no-hooks|skip-hooks|disable[-_]?hooks?|hooks?[-_]?off|bypass[-_]?hooks?)(?:=.*)?$/i;
+const HOOK_STEM = /^(?:--)?(?:no-hooks|skip-hooks|disable[-_]?hooks?|hooks?[-_]?off|bypass[-_]?hooks?)(?:=.*)?$/i;
 const HOOK_SWITCH = /^(HOME|USERPROFILE|LOCALAPPDATA|APPDATA|XDG_\w+|PREGATE_\w+|GROK_CLAUDE_HOOKS_ENABLED|CODEX_HOME|GROK_HOME|CLAUDE_CONFIG_DIR)$/;
 // An argument of a harness command that names its hooks or the pregate plugin as a word or a key,
 // not inside a prompt: `agy plugin disable pregate`, `codex -c hooks.state=…`, `--no-hooks`.
@@ -1133,7 +1141,7 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   // Cursor's CLI is also `agent`: only as the command itself, never as a folder name.
   const command = slash(head?.text ?? "").toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
   const harness = head !== undefined && (HARNESS.test(command) || basename(command) === "agent");
-  if (words.some((w) => HOOK_WORD.test(w.text)) || names.some((n) => HOOK_SWITCH.test(n))) return "hook-switch";
+  if (words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text)) || (harness && args.some((w) => HOOK_STEM.test(w.text))) || names.some((n) => HOOK_SWITCH.test(n))) return "hook-switch";
   if (harness && (names.includes("HOME") || args.some((w) => HOOK_ARG.test(w.text)))) return "hook-switch";
   if (harness && args.some((w) => /^(plugins?|hooks?|--config|--config-file|--plugins-path|--plugin-dir)$/i.test(w.text))) return "hook-switch";
   if (harness && args.some((w, i) => /^(?:-c|--config)(?:=|$)/.test(w.text) && /\b(hooks|disableAllHooks|pregate)\b/i.test(w.text + " " + (args[i + 1]?.text ?? "")))) return "hook-switch";

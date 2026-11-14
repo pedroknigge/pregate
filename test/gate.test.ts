@@ -21,7 +21,7 @@ import { report } from "../src/report-command.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { proposeContract, readProposal, PENDING_MS } from "../src/approval.ts";
-import { inert } from "../src/inertia.ts";
+import { inert } from "../src/admission.ts";
 import { pendingRoot } from "../src/proposal.ts";
 import { issueContent } from "../src/issue.ts";
 import { removeTree } from "./remove-tree.ts";

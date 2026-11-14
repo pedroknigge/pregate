@@ -8,7 +8,7 @@ import { decide } from "./decide.ts";
 import { canonical, findRoot, readTree } from "./disk.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { catFileBatch, gitFailure, indexFiles, unmerged } from "./git.ts";
-import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, isCause, json, launcher, LOCK, type Outcome, PRESET, readText, told, updateReady, VERSIONS, within } from "./inertia.ts";
+import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, isCause, json, launcher, LOCK, type Outcome, PRESET, readText, told, updateReady, VERSIONS, within } from "./admission.ts";
 import { librarySource } from "./library.ts";
 import { cachedSourcesMatch, loadCompiledLock, storeCompiledLock } from "./lock-cache.ts";
 import { briefing, formText, notice, violationMessage } from "./message.ts";

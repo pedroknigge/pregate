@@ -9,7 +9,7 @@ import { bundledBetween, reviewDiff, sourceDiff, validateContract } from "./cont
 import { readTree, writeAtomic } from "./disk.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
 import { grammars, sourcesOf } from "./contract-diagnostic.ts";
-import { clock, LOCK, PRESET, readText, VERSIONS, within } from "./inertia.ts";
+import { clock, LOCK, PRESET, readText, VERSIONS, within } from "./admission.ts";
 import { recordApproval } from "./loosening.ts";
 import { sha256 } from "./state.ts";
 import { approvalCode, BATCH_STALE, batchItemError, batchReview, consentLine, currentProposal as current, digestMismatch, pendingBatch, pendingReview, presetGlobLines, proposalDiff, writeDiffs } from "./pending-review.ts";

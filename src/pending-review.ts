@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { engineLabel, readBatch, readProposal, type Batch, type Proposal } from "./proposal.ts";
-import { launcherVersion } from "./inertia.ts";
+import { launcherVersion } from "./admission.ts";
 import { dataHome } from "./consent.ts";
 import { bundledBetween, reviewDiff, sourceDiff, type ContractDiff } from "./contract.ts";
 import { readFileSync } from "node:fs";

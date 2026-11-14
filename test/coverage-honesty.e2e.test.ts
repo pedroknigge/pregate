@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonical } from "../src/disk.ts";
 import { enforcementOf } from "../src/enforcement.ts";
-import { LOCK, PRESET } from "../src/inertia.ts";
+import { LOCK, PRESET } from "../src/admission.ts";
 import { VERSIONS } from "../src/versions.ts";
 import type { Lock, LockRule } from "../src/types.ts";
 import { testEngine } from "./compiled-engine.ts";

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `bun run clean` removes `dist/` and every `*.bun-build` scratch copy `bun build --compile` can leave in the working directory, including a hidden `.name.bun-build` and a bare `.bun-build`. `test:unit` and `test:e2e` split the whole suite, including tests in subfolders: `e2e.test.ts` and `*.e2e.test.ts` are the compiled-binary half, and every other test file is the fast half.
+
+### Changed
+
+- `src/inertia.ts` is `src/admission.ts`. The name now says what the module holds: the admission constants (preset and lock paths, the launcher protocol, the floor) and the rootless and inert judgment. Import sites only.
+- A rule whose impl names a primitive outside the closed vocabulary fails closed in `analyze` instead of being silently skipped: unknown primitives throw, and the four primitives handled elsewhere (`layer-edge` and `banned-import` in `checkImports`, `placement` in `placement()`, `fitness` in the fitness gate) are skipped on purpose. The vocabulary lives in named constants (`EVALUATED_PRIMITIVES`, `IMPORT_PRIMITIVES`, `NODE_PRIMITIVES`) shared by the places that repeated literal names.
+- Malformed `pregate hook` invocation flags (`--harness` without a known harness, extra operands) are reported on stderr and evaluated with the default adapter instead of misrouting silently. Valid forms stay `hook <event>` and `hook <event> --harness <id>`.
+- The shell guard's hook-word list adds generic disable and bypass flags (`--no-hooks`, `--disable-hooks`, `--skip-hooks`, `--bypass-hooks`, …) as a whole argv word, and the same bare stems on a harness command, so a renamed or newly added bypass flag is still caught. A path or an npm script whose name contains those words stays an ordinary command.
+- CI names the isolated runtime root once per OS (`ISOLATED_ROOT`, `ISOLATED_ROOT_WIN`) instead of hardcoding the path per step and per OS.
+
+### Fixed
+
+- The repository's own dogfood jobs read `PREGATE_ACCEPT_CONTRACT` from the repository variable, as the published CI template already does. A pull request still cannot set that digest.
+- `bun test` no longer writes user state into the real home when a test file forgets its own isolation: the preload gives every unset `HOME`, `USERPROFILE`, `XDG_*_HOME`, `CODEX_HOME`, `GROK_HOME` and `CLAUDE_CONFIG_DIR` a throwaway directory, and the deliberate per-file isolations still win.
+
 ## [0.0.9] - 2026-11-13
 
 A new project's first review is one approval: the contract, the layer map, and the rules compiled from its instruction files. An ArkGate config imports into that review as a coexist section, so a layer rule ArkGate already enforces is not judged twice. Approval stays in a separate terminal. A harness `!` line cannot approve, and a Codex read/eval loop is denied before it can type an approval. Project Cursor hooks answer native `preToolUse` with Cursor's permission object, and a workspace that also has project Claude hooks records one evaluation per tool call. A clean checkout of an existing branch is allowed. Advisor mode warns when a file does not parse or an import cannot be resolved, instead of calling that file clean or denying it when no enforced rule applies. Pack matchers that fired on the wrong shape are narrowed, and a variable script passed to `sh -c` in Go is reported. See the [0.0.9 notes](docs/releases/0.0.9.md).

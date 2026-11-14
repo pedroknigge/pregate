@@ -9,7 +9,7 @@ import { compile } from "../src/compile.ts";
 import { dataHome, enable, enabled } from "../src/consent.ts";
 import { proposeBatch, readBatch, readProposal } from "../src/proposal.ts";
 import { sha256 } from "../src/state.ts";
-import { inert } from "../src/inertia.ts";
+import { inert } from "../src/admission.ts";
 import { canonical } from "../src/disk.ts";
 import { grammars, LOCK, onPreCommand, PRESET, redirect, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { batchReview, engineNote, pendingReview } from "../src/pending-review.ts";

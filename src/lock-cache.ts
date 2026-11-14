@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { hashPolicy, readTree, writeAtomic } from "./disk.ts";
-import { LOCK, PRESET, readText } from "./inertia.ts";
+import { LOCK, PRESET, readText } from "./admission.ts";
 import { cachedPackEntry } from "./packs.ts";
 import { sha256, stateDir } from "./state.ts";
 import type { Lock, Preset } from "./types.ts";
