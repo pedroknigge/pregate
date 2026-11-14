@@ -50,7 +50,7 @@ TypeScript browser messaging, credentialed CORS, token verification options and 
 
 ## Coverage and compatibility
 
-Version `1.0.1`; included with engine 0.0.9. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or where a value was assigned. `SA-GO-SHELL-001` does report a variable, selector, index or slice used as the script of `sh -c`. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
+Version `1.0.1`; included with engine 0.0.10. Patterns use PREGATE's TypeScript/TSX, Python, Go and Rust grammars. Name-based patterns do not resolve imports, aliases or where a value was assigned. `SA-GO-SHELL-001` does report a variable, selector, index or slice used as the script of `sh -c`. No YAML, Dockerfile, HCL or CI workflow checks are included; those need [engine support](../ENGINE-REQUESTS.md).
 
 The existing `vibe-proof`, `express` and `agent-practices` packs cover adjacent forms (wildcard CORS with credentials, an open CORS header, security-review practices). Rules here that overlap them declare explicit relations.
 

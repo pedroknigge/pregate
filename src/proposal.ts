@@ -28,7 +28,7 @@ export function engineStamp(): EngineStamp {
     source: !Bun.main.startsWith("/$bunfs/") && !Bun.main.includes("~BUN/") };
 }
 
-// How a stamp reads in a review: "0.0.9" or "0.0.9 (run from source)".
+// How a stamp reads in a review: "0.0.10" or "0.0.10 (run from source)".
 export function engineLabel(stamp: EngineStamp): string {
   return `${stamp.version}${stamp.source ? " (run from source)" : ""}`;
 }

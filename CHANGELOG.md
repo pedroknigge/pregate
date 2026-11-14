@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-11-14
+
+A rule whose primitive the engine does not evaluate now fails closed, instead of disappearing from a mistyped lock. The shell guard still catches a hook bypass, and a file path or an npm script whose name merely contains those words is an ordinary command again. A malformed `pregate hook` flag is reported instead of being routed to the wrong harness. `bun run clean` removes the scratch copies a compiled build can leave behind. See the [0.0.10 notes](docs/releases/0.0.10.md).
+
 ### Added
 
 - `bun run clean` removes `dist/` and every `*.bun-build` scratch copy `bun build --compile` can leave in the working directory, including a hidden `.name.bun-build` and a bare `.bun-build`. `test:unit` and `test:e2e` split the whole suite, including tests in subfolders: `e2e.test.ts` and `*.e2e.test.ts` are the compiled-binary half, and every other test file is the fast half.

@@ -15,7 +15,7 @@ original TypeScript sources are not included in that tarball. Package integrity:
 sha512-lPvTKxbikMRLKmPPGUnam0X6aH10H8OY+ND2Zx53UpANuFxmnj4S12GxAmwr0kFN1eLN5ORx2mycJTg4T7Dlcw==
 ```
 
-0.0.9 follows one same-scope immutable alias for factory effect
+0.0.10 follows one same-scope immutable alias for factory effect
 and injection policies without granting new constructor-root exemptions. The
 source-backed review
 records current canaries and static-analysis limits. Use the

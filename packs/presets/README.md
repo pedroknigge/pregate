@@ -3,7 +3,7 @@
 These are contracts, not rule sources. Test a pack with `rules test --library <ns>`
 or `rules test packs/<ns>`. Do not point `rules test` at `packs/presets`.
 
-These source recipes pin engine 0.0.9 and builtin core 0.0.1; that engine is
+These source recipes pin engine 0.0.10 and builtin core 0.0.1; that engine is
 the published release. The [generated inventory](../../docs/packs.md) lists every source
 and methodology.
 
