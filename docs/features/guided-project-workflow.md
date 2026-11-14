@@ -166,20 +166,21 @@ the guide finishes with the explicit audit command and no additional menu.
 The agent cannot run the interactive guide to approve itself. Without a terminal,
 the agent reads `guide --json`, presents the relevant choices
 together, prepares `guide --preview` and shows the complete review. The human
-runs the displayed command in a separate terminal:
+runs the displayed command in this shell, including a harness `!` line:
 
 ```text
 pregate approve <code>
 ```
 
-Each project preview has its own digest. A harness `!` line has no terminal, so
-it cannot approve. See the [capability boundaries](approval-in-harness.md). A
-terminal or an agent's claim is not a trusted human marker.
+Each project preview has its own digest. A code or `--yes` needs no terminal.
+An agent could run it; the approval log records that, and the agent must not.
+See the [capability boundaries](approval-in-harness.md). A terminal or an
+agent's claim is not a trusted human marker.
 
 For a current cloned/disabled contract, a plain `guide --preview` is a no-op,
 not an activation proposal. Choose activation in the interactive guide, or let
 the human run `pregate enable` in a terminal after reviewing `status` and type `y`.
-A harness `!` line has no terminal, so it cannot approve. `--yes` does not skip the question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates and
+`enable` is not the in-harness approve path: `--yes` does not skip the question unless `PREGATE_UNATTENDED_APPROVAL=1` is already set. Updates and
 pack adoption preserve disabled consent; the agent must not run the activation command.
 
 ## Audit and recovery

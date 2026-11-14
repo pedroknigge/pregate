@@ -285,9 +285,9 @@ test("one batch code from the multi-project preview approves every project from 
   expect(preview.code, preview.text).toBe(0);
   const code = /^Approve all 2 project updates: pregate approve ([0-9a-f]{12})$/m.exec(preview.text)?.[1];
   expect(code, preview.text).toBeDefined();
-  // Only the batch code is offered, with the separate-terminal line the per-project codes carried.
+  // Only the batch code is offered, with the in-harness line the per-project codes carried.
   expect(preview.text.match(/pregate approve [0-9a-f]{12}/g), preview.text).toEqual([`pregate approve ${code}`]);
-  expect(preview.text).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
+  expect(preview.text).toContain("A code or --yes needs no terminal.");
   const third = join(area, "batch third");
   mkdirSync(third);
   const approve = () => {

@@ -337,7 +337,7 @@ test("CI in the environment neither approves nor reveals codes; the dedicated op
 
 // ── P1-4: Claude's native permission cannot complete an approval command ────────────────
 
-test("Claude Code denies approval commands from the agent and names a separate terminal", () => {
+test("Claude Code allows the exact approval command and still denies the other approval commands", () => {
   const r = fresh({ PREGATE_TESTING: "1" });
   put(r, ".pregate/requests/loosen.json", JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
   const preview = cli(r, ["preset", "apply", ".pregate/requests/loosen.json", "--preview"]);
@@ -345,13 +345,18 @@ test("Claude Code denies approval commands from the agent and names a separate t
   expect(code, said(preview)).toBeDefined();
   const a = claude(r, "default");
   ok(a.start(), "session");
-  const out = a.bash(`pregate approve ${code}`);
-  denied(out, `run pregate approve ${code} in a separate terminal`);
-  expect(said(out)).not.toContain(`! pregate approve ${code}`);
-  expect(out.stdout).not.toContain('"ask"');
+  silent(a.bash(`pregate approve ${code}`));
+  silent(a.bash(`pregate approve --yes --digest ${"a".repeat(64)}`));
+  const bare = a.bash("pregate approve");
+  denied(bare, "Ask the user to approve. Do not run the approval command yourself.");
+  expect(said(bare)).not.toContain("! pregate approve");
   for (const command of [`pregate feedback apply ${"a".repeat(64)} --yes`, `pregate storage apply ${"a".repeat(64)} --yes`, `pregate issue submit ${"a".repeat(64)} --yes`]) {
-    expect(a.bash(command).stdout, command).not.toContain('"ask"');
+    const out = a.bash(command);
+    denied(out, "in a separate terminal");
+    expect(out.stdout, command).not.toContain('"ask"');
+    expect(said(out)).toContain("Ask the user to approve. Do not run the approval command yourself.");
   }
+  expect(readFileSync(join(r.dir, PRESET_FILE), "utf8")).not.toContain('"advisor"');
 });
 
 // ── Control scan evasions ───────────────────────────────────────────────────────────────

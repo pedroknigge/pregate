@@ -277,7 +277,8 @@ test("doctor inspection reads fixed global, configured and project settings whil
     "cat .pregate/private-state.json", "cat .git/config", "cat .claude/settings*.json", "cat $CLAUDE_CONFIG_DIR/settings.json",
   ]) expect(command(text).cause, text).toBe("protected-path");
   expect(command("claude --settings /tmp/settings.json").cause).toBe("hook-switch");
-  expect(command("pregate approve --yes --digest " + "a".repeat(64)).verdict).toBe("deny");
+  expect(command("pregate approve --yes --digest " + "a".repeat(64)).verdict).toBe("none");
+  expect(command("pregate approve").verdict).toBe("deny");
   expect(command(`cat '${global}'`, process.env.HOME!).verdict).toBe("none");
   for (const file of [global, project, linked]) expect(readFileSync(file, "utf8")).toBe("{}\n");
 });
@@ -543,7 +544,7 @@ test("shell scope admission remains per-root for sibling and nested destinations
     command: `echo changed > '${join(sibling, "other.txt")}'` }).cause).toBe("shell-write");
 });
 
-test.each(["codex", "agy", "cursor"] as const)("%s initial contract review denies agent approval and protects the candidate without activating project rules", async harness => {
+test.each(["codex", "agy", "cursor"] as const)("%s initial contract review allows the exact approval command and still protects the candidate", async harness => {
   const root = canonical(join(area, "initial"));
   put(join(root, "src/a.ts"), "export const a = 1;\n");
   const proposal = proposeContract({ root, lockText: "{}", baseline: state.sha256(""), writes: [] });
@@ -551,13 +552,13 @@ test.each(["codex", "agy", "cursor"] as const)("%s initial contract review denie
   const s = session(harness);
   const command = { session: s, callId: "initial-approval", tool: "Bash", cwd: join(root, "src"), command: `pregate approve --yes --digest ${digest}` };
   expect(inert({ kind: "pre-command", command })).toBe(false);
-  const denied = onPreCommand(command);
-  expect(denied.verdict).toBe("deny");
-  expect(denied.full).toContain(`run ${command.command} in a separate terminal`);
-  expect(denied.full).not.toContain(`! ${command.command}`);
+  expect(onPreCommand(command).verdict).toBe("none");
+  expect(onPreCommand({ ...command, command: `! ${command.command}` }).verdict).toBe("none");
   for (const script of [`env pregate approve --yes --digest ${digest}`, `sh -c 'pregate approve --yes --digest ${digest}'`, "pregate init --yes", "rm -rf .pregate",
     "P=pre; ${P}gate approve --yes", "$(echo pregate) approve --yes"]) {
-    expect(onPreCommand({ ...command, cwd: root, command: script }).verdict).toBe("deny");
+    const denied = onPreCommand({ ...command, cwd: root, command: script });
+    expect(denied.verdict, script).toBe("deny");
+    if (/\bapprove\b/.test(script)) expect(denied.compact, script).toStartWith("Ask the user to approve. Do not run the approval command yourself.");
   }
   const write = change(root, PRESET, { form: "full", content: "{}" }, s);
   expect(inert({ kind: "pre-edit", changes: [write] })).toBe(false);

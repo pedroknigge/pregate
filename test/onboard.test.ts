@@ -469,13 +469,16 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("request p
   const pending = readProposal(canonical(root), join(env.XDG_DATA_HOME!, "pregate"))!;
   expect(pending).not.toBeNull();
   const digest = sha256(JSON.stringify(pending));
-  const denied = hook(`pregate approve --yes --digest ${digest}`);
-  expect(denied.stdout.toString() + denied.stderr.toString()).toContain("agent must not");
+  const allowed = hook(`pregate approve --yes --digest ${digest}`);
+  expect(allowed.exitCode).toBe(0);
+  expect(allowed.stdout.toString() + allowed.stderr.toString()).not.toContain("DENY");
+  const wrapped = hook(`sh -c 'pregate approve --yes --digest ${digest}'`);
+  expect(wrapped.stdout.toString() + wrapped.stderr.toString()).toContain("Ask the user to approve. Do not run the approval command yourself.");
   expect(paths.map(path => readFileSync(path, "utf8"))).toEqual(before);
   expect(readProposal(canonical(root), join(env.XDG_DATA_HOME!, "pregate"))).toEqual(pending);
 }), 20_000);
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial review blocks self-approval in %s through the engine, supervisor and missing-launcher fallback", (h) => inPreviewProject(({ dir, root, cli, env }) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial review allows the exact approval command in %s and a missing launcher still grants nothing", (h) => inPreviewProject(({ dir, root, cli, env }) => {
   const setup = cli(root, "setup");
   if (setup.exitCode !== 0) throw new Error(setup.stdout.toString() + setup.stderr.toString());
   const preview = cli(root, "init", "--preview", "--preset", "legacy-safe");
@@ -488,16 +491,20 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial r
   else if (h === "grok") { payload.cwd = payload.workspaceRoot = root; payload.toolInput.command = payload.tool_input.command = command; }
   else { payload.cwd = root; payload.workspace_roots = [root]; payload.tool_input.command = command; if (h === "cursor") payload.tool_input.cwd = root; }
   const data = join(dir, "data/pregate");
+  // The shared suite binary sits one directory deep, so it would protect every fixture under the
+  // temp root and read the digest as a protected path. The installed layout does not.
+  const installed = join(data, VERSIONS.engine, ENGINE_FILE);
+  engineAt(installed, true);
   const run = (argv: string[], raw = JSON.stringify(payload)) => Bun.spawnSync(argv, { cwd: join(root, "src"), env, stdin: Buffer.from(raw), stdout: "pipe", stderr: "pipe" });
   const args = ["hook", "pre", "--harness", h];
-  for (const argv of [[binary, ...args], [binary, "--supervise", data, pkg.version, ...args]]) {
-    const denied = run(argv);
-    const message = denied.stdout.toString() + denied.stderr.toString();
-    expect(message).toContain(`run ${command} in a separate terminal`);
-    expect(message).toContain("agent must not run");
+  for (const argv of [[installed, ...args], [installed, "--supervise", data, pkg.version, ...args]]) {
+    const allowed = run(argv);
+    const message = allowed.stdout.toString() + allowed.stderr.toString();
+    expect(allowed.exitCode, message).toBe(0);
+    expect(message).not.toContain("DENY");
     expect(message).not.toContain(`! ${command}`);
     if (h === "cursor") {
-      expect(JSON.parse(denied.stdout.toString()).permission).toBe("deny");
+      expect(JSON.parse(allowed.stdout.toString()).permission).toBe("allow");
     }
     const malformed = run(argv, "{invalid");
     expect(malformed.stdout.toString() + malformed.stderr.toString()).toContain("payload-unrecognized");
@@ -541,7 +548,7 @@ test("initial preview works without Git, can be reviewed from a subdirectory and
   const review = cli(join(root, "src"), "approve", "--preview");
   expect(review.exitCode).toBe(0);
   expect(review.stdout.toString()).toContain("pregate approve " + digest.slice(0, 12));
-  expect(review.stdout.toString()).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
+  expect(review.stdout.toString()).toContain("A code or --yes needs no terminal.");
   mkdirSync(join(root, ".pregate"));
   writeFileSync(join(root, ".pregate/pregate.lock.json"), "{}\n");
   expect(cli(root, "approve", "--yes", "--digest", digest).exitCode).toBe(1);

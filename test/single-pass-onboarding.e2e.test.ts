@@ -3,15 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { engineAt } from "./compiled-engine.ts";
-import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
-import { applyReviewedProposal } from "../src/approval-command.ts";
-import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { removeTree } from "./remove-tree.ts";
 import type { Lock } from "../src/types.ts";
 
-// Release binary: PREGATE_TEST_ANSWER cannot approve it. One y on the terminal applies the
-// contract, the explicit layer map and the compiled instruction rules together.
+// Release binary: a code on a pipe applies the contract, the explicit layer map and the
+// compiled instruction rules together. A bare approve still refuses.
 test("one terminal approval activates a new repo with layers and compiled project rules", async () => {
   const area = mkdtempSync(join(tmpdir(), "pregate-single-pass-"));
   const previous = process.env.XDG_DATA_HOME;
@@ -77,25 +74,17 @@ test("one terminal approval activates a new repo with layers and compiled projec
     expect(preview.text).toContain("Proposed layer map: services sit beside domain and infra; folder names do not name services.");
     const digest = preview.text.match(/Digest: ([0-9a-f]{64})/)![1]!;
     const code = digest.slice(0, 12);
-    const piped = Bun.spawnSync([binary, "approve", code], {
-      cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 30_000,
+    const human = { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" };
+    const bare = Bun.spawnSync([binary, "approve"], {
+      cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 30_000,
     });
-    expect(piped.exitCode).toBe(1);
-    const refused = piped.stdout.toString();
-    expect(refused).toContain("no terminal");
-    expect(refused).toContain(`pregate approve ${code}`);
-    expect(refused).toContain(process.platform === "win32" ? "Open a new PowerShell window in" : "Open Terminal/iTerm in");
+    expect(bare.exitCode).toBe(1);
+    expect(bare.stdout.toString()).toContain("no terminal");
     expect(existsSync(join(root, ".pregate/preset.json"))).toBe(false);
-
-    if (process.platform === "win32") {
-      process.env.XDG_DATA_HOME = data;
-      const applied = await applyReviewedProposal(canonical(root), digest, { activate: true, commit: true });
-      expect(applied.code, applied.text).toBe(0);
-    } else {
-      const accepted = confirmOnTerminal([binary, "approve", code], root, env, "y");
-      expect(accepted.code, accepted.stdout + accepted.stderr).toBe(0);
-      expect(accepted.stdout).toContain("Approve?");
-    }
+    const piped = Bun.spawnSync([binary, "approve", code], {
+      cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 30_000,
+    });
+    expect(piped.exitCode, piped.stdout.toString() + piped.stderr.toString()).toBe(0);
 
     const lock = JSON.parse(readFileSync(join(root, ".pregate/pregate.lock.json"), "utf8")) as Lock;
     expect(Object.keys(lock.layers).sort()).toEqual(["domain", "infra", "services"]);

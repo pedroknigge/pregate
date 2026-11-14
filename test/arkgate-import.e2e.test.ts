@@ -2,19 +2,16 @@ import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { applyReviewedProposal } from "../src/approval-command.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import type { Proposal } from "../src/proposal.ts";
 import type { Lock, Preset } from "../src/types.ts";
 import { engineAt } from "./compiled-engine.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
-import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
 import { removeTree } from "./remove-tree.ts";
 import { arkConfig, arkFiles } from "./arkgate-fixture.ts";
 
-// A release binary: PREGATE_TEST_ANSWER cannot approve it. POSIX types y on a pseudo-terminal.
-// Windows has no /dev/tty, so the same reviewed proposal is applied in-process after a piped approve refuses.
+// A release binary: a code on a pipe applies the reviewed proposal. A bare approve still refuses.
 setDefaultTimeout(180_000);
 const area = mkdtempSync(join(tmpdir(), "pregate-arkgate-e2e-"));
 const binary = join(area, ENGINE_FILE);
@@ -76,26 +73,16 @@ async function approve(root: string, env: Record<string, string | undefined>, pr
   const code = /pregate approve ([a-f0-9]{12})\b/.exec(preview)?.[1];
   expect(digest, preview).toMatch(/^[a-f0-9]{64}$/);
   expect(code, preview).toMatch(/^[a-f0-9]{12}$/);
-  const piped = Bun.spawnSync([binary, "approve", code!], {
-    cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 60_000,
+  const human = { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" };
+  const bare = Bun.spawnSync([binary, "approve"], {
+    cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 60_000,
   });
-  expect(piped.exitCode).toBe(1);
-  const refused = piped.stdout.toString();
-  expect(refused).toContain("no terminal");
-  expect(refused).toContain(`pregate approve ${code}`);
-  if (process.platform !== "win32") {
-    const accepted = confirmOnTerminal([binary, "approve", code!], root, env, "y");
-    return { code: accepted.code, text: accepted.stdout + accepted.stderr };
-  }
-  const previous = process.env.XDG_DATA_HOME;
-  process.env.XDG_DATA_HOME = env.XDG_DATA_HOME;
-  try {
-    const proposal = pending(env.XDG_DATA_HOME!);
-    return await applyReviewedProposal(canonical(root), digest!, { activate: proposal.activate !== false, commit: true });
-  } finally {
-    if (previous === undefined) delete process.env.XDG_DATA_HOME;
-    else process.env.XDG_DATA_HOME = previous;
-  }
+  expect(bare.exitCode).toBe(1);
+  expect(bare.stdout.toString()).toContain("no terminal");
+  const piped = Bun.spawnSync([binary, "approve", code!], {
+    cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 60_000,
+  });
+  return { code: piped.exitCode ?? 1, text: piped.stdout.toString() + piped.stderr.toString() };
 }
 
 test("import preview, human approval, and a rule ArkGate owns is not reported twice", async () => {

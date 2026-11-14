@@ -79,7 +79,7 @@ export function guidedReview(proposal: Proposal, digest: string, activate: boole
     ...diff.summary,
     ...bindings.map(([name, binding]) => `Project verifier ${name}: ${JSON.stringify(binding.command)}; inputs ${binding.inputs.join(", ")}.`),
     `Digest: ${digest}`, "Full source/rule changes: pregate approve --preview --full (from this project).",
-    ...humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`),
+    ...humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`, "harness"),
     "This approval applies exactly the displayed candidate digest; any contract, source or review change rejects it.",
   ].join("\n") };
 }

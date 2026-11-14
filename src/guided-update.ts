@@ -46,7 +46,7 @@ async function continueInstalled(version: string): Promise<Result> {
   const text = [
     `Engine ${version} is installed, but this release predates guided choices. Prepared the supported project migration preview instead.`,
     preview.stdout.toString().trim(), preview.stderr.toString().trim(),
-    ...(preview.exitCode === 0 ? digest === undefined ? ["No migration review was created; the project is already current."] : humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`) : ["Inspect pregate preset diagnose --json, correct the named cause and repeat pregate update --project --preview."]),
+    ...(preview.exitCode === 0 ? digest === undefined ? ["No migration review was created; the project is already current."] : humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`, "harness") : ["Inspect pregate preset diagnose --json, correct the named cause and repeat pregate update --project --preview."]),
     "Use the digest-bound approval command in that review. Preset, lock and consent stay unchanged until the human approves.",
   ].filter(Boolean).join("\n");
   return { code: preview.exitCode ?? 1, text: visible(text) };

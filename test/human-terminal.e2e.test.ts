@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { engineAt } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
-import { applyReviewedProposal } from "../src/approval-command.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -48,9 +47,8 @@ test.skipIf(process.platform === "win32")("a release binary enables only after y
   }
 }, 120_000);
 
-// Windows smoke cannot allocate /dev/tty. It applies the binary's reviewed proposal
-// through this in-process function, which is not a CLI flag. The piped approve still refuses.
-test("a reviewed init proposal applies in-process and a piped approve does not", async () => {
+// A code or --yes applies with stdin piped. A bare approve still refuses.
+test("a reviewed init proposal applies from a pipe when it carries --yes, and a bare approve does not", async () => {
   const area = mkdtempSync(join(tmpdir(), "pregate-review-fixture-"));
   const previous = process.env.XDG_DATA_HOME;
   try {
@@ -71,18 +69,17 @@ test("a reviewed init proposal applies in-process and a piped approve does not",
     expect(preview.exitCode, preview.stdout.toString() + preview.stderr.toString()).toBe(0);
     const digest = /Digest: ([a-f0-9]{64})/.exec(preview.stdout.toString())?.[1];
     expect(digest, preview.stdout.toString()).toMatch(/^[a-f0-9]{64}$/);
-    const piped = Bun.spawnSync([binary, "approve", "--yes", "--digest", digest!], {
-      cwd: root, env: { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
+    const human = { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" };
+    const bare = Bun.spawnSync([binary, "approve"], {
+      cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
     });
-    expect(piped.exitCode).toBe(1);
-    const refused = piped.stdout.toString();
-    expect(refused).toContain("no terminal");
-    expect(refused).toContain(canonical(root));
-    expect(refused).toContain(`pregate approve ${digest}`);
+    expect(bare.exitCode).toBe(1);
+    expect(bare.stdout.toString()).toContain("no terminal");
     expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(false);
-    process.env.XDG_DATA_HOME = data;
-    const applied = await applyReviewedProposal(canonical(root), digest!, { activate: true, commit: true });
-    expect(applied.code, applied.text).toBe(0);
+    const piped = Bun.spawnSync([binary, "approve", "--yes", "--digest", digest!], {
+      cwd: root, env: human, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe",
+    });
+    expect(piped.exitCode, piped.stdout.toString() + piped.stderr.toString()).toBe(0);
     expect(existsSync(join(root, ".pregate/preset.json"))).toBe(true);
     expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(true);
   } finally {

@@ -24,8 +24,12 @@ test("the corpus names each command once and the published result covers it", ()
 test("every command that changes the contract or the protection is refused", () => {
   const contract = outcomes.filter((o) => o.intent === "contract");
   expect(contract.length).toBeGreaterThan(0);
-  for (const o of contract) expect(o.decision, o.command).toBe("deny");
-  expect(decided("pregate-approve").cause).toBe("shell-admin");
+  // A literal `pregate approve --yes` is the harness confirmation. The guard allows that one
+  // command. Every other contract command stays denied.
+  const harness = contract.filter((o) => o.id === "pregate-approve");
+  expect(harness.map((o) => [o.command, o.decision, o.cause])).toEqual([["pregate approve --yes", "allow", null]]);
+  for (const o of contract) if (o.id !== "pregate-approve") expect(o.decision, o.command).toBe("deny");
+  expect(decided("pregate-disable").cause).toBe("shell-admin");
   expect(decided("pregate-edit-contract").cause).toBe("protected-path");
   expect(decided("git-commit-no-verify").cause).toBe("shell-admin");
 });

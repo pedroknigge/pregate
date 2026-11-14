@@ -284,11 +284,13 @@ describe("pregate project hooks", () => {
     expect(existsSync(join(project, SETTINGS))).toBe(true);
     const after = snapshot(i.home);
     const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((path) => before[path] !== after[path]);
-    // Every human approval rewrites <DATA>/contract-approvals/<project>.json, which the launcher's
-    // approval had already created. It is the one path that differs; the pending review is gone.
-    expect(changed).toHaveLength(1);
-    expect(changed[0]).toMatch(/^\.local\/share\/pregate\/contract-approvals\/[0-9a-f]{64}\.json$/);
-    expect(before[changed[0]!]).toStartWith("file:");
+    // Every human approval rewrites this project's record and appends the approval log.
+    // The pending review is gone. Nothing else under the home changes.
+    expect(changed).toHaveLength(2);
+    const record = changed.find((path) => /contract-approvals\/[0-9a-f]{64}\.json$/.test(path));
+    expect(record).toBeDefined();
+    expect(changed).toContain(".local/share/pregate/contract-approvals/log.jsonl");
+    expect(before[record!]).toStartWith("file:");
     // A run that has nothing to register changes nothing at all, and neither does a refused form.
     expect(pregate(i, project, ...HOOKS, "--yes").code).toBe(0);
     expect(pregate(i, project, "project", "hooks", "--yes").code).toBe(1);
@@ -635,11 +637,12 @@ describe("pregate project hooks --harness codex", () => {
     expect(existsSync(join(project, CODEX_HOOKS))).toBe(true);
     const after = snapshot(i.home);
     const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((path) => before[path] !== after[path]);
-    // Every human approval rewrites <DATA>/contract-approvals/<project>.json, which the launcher's
-    // approval had already created. It is the one path that differs.
-    expect(changed).toHaveLength(1);
-    expect(changed[0]).toMatch(/^\.local\/share\/pregate\/contract-approvals\/[0-9a-f]{64}\.json$/);
-    expect(before[changed[0]!]).toStartWith("file:");
+    // Every human approval rewrites this project's record and appends the approval log.
+    expect(changed).toHaveLength(2);
+    const record = changed.find((path) => /contract-approvals\/[0-9a-f]{64}\.json$/.test(path));
+    expect(record).toBeDefined();
+    expect(changed).toContain(".local/share/pregate/contract-approvals/log.jsonl");
+    expect(before[record!]).toStartWith("file:");
     expect(readFileSync(join(i.home, ".codex/config.toml"), "utf8")).toBe(trusted);
     expect(Object.keys(after).filter((path) => path.startsWith(".codex/")).sort()).toEqual([".codex/config.toml", ".codex/hooks.json"]);
     // A run that has nothing to register changes nothing at all, and neither does a preview.

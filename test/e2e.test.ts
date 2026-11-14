@@ -599,8 +599,9 @@ test("D29: headless edits queue validated changes; only the human command applie
   expect(cli(r, "preset", "show").code).toBe(0);
   expect(JSON.parse(readFileSync(at(r, ".pregate/pregate.lock.json"), "utf8")).enforcement).toBe("shadow");
   expect(cli(r, "approve").stdout).toContain("No pending");
-  for (const command of ["pregate approve", "pregate approve --yes", "pregate enable --yes", "pregate disable --yes", "pregate init --yes", "pregate pack add url@ref --yes",
+  for (const command of ["pregate approve", "pregate enable --yes", "pregate disable --yes", "pregate init --yes", "pregate pack add url@ref --yes",
     "pregate pack update acme --yes", "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve"]) expect(agent.bash(command).code).toBe(2);
+  expect(agent.bash("pregate approve --yes").code).toBe(0);
 });
 
 test("D29: pending contracts expire and reject a changed baseline", () => {
@@ -1286,35 +1287,39 @@ test("hook pre denies interpreter, script, Makefile and harness-settings bypasse
   expect(run(["pregate", "approve", "--preview"], r.dir, { ...r.env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" }).stdout).toContain("withheld");
 });
 
-test("a recomputed digest cannot approve without a terminal, and a human TTY confirmation can", () => {
+test("a code or --yes approves with no terminal, and a bare approve still needs one", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const a = claude(r);
   const before = read(r, ".pregate/pregate.lock.json");
   const shadow = JSON.stringify({ ...JSON.parse(read(r, ".pregate/preset.json")), enforcement: "shadow" });
   expect(a.write(".pregate/preset.json", shadow).code).toBe(2);
   const proposals = join(DATA, "pregate/proposals");
-  const file = readdirSync(proposals).map((name) => join(proposals, name)).find((path) => {
+  const pendingFile = () => readdirSync(proposals).map((name) => join(proposals, name)).find((path) => {
     try { return JSON.parse(readFileSync(path, "utf8")).root === r.dir; } catch { return false; }
   });
+  const file = pendingFile();
   if (file === undefined) throw new Error("pending proposal was not written");
   const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
   const agent = { ...r.env, CI: "", PREGATE_UNATTENDED_APPROVAL: "", PREGATE_TESTING: "" };
-  for (const args of [["approve", "--yes", "--digest", digest], ["approve", digest]]) {
-    const piped = run(["pregate", ...args], r.dir, agent, "y\n");
-    expect(piped.code, args.join(" ")).toBe(1);
-    const refused = piped.stdout + piped.stderr;
-    expect(refused, args.join(" ")).toContain("no terminal");
-    expect(refused, args.join(" ")).toContain(r.dir);
-    expect(refused, args.join(" ")).toContain(`pregate approve ${digest}`);
-    expect(read(r, ".pregate/pregate.lock.json")).toBe(before);
-  }
-  const declined = ptyRun(["pregate", "approve", digest], r.dir, agent, "n");
+  const bare = run(["pregate", "approve"], r.dir, agent, "y\n");
+  expect(bare.code).toBe(1);
+  expect(bare.stdout + bare.stderr).toContain("no terminal");
+  expect(read(r, ".pregate/pregate.lock.json")).toBe(before);
+  const declined = ptyRun(["pregate", "approve"], r.dir, agent, "n");
   expect(declined.code, declined.stdout + declined.stderr).toBe(1);
   expect(read(r, ".pregate/pregate.lock.json")).toBe(before);
-  const human = ptyRun(["pregate", "approve", digest], r.dir, agent, "y");
-  expect(human.code, human.stdout + human.stderr).toBe(0);
-  expect(read(r, ".pregate/pregate.lock.json")).not.toBe(before);
+  const wrong = run(["pregate", "approve", "--yes", "--digest", "0".repeat(64)], r.dir, agent);
+  expect(wrong.code).toBe(1);
+  expect(read(r, ".pregate/pregate.lock.json")).toBe(before);
+  const piped = run(["pregate", "approve", "--yes", "--digest", digest], r.dir, agent, "y\n");
+  expect(piped.code, piped.stdout + piped.stderr).toBe(0);
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("shadow");
+  const restored = JSON.stringify({ ...JSON.parse(read(r, ".pregate/preset.json")), enforcement: "enforce" });
+  expect(a.write(".pregate/preset.json", restored).code).toBe(2);
+  if (pendingFile() === undefined) throw new Error("second proposal was not written");
+  const human = ptyRun(["pregate", "approve"], r.dir, agent, "y");
+  expect(human.code, human.stdout + human.stderr).toBe(0);
+  expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("enforce");
 
   // Reads are not hooked (MH-22): the digest is in the proposal file, and knowing it is not approval.
   const matcher = JSON.parse(readFileSync(join(r.env.HOME!, ".claude/settings.json"), "utf8")) as {

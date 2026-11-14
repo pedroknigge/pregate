@@ -14,10 +14,10 @@ shows example findings and the exact preset/rule changes, then prints:
 pregate approve <displayed code>
 ```
 
-Review the proposal and run that command in a separate terminal. A harness `!`
-line has no terminal, so it cannot approve. Open Terminal/iTerm on macOS or Linux,
-or a new PowerShell window on Windows, in the project. The command asks for `y`
-on `/dev/tty` (`CONIN$` on Windows).
+Review the proposal and run that command in this shell, including a harness
+`!` line. A code or `--yes` needs no terminal. An agent could run it; the
+approval log records a non-terminal approval, and the agent must not run it.
+A bare `pregate approve` still asks for `y` on `/dev/tty` (`CONIN$` on Windows).
 Preview saves an expiring proposal in local engine data. It does not create the
 project preset or lock, or enable local consent. The initial proposal can also be
 reviewed with `pregate approve --preview` from a project subdirectory before any

@@ -159,7 +159,7 @@ test("an approval during an unfinished merge stages the contract and says to con
   expect(git(root, "status", "--porcelain")).toBe("");
 }));
 
-test("the short approval form is denied to every agent and names the human ! route in Claude Code", () => project(async (root) => {
+test("the short approval form is allowed in the harness shell, and a short or bare form is not", () => project(async (root) => {
   const text = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
   text.enforcement = "shadow";
   await applyPreset(root, JSON.stringify(text, null, 2) + "\n", { preview: true });
@@ -167,12 +167,13 @@ test("the short approval form is denied to every agent and names the human ! rou
   const session: Session = { harness: "claude-code", id: "approve-short", turnId: "one", agentId: null, interactive: true };
   const call = { session, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve ${code}` };
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
-  const routed = onPreCommand(call);
-  expect(routed.verdict).toBe("deny");
-  expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
-  expect(routed.full).not.toContain(`! pregate approve ${code}`);
-  expect(onPreCommand({ ...call, session: { ...session, agentId: "sub" } }).verdict).toBe("deny");
-  expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
+  expect(onPreCommand(call).verdict).toBe("none");
+  expect(onPreCommand({ ...call, command: `! pregate approve ${code}` }).verdict).toBe("none");
+  expect(onPreCommand({ ...call, session: { ...session, agentId: "sub" } }).verdict).toBe("none");
+  expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("none");
+  const bare = onPreCommand({ ...call, command: "pregate approve" });
+  expect(bare.verdict).toBe("deny");
+  expect(bare.compact).toStartWith("Ask the user to approve. Do not run the approval command yourself.");
   expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("deny");
 }));
 
@@ -304,11 +305,9 @@ test("one batch code reviews every project, is routed to the human from any dire
   expect(review.split("\n").filter((line) => line.includes("(was enforce)")).length).toBeGreaterThanOrEqual(2);
   for (const cwd of [elsewhere, a]) {
     const routed = onPreCommand({ ...call, cwd });
-    expect(routed.verdict, routed.full).toBe("deny");
-    expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
-  expect(routed.full).not.toContain(`! pregate approve ${code}`);
+    expect(routed.verdict, routed.full).toBe("none");
   }
-  expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("deny");
+  expect(onPreCommand({ ...call, command: `! pregate approve ${code}`, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("none");
   process.env.CI = "1"; process.env.PREGATE_UNATTENDED_APPROVAL = "1";
   process.chdir(elsewhere);
   const done = (await approveBatch(code, true, true))!;
@@ -359,8 +358,10 @@ test("a pending batch guards every command, so a spliced pregate approve from an
   const { elsewhere, code } = await batchOf(a);
   const session: Session = { harness: "claude-code", id: "spliced", turnId: "one", agentId: null, interactive: true };
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
-  for (const command of [`pre''gate approve ${code}`, `"pre"gate approve ${code}`, `p\\regate approve ${code}`,
-    `P=pre; \${P}gate approve ${code}`, `$(echo pregate) approve ${code}`, `\`echo pregate\` approve ${code}`, `env $(echo pregate) approve ${code}`]) {
+  for (const command of [`pre''gate approve ${code}`, `"pre"gate approve ${code}`, `p\\regate approve ${code}`]) {
+    expect(onPreCommand({ session, tool: "Bash", callId: "literal", cwd: elsewhere, command }).verdict, command).toBe("none");
+  }
+  for (const command of [`P=pre; \${P}gate approve ${code}`, `$(echo pregate) approve ${code}`, `\`echo pregate\` approve ${code}`, `env $(echo pregate) approve ${code}`, `sh -c 'pregate approve ${code}'`]) {
     const call = { session, tool: "Bash", callId: "spliced", cwd: elsewhere, command };
     expect(inert({ kind: "pre-command", command: call })).toBe(false);
     expect(onPreCommand(call).verdict, command).toBe("deny");
@@ -374,9 +375,10 @@ test("the batch route is named from any directory after the session reached a pr
   delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
   expect(onPreCommand({ session, tool: "Bash", callId: "ls", cwd: a, command: "ls" }).verdict).toBe("none");
   const routed = onPreCommand({ session, tool: "Bash", callId: "approve", cwd: elsewhere, command: `pregate approve ${code}` });
-  expect(routed.verdict, routed.full).toBe("deny");
-  expect(routed.full).toContain(`run pregate approve ${code} in a separate terminal`);
-  expect(routed.full).not.toContain(`! pregate approve ${code}`);
+  expect(routed.verdict, routed.full).toBe("none");
+  const wrapped = onPreCommand({ session, tool: "Bash", callId: "wrapped", cwd: elsewhere, command: `sh -c 'pregate approve ${code}'` });
+  expect(wrapped.verdict).toBe("deny");
+  expect(wrapped.compact).toStartWith("Ask the user to approve. Do not run the approval command yourself.");
 }));
 
 test("a batch approval inside a project pinning an older engine is answered by the engine that wrote the batch", () => project(async (a) => {
@@ -385,7 +387,8 @@ test("a batch approval inside a project pinning an older engine is answered by t
   const session: Session = { harness: "claude-code", id: "pinned", turnId: "one", agentId: null, interactive: true };
   const event = (command: string) => ({ kind: "pre-command" as const, command: { session, tool: "Bash", callId: "c", cwd: a, command } });
   expect(redirect(event(`pregate approve ${code}`))).toBeNull();
-  expect(redirect(event(`pregate approve ${code} --no-commit`))).toBe("0.2.6");
+  expect(redirect(event(`pregate approve ${code} --no-commit`))).toBeNull();
+  expect(redirect(event(`! pregate approve ${code}`))).toBeNull();
   expect(redirect(event(`pregate approve ${"0".repeat(12)}`))).toBe("0.2.6");
 }));
 
