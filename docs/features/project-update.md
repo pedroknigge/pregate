@@ -75,10 +75,11 @@ update reviews state that consent is preserved. That intent is digest-bound.
 
 Without a terminal, the agent inspects `guide --json --projects <path...>`,
 presents the relevant choices and prepares `guide --preview --projects <path...>`.
-The human can approve each displayed digest in its project in a separate
-terminal. `guide` has no `--yes`. Its single combined confirmation requires a human
+The human can approve each displayed digest in its project in this shell,
+including a harness `!` line. A code or `--yes` needs no terminal. An agent
+could run it; the approval log records that, and the agent must not.
+`guide` has no `--yes`. Its single combined confirmation requires a human
 terminal; it does not infer approval from a pipe, an agent statement or a preview.
-A harness `!` line cannot approve.
 
 ## Update several projects from one directory
 

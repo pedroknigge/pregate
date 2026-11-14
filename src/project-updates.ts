@@ -65,7 +65,7 @@ async function prepareAll(roots: string[], lines: string[]): Promise<{ prepared:
 
 // With one batch code, each project's own approval lines would only compete with it.
 function withoutOwnCodes(lines: string[], reviews: { digest: string }[]): string[] {
-  const own = new Set(reviews.flatMap(({ digest }) => humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`)));
+  const own = new Set(reviews.flatMap(({ digest }) => humanApprovalInstructions(`pregate approve ${digest.slice(0, 12)}`, "harness")));
   return lines.map(text => text.split("\n").filter(line => !own.has(line)).join("\n"));
 }
 
@@ -80,7 +80,7 @@ function previewSummary(prepared: Prepared[], failed: string[], held: number): s
   if (reviews.length === 0) return [...failures, `${failed.length + held === 0 ? "All " : ""}${prepared.length} projects are current. No project contracts changed.`];
   // The batch code replaces each project's command line. The shared instructions still apply.
   const code = reviews.length < 2 ? null : `pregate approve ${proposeBatch(reviews).slice(0, 12)}`;
-  const batch = code === null ? [] : [`Approve all ${reviews.length} project updates: ${code}`, ...humanApprovalInstructions(code).slice(1)];
+  const batch = code === null ? [] : [`Approve all ${reviews.length} project updates: ${code}`, ...humanApprovalInstructions(code, "harness").slice(1)];
   return [...failures, `${reviews.length} project reviews prepared; ${prepared.length - reviews.length} already current. No project contracts changed.`,
     batch.length ? "Review every project above, then approve them all with the one code below (from any directory)."
       : "Review every project above. Approve each displayed code in its project, or rerun the same path list with --yes to apply and commit each project in one execution (--no-commit leaves the files uncommitted).",

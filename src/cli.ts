@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
+import { approvalRecordVia, approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
@@ -311,7 +311,7 @@ async function compileTo(root: string, presetText: string, yes = false): Promise
       return { code: 1, text: ["This preset loosens the contract:", ...diff.lines.map((line) => `  ${line}`), approvalRefusal({ roots: [root], command: "pregate preset compile" }), "Lock not written."].join("\n") };
     }
     writeAtomic(join(root, LOCK), r.text);
-    recordApproval(root, r.text);
+    recordApproval(root, r.text, approvalRecordVia());
   } else writeAtomic(join(root, LOCK), r.text);
   return { code: 0, text: [`${LOCK} written (${r.lock.rules.length} rules); commit it.`, ...importReviewCost(root, r.lock)].join("\n") };
 }

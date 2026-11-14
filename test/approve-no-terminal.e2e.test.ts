@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { engineAt } from "./compiled-engine.ts";
-import { confirmOnTerminal } from "../scripts/confirm-terminal.ts";
 import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -38,25 +37,20 @@ test("a detached approve with piped stdin names the root and command and leaves 
     const before = readFileSync(join(pending, readdirSync(pending).find((name) => name.endsWith(".json"))!), "utf8");
     const human: Record<string, string | undefined> = { ...env, CI: "", PREGATE_UNATTENDED_APPROVAL: "" };
     delete human.PREGATE_TESTING; delete human.PREGATE_TEST_ANSWER;
-    const refused = await detached([binary, "approve", code], root, human);
+    const refused = await detached([binary, "approve"], root, human);
     const text = refused.stdout + refused.stderr;
     expect(refused.code, text).toBe(1);
     expect(text).toContain(root);
-    expect(text).toContain(`pregate approve ${code}`);
+    expect(text).toContain("pregate approve");
     expect(text).toContain(WINDOWS ? "Open a new PowerShell window in" : "Open Terminal/iTerm in");
     expect(text).toContain("no terminal");
     expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(false);
-    expect(existsSync(join(root, ".pregate/preset.json"))).toBe(false);
     const after = readdirSync(pending).filter((name) => name.endsWith(".json")).map((name) => readFileSync(join(pending, name), "utf8"));
     expect(after).toEqual([before]);
-
-    if (!WINDOWS) {
-      const accepted = confirmOnTerminal([binary, "approve", code], root, human, "y");
-      expect(accepted.code, accepted.stdout + accepted.stderr).toBe(0);
-      expect(accepted.stdout).toContain("Approve?");
-      expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(true);
-      expect(existsSync(join(root, ".pregate/preset.json"))).toBe(true);
-    }
+    const accepted = await detached([binary, "approve", code], root, human);
+    expect(accepted.code, accepted.stdout + accepted.stderr).toBe(0);
+    expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(true);
+    expect(existsSync(join(root, ".pregate/preset.json"))).toBe(true);
   } finally {
     removeTree(area);
   }

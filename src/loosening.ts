@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { dataHome } from "./consent.ts";
 import { bundledBetween, reviewDiff } from "./contract.ts";
@@ -11,12 +11,14 @@ import type { Lock } from "./types.ts";
 // session's starting contract), pre-commit (HEAD against the index) and CI (the merge base against
 // the checked-out head).
 //
-// Who may accept one differs by place. Locally, a human approval through a terminal records the
-// lock it produced (`recordApproval`); Stop and pre-commit accept that record. A same-user process
-// can forge a local record, so CI does not read it: `check --ratchet` accepts a loosening only when
+// Who may accept one differs by place. Locally, an approval records the lock it produced
+// (`recordApproval`), including whether it was a terminal, a non-terminal `--yes`, CI, or the test
+// hook. Stop and pre-commit accept that record. A same-user process can forge a local record, so
+// CI does not read it: `check --ratchet` accepts a loosening only when
 // PREGATE_ACCEPT_CONTRACT holds its exact digest, which the workflow sets from a repository
 // variable or a workflow_dispatch input, outside anything the agent's commits can change (see
 // docs/guarantees.md for protecting the workflow and .pregate/ with CODEOWNERS).
+export type ApprovalVia = "terminal" | "yes" | "unattended" | "test";
 export interface Loosening { digest: string; lines: string[] }
 export interface Contract { lockText: string | null; presetText: string | null }
 
@@ -42,12 +44,15 @@ function recordFile(root: string, lockHash: string): string {
   return join(dataHome(), "contract-approvals", `${sha256(`${canonical(root)}\0${lockHash}`)}.json`);
 }
 
-// A human approved, on a terminal, the contract whose compiled lock is `lockText` in `root`.
-export function recordApproval(root: string, lockText: string): void {
+// An approval of the contract whose compiled lock is `lockText` in `root`. `via` says how the
+// confirmation was given, so a non-terminal `--yes` is visible in the record and in the append-only log.
+export function recordApproval(root: string, lockText: string, via: ApprovalVia = "terminal"): void {
   const lock = sha256(lockText.replaceAll("\r\n", "\n"));
   const file = recordFile(root, lock);
+  const entry = { root: canonical(root), lock, at: Date.now(), via, tty: !!process.stdin.isTTY };
   mkdirSync(dirname(file), { recursive: true });
-  writeAtomic(file, JSON.stringify({ root: canonical(root), lock, at: Date.now() }));
+  writeAtomic(file, JSON.stringify(entry));
+  appendFileSync(join(dirname(file), "log.jsonl"), `${JSON.stringify(entry)}\n`);
 }
 
 export function approvedLocally(root: string, lockHash: string): boolean {
@@ -66,7 +71,7 @@ export function approvedLocally(root: string, lockHash: string): boolean {
 export function looseningText(l: Loosening, where: "staged" | "base"): string {
   const how = where === "base"
     ? `To accept it, a maintainer sets PREGATE_ACCEPT_CONTRACT=${l.digest} for this workflow run (a repository variable or a workflow_dispatch input). Commits cannot set it.`
-    : "Only a human approval recorded on this machine accepts it here: the human applies the change with `pregate preset apply <request> --preview` and `pregate approve <code>` in a terminal, or restores the previous contract.";
+    : "Only a human approval recorded on this machine accepts it here: the human applies the change with `pregate preset apply <request> --preview` and then `pregate approve <code>` in this shell. The agent must not run the approval command. Or restore the previous contract.";
   return [`PREGATE DENY contract-loosened: this change loosens the contract compared with the ${where === "base" ? "base revision" : "last commit"}.`,
     ...l.lines.map((line) => `  ${line}`), `Contract loosening digest: ${l.digest}`, how].join("\n");
 }

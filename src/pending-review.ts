@@ -48,9 +48,9 @@ export function pendingReview(root: string, digest?: string, full = false, globs
   return { code: 0, text: [...reviewLines(root, proposal, full, globs),
     ...(proposal.replaced === undefined ? [] : [`This review replaces the earlier pending proposal ${proposal.replaced}; that code no longer approves anything.`]),
     "Pending human review. The active contract still applies.",
-    `Digest: ${id}`, ...humanApprovalInstructions(`pregate approve ${id.slice(0, 12)}`), ...engineNote(proposal),
+    `Digest: ${id}`, ...humanApprovalInstructions(`pregate approve ${id.slice(0, 12)}`, "harness"), ...engineNote(proposal),
     ...(full ? [] : ["Full per-rule and file detail: pregate approve --preview --full"]),
-    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files."].join("\n") };
+    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files. Do not run pregate approve yourself. The human runs the command above in this shell."].join("\n") };
 }
 
 // A review prepared by another engine than the installed launcher runs (a source checkout, another
@@ -82,20 +82,44 @@ export function pendingBatch(code: string): Batch | null {
   return batch !== null && approvalCode(batch.digest, code) ? batch : null;
 }
 
-// The arguments of one literal `pregate ...` command, from `pregate` or the launcher's plain path;
-// null for anything else. Wrappers, substitutions and pipelines never match.
+// The arguments of one literal `pregate ...` command, from `pregate` or the launcher's plain path.
+// A leading harness `!` is the same command. null for anything else. Wrappers, substitutions and
+// pipelines never match.
 export function literalPregate(command: string, launcher: string): string | null {
-  const head = command.startsWith("pregate ") ? "pregate" : /^[\w/.:\-]+$/.test(launcher) && command.startsWith(`${launcher} `) ? launcher : null;
-  return head === null ? null : command.slice(head.length + 1);
+  const body = command.replace(/^![ \t]+/, "");
+  const head = body.startsWith("pregate ") ? "pregate" : /^[\w/.:\-]+$/.test(launcher) && body.startsWith(`${launcher} `) ? launcher : null;
+  return head === null ? null : body.slice(head.length + 1);
 }
 
-export const APPROVE_CODE = /^approve (?:--yes --digest ([0-9a-f]{64})|([0-9a-f]{12,64}))$/;
+// The code or digest a literal `pregate approve` names, or null when it does not. `--no-commit`
+// may sit on either side. `--yes` without a digest names nothing (it approves the pending review
+// in the working directory). A code operand and `--digest` together are not a command.
+export function namedApprovalCode(rest: string): string | null {
+  const words = rest.split(" ");
+  if (words[0] !== "approve") return null;
+  let yes = false, digest: string | null = null, code: string | null = null;
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i]!;
+    if (word === "--yes") { if (yes) return null; yes = true; continue; }
+    if (word === "--no-commit") continue;
+    if (word === "--digest") {
+      const value = words[++i];
+      if (value === undefined || !/^[0-9a-f]{12,64}$/.test(value) || digest !== null) return null;
+      digest = value;
+      continue;
+    }
+    if (word.startsWith("-") || code !== null || !/^[0-9a-f]{12,64}$/.test(word)) return null;
+    code = word;
+  }
+  if (code !== null && digest === null) return code;
+  return yes && digest !== null ? digest : null;
+}
 
 // The pending batch one literal approval command names. That command is answered by the engine
 // that wrote the batch, never by the older engine a project in it still pins.
 export function batchApproval(command: string, launcher: string): Batch | null {
-  const contract = APPROVE_CODE.exec(literalPregate(command, launcher) ?? "");
-  return contract === null ? null : pendingBatch(contract[1] ?? contract[2]!);
+  const code = namedApprovalCode(literalPregate(command, launcher) ?? "");
+  return code === null ? null : pendingBatch(code);
 }
 
 // Why one project of a batch can no longer be approved by it; null while its review stands.
@@ -118,7 +142,7 @@ export function batchReview(batch: Batch, pending = true, globs = true): { text:
     `Approve all ${batch.items.length} project updates with one code. Each project's review follows.`,
     ...proposals.flatMap((proposal) => [`Project: ${proposal.root}`, ...reviewLines(proposal.root, proposal, false, globs)]),
     ...(pending ? ["Pending human review. The active contracts still apply.",
-      `Digest: ${batch.digest}`, ...humanApprovalInstructions(`pregate approve ${batch.digest.slice(0, 12)}`)] : [])].join("\n") };
+      `Digest: ${batch.digest}`, ...humanApprovalInstructions(`pregate approve ${batch.digest.slice(0, 12)}`, "harness")] : [])].join("\n") };
 }
 
 export const BATCH_STALE = "The batch approval no longer matches its preview; nothing applied. Rerun pregate update --projects <path...> --preview, or approve each project with its own code.";

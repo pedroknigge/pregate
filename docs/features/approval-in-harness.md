@@ -1,9 +1,18 @@
 # Review and approve a contract inside the harness
 
-An agent's proposed contract change is validated before approval. The preview now
+An agent's proposed contract change is validated before approval. The preview
 includes actual preset/checker source diffs as well as effective rule, severity,
-scope and policy changes. Approval needs a separate terminal. A harness `!` line
-has no terminal, so it cannot approve.
+scope and policy changes. The human then runs `pregate approve <code>` or
+`pregate approve --yes` (optional `--digest`) in this shell, including a harness
+`!` line. That command does not need a terminal.
+
+This is a convenience, not a guarantee that the agent cannot type the same
+command. An agent could run it. Pregate records a non-terminal approval in the
+approval log (`via` is `yes` when stdin is not a terminal) so that is visible,
+and the hook text tells the agent to ask the human and not to run the command
+itself. A bare `pregate approve`, with no code and no `--yes`, still asks for
+`y` on a terminal. `enable`, `disable`, `init`, `promote`, `pack`, `preset`,
+`feedback apply`, `storage apply` and `issue submit` stay on a separate terminal.
 
 For a bounded request in `.pregate/requests/<name>.json`, the agent can run
 `pregate preset apply <request.json> --preview`. This validates the patch and full
@@ -25,14 +34,12 @@ permission protocol for the proposed edit. Known Claude Code subagents,
 noninteractive sessions and CI cannot use this path. The pending lock becomes
 current only after the tool writes the exact validated bytes.
 
-For agy, the engine queues a validated proposal and denies agent approval commands.
-Its hook does not identify a trusted interactive parent or permission mode. Earlier native `force_ask` requests stalled in
-skip-permissions mode, so the engine no longer emits them. On agy 1.5.6,
-`! pregate approve <code>` was refused because stdin is not a terminal. The only
-earlier agy Bash observation was 1.2.17, and it ran `pregate approve --yes --digest`
-without `PREGATE_UNATTENDED_APPROVAL=1`. That command also requires a terminal, so
-it does not show that a `!` line can approve. agy uses a separate terminal, as
-every other harness does. No harness is an in-harness `!` approval route.
+For agy, the engine queues a validated proposal. Its hook does not identify a
+trusted interactive parent or permission mode. Earlier native `force_ask` requests
+stalled in skip-permissions mode, so the engine no longer emits them. The exact
+`pregate approve` form above is allowed on agy the same way as on the other
+harnesses. On agy 1.5.6 that `!` line was refused because stdin was not a terminal.
+That observation describes the older gate.
 
 For an expiring queued proposal, prepare the complete review:
 
@@ -65,16 +72,12 @@ It prints the review and the digest-bound human command:
 pregate approve <code>
 ```
 
-The command applies only where stdin is an interactive terminal and the human types
-`y` on `/dev/tty` (`CONIN$` on Windows). A harness `!` line in Claude Code, Codex,
-Grok, OpenCode or Cursor has no terminal (stdin is a pipe or `/dev/null` and the
-process is detached). On agy 1.5.6, `! pregate approve <code>` was refused because
-stdin is not a terminal; the earlier agy note was only 1.2.17. Open Terminal/iTerm
-on macOS or Linux, or a new PowerShell window on Windows, in the project and run the command.
-
-The code is the first 12 hex digits of the digest. An agent cannot cheaply create a
-different proposal that starts with the same 12 digits. The long form
-`approve --yes --digest <sha256>` still works. In a Git worktree, approval commits
+A code or `--yes` applies with no terminal. A bare `pregate approve` still asks
+for `y` on `/dev/tty` (`CONIN$` on Windows). A pipe that contains `y` is not that
+typed confirmation. The code is the first 12 hex digits of the digest. An agent
+cannot cheaply create a different proposal that starts with the same 12 digits.
+The long form `approve --yes --digest <sha256>` still works, and it does not need
+a terminal either. In a Git worktree, approval commits
 exactly the contract files it wrote (`chore: apply reviewed PREGATE contract <code>`)
 and leaves other staged or dirty work out of that commit. If the repository cannot
 commit at that moment (a merge, a hook or signing), the approval still applies and
@@ -82,46 +85,36 @@ prints the command to commit by hand. `--no-commit` keeps the files uncommitted.
 request that was applied, and any request that can no longer apply to the new preset,
 is removed from `.pregate/requests/`.
 
-The preview tells every harness to use a separate terminal. A harness `!` line
-cannot approve. Cursor's tested Shell Mode invokes the same gated Pre without a
-trusted human origin marker, and the OpenCode plugin hook has none either. Do not
-bypass the guard or disable PREGATE. See native observations.
-With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI job; `CI` alone does not count), `--yes` applies without the `/dev/tty` question; elsewhere `--yes` still asks. Every harness, Claude Code included,
-rejects the agent's attempt to run the approval command and explains the human route: a
-native permission prompt cannot give the command the terminal it needs. The digest binds the writes, compiled lock, baseline
-and expiry; a replaced proposal, changed baseline or altered sources cannot apply
-the reviewed proposal. It expires 24 hours after preparation.
+The preview tells the human to run that command in this shell and tells the agent
+not to run it. Cursor's tested Shell Mode invokes the same gated Pre as an agent
+tool, and the OpenCode plugin hook has no trusted human-origin marker either.
+The shell guard allows the exact command anyway. Do not bypass the guard or
+disable PREGATE. See native observations.
+With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI
+job; `CI` alone does not count), `--yes` on the other control commands applies
+without the `/dev/tty` question. Assigning that variable on a command is still
+denied. The digest binds the writes, compiled lock, baseline and expiry; a
+replaced proposal, changed baseline or altered sources cannot apply the reviewed
+proposal. It expires 24 hours after preparation. A non-terminal approval is
+appended to `contract-approvals/log.jsonl` under the data directory.
 
-`pregate approve` retains its direct terminal prompt for existing users. A bare
-`--yes` is an unattended automation interface (`PREGATE_UNATTENDED_APPROVAL=1`), not a way around the terminal; the recommended
-route is a separate terminal and the displayed digest. Protected shell calls reject every
-approval command an agent issues and name that separate terminal.
+`pregate approve` with no code and no `--yes` still prompts on a terminal.
+`--yes` on `enable`, `disable`, `init`, `promote`, `pack` and the other control
+commands is not this path: those stay denied from the harness shell and still
+need a terminal or `PREGATE_UNATTENDED_APPROVAL=1`. A script that contains
+`pregate approve` is still denied.
 
 The automation verifies source diffs, altered/stale candidates, exact application,
-no-TTY native hook output, known Claude Code headless/subagent rejection, CI
-rejection and literal-command bounds. agy's native permission identity is not
-inferred. Earlier Codex, Claude Code, Grok and agy human-shell runs invoked
-`pregate approve --yes --digest` without `PREGATE_UNATTENDED_APPROVAL=1`. Since the
-terminal rule, that command also requires a terminal, so those runs do not show
-that a `!` line can approve. Every harness uses a
-separate terminal. Controlled test inputs are not actual user consent receipts.
-Actual Codex 0.160.0 headless and TUI model turns
-reject one exact approval attempt per surface, record native tool denials and
-completed turns, and preserve the contract and pending proposals. See the
-model scenarios and limits.
-Other approval commands, other harness UIs and native prompts remain separate
-verification. The earlier human-shell checks do not show that a `!` line can
-approve, and they do not certify every interaction in all five UIs.
-
-Claude Code 2.1.289 and Grok 1.0.49 human-input cases used the same
-`pregate approve --yes --digest` command without `PREGATE_UNATTENDED_APPROVAL=1`.
-They are not evidence that a `!` line approves. Read-only reporting probes in Codex and agy review
-the issue draft and find an existing report on real GitHub without publication.
-The evidence and failed probes
-retain Cursor's limitation and Claude's attempted model continuation.
-
-The same checks also pass four exact model rejection
-cases with Codex 0.160.1, retaining all 68 defaults: existing/initial proposals in
-headless/TUI surfaces. Native denial, displayed human command and unchanged
-contract/proposal hashes are recorded. See current source evidence.
-These are model rejection tests, not human approvals or checks of every command.
+a non-TTY harness shell that approves with a code or `--yes`, a bare `approve`
+that still refuses, known Claude Code headless/subagent behavior, CI and
+literal-command bounds. agy's native permission identity is not inferred.
+Earlier Codex, Claude Code, Grok and agy human-shell runs were recorded while
+the gate denied this command. Those notes describe that older gate. Controlled
+test inputs are not actual user consent receipts.
+The recorded Codex 0.160.0, Claude Code 2.1.289 and Grok 1.0.49 model turns
+denied one exact approval attempt per surface while this command was still
+refused by the gate. Those notes were not re-run after the in-harness form was
+allowed. They are a record of that older gate, not of the current command.
+Read-only reporting probes in Codex and agy still review the issue draft and
+find an existing report on real GitHub without publication. `issue submit`,
+`feedback apply` and `storage apply` stay on a separate terminal.

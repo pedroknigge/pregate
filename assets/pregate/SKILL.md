@@ -94,7 +94,7 @@ After updating hook definitions, the human reviews them again in `/hooks`.
      add `--complete` and give the map a catch-all layer (for example `src/**`).
    - `ark.config.json` is present: do not rebuild its layers by hand. Run
      `pregate import arkgate --preview`. The review proposes the layer map and
-     `coexist.arkgate`. The human approves it in a separate terminal.
+     `coexist.arkgate`. The human approves it in this shell. Do not run the approval command yourself.
    - Instruction rules are `pregate compile apply <file> --preview`. A refused
      proposal names its reason; correct it and run again, and add a `pattern`
      when the engine says it could only match the example's own text. Tell the
@@ -104,16 +104,14 @@ After updating hook definitions, the human reviews them again in `/hooks`.
      instruction file, and delete them only when the user agrees. The rules
      carry their own reason and repair, so the text no longer has to load in
      every session.
-4. Approval is the only step the user performs. Give exactly two lines to type
-   in a separate terminal: `pregate approve --preview` to read the change and
-   see its code, then `pregate approve <code>`. Never run either command
-   yourself. No harness `!` line can approve. Claude Code, Codex, Grok, agy,
-   OpenCode and Cursor each need that separate terminal. On agy 1.5.6,
-   `! pregate approve <code>` was refused because stdin is not a terminal. The
-   earlier agy note was only agy 1.2.17, and it used `approve --yes --digest`
-   without `PREGATE_UNATTENDED_APPROVAL=1`. On a new project that one approval
-   applies the contract, the layers (including an ArkGate import when
-   `ark.config.json` exists) and the compiled rules together.
+4. Approval is the only step the user performs. Give exactly two lines for the
+   human to type in this shell, including a harness `!` line: `pregate approve --preview`
+   to read the change and see its code, then `pregate approve <code>`. A code or
+   `--yes` needs no terminal. You could technically run that command. Do not.
+   Ask the human to run it. The approval log records a non-terminal approval.
+   On a new project that one approval applies the contract, the layers
+   (including an ArkGate import when `ark.config.json` exists) and the compiled
+   rules together.
 5. After that approval, run `pregate audit` and report its opening summary in
    a few lines: what is watched, how many findings, and that existing ones stay
    as they are. Do not paste the whole audit.
@@ -284,31 +282,30 @@ project's repository; personal consent and credentials stay local.
 
 Propose contract edits through a supported edit tool or literal preview command.
 PREGATE validates fixtures and the candidate before permission. Every harness
-uses a validated queued proposal, and every harness denies an approval command
-the agent issues: no native permission prompt approves on the human's behalf.
-Hand the exact reviewed command to the human and tell them to run it in a
-separate terminal. Never execute it as an agent. See the documented approval limits.
+uses a validated queued proposal. No native permission prompt approves on the
+human's behalf. Hand the exact reviewed command to the human and tell them to
+run it in this shell. Do not run `pregate approve` yourself. An agent could run
+it; the approval log records a non-terminal approval. See the documented approval limits.
 
 Review `approve --preview`: the mode, one line per pack, every loosening, removal
 and field change, the whole preset diff and every written file. A WARNING appears
 only when protection may weaken; new contracts, added rules and stronger modes do
 not warn. `approve --preview --full` adds every per-rule change and complete file
-contents. Then ask the human to open Terminal/iTerm (a new PowerShell window on
-Windows) in the project and run the exact displayed `pregate approve <code>`,
-then type `y`. A harness `!` line has no terminal, so it cannot approve. On agy 1.5.6,
-`! pregate approve <code>` was refused because stdin is not a terminal. The code is the
-first 12 hex digits of the digest. `approve --yes --digest <sha256>` still asks
-for `y` on the terminal unless `PREGATE_UNATTENDED_APPROVAL=1` is already set
-(an unattended CI job; `CI` alone does not count).
+contents. Then ask the human to run the exact displayed `pregate approve <code>`
+in this shell, including a harness `!` line. A code or `--yes` needs no terminal
+and does not ask for `y`. A bare `pregate approve` still asks for `y` on a terminal.
+The code is the first 12 hex digits of the digest. `approve --yes --digest <sha256>`
+is the same convenience. `PREGATE_UNATTENDED_APPROVAL=1` is the CI path for the
+other control commands; `CI` alone does not count, and you must not set `PREGATE_*`.
 Approval commits exactly the contract files it wrote, plus the rule pack folders the
 lock compiles from, and removes applied or stale requests, so do not stage or commit
 the preset, lock or packs yourself afterwards.
-Claude Code, Codex, Grok, agy, OpenCode and Cursor all
-use a separate terminal. The earlier agy `!` note was only 1.2.17. Cursor Shell Mode invokes gated Pre without a trusted
-human-origin marker. Show the reviewed command and this limitation; never disable
-PREGATE or route around the guard.
-Direct human terminal approval remains available. Stale/replaced/expired
-proposals cannot apply. Never execute approval or activation as agent self-approval.
+Claude Code, Codex, Grok, agy, OpenCode and Cursor all accept that exact command
+in the agent shell. Cursor Shell Mode invokes gated Pre without a trusted
+human-origin marker; the command is allowed there anyway. Show the reviewed command;
+never disable PREGATE or route around the guard.
+A bare approve still needs a terminal. Stale/replaced/expired
+proposals cannot apply. Do not run the approval command yourself. Ask the human to.
 Never loosen the contract by editing the preset and recompiling: Stop, pre-commit
 and CI block a looser lock (`contract-loosened`) that no human approved.
 Guided proposals bind their consent effect in the digest: initial
@@ -676,7 +673,7 @@ Keep disabled consent and custom policies; native harness limits still apply.
 Prepare `update --projects <path...> --preview` to migrate one or
 several explicit project roots from any directory. Quote paths with spaces.
 Show every project's diff, digest and failure. With two or more reviews it
-prints one batch code: `pregate approve <code>` in a separate terminal approves every prepared project
+prints one batch code: `pregate approve <code>` in this shell approves every prepared project
 from any directory, validates them all first and applies none if any changed then;
 each is then applied and committed on its own.
 A human can also rerun the same list with `--yes` for one execution, or approve

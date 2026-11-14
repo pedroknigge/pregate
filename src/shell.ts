@@ -60,7 +60,7 @@ export interface GitChanges { worktree: string[]; index: string[] }
 // cwd, where a command whose cwd is unknown most likely runs. `bound`: the variables the command
 // line binds POSIX-style, shared by its nested scripts.
 type Ctx = GuardContext & { machineOnly: boolean; harness: HarnessId; held: Cause | null; origin: string; guideInspection: boolean; configurationInspection: boolean;
-  vars: Map<string, string>; pendingProtected: Set<string>; bound: Set<string>; ciSet: boolean };
+  vars: Map<string, string>; pendingProtected: Set<string>; bound: Set<string>; ciSet: boolean; direct: boolean };
 
 // What denies in any session: the machine's protected paths (isProtected answers which) and what
 // switches off the hooks of every repo. The rest needs a path of the command to reach a root.
@@ -114,7 +114,7 @@ function scriptFile(ctx: Ctx, path: string, interpreter: string, cwd: string | n
   const lang = interpreter.replace(/^python[\d.]*$/, "python").replace(/^nodejs$/, "node");
   if (SHELL_INTERPRETERS.has(lang)) {
     const src = lang === "powershell" && read.text.includes("\\") ? read.text.replace(/\\(?=[\w.-])/g, "/") : read.text;
-    return script(src, cwd, ctx);
+    return nestedScript(src, cwd, ctx);
   }
   // A file run by node, bun or deno is a program with imports, read by the rules for a file.
   const file = INTERPRETERS.get(lang) === NODE ? nodeFile(read.text) : null;
@@ -167,7 +167,7 @@ interface Word { text: string; literal: boolean; subs: string[]; blocks?: string
 // `stdin`: the text a heredoc or a here-string feeds to the command.
 interface Redir { op: string; target: Word; stdin: Word | null }
 // A simple command and the operator that ends it.
-interface Command { words: Word[]; redirs: Redir[]; op: string }
+interface Command { words: Word[]; redirs: Redir[]; op: string; grouped: boolean }
 type Flag = [name: string, value: Word | undefined];
 
 // A target that exists but cannot be named: files fed by xargs, a download's remote name, a patch.
@@ -258,7 +258,7 @@ const INTERPRETERS = new Map<string, RegExp>([
 // or a directory outside the session. A non-literal `cd` still makes the directory unknown.
 export function guard(command: string, cwd: string, context: GuardContext & { machineOnly: boolean; harness: HarnessId }): Cause | null {
   const ctx: Ctx = { ...context, held: null, origin: cwd, guideInspection: isolatedGuideInspection(command), configurationInspection: isolatedConfigurationInspection(command),
-    vars: new Map(), pendingProtected: new Set(), bound: new Set(), ciSet: false };
+    vars: new Map(), pendingProtected: new Set(), bound: new Set(), ciSet: false, direct: true };
   const cause = script(command, cwd, ctx) ?? (command.includes("\\") ? script(command.replace(/\\(?=[\w.-])/g, "/"), cwd, ctx) : null);
   return cause ?? (ctx.held !== null && ctx.touched() ? ctx.held : null);
 }
@@ -441,9 +441,12 @@ function heredocBodies(src: string, i: number, pending: [Redir, boolean][]): num
 function lex(src: string): Command[] {
   const commands: Command[] = [];
   const pending: [Redir, boolean][] = [];
-  let cmd: Omit<Command, "op"> = { words: [], redirs: [] };
+  let cmd: Omit<Command, "op" | "grouped"> = { words: [], redirs: [] };
+  // `{ … }` runs in this shell, but it is not the command the human typed. A function body is the
+  // same shape (`cd() { pregate approve --yes; }`). Those commands are not an in-harness approval.
+  let depth = 0;
   const finish = (op: string): void => {
-    commands.push({ ...cmd, op });
+    commands.push({ ...cmd, op, grouped: depth > 0 });
     cmd = { words: [], redirs: [] };
   };
   let i = 0;
@@ -466,6 +469,7 @@ function lex(src: string): Command[] {
       cmd.words.push({ text: src.slice(i, i + 2), literal: true, subs: [] }, opaque[0]);
       i = opaque[1];
     } else if (c === "{" && /\s/.test(src[i + 1] ?? "") && cmd.words.length + cmd.redirs.length === 0) {
+      depth++;
       i++;   // a group runs in this shell, so its commands are read in line (its `}` is a keyword)
     } else if (redir !== null) {
       const [r, end, expands] = redir;
@@ -477,6 +481,7 @@ function lex(src: string): Command[] {
       i += op.length;
     } else {
       const [word, end] = readWord(src, i);
+      if (word.text === "}" && depth > 0 && cmd.words.length === 0) depth--;
       if (cmd.words.length > 0 || !KEYWORDS.has(word.text)) cmd.words.push(word);
       i = end;
     }
@@ -629,7 +634,7 @@ function code(w: Word, cwd: string | null, ctx: Ctx): Cause | null {
 // text is known; when it is not, it may write anything.
 function inline(w: Word | null | undefined, cwd: string | null, ctx: Ctx): Cause | null {
   if (!w) return null;
-  return w.literal ? script(w.text, cwd, ctx) : "shell-write";
+  return w.literal ? nestedScript(w.text, cwd, ctx) : "shell-write";
 }
 
 // eval, Invoke-Expression and pwsh -Command join their arguments into one script.
@@ -637,18 +642,34 @@ function joined(args: Word[]): Word {
   return { text: args.map((w) => w.text).join(" "), literal: args.every((w) => w.literal), subs: [] };
 }
 
+// A script, substitution or `sh -c` string is not the human's typed command. `held` is how a
+// machine-only shell-admin still denies once the caller has touched a root: it has to travel back
+// to the context `guard` owns, which a copied context would otherwise keep.
+function nestedScript(src: string, cwd: string | null, ctx: Ctx, block = false): Cause | null {
+  const child: Ctx = { ...ctx, direct: false };
+  const cause = script(src, cwd, child, block);
+  if (child.held !== null) ctx.held ??= child.held;
+  return cause;
+}
+
 // `block`: a PowerShell script block, where only `&` calls a statement that starts with `$`.
 function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause | null {
   const saved: (string | null)[] = [];
   const subCtx: Ctx = { ...ctx, vars: new Map(ctx.vars), pendingProtected: new Set() };
-  let pipedIn = false, called = false, calling = false;
+  let pipedIn = false, called = false, calling = false, subshell = 0;
   for (const command of lex(src)) {
     bindNames(command, subCtx.bound);
     const { words } = command;
+    // A brace group or a subshell is another command the human did not type as `pregate approve`.
+    const savedDirect = subCtx.direct;
+    if (command.grouped || subshell > 0) subCtx.direct = false;
     const cause = computed(command, calling) ? "shell-admin" : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
+    subCtx.direct = savedDirect;
     if (cause !== null && (!subCtx.machineOnly || ALWAYS.has(cause))) return cause;
     ctx.held ??= subCtx.held ?? cause;
     const { op } = command;
+    if (op === "(") subshell++;
+    else if (op === ")" && subshell > 0) subshell--;
     const pipe = op === "|" || op === "|&";
     // A cd inside a pipeline or in the background runs in a subshell and moves nothing.
     if (!pipedIn && !pipe && op !== "&") cwd = moved(command.words, cwd);
@@ -749,8 +770,8 @@ function bindCommandVars(cmd: Command, cwd: string | null, ctx: Ctx): { words: W
 // `pipedIn`: stdin comes from the previous command of a pipeline, so it is unknown text.
 function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): Cause | null {
   const all = [...cmd.words, ...cmd.redirs.map((r) => r.target)];
-  const nested = first(all.flatMap((w) => w.subs), (sub) => script(sub, cwd, ctx))
-    ?? first(all.flatMap((w) => w.blocks ?? []), (body) => script(body, cwd, ctx, true));
+  const nested = first(all.flatMap((w) => w.subs), (sub) => nestedScript(sub, cwd, ctx))
+    ?? first(all.flatMap((w) => w.blocks ?? []), (body) => nestedScript(body, cwd, ctx, true));
   if (nested !== null) return nested;
   const bound = bindCommandVars(cmd, cwd, ctx);
   if (bound === "protected-path") return "protected-path";
@@ -1064,7 +1085,7 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (EXPORTS.has(name)) return run(args.filter((w) => ASSIGNMENT.test(w.text)), cwd, ctx, stdin);
   // A sourced script runs like a command: `. pregate approve` runs the launcher in this shell.
   if (name === "source" || name === ".") return run(args, cwd, ctx, stdin);
-  if (name === "pregate") return ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection);
+  if (name === "pregate") return ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
   if (name === "command" && args.some((w) => /^-[vV]$/.test(w.text))) return null;   // lookup, no execution
   const runner = RUNNERS.has(`${name} ${args[0]?.text}`);
   if (WRAPPERS.has(name) || runner) return wrapped(runner ? "npx" : name, runner ? args.slice(1) : args, cwd, ctx, stdin);
@@ -1151,7 +1172,7 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
 
 // The read-only subcommands run; setup, update and uninstall, or one that cannot be named, change
 // what every harness runs (MH-17).
-function pregate(args: Word[], guideAllowed: boolean): Cause | null {
+function pregate(args: Word[], guideAllowed: boolean, direct: boolean): Cause | null {
   if (args.every((w) => w.literal) && args[0]?.text === "pack" && args[1]?.text === "init") return null;
   // A draft writes only an inactive, unprotected pack folder; the command itself refuses the rest.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "draft") return null;
@@ -1160,8 +1181,34 @@ function pregate(args: Word[], guideAllowed: boolean): Cause | null {
   if (proposal(args)) return null;
   if (args[0]?.text === "guide" && !guideAllowed && !commandHelp(args.map(w => w.text))) return "shell-admin";
   if (readOnlyPregate(args, false)) return null;
+  // A literal `pregate approve` that already carries a code or `--yes` is the human's confirmation.
+  // A script, `sh -c`, a wrapper and every other control command stay shell-admin.
+  if (direct && inHarnessApproval(args)) return null;
   const sub = args.find((w) => !w.text.startsWith("-"));
   return sub !== undefined && (!sub.literal || MACHINE.test(sub.text)) ? "hook-switch" : "shell-admin";
+}
+
+// The human's in-harness confirmation: one literal `approve` with a code operand, or with `--yes`
+// and an optional 12–64 hex `--digest`. `--no-commit` may sit on either side. Anything else,
+// including `--digest` without `--yes` and a code combined with `--digest`, still needs a terminal.
+function inHarnessApproval(args: Word[]): boolean {
+  if (!args.every((w) => w.literal && w.subs.length === 0) || args[0]?.text !== "approve") return false;
+  let yes = false, digest = false, code = false, commit = false;
+  for (let i = 1; i < args.length; i++) {
+    const word = args[i]!.text;
+    if (word === "--yes") { if (yes) return false; yes = true; continue; }
+    if (word === "--no-commit") { if (commit) return false; commit = true; continue; }
+    if (word === "--digest") {
+      const value = args[++i]?.text;
+      if (value === undefined || digest || !/^[0-9a-f]{12,64}$/.test(value)) return false;
+      digest = true;
+      continue;
+    }
+    if (word.startsWith("-") || code || !/^[0-9a-f]{12,64}$/.test(word)) return false;
+    code = true;
+  }
+  if (code && digest) return false;
+  return code || yes;
 }
 
 // `layers` and `compile` read the project, or prepare one pending review that only the human
@@ -1186,6 +1233,13 @@ function importPreview(rest: string[]): boolean {
 }
 
 function wrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
+  const child: Ctx = { ...ctx, direct: false };
+  const cause = runWrapped(name, args, cwd, child, stdin);
+  if (child.held !== null) ctx.held ??= child.held;
+  return cause;
+}
+
+function runWrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
   const { flags, operands } = getopt(args, WRAPPERS.get(name) ?? [], true);
   const inner = name === "xargs" ? xargs(flags, args.slice(0, args.length - operands.length), operands) : operands;
   const option = (re: RegExp) => flags.find(([flag]) => re.test(flag));
