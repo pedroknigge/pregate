@@ -1,12 +1,12 @@
 # Product roadmap
 
-0.0.9 / core 0.0.1 is the public release. macOS ARM64 is stable. Linux and Windows
+0.0.10 / core 0.0.1 is the public release. macOS ARM64 is stable. Linux and Windows
 builds stay experimental until native release validation passes. See the
 [v0.0.1 release notes](releases/0.0.1.md). Star counts are not an acceptance
 criterion; useful activation and repeated use need actual independent users
 before making adoption claims.
 
-Latency figures from before this public line are not measurements of the 0.0.9
+Latency figures from before this public line are not measurements of the 0.0.10
 binaries. Re-run the benchmark in this tree before quoting a number.
 
 ## Proposed public pack distribution
@@ -47,12 +47,12 @@ stable release. License and engine compatibility belong in the catalog metadata.
 After adoption or restoration, offline checks still need matching local engine
 and pack sources. Lock-only verification would need its own integrity design.
 
-This is a proposed distribution change. 0.0.9 still embeds the optional
+This is a proposed distribution change. 0.0.10 still embeds the optional
 packs in the engine. External discovery, selected-version cache lookup, exact
 restoration and grouped migration need verification before removing those
 bundled assets.
 
-0.0.9 includes the [guided project workflow](features/guided-project-workflow.md),
+0.0.10 includes the [guided project workflow](features/guided-project-workflow.md),
 multi-project updates, compact audits, and Rust source analysis. It adds the
 route from an instruction file to rules, layer maps with evidence, and promotion
 raised by the engine ([feature guide](features/agent-proposed-contract.md)). The current
@@ -64,10 +64,10 @@ maintainability certification.
 
 ## Published baseline
 
-0.0.9 implements one interactive entry, proactive state diagnosis, a combined
+0.0.10 implements one interactive entry, proactive state diagnosis, a combined
 setup and update review, and recovery that does not ask anyone to edit pins or
 lock bytes by hand. See [v0.0.1 release notes](releases/0.0.1.md) for the first
-public tag and the [changelog](../CHANGELOG.md) for 0.0.9.
+public tag and the [changelog](../CHANGELOG.md) for 0.0.10.
 
 Keep the existing core defaults, human approval, and the latency targets in
 [ARCHITECTURE](ARCHITECTURE.md). Optional heuristic policies stay in shadow
@@ -99,7 +99,7 @@ The immediate bottlenecks are correctness of dependency context, standalone
 operation, misleading performance measurements and friction in activation and
 approval. Resolve those before expanding enforcement or making release claims.
 
-## Delivered in 0.0.9 and remaining limits
+## Delivered in 0.0.10 and remaining limits
 
 | Delivery | Product benefit | Release evidence |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ Open after the first trial on a production repository (13,499 source files):
 Requested 2026-10-03. Detailed scope and acceptance criteria are in
 [the maintainability and bulk-audit plan](features/maintainability-and-bulk-audit.md).
 Advisory scan and refactoring plans, and content-validated incremental audit with
-checkpoint recovery and JSONL streaming, are included in 0.0.9.
+checkpoint recovery and JSONL streaming, are included in 0.0.10.
 Parallel workers and model classification remain pending; implementation is not
 publication or evidence of general maintainability.
 
@@ -206,7 +206,7 @@ publication or evidence of general maintainability.
    integration tests for system boundaries; recommend unit tests for isolated
    logic and edge cases. Explain the risk addressed and existing coverage gaps.
    Admit QA rules only when the engine can actually evaluate their required facts.
-4. **Large-scale compliance audits.** 0.0.9 includes a read-only,
+4. **Large-scale compliance audits.** 0.0.10 includes a read-only,
    resumable whole-tree audit with bounded source/cache resources, content-based
    caching and dependency invalidation. Verify representative scale and add
    parallel work over independent files. JSONL streams per-file results with final
@@ -224,7 +224,7 @@ behavior, useful tests and reduced effort on subsequent changes.
 
 ## Research requiring real evidence
 
-0.0.9 is the published release. The
+0.0.10 is the published release. The
 [guided scan/batch approval/audit workflow](features/guided-pack-adoption.md)
 is delivered; it is not pending onboarding work.
 
@@ -234,7 +234,7 @@ both arms pass external behavior; the treatment costs more time and produces
 separate domain modules. It does not establish a general maintainability benefit;
 independent review and replications remain.
 
-The following packs ship in 0.0.9. Their original English
+The following packs ship in 0.0.10. Their original English
 requirements and evidence limits remain documented; selection alone does not
 certify the corresponding product:
 

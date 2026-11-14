@@ -2,7 +2,7 @@
 
 ## Starting work
 
-The guided coordinator is included in 0.0.9; check `--help` for `guide`.
+The guided coordinator is included in 0.0.10; check `--help` for `guide`.
 Use [the pregate skill](pregate-skill.md) in your coding harness: invoke `/pregate`, then ask
 for setup, an update, an audit or a bounded repair. Setup/update installs the
 matching companion instructions. Loading them grants no approval.
