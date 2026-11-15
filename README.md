@@ -224,7 +224,7 @@ A new project is proposed in advisor mode: the agent sees each finding and nothi
 pregate approve <code>
 ```
 
-A code or `--yes` needs no terminal. An agent could run that same command. Pregate records a non-terminal approval in the approval log so that is visible, and the agent is told to ask the human and not to run it. A bare `pregate approve` still asks for `y` on a terminal. Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. `enable`, `disable` and the other control commands stay on a separate terminal.
+A code or `--yes` needs no terminal. An agent could run that same command. Pregate records a non-terminal approval in the approval log so that is visible. In an interactive Claude Code parent session the agent may propose that command, and the human gets Claude Code's permission prompt: Accept runs it, Reject runs nothing. In every other session the agent is told to ask the human and not to run it. A bare `pregate approve` still asks for `y` on a terminal. Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. `enable`, `disable` and the other control commands stay on a separate terminal.
 
 ```sh
 pregate status

@@ -8,16 +8,16 @@ import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
-import { literalPregate } from "./pending-review.ts";
+import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import { pendingRoot } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
 import { gitChanges } from "./git-changes.ts";
-import { guard, type GuardContext } from "./shell.ts";
+import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
-import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand } from "./types.ts";
+import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand, Session } from "./types.ts";
 
 // The imperative shell around the pure core (ARCHITECTURE §4): one function per hook event, plus
 // `check` for the pre-check, pre-commit and CI. Every known cause goes through decide; anything
@@ -92,20 +92,53 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
 // no root writes nothing, and the guard denies only what holds machine-wide unless a path of the
 // command reaches a root (MH-17).
 export function onPreCommand(c: ProposedCommand): Decision {
-  const d = askAboutApproval(evaluatePreCommand(c), c.command);
+  const d = claudeApprovalAsk(c, askAboutApproval(evaluatePreCommand(c), c));
   if (c.session.harness === "agy") state.queuePostInvocation(state.key(c.session), d);
   return d;
 }
 
-// A denied approval attempt should tell the agent to ask the human, and never to run approve.
-// Compact leads with that sentence because Grok shows only the first 256 characters.
-function askAboutApproval(decision: Decision, command: string): Decision {
-  if (decision.verdict !== "deny" || (decision.cause !== "shell-admin" && decision.cause !== "hook-switch") || !/\bapprove\b/.test(command)) return decision;
-  const ask = "Ask the user to approve. Do not run the approval command yourself.";
+// Same session as nativeApproval() in recorded.ts. That module is the edit gate; importing it
+// here would load it on every command. `claude -p` does not mark the hook payload.
+function claudeNativeAsk(session: Session): boolean {
+  return !process.env.CI && session.agentId === null && session.harness === "claude-code" && session.interactive;
+}
+
+const CLAUDE_PROPOSE = "You may propose the literal command pregate approve <code> or pregate approve --yes --digest <sha> so the human gets Claude Code's permission prompt. Accept runs that command. Reject runs nothing.";
+const ASK_HUMAN = "Ask the user to approve. Do not run the approval command yourself.";
+
+// A denied approval attempt tells the agent what to do. Compact leads with that sentence because
+// Grok shows only the first 256 characters. Where Claude Code can show its own prompt, the agent
+// may propose the literal command. Everywhere else it must not run the command.
+function askAboutApproval(decision: Decision, c: ProposedCommand): Decision {
+  if (decision.verdict !== "deny" || (decision.cause !== "shell-admin" && decision.cause !== "hook-switch") || !/\bapprove\b/.test(c.command)) return decision;
+  const ask = claudeNativeAsk(c.session) ? CLAUDE_PROPOSE : ASK_HUMAN;
   const full = decision.full.includes(ask) ? decision.full : `${decision.full} ${ask}`.slice(0, 4000);
   const compact = `${ask} ${decision.compact}`.slice(0, 256);
   const notice = decision.notice === null || decision.notice.includes(ask) ? decision.notice : `${decision.notice} ${ask}`.slice(0, 4000);
   return { ...decision, full, compact, notice };
+}
+
+// An already-allowed literal approval, in an interactive Claude Code parent, becomes the native
+// prompt. Accept runs the command the agent proposed. Reject runs nothing. The hook does not
+// apply the contract, and a session that is not that parent keeps the allow.
+function claudeApprovalAsk(c: ProposedCommand, decision: Decision): Decision {
+  if (decision.verdict !== "none" || !claudeNativeAsk(c.session)) return decision;
+  const reviews = directApprovalArgv(c.command).flatMap((argv) => {
+    const review = approvalAskReview(c.cwd, argv);
+    return review === null ? [] : [review];
+  });
+  if (reviews.length === 0) return decision;
+  const warning = reviews.some((review) => review.warning);
+  const summary = [...new Set(reviews.map((review) => review.summary))].join("\n");
+  const detail = [...new Set(reviews.map((review) => review.detail))].join("\n\n");
+  const lead = [
+    warning ? "WARNING: this may weaken protection." : "PREGATE asks you to approve this contract change.",
+    "Accept runs this command. Reject runs nothing.",
+    c.command.trim(),
+    summary,
+  ].join("\n");
+  const notice = lead.slice(0, 1500);
+  return { ...decision, verdict: "ask", notice, compact: notice.slice(0, 256), full: `${notice}\n\n${detail}`.slice(0, 4000) };
 }
 
 function evaluatePreCommand(c: ProposedCommand): Decision {

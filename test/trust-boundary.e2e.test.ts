@@ -335,9 +335,9 @@ test("CI in the environment neither approves nor reveals codes; the dedicated op
   denied(a.bash("env PREGATE_UNATTENDED_APPROVAL=1 sh -c 'pregate disable --yes'"), "hook-switch");
 });
 
-// ── P1-4: Claude's native permission cannot complete an approval command ────────────────
+// ── P1-4: an interactive Claude parent asks before a literal approval command runs ──────
 
-test("Claude Code allows the exact approval command and still denies the other approval commands", () => {
+test("Claude Code asks for the exact approval command and still denies the other approval commands", () => {
   const r = fresh({ PREGATE_TESTING: "1" });
   put(r, ".pregate/requests/loosen.json", JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
   const preview = cli(r, ["preset", "apply", ".pregate/requests/loosen.json", "--preview"]);
@@ -345,10 +345,18 @@ test("Claude Code allows the exact approval command and still denies the other a
   expect(code, said(preview)).toBeDefined();
   const a = claude(r, "default");
   ok(a.start(), "session");
-  silent(a.bash(`pregate approve ${code}`));
+  const asked = a.bash(`pregate approve ${code}`);
+  expect(asked.code, said(asked)).toBe(0);
+  expect(asked.stderr).toBe("");
+  const body = JSON.parse(asked.stdout) as { hookSpecificOutput: { hookEventName: string; permissionDecision: string; permissionDecisionReason: string; additionalContext: string } };
+  expect(body.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+  expect(body.hookSpecificOutput.permissionDecision).toBe("ask");
+  expect(body.hookSpecificOutput.permissionDecisionReason).toContain("Accept runs this command. Reject runs nothing.");
+  expect(body.hookSpecificOutput.permissionDecisionReason).toContain("Mode:");
+  expect(typeof body.hookSpecificOutput.additionalContext).toBe("string");
   silent(a.bash(`pregate approve --yes --digest ${"a".repeat(64)}`));
   const bare = a.bash("pregate approve");
-  denied(bare, "Ask the user to approve. Do not run the approval command yourself.");
+  denied(bare, "You may propose the literal command pregate approve <code>");
   expect(said(bare)).not.toContain("! pregate approve");
   for (const command of [`pregate feedback apply ${"a".repeat(64)} --yes`, `pregate storage apply ${"a".repeat(64)} --yes`, `pregate issue submit ${"a".repeat(64)} --yes`]) {
     const out = a.bash(command);
