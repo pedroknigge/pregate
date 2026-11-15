@@ -399,25 +399,38 @@ function darwinAgyCommand(): string | null {
 }
 
 function windowsAgyCommand(): string | null {
+  // EncodedCommand is UTF-16LE. A raw -Command script is reparsed by Windows and exits
+  // before it can report that no agy ancestor exists, which drops the prompt.
+  // One snapshot of id, parent and name. CommandLine is read only for an agy process.
   const script = `
+$ProgressPreference='SilentlyContinue'
+$OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
+$ErrorActionPreference='Stop'
+$rows = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name)
+$byId = @{}
+foreach ($row in $rows) { $byId[[int]$row.ProcessId] = $row }
 $procId = ${process.ppid}
+$found = $null
 for ($i = 0; $i -lt ${WALK} -and $procId -gt 1; $i++) {
-  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
-  if (-not $proc) { exit 0 }
+  $proc = $byId[$procId]
+  if ($null -eq $proc) { exit 0 }
   $name = [IO.Path]::GetFileName([string]$proc.Name)
-  if ($name -match '^(agy|antigravity)(\\.exe)?$') {
-    if ([string]::IsNullOrEmpty([string]$proc.CommandLine)) { Write-Output "UNREADABLE"; exit 0 }
-    Write-Output $proc.CommandLine
-    exit 0
-  }
-  $procId = [int]$proc.ParentProcessId
+  if ($name -match '^(agy|antigravity)(\\.exe)?$') { $found = $procId; break }
+  $next = [int]$proc.ParentProcessId
+  if ($next -eq $procId) { exit 0 }
+  $procId = $next
 }
+if ($null -eq $found) { exit 0 }
+$cmd = Get-CimInstance Win32_Process -Filter "ProcessId=$found" -Property CommandLine
+if ([string]::IsNullOrEmpty([string]$cmd.CommandLine)) { Write-Output 'UNREADABLE'; exit 0 }
+Write-Output $cmd.CommandLine
 exit 0
 `;
+  const encoded = Buffer.from("$env:PSModulePath=$PSHOME+'\\Modules;'+$env:PSModulePath; " + script, "utf16le").toString("base64");
   try {
-    const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-      encoding: "utf8", timeout: 1500, windowsHide: true,
-    });
+    const result = spawnSync("powershell.exe", [
+      "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded,
+    ], { encoding: "utf8", timeout: 5000, windowsHide: true });
     if (result.error || result.status !== 0) return "";
     const line = String(result.stdout ?? "").trim();
     if (line === "UNREADABLE") return "";
