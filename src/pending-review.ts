@@ -50,7 +50,7 @@ export function pendingReview(root: string, digest?: string, full = false, globs
     "Pending human review. The active contract still applies.",
     `Digest: ${id}`, ...humanApprovalInstructions(`pregate approve ${id.slice(0, 12)}`, "harness"), ...engineNote(proposal),
     ...(full ? [] : ["Full per-rule and file detail: pregate approve --preview --full"]),
-    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files. In an interactive Claude Code parent session you may propose the exact command above, so the human gets Claude Code's permission prompt. Accept runs it. Reject runs nothing. The agent must not run the approval command in any other session. The human runs the command above in this shell."].join("\n") };
+    "Agent next step: show this review to the user and wait for approval. Preserve the proposed files. In an interactive Claude Code parent session, or an interactive agy session, you may propose the exact command above so the human gets the permission prompt. Accept runs it. Reject runs nothing. The agent must not run the approval command in any other session. The human runs the command above in this shell."].join("\n") };
 }
 
 // A review prepared by another engine than the installed launcher runs (a source checkout, another
@@ -150,8 +150,13 @@ export function approvalAskReview(cwd: string, argv: string[]): { warning: boole
   const proposal = readProposal(root);
   if (proposal === null || !currentProposal(proposal)) return null;
   if ("code" in parsed && !approvalCode(sha256(JSON.stringify(proposal)), parsed.code)) return null;
-  const diff = proposalDiff(proposal);
-  return { warning: diff.warning, summary: diff.summary.join("\n"), detail: reviewLines(root, proposal, false, false).join("\n") };
+  try {
+    const diff = proposalDiff(proposal);
+    return { warning: diff.warning, summary: diff.summary.join("\n"), detail: reviewLines(root, proposal, false, false).join("\n") };
+  } catch (e) {
+    if (!(e instanceof Error)) throw e;
+    return null; // fail-closed: a review that cannot be summarized does not get a native prompt
+  }
 }
 
 // The pending batch one literal approval command names. That command is answered by the engine

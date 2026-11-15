@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, openSync, read, readFileSync, rmSync, closeSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, openSync, read, readFileSync, rmSync, statSync, closeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeAll } from "./write-all.ts";
 import { approvalText } from "./contract.ts";
@@ -6,7 +7,8 @@ import { dataHome, enable } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
 import { recordApproval, type ApprovalVia } from "./loosening.ts";
 import { H, sha256 } from "./state.ts";
-import { WINDOWS } from "./platform.ts";
+import { homeDir, WINDOWS } from "./platform.ts";
+import type { Session } from "./types.ts";
 
 export const APPROVAL_MS = 90_000;
 // Loaded on first use: these builtins take milliseconds to initialize, and every hook would pay it.
@@ -58,14 +60,16 @@ export function withholdApprovalCode(text: string): string {
 
 // `harness`: the human can run this exact `pregate approve` form in the harness shell, including a
 // `!` line. Other commands stay on a separate terminal. An interactive Claude Code parent may
-// propose the command so the human gets that harness's prompt. The approval log cannot tell that
-// click from an agent that ran the command itself.
+// propose the command so the human gets that harness's prompt. An interactive agy session may
+// propose it so the human gets force_ask. The approval log cannot tell that click from an agent
+// that ran the command itself.
 export function humanApprovalInstructions(command: string, route: "harness" | "terminal" = "terminal"): string[] {
   if (route === "harness") return [
     `After reviewing, the human runs in this shell, including a harness ! line: ${command}`,
     "A code or --yes needs no terminal. Claude Code, Codex, Grok, agy, OpenCode and Cursor can run that command in the agent shell. A bare approve still asks for y on a terminal.",
-    "In an interactive Claude Code parent session, the agent may propose that exact command. Pregate then returns Claude Code's permission prompt: Accept runs the command, Reject runs nothing. A subagent, CI, a noninteractive mode and every other harness do not get that prompt.",
-    "The agent must not run the approval command. Ask the human to. The one exception is that Claude Code prompt.",
+    "In an interactive Claude Code parent session, the agent may propose that exact command. Pregate then returns Claude Code's permission prompt: Accept runs the command, Reject runs nothing. A subagent, dontAsk, bypassPermissions, a remote session and CI do not get that prompt.",
+    "In an interactive agy session, the agent may propose that exact command. Pregate then returns force_ask: Accept runs the command, Reject runs nothing. Skip-permissions, always-proceed, Turbo, print mode, a child conversation and CI do not get that prompt and keep the command.",
+    "The agent must not run the approval command. Ask the human to. The exceptions are those two prompts.",
     "A non-terminal approval is recorded in the approval log as via yes. That record cannot tell a clicked Accept from an agent that ran the command itself.",
   ];
   return [`After reviewing, the human runs in a separate terminal: ${command}`,
@@ -128,7 +132,7 @@ function noTerminal(route?: { roots: string[]; command: string }): string {
     ? `Open a new PowerShell window in ${route.roots.join(", ")} and run \`${route.command}\`.`
     : `Open Terminal/iTerm in ${route.roots.join(", ")} and run \`${route.command}\`.`;
   const harness = route.command.startsWith("pregate approve")
-    ? ` In this shell, including a harness ! line, \`${route.command}\` applies when it carries that code or --yes. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. A non-terminal approval is recorded as via yes.`
+    ? ` In this shell, including a harness ! line, \`${route.command}\` applies when it carries that code or --yes. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. A non-terminal approval is recorded as via yes.`
     : " The agent must not run the approval command. Ask the human to.";
   return `${why}\n${open}${harness}`;
 }
@@ -221,4 +225,204 @@ export function finishContract(root: string): void {
   recordApproval(root, pending.lockText, "terminal");
   enable(root);
   rmSync(file);
+}
+
+// agy 1.5.9's PreToolUse payload has no permission mode, print mode, or
+// skip-permissions field (HookArgsCommon, and the hooks page). force_ask in
+// always-proceed is auto-approved ("always-proceed auto-approve tool
+// confirmation"), and earlier force_ask replies stalled under skip-permissions.
+// Emit it only when this session can still show a prompt. Anything else keeps
+// the in-harness allow. interactive stays false so decide() does not ask on edits.
+
+const WALK = 16;
+
+export function agyNativeAsk(session: Session): boolean {
+  if (process.env.CI || session.harness !== "agy" || session.child === true) return false;
+  return !agySkipsPrompt();
+}
+
+function agySkipsPrompt(): boolean {
+  const found = nearestAgyArgv();
+  if (found === "unreadable") return true;
+  if (found !== null) {
+    const decision = argvDecision(found);
+    if (decision === "skip") return true;
+    if (decision === "prompt") return false;
+  }
+  return savedAlwaysProceed();
+}
+
+// "skip": this process will not prompt. "prompt": a session override selects a
+// mode that still asks, so the saved file does not win. "file": no process
+// override; the saved CLI settings decide.
+function argvDecision(argv: readonly string[]): "skip" | "prompt" | "file" {
+  if (argv.slice(1).includes("--dangerously-skip-permissions") || printMode(argv)) return "skip";
+  const settings = settingsValue(argv);
+  if (settings === undefined) return "file";
+  const mode = toolPermissionOf(settings);
+  if (mode === "request-review" || mode === "strict" || mode === "proceed-in-sandbox") return "prompt";
+  return "skip";
+}
+
+function printMode(argv: readonly string[]): boolean {
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!;
+    if (word === "--") return false;
+    if (word === "-p" || word === "--print" || word.startsWith("--print=")) return true;
+    if (word === "--prompt" || word.startsWith("--prompt=")) return true;
+  }
+  return false;
+}
+
+function settingsValue(argv: readonly string[]): string | undefined {
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!;
+    if (word === "--") return undefined;
+    if (word === "--settings") return argv[i + 1];
+    if (word.startsWith("--settings=")) return word.slice("--settings=".length);
+  }
+  return undefined;
+}
+
+function toolPermissionOf(value: string): string | null {
+  try {
+    const text = value.startsWith("{") ? value : readFileSync(value, "utf8");
+    const parsed = JSON.parse(text) as { toolPermission?: unknown };
+    return typeof parsed.toolPermission === "string" ? parsed.toolPermission : null;
+  } catch {
+    return null; // fail-closed: an unreadable --settings value does not get force_ask
+  }
+}
+
+// ~/.gemini/antigravity-cli/settings.json is the file the CLI documents.
+// always-proceed is Turbo and what --dangerously-skip-permissions selects.
+// A missing file is the default, request-review, which still prompts.
+function savedAlwaysProceed(): boolean {
+  try {
+    const file = join(homeDir(), ".gemini", "antigravity-cli", "settings.json");
+    const info = statSync(file);
+    if (!info.isFile() || info.size > 1_000_000) return true;
+    const parsed = JSON.parse(readFileSync(file, "utf8")) as { toolPermission?: unknown; permissionPreset?: unknown };
+    if (parsed.toolPermission === "always-proceed") return true;
+    return parsed.permissionPreset === "always-proceed" || parsed.permissionPreset === "turbo";
+  } catch (e) {
+    // fail-closed: a missing file is the CLI default, which still prompts. Any other error does not get force_ask.
+    return (e as { code?: string }).code !== "ENOENT";
+  }
+}
+
+function nearestAgyArgv(): string[] | "unreadable" | null {
+  if (process.platform === "linux") return linuxAgyArgv();
+  const command = foreignAgyCommand();
+  if (command === null) return null;
+  if (command === "") return "unreadable";
+  return command.trim().split(/\s+/);
+}
+
+function linuxAgyArgv(): string[] | "unreadable" | null {
+  let pid = process.ppid;
+  for (let i = 0; i < WALK && pid > 1; i++) {
+    const argv = readCmdline(pid);
+    const comm = readComm(pid);
+    if (argv === null || comm === null) return "unreadable";
+    if (isAgy(argv[0] ?? "") || isAgy(comm)) return argv.length === 0 ? "unreadable" : argv;
+    const parent = readPpid(pid);
+    if (parent === null) return "unreadable";
+    if (parent === pid) return null;
+    pid = parent;
+  }
+  return null;
+}
+
+function readCmdline(pid: number): string[] | null {
+  try {
+    const raw = readFileSync(`/proc/${pid}/cmdline`);
+    if (raw.length === 0) return [];
+    return raw.toString("utf8").split("\0").filter((part) => part !== "");
+  } catch {
+    return null; // fail-closed: an unreadable process table does not get force_ask
+  }
+}
+
+function readComm(pid: number): string | null {
+  try {
+    return readFileSync(`/proc/${pid}/comm`, "utf8").trim();
+  } catch {
+    return null; // fail-closed: an unreadable process table does not get force_ask
+  }
+}
+
+function readPpid(pid: number): number | null {
+  try {
+    const line = readFileSync(`/proc/${pid}/status`, "utf8").split("\n").find((row) => row.startsWith("PPid:"));
+    const value = Number(line?.slice(5).trim());
+    return Number.isInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null; // fail-closed: an unreadable process table does not get force_ask
+  }
+}
+
+function isAgy(argv0: string): boolean {
+  const name = argv0.replace(/^.*[\\/]/, "").replace(/\.exe$/i, "").toLowerCase();
+  return name === "agy" || name === "antigravity";
+}
+
+// macOS has no /proc. Windows command lines need one short query. A helper that
+// fails, or an agy process with no readable command line, does not get force_ask.
+// Empty output means no agy ancestor, so the saved settings decide.
+function foreignAgyCommand(): string | null {
+  if (process.platform === "darwin") return darwinAgyCommand();
+  if (process.platform === "win32") return windowsAgyCommand();
+  return null;
+}
+
+function darwinAgyCommand(): string | null {
+  let pid = process.ppid;
+  for (let i = 0; i < WALK && pid > 1; i++) {
+    let result: ReturnType<typeof spawnSync>;
+    try {
+      result = spawnSync("ps", ["-ww", "-o", "ppid=,command=", "-p", String(pid)], { encoding: "utf8", timeout: 500 });
+    } catch {
+      return ""; // fail-closed: an unreadable process table does not get force_ask
+    }
+    if (result.error || result.status !== 0) return "";
+    const line = String(result.stdout ?? "").trim();
+    const split = line.indexOf(" ");
+    if (split < 0) return null;
+    const command = line.slice(split).trim();
+    const parent = Number(line.slice(0, split));
+    if (isAgy(command.split(/\s+/)[0] ?? "")) return command;
+    if (!Number.isInteger(parent) || parent <= 1 || parent === pid) return null;
+    pid = parent;
+  }
+  return null;
+}
+
+function windowsAgyCommand(): string | null {
+  const script = `
+$procId = ${process.ppid}
+for ($i = 0; $i -lt ${WALK} -and $procId -gt 1; $i++) {
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -ErrorAction SilentlyContinue
+  if (-not $proc) { exit 0 }
+  $name = [IO.Path]::GetFileName([string]$proc.Name)
+  if ($name -match '^(agy|antigravity)(\\.exe)?$') {
+    if ([string]::IsNullOrEmpty([string]$proc.CommandLine)) { Write-Output "UNREADABLE"; exit 0 }
+    Write-Output $proc.CommandLine
+    exit 0
+  }
+  $procId = [int]$proc.ParentProcessId
+}
+exit 0
+`;
+  try {
+    const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8", timeout: 1500, windowsHide: true,
+    });
+    if (result.error || result.status !== 0) return "";
+    const line = String(result.stdout ?? "").trim();
+    if (line === "UNREADABLE") return "";
+    return line === "" ? null : line;
+  } catch {
+    return ""; // fail-closed: an unreadable process table does not get force_ask
+  }
 }

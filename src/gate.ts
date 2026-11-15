@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { finishContract } from "./approval.ts";
+import { agyNativeAsk, finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
@@ -92,7 +92,7 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
 // no root writes nothing, and the guard denies only what holds machine-wide unless a path of the
 // command reaches a root (MH-17).
 export function onPreCommand(c: ProposedCommand): Decision {
-  const d = claudeApprovalAsk(c, askAboutApproval(evaluatePreCommand(c), c));
+  const d = approvalCommandAsk(c, askAboutApproval(evaluatePreCommand(c), c));
   if (c.session.harness === "agy") state.queuePostInvocation(state.key(c.session), d);
   return d;
 }
@@ -104,25 +104,26 @@ function claudeNativeAsk(session: Session): boolean {
 }
 
 const CLAUDE_PROPOSE = "You may propose the literal command pregate approve <code> or pregate approve --yes --digest <sha> so the human gets Claude Code's permission prompt. Accept runs that command. Reject runs nothing.";
+const AGY_PROPOSE = "You may propose the literal command pregate approve <code> or pregate approve --yes --digest <sha> so the human gets agy's permission prompt. Accept runs that command. Reject runs nothing.";
 const ASK_HUMAN = "Ask the user to approve. Do not run the approval command yourself.";
 
 // A denied approval attempt tells the agent what to do. Compact leads with that sentence because
-// Grok shows only the first 256 characters. Where Claude Code can show its own prompt, the agent
-// may propose the literal command. Everywhere else it must not run the command.
+// Grok shows only the first 256 characters. Where Claude Code or agy can show its own prompt, the
+// agent may propose the literal command. Everywhere else it must not run the command.
 function askAboutApproval(decision: Decision, c: ProposedCommand): Decision {
   if (decision.verdict !== "deny" || (decision.cause !== "shell-admin" && decision.cause !== "hook-switch") || !/\bapprove\b/.test(c.command)) return decision;
-  const ask = claudeNativeAsk(c.session) ? CLAUDE_PROPOSE : ASK_HUMAN;
+  const ask = claudeNativeAsk(c.session) ? CLAUDE_PROPOSE : agyNativeAsk(c.session) ? AGY_PROPOSE : ASK_HUMAN;
   const full = decision.full.includes(ask) ? decision.full : `${decision.full} ${ask}`.slice(0, 4000);
   const compact = `${ask} ${decision.compact}`.slice(0, 256);
   const notice = decision.notice === null || decision.notice.includes(ask) ? decision.notice : `${decision.notice} ${ask}`.slice(0, 4000);
   return { ...decision, full, compact, notice };
 }
 
-// An already-allowed literal approval, in an interactive Claude Code parent, becomes the native
-// prompt. Accept runs the command the agent proposed. Reject runs nothing. The hook does not
-// apply the contract, and a session that is not that parent keeps the allow.
-function claudeApprovalAsk(c: ProposedCommand, decision: Decision): Decision {
-  if (decision.verdict !== "none" || !claudeNativeAsk(c.session)) return decision;
+// An already-allowed literal approval becomes the native prompt in an interactive Claude Code
+// parent, or an interactive agy session. Accept runs the command the agent proposed. Reject runs
+// nothing. The hook does not apply the contract. Every other session keeps the allow.
+function approvalCommandAsk(c: ProposedCommand, decision: Decision): Decision {
+  if (decision.verdict !== "none" || (!claudeNativeAsk(c.session) && !agyNativeAsk(c.session))) return decision;
   const reviews = directApprovalArgv(c.command).flatMap((argv) => {
     const review = approvalAskReview(c.cwd, argv);
     return review === null ? [] : [review];

@@ -189,6 +189,49 @@ test("the short approval form asks in an interactive Claude parent, and a short 
   expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("deny");
 }));
 
+test("an interactive agy session asks, and skip-permissions, CI and a child conversation keep the allow", () => project(async (root) => {
+  const text = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
+  text.enforcement = "shadow";
+  await applyPreset(root, JSON.stringify(text, null, 2) + "\n", { preview: true });
+  const code = /^Digest: ([0-9a-f]{12})/m.exec(pendingReview(root).text)![1]!;
+  const session: Session = { harness: "agy", id: "approve-agy", turnId: null, agentId: null, interactive: false };
+  const call = { session, tool: "run_command", callId: "approve", cwd: root, command: `pregate approve ${code}` };
+  delete process.env.CI; delete process.env.PREGATE_UNATTENDED_APPROVAL;
+  const home = process.env.HOME ?? process.env.USERPROFILE;
+  const settings = join(home ?? "", ".gemini", "antigravity-cli", "settings.json");
+  if (home) rmSync(settings, { force: true });
+  const asked = onPreCommand(call);
+  expect(asked.verdict).toBe("ask");
+  expect(asked.notice).toContain("Accept runs this command. Reject runs nothing.");
+  expect(asked.notice).toContain("Mode:");
+  expect(asked.notice).toContain(`pregate approve ${code}`);
+  expect(asked.halt).toBe(false);
+  expect(asked.contractApproval).toBeUndefined();
+  expect(onPreCommand({ ...call, command: `! pregate approve --yes --digest ${code}` }).verdict).toBe("ask");
+  expect(onPreCommand({ ...call, command: `sh -c 'pregate approve ${code}'` }).verdict).toBe("deny");
+  expect(onPreCommand({ ...call, command: `echo ${code} | pregate approve` }).verdict).toBe("deny");
+  expect(onPreCommand({ ...call, session: { ...session, child: true } }).verdict).toBe("none");
+  process.env.CI = "1";
+  expect(onPreCommand(call).verdict).toBe("none");
+  delete process.env.CI;
+  expect(home, "HOME").toBeTruthy();
+  mkdirSync(dirname(settings), { recursive: true });
+  try {
+    writeFileSync(settings, JSON.stringify({ toolPermission: "always-proceed" }));
+    expect(onPreCommand(call).verdict).toBe("none");
+    writeFileSync(settings, JSON.stringify({ permissionPreset: "turbo" }));
+    expect(onPreCommand(call).verdict).toBe("none");
+    writeFileSync(settings, JSON.stringify({ toolPermission: "request-review" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+  } finally {
+    rmSync(settings, { force: true });
+  }
+  const bare = onPreCommand({ ...call, command: "pregate approve" });
+  expect(bare.verdict).toBe("deny");
+  expect(bare.compact).toStartWith("You may propose the literal command pregate approve <code>");
+  expect(bare.full).toContain("agy's permission prompt");
+}));
+
 const withTeamPack = (root: string) => {
   for (const [rel, text] of Object.entries(packTemplate("team"))) {
     mkdirSync(dirname(join(root, "rules/team", rel)), { recursive: true });

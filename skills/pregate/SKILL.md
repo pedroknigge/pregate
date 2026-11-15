@@ -94,7 +94,7 @@ After updating hook definitions, the human reviews them again in `/hooks`.
      add `--complete` and give the map a catch-all layer (for example `src/**`).
    - `ark.config.json` is present: do not rebuild its layers by hand. Run
      `pregate import arkgate --preview`. The review proposes the layer map and
-     `coexist.arkgate`. The human approves it in this shell. In an interactive Claude Code parent session you may propose that command so the human gets the permission prompt. Do not run the approval command yourself in any other session.
+     `coexist.arkgate`. The human approves it in this shell. In an interactive Claude Code parent session, or an interactive agy session, you may propose that command so the human gets the permission prompt. Do not run the approval command yourself in any other session.
    - Instruction rules are `pregate compile apply <file> --preview`. A refused
      proposal names its reason; correct it and run again, and add a `pattern`
      when the engine says it could only match the example's own text. Tell the
@@ -108,9 +108,10 @@ After updating hook definitions, the human reviews them again in `/hooks`.
    human to type in this shell, including a harness `!` line: `pregate approve --preview`
    to read the change and see its code, then `pregate approve <code>`. A code or
    `--yes` needs no terminal. You could technically run that command. In an
-   interactive Claude Code parent session you may propose it so the human gets
-   the permission prompt. Accept runs it. Reject runs nothing. In every other
-   session, do not run it. Ask the human to run it. The approval log records a
+   interactive Claude Code parent session, or an interactive agy session, you
+   may propose it so the human gets the permission prompt. Accept runs it.
+   Reject runs nothing. In every other session, do not run it. Ask the human to
+   run it. The approval log records a
    non-terminal approval as `via: "yes"`.
    On a new project that one approval applies the contract, the layers
    (including an ArkGate import when `ark.config.json` exists) and the compiled
@@ -286,17 +287,17 @@ project's repository; personal consent and credentials stay local.
 Propose contract edits through a supported edit tool or literal preview command.
 PREGATE validates fixtures and the candidate before permission. Every harness
 uses a validated queued proposal. In an interactive Claude Code parent session,
-you may propose the exact `pregate approve <code>` or `pregate approve --yes --digest <sha>`
-command. Pregate returns Claude Code's permission prompt. Accept runs that
-command. Reject runs nothing. Do not run `pregate approve` yourself in any other
-session. An agent could run it; the approval log records a non-terminal approval
+or an interactive agy session, you may propose the exact `pregate approve <code>`
+or `pregate approve --yes --digest <sha>` command. Pregate returns that harness's
+permission prompt. Accept runs that command. Reject runs nothing. Do not run
+`pregate approve` yourself in any other session. An agent could run it; the approval log records a non-terminal approval
 as `via: "yes"` and cannot tell a click from that. See the documented approval limits.
 
 Review `approve --preview`: the mode, one line per pack, every loosening, removal
 and field change, the whole preset diff and every written file. A WARNING appears
 only when protection may weaken; new contracts, added rules and stronger modes do
 not warn. `approve --preview --full` adds every per-rule change and complete file
-contents. Then, in an interactive Claude Code parent session, propose the exact displayed
+contents. Then, in an interactive Claude Code parent session, or an interactive agy session, propose the exact displayed
 `pregate approve <code>` so the human gets the permission prompt. In every other
 session, ask the human to run that command in this shell, including a harness
 `!` line, and do not run it yourself. A code or `--yes` needs no terminal
@@ -682,7 +683,7 @@ Prepare `update --projects <path...> --preview` to migrate one or
 several explicit project roots from any directory. Quote paths with spaces.
 Show every project's diff, digest and failure. With two or more reviews it
 prints one batch code: `pregate approve <code>` in this shell approves every prepared project
-from any directory. In an interactive Claude Code parent session you may propose
+from any directory. In an interactive Claude Code parent session, or an interactive agy session, you may propose
 that command so the human gets the permission prompt. Elsewhere, ask the human
 to run it. It validates them all first and applies none if any changed then;
 each is then applied and committed on its own.

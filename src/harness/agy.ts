@@ -32,14 +32,19 @@ export function decode(event: HookKind, raw: string, _env: HookEnv): HookEvent |
   return res === "ignore" ? null : (res ?? refuse(event, p, session, BAD));
 }
 
-// Every reply is exit 0: agy reads a deny from JSON, and nobody can answer an ask (MH-05). Pre
-// warnings and halt notices leave on PostInvocation; a Stop that blocks reopens the agent loop.
+// Every reply is exit 0: agy reads a deny from JSON (MH-05). The approval command's pre-command
+// ask is force_ask, so a cached Always Allow cannot apply the contract. A contract-edit ask
+// (contractApproval) and every other ask stay a deny: decide() does not ask on agy. Pre warnings
+// and halt notices leave on PostInvocation; a Stop that blocks reopens the agent loop.
 export function encode(kind: HookEvent["kind"], d: Decision): Emission {
   if (kind === "session-start" && d.verdict === "none" && d.full !== "") {
     return { stdout: json({ injectSteps: [{ systemMessage: { systemMessage: d.full } }] }), stderr: "", exit: 0 };
   }
   if (kind === "post-invocation") return encodePostInvocation(d);
   if (kind === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
+  if (kind === "pre-command" && d.verdict === "ask" && d.contractApproval !== true) {
+    return { stdout: json({ decision: "force_ask", reason: d.notice ?? d.compact }), stderr: "", exit: 0 };
+  }
   return { stdout: json({ decision: kind === "stop" ? "continue" : "deny", reason: d.full }), stderr: "", exit: 0 };
 }
 
@@ -90,10 +95,15 @@ function workspaceDir(p: Payload): unknown {
   return first !== undefined ? first : p.cwd;
 }
 
-// A subagent is a conversation of its own, with nothing that links it to its parent [V].
+// Captured subagent payloads are their own conversationId, with no parent field [V]. agy 1.5.9
+// HookArgsCommon can send parentConversationId (protojson omits it when empty). A child stays
+// its own conversation for state. interactive stays false so decide() does not ask on an edit.
 function sessionOf(p: Payload): Session | null {
   const valid = typeof p.conversationId === "string" && Array.isArray(p.workspacePaths) && p.workspacePaths.every((w) => typeof w === "string");
-  return valid ? { id: p.conversationId as string, harness: "agy", agentId: null, turnId: null, interactive: false } : null;
+  if (!valid) return null;
+  const session: Session = { id: p.conversationId as string, harness: "agy", agentId: null, turnId: null, interactive: false };
+  if (typeof p.parentConversationId === "string" && p.parentConversationId !== "") session.child = true;
+  return session;
 }
 
 function tool(p: Payload, session: Session): HookEvent | Rejected | "ignore" | null {

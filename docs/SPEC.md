@@ -351,7 +351,7 @@ There are **three edit shapes** among the harnesses surveyed. The adapter transl
 
   In any other case, `ask` becomes deny with `continue:false`. Without an interactivity signal, `ask` becomes `deny`. `-p` or SDK sessions do not bring a documented field that identifies them (to verify), so for CI or headless, configure `loop.allowAsk: false`.
 
-  That hard rule is the severity-escalation ask, and the contract-edit ask uses the same interactive-parent condition. A separate command-path ask, documented in `docs/features/approval-in-harness.md`, turns an already-allowed literal `pregate approve` into `permissionDecision: "ask"` for an interactive Claude Code parent only. A session that is not that parent keeps the command allowed. It does not become a deny.
+  That hard rule is the severity-escalation ask, and the contract-edit ask uses the same interactive-parent condition. A separate command-path ask, documented in `docs/features/approval-in-harness.md`, turns an already-allowed literal `pregate approve` into `permissionDecision: "ask"` for an interactive Claude Code parent, and into `decision: "force_ask"` for an interactive agy session. A session that is not one of those keeps the command allowed. It does not become a deny.
 - PREGATE **never** emits `permissionDecision:"allow"` (nor the native allow of any harness): it only restricts, it does not grant permissions. In Qwen Code, for example, `allow` means "run without the approval prompt" [V].
 
 ---

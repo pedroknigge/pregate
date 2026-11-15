@@ -33,13 +33,20 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
       expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
       expect(ask.reason).toContain("Mode:");
       expect(ask.reason).toContain(`pregate approve ${codeProject.code}`);
+    } else if (harness === "agy") {
+      const ask = agyAsk(allowed);
+      expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
+      expect(ask.reason).toContain("Mode:");
+      expect(ask.reason).toContain(`pregate approve ${codeProject.code}`);
     } else {
       expect(allowed.text, harness).not.toContain('"permissionDecision":"ask"');
       expect(allowed.text, harness).not.toContain('"permission":"ask"');
+      expect(allowed.text, harness).not.toContain('"decision":"force_ask"');
     }
     const bang = hook(codeProject, harness, `! pregate approve --yes --digest ${codeProject.digest}`);
     expect(bang.code, `${harness} bang\n${bang.text}`).toBe(0);
     if (harness === "claude-code") expect(claudeAsk(bang).reason).toContain(codeProject.digest);
+    if (harness === "agy") expect(agyAsk(bang).reason).toContain(codeProject.digest);
     expect(existsSync(join(codeProject.root, ".pregate/preset.json")), harness).toBe(false);
   }
   const bare = run(codeProject, ["approve"], "y\n");
@@ -110,6 +117,71 @@ test("an interactive Claude parent gets a schema-valid ask; a subagent, CI, dont
   quiet(hook(asked, "claude-code", command, { env: { CLAUDE_CODE_REMOTE: "true" } }));
 }, 60_000);
 
+// agy 1.5.9 PreToolUse decision enum, from the linux amd64 binary jsonschema.
+// The living hooks page also lists auto_approve. That value is not in the schema, and this reply does not use it.
+const AGY_DECISIONS = ["allow", "deny", "ask", "force_ask", "deny_unless_prior_grant"];
+
+// The hook payload has no permission mode. CI, a child conversation, saved always-proceed
+// and an agy process started with the skip or print flag keep the allow. force_ask is what
+// would stall or auto-approve there, so those replies stay empty and return immediately.
+test("an interactive agy session gets a schema-valid force_ask; skip-permissions, print mode, CI and a child do not", () => {
+  const asked = project("agy-ask", data);
+  const command = `pregate approve ${asked.code}`;
+  const parent = hook(asked, "agy", command);
+  const ask = agyAsk(parent);
+  expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
+  expect(ask.reason).toContain("Mode:");
+  expect(ask.reason).toContain(command);
+  expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  const bare = hook(asked, "agy", "pregate approve --yes");
+  const bareAsk = agyAsk(bare);
+  expect(bareAsk.reason).toContain("pregate approve --yes");
+  expect(bareAsk.reason).not.toContain(asked.digest);
+  expect(agyAsk(hook(asked, "agy", `pre''gate approve ${asked.code}`)).reason).toContain("Accept runs this command. Reject runs nothing.");
+  const wrong = hook(asked, "agy", `pregate approve --yes --digest ${"a".repeat(64)}`);
+  expect(wrong.code, wrong.text).toBe(0);
+  expect(wrong.stdout).toBe("");
+  expect(wrong.text).not.toContain("force_ask");
+  const reviewHome = agyHome("request-review", { toolPermission: "request-review" });
+  expect(agyAsk(hook(asked, "agy", command, { env: reviewHome })).reason).toContain("Accept runs this command. Reject runs nothing.");
+  const quiet = (result: { code: number; text: string; stdout: string }) => {
+    expect(result.code, result.text).toBe(0);
+    expect(result.stdout, result.text).toBe("");
+    expect(result.text).not.toContain("force_ask");
+    expect(result.text).not.toContain("DENY");
+    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  };
+  const skipStarted = Date.now();
+  quiet(hook(asked, "agy", command, { env: agyHome("always-proceed", { toolPermission: "always-proceed" }) }));
+  expect(Date.now() - skipStarted).toBeLessThan(10_000);
+  quiet(hook(asked, "agy", command, { env: agyHome("turbo", { permissionPreset: "turbo" }) }));
+  quiet(hook(asked, "agy", command, { env: { CI: "1" } }));
+  quiet(hook(asked, "agy", command, { patch: (payload) => { payload.parentConversationId = "child-of-root"; } }));
+  for (const wrapped of [`sh -c 'pregate approve ${asked.code}'`, `echo ${asked.code} | pregate approve`, `(pregate approve ${asked.code})`]) {
+    const denied = hook(asked, "agy", wrapped);
+    expect(denied.code, denied.text).toBe(0);
+    expect(JSON.parse(denied.stdout).decision, wrapped).toBe("deny");
+    expect(denied.stdout, wrapped).not.toContain('"decision":"force_ask"');
+    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  }
+  if (process.platform !== "win32") {
+    const flagged = agyParent(asked, command, ["--dangerously-skip-permissions"]);
+    quiet(flagged);
+    expect(flagged.ms).toBeLessThan(10_000);
+    quiet(agyParent(asked, command, ["-p"]));
+    quiet(agyParent(asked, command, ["--print", "say the pending review"]));
+    quiet(agyParent(asked, command, ["--settings", JSON.stringify({ toolPermission: "always-proceed" })]));
+    const saved = agyHome("override", { toolPermission: "always-proceed" });
+    expect(agyAsk(agyParent(asked, command, ["--settings", JSON.stringify({ toolPermission: "request-review" })], saved)).reason).toContain("Accept runs this command. Reject runs nothing.");
+    expect(agyAsk(agyParent(asked, command, [])).reason).toContain("Accept runs this command. Reject runs nothing.");
+  }
+  const applied = run(asked, ["approve", asked.code, "--no-commit"]);
+  expect(applied.code, applied.text).toBe(0);
+  const logPath = join(asked.data, "pregate", "contract-approvals", "log.jsonl");
+  const lines = readFileSync(logPath, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { via: string; tty: boolean; root: string });
+  expect(lines.some((line) => line.root === canonical(asked.root) && line.via === "yes" && line.tty === false)).toBe(true);
+}, 120_000);
+
 interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string }
 
 function project(name: string, data: string): Project {
@@ -165,6 +237,50 @@ function claudeAsk(result: { code: number; stdout: string; text: string }): { re
   expect(out!.permissionDecisionReason!.length).toBeGreaterThan(0);
   expect(typeof out?.additionalContext).toBe("string");
   return { reason: out!.permissionDecisionReason!, context: out!.additionalContext! };
+}
+
+function agyAsk(result: { code: number; stdout: string; text: string }): { reason: string } {
+  expect(result.code, result.text).toBe(0);
+  expect(result.text).toBe(result.stdout);
+  const body = JSON.parse(result.stdout) as { decision?: string; reason?: string; permissionOverrides?: unknown };
+  expect(Object.keys(body)).toEqual(["decision", "reason"]);
+  expect(body.decision).toBe("force_ask");
+  expect(AGY_DECISIONS).toContain(body.decision ?? "");
+  expect(body.permissionOverrides).toBeUndefined();
+  expect(typeof body.reason).toBe("string");
+  expect(body.reason!.length).toBeGreaterThan(0);
+  return { reason: body.reason! };
+}
+
+function agyHome(name: string, settings: object): Record<string, string> {
+  const home = join(area, `agy-home-${name}`);
+  mkdirSync(join(home, ".gemini", "antigravity-cli"), { recursive: true });
+  writeFileSync(join(home, ".gemini", "antigravity-cli", "settings.json"), JSON.stringify(settings));
+  return { HOME: home, USERPROFILE: home };
+}
+
+// The parent process's argv0 is agy, which is what the hook walks. python3 stays the
+// executable so this runs without a copy of the agy CLI. CI has no signed-in agy.
+function agyParent(p: Project, command: string, args: string[], env: Record<string, string> = {}): { code: number; text: string; stdout: string; ms: number } {
+  const launch = join(area, "agy-launch.py");
+  const runner = join(area, "agy-runner.py");
+  writeFileSync(launch, "import os, sys\nos.execv(sys.executable, ['agy', sys.argv[1], *sys.argv[2:]])\n");
+  writeFileSync(runner, "import os, subprocess, sys\nsys.exit(subprocess.call([os.environ['PREGATE'], 'hook', 'pre', '--harness', 'agy']))\n");
+  const started = Date.now();
+  const result = Bun.spawnSync(["python3", launch, runner, ...args], {
+    cwd: p.root, env: { ...p.env, PREGATE: binary, PYTHONDONTWRITEBYTECODE: "1", ...env },
+    stdin: Buffer.from(agyPayload(p, command)), stdout: "pipe", stderr: "pipe", timeout: 30_000,
+  });
+  const stdout = result.stdout.toString();
+  return { code: result.exitCode ?? -1, stdout, text: stdout + result.stderr.toString(), ms: Date.now() - started };
+}
+
+function agyPayload(p: Project, command: string): string {
+  const payload = JSON.parse(readFileSync(join(import.meta.dir, "payloads", "agy/pre-run_command.json"), "utf8"));
+  payload.workspacePaths = [p.root];
+  payload.toolCall.args.Cwd = p.root;
+  payload.toolCall.args.CommandLine = command;
+  return JSON.stringify(payload);
 }
 
 function hook(p: Project, harness: typeof HARNESSES[number], command: string, extra: { env?: Record<string, string>; patch?: (payload: Record<string, unknown>) => void } = {}): { code: number; text: string; stdout: string } {

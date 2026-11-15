@@ -70,12 +70,38 @@ other session the denial still says to ask the human and not to run the
 command. `issue submit`, `feedback apply` and `storage apply` stay on a
 separate terminal in every session.
 
-For agy, the engine queues a validated proposal. Its hook does not identify a
-trusted interactive parent or permission mode. Earlier native `force_ask` requests
-stalled in skip-permissions mode, so the engine no longer emits them. The exact
-`pregate approve` form above is allowed on agy the same way as on the other
-harnesses. On agy 1.5.6 that `!` line was refused because stdin was not a terminal.
-That observation describes the older gate.
+For agy, an interactive session returns PreToolUse `{"decision":"force_ask","reason"}`
+for that same literal command. Accept runs the command. Reject runs nothing. The
+hook itself does not apply the contract. `reason` is the same summary Claude Code
+puts in `permissionDecisionReason`: a WARNING when the review warns, then
+"Accept runs this command. Reject runs nothing.", the command, and the mode line.
+The reply is exit 0 with empty stderr, and the only keys are `decision` and
+`reason`. `force_ask` ignores a cached Always Allow. Pregate does not emit
+`allow`, which would skip agy's own prompt, and does not emit `auto_approve`.
+The living hooks page lists `auto_approve`. The agy 1.5.9 decision schema does not.
+
+agy 1.5.9's hook payload has no permission mode, print mode, or skip-permissions
+field. `HookArgsCommon` can carry `parentConversationId`, and protojson omits it
+when empty. Pregate returns `force_ask` only when `CI` is unset, that parent id
+is absent or empty, `~/.gemini/antigravity-cli/settings.json` does not set
+`toolPermission` to `always-proceed` or `permissionPreset` to `always-proceed` or
+`turbo`, and no ancestor process named `agy` or `antigravity` was started with
+`--dangerously-skip-permissions`, print mode (`-p`, `--print`, or `--prompt`),
+or a `--settings` value whose `toolPermission` is `always-proceed`. A session
+override that selects another `toolPermission` wins over the saved file. Those
+other sessions keep the in-harness allow: empty stdout, so the command can run,
+recorded as `via: "yes"`. They do not receive `force_ask`. always-proceed
+auto-approves tool confirmations, and earlier `force_ask` replies stalled under
+skip-permissions, so emitting it there would fail open or stall.
+`session.interactive` stays false, so a contract edit is not asked on this path.
+A code or digest that matches nothing stays on the current path. Wrappers,
+`sh -c`, scripts, subshells and a pipe into `approve` stay denied.
+
+A live agy card needs a signed-in session, which CI does not have. The
+release-binary test checks the `force_ask` shape and that the skip-permissions
+path returns the allow without waiting. `scripts/agy-approval-smoke.sh` is the
+manual check against a real agy. On agy 1.5.6 a `!` line was refused because
+stdin was not a terminal. That observation describes the older gate.
 
 For an expiring queued proposal, prepare the complete review:
 
@@ -122,9 +148,9 @@ request that was applied, and any request that can no longer apply to the new pr
 is removed from `.pregate/requests/`.
 
 The preview tells the human to run that command in this shell. In an interactive
-Claude Code parent session the agent may propose that exact command so the
-human gets the permission prompt. In every other session the agent must not
-run it. Cursor's tested Shell Mode invokes the same gated Pre as an agent
+Claude Code parent session, or an interactive agy session, the agent may propose
+that exact command so the human gets the permission prompt. In every other
+session the agent must not run it. Cursor's tested Shell Mode invokes the same gated Pre as an agent
 tool, and the OpenCode plugin hook has no trusted human-origin marker either.
 The shell guard allows the exact command anyway. Do not bypass the guard or
 disable PREGATE. See native observations.
@@ -147,8 +173,10 @@ a non-TTY harness shell that approves with a code or `--yes`, a bare `approve`
 that still refuses, an interactive Claude Code parent whose literal approval
 command returns `permissionDecision: "ask"`, a subagent, `dontAsk`,
 `bypassPermissions`, a remote session and `CI` that do not, known Claude Code
-headless/subagent behavior, and literal-command bounds. agy's native permission
-identity is not inferred.
+headless/subagent behavior, and literal-command bounds. An interactive agy
+session returns `decision: "force_ask"` for that command. Saved always-proceed,
+Turbo, `--dangerously-skip-permissions`, print mode, a child conversation and
+`CI` keep the allow and do not wait.
 Earlier Codex, Claude Code, Grok and agy human-shell runs were recorded while
 the gate denied this command. Those notes describe that older gate. Controlled
 test inputs are not actual user consent receipts.
@@ -162,16 +190,10 @@ find an existing report on real GitHub without publication. `issue submit`,
 
 ## Native prompts still to build
 
-This release implements the Claude Code command prompt only. The other
+This release implements the Claude Code and agy command prompts. The other
 harnesses keep the literal command and do not receive a hook ask. A follow-up
 does one harness at a time, and none of them may emit an ask that fails open.
 
-- **agy.** An interactive session that is not skip-permissions can return
-  `decision: "force_ask"` for the literal approval command, so a cached Always
-  Allow cannot apply the contract. Do not emit `auto_approve`. Do not emit
-  `force_ask` in skip-permissions, Turbo, always-proceed or `-p` until a live
-  run on the pinned agy shows it does not stall and does not apply. Earlier
-  `force_ask` requests stalled in skip-permissions mode.
 - **Cursor.** The native prompt is `beforeShellExecution` with
   `{ "permission": "ask", "user_message", "agent_message" }` and `failClosed`.
   Allow runs the command. `preToolUse` ask is not enforced, and this release

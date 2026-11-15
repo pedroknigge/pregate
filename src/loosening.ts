@@ -71,7 +71,7 @@ export function approvedLocally(root: string, lockHash: string): boolean {
 export function looseningText(l: Loosening, where: "staged" | "base"): string {
   const how = where === "base"
     ? `To accept it, a maintainer sets PREGATE_ACCEPT_CONTRACT=${l.digest} for this workflow run (a repository variable or a workflow_dispatch input). Commits cannot set it.`
-    : "Only a human approval recorded on this machine accepts it here: the human applies the change with `pregate preset apply <request> --preview` and then `pregate approve <code>` in this shell. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. Or restore the previous contract.";
+    : "Only a human approval recorded on this machine accepts it here: the human applies the change with `pregate preset apply <request> --preview` and then `pregate approve <code>` in this shell. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. Or restore the previous contract.";
   return [`PREGATE DENY contract-loosened: this change loosens the contract compared with the ${where === "base" ? "base revision" : "last commit"}.`,
     ...l.lines.map((line) => `  ${line}`), `Contract loosening digest: ${l.digest}`, how].join("\n");
 }
