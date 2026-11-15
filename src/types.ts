@@ -59,7 +59,9 @@ export interface Session {
   agentId: string | null;
   turnId: string | null;           // when missing, the turn derives from the last recorded Stop
   interactive: boolean;            // only Claude Code can be: mode ∈ {default, acceptEdits, auto, plan} ∧ no agentId
-}                                  //   ∧ CLAUDE_CODE_REMOTE ≠ "true"; unknown ⇒ false
+                                   //   ∧ CLAUDE_CODE_REMOTE ≠ "true"; unknown ⇒ false
+  child?: true;                    // agy only, when parentConversationId is a non-empty string; omitted on a parent
+}
 export interface ProposedChange {  // an adapter produces it, gate.onPreEdit consumes it (A16, MH-07)
   session: Session; callId: string; tool: string;
   path: string;                    // absolute, no . .. or // segments (else the adapter rejects the call)

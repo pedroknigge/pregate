@@ -83,7 +83,7 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     expect(active.harnesses.find((h) => h.id === "grok")?.warnings).toBe(true);
     expect(active.harnesses.find((h) => h.id === "agy")?.warnings).toBe(true);
     expect(active.harnesses.find((h) => h.id === "agy")?.halt).toBe(true);
-    expect(active.harnesses.find((h) => h.id === "agy")?.nativeApproval).toBeNull();
+    expect(active.harnesses.find((h) => h.id === "agy")?.nativeApproval).toBe("interactive sessions, for the approval command");
     put(join(root, "src/main.py"), "print('unparsed')\n");
     put(join(root, "src/main.rs"), "fn main() {}\n");
     put(join(root, "src/main.swift"), "func main() {}\n");
@@ -114,9 +114,9 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     const proposal = proposeContract({ root, lockText: r.text, baseline: "", writes: [] });
     const own = sha256(JSON.stringify(proposal));
     proposeBatch([{ root, digest: "d".repeat(64) }]);
-    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${own.slice(0, 12)}. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
+    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${own.slice(0, 12)}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
     const code = proposeBatch([{ root, digest: own }]).slice(0, 12);
-    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${code}. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
+    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${code}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
     discardProposal(root);
     expect(protectionStatus(root).pendingApproval).toBeNull();
     // A pin below FLOOR is never handed to that engine, so it serves nothing.

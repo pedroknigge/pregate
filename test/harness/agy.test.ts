@@ -22,6 +22,13 @@ const NOT_REGISTERED = "not registered: PostToolUse cannot block (MH-25)";
 const OUTSIDE = "outside the PreToolUse matcher (MH-22): it neither writes nor runs anything";
 
 describe("decode: captured payloads", () => {
+  test("parentConversationId marks a child and does not change the conversation's state identity", () => {
+    const parent = json("pre-run_command.json");
+    expect(decode("pre", raw(parent), ENV)).toMatchObject({ kind: "pre-command", command: { session: conversation(1) } });
+    const child = decode("pre", raw({ ...parent, parentConversationId: "parent-conversation" }), ENV);
+    expect(child).toMatchObject({ kind: "pre-command", command: { session: { ...conversation(1), child: true, agentId: null, interactive: false } } });
+    expect(decode("pre", raw({ ...parent, parentConversationId: "" }), ENV)).toMatchObject({ command: { session: conversation(1) } });
+  });
   test("SessionStart accepts native payloads without invocationNum; PreInvocation ignores later calls and rejects invalid counters", () => {
     const native = json("session-start.json");
     expect(decode("session-start", raw(native), ENV)).toEqual({ kind: "session-start", session: conversation(7), cwd: PROJECT });
@@ -47,7 +54,7 @@ describe("decode: captured payloads", () => {
         }],
       },
     },
-    // A subagent is its own conversation, with no link to its parent's.
+    // A captured subagent is its own conversation, with no parentConversationId.
     "pre-write_to_file-subagent.json": {
       event: "pre", out: {
         kind: "pre-edit", changes: [{
@@ -459,11 +466,16 @@ describe("encode", () => {
     expect(enc("pre-edit", d)).toEqual(deny(d.full));
   });
 
-  test("ask: nobody can answer it, so the policy denies, and a forged ask still leaves as a deny", () => {
+  test("ask: a pre-edit ask stays a deny, and a pre-command ask is force_ask", () => {
     const d = decide(input({ introduced: [v("core/TDD-FOCUS-001", 12)] }));
     expect(d.verdict).toBe("deny");
     expect(enc("pre-edit", d)).toEqual(deny(d.full));
     expect(enc("pre-edit", { ...d, verdict: "ask" })).toEqual(deny(d.full));
+    const reason = "Accept runs this command. Reject runs nothing.\nMode: enforce";
+    const asked = { ...d, verdict: "ask" as const, notice: reason, compact: reason.slice(0, 256) };
+    expect(enc("pre-command", asked)).toEqual({ stdout: `${raw({ decision: "force_ask", reason })}\n`, stderr: "", exit: 0 });
+    expect(enc("pre-command", { ...asked, contractApproval: true })).toEqual(deny(d.full));
+    expect(enc("stop", asked)).toEqual({ stdout: `${raw({ decision: "continue", reason: d.full })}\n`, stderr: "", exit: 0 });
   });
 
   test("Stop block: continue reopens the agent loop with the reason", () => {
@@ -511,7 +523,7 @@ describe("encode", () => {
   });
 
   // Runs last: every emission of this file. An empty stdout lets the write through, so every
-  // blocking decision must leave a deny or a continue.
+  // blocking decision must leave a deny or a continue. force_ask is the approval prompt, not a grant.
   test('"allow" never leaves, every exit is 0, and nothing that blocks is silent', () => {
     expect(emitted.length).toBeGreaterThan(10);
     for (const e of emitted) {
@@ -524,7 +536,8 @@ describe("encode", () => {
           const step = out.injectSteps[0];
           expect(typeof step.systemMessage?.systemMessage === "string" || (typeof step.errorMessage?.userMessage === "string" && out.terminationBehavior === "terminate")).toBe(true);
         } else {
-          expect(["deny", "continue"]).toContain(out.decision);
+          expect(["deny", "continue", "force_ask"]).toContain(out.decision);
+          if (out.decision === "force_ask") expect(Object.keys(out)).toEqual(["decision", "reason"]);
         }
       }
     }

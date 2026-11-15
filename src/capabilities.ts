@@ -5,7 +5,7 @@ export const CAPABILITIES = {
   codex: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: true, subagentStop: true },
   cursor: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: false, subagentStop: false },
   grok: { nativeApproval: null, sessionContext: false, warnings: true, halt: false, stopLimitNotice: false, subagentStop: false },
-  agy: { nativeApproval: null, sessionContext: true, warnings: true, halt: true, stopLimitNotice: false, subagentStop: false },
+  agy: { nativeApproval: "interactive sessions, for the approval command", sessionContext: true, warnings: true, halt: true, stopLimitNotice: false, subagentStop: false },
   opencode: { nativeApproval: null, sessionContext: true, warnings: true, halt: false, stopLimitNotice: false, subagentStop: false },
 } satisfies Record<HarnessId, { nativeApproval: string | null; sessionContext: boolean; warnings: boolean; halt: boolean; stopLimitNotice: boolean; subagentStop: boolean }>;
 
