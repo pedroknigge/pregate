@@ -407,10 +407,14 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   // The allow is evaluated like any other command, which needs a repository. The earlier denial
   // returned before that check, so this fixture never initialized one.
   Bun.spawnSync(["git", "init", "-q"], { cwd: root, stdout: "pipe", stderr: "pipe" });
-  const routed = onPreCommand({ session: { ...session, harness: "claude-code", interactive: true }, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve --yes --digest ${digest}` });
-  expect(routed.verdict).toBe("none");
-  expect(onPreCommand({ session: { ...session, harness: "claude-code", interactive: true }, tool: "Bash", callId: "bare", cwd: root, command: "pregate approve" }).compact)
-    .toStartWith("Ask the user to approve. Do not run the approval command yourself.");
+  const human = { ...session, harness: "claude-code" as const, interactive: true };
+  const routed = onPreCommand({ session: human, tool: "Bash", callId: "approve", cwd: root, command: `pregate approve --yes --digest ${digest}` });
+  expect(routed.verdict).toBe("ask");
+  expect(routed.notice).toContain("Accept runs this command. Reject runs nothing.");
+  expect(routed.notice).toContain("WARNING: this may weaken protection.");
+  expect(onPreCommand({ session: { ...human, agentId: "worker" }, tool: "Bash", callId: "sub", cwd: root, command: `pregate approve --yes --digest ${digest}` }).verdict).toBe("none");
+  expect(onPreCommand({ session: human, tool: "Bash", callId: "bare", cwd: root, command: "pregate approve" }).compact)
+    .toStartWith("You may propose the literal command pregate approve <code>");
   const review = pendingReview(root, undefined, true).text;
   expect(review).toContain("WARNING: this may weaken protection.");
   expect(review).toContain("(was enforce)");

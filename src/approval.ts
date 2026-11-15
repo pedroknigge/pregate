@@ -57,13 +57,16 @@ export function withholdApprovalCode(text: string): string {
 }
 
 // `harness`: the human can run this exact `pregate approve` form in the harness shell, including a
-// `!` line. Other commands stay on a separate terminal. An agent could run the harness form; the
-// approval log records that. The agent is told not to.
+// `!` line. Other commands stay on a separate terminal. An interactive Claude Code parent may
+// propose the command so the human gets that harness's prompt. The approval log cannot tell that
+// click from an agent that ran the command itself.
 export function humanApprovalInstructions(command: string, route: "harness" | "terminal" = "terminal"): string[] {
   if (route === "harness") return [
     `After reviewing, the human runs in this shell, including a harness ! line: ${command}`,
     "A code or --yes needs no terminal. Claude Code, Codex, Grok, agy, OpenCode and Cursor can run that command in the agent shell. A bare approve still asks for y on a terminal.",
-    "An agent could run that command. Pregate records a non-terminal approval in the approval log instead of making it impossible. The agent must not run the approval command; ask the human to.",
+    "In an interactive Claude Code parent session, the agent may propose that exact command. Pregate then returns Claude Code's permission prompt: Accept runs the command, Reject runs nothing. A subagent, CI, a noninteractive mode and every other harness do not get that prompt.",
+    "The agent must not run the approval command. Ask the human to. The one exception is that Claude Code prompt.",
+    "A non-terminal approval is recorded in the approval log as via yes. That record cannot tell a clicked Accept from an agent that ran the command itself.",
   ];
   return [`After reviewing, the human runs in a separate terminal: ${command}`,
     "Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal. A harness ! line has no terminal for this command, so it cannot approve. The command then asks for y on that terminal.",
@@ -125,7 +128,7 @@ function noTerminal(route?: { roots: string[]; command: string }): string {
     ? `Open a new PowerShell window in ${route.roots.join(", ")} and run \`${route.command}\`.`
     : `Open Terminal/iTerm in ${route.roots.join(", ")} and run \`${route.command}\`.`;
   const harness = route.command.startsWith("pregate approve")
-    ? ` In this shell, including a harness ! line, \`${route.command}\` applies when it carries that code or --yes. An agent could run it; the approval log records a non-terminal approval. The agent must not run the approval command. Ask the human to.`
+    ? ` In this shell, including a harness ! line, \`${route.command}\` applies when it carries that code or --yes. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. A non-terminal approval is recorded as via yes.`
     : " The agent must not run the approval command. Ask the human to.";
   return `${why}\n${open}${harness}`;
 }

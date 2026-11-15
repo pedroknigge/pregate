@@ -581,7 +581,7 @@ async function guidedAction(options: Options): Promise<Result> {
     }
     if (!interactiveTerminal()) {
       const cards = await Promise.all((options.projects.length ? rootsOf(options.projects) : [process.cwd()]).map(inspectProject));
-      return { code: 0, text: cards.map(card).join("\n\n") + "\nFor guided choices, the human runs pregate guide in a terminal. If it cannot provide a TTY, ask the agent to present guide --json choices and prepare one guide --preview; the human then runs pregate approve with the displayed code in this shell. The agent must not run the approval command." };
+      return { code: 0, text: cards.map(card).join("\n\n") + "\nFor guided choices, the human runs pregate guide in a terminal. If it cannot provide a TTY, ask the agent to present guide --json choices and prepare one guide --preview; the human then runs pregate approve with the displayed code in this shell. In an interactive Claude Code parent session the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session." };
     }
     return await wizard(options);
   } catch (e) {
