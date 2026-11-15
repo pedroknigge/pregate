@@ -32,7 +32,9 @@ bound; a generic select/limit syntax policy does not prove it.
   not universal correctness claims about the language or library.
 - **Heuristic:** a proxy such as function length, identifier spelling or a text
   search over a statement. Keep it advisory/shadow until an observed project
-  constraint justifies the bound and the checker covers its exceptions.
+  constraint justifies the bound and the checker covers its exceptions. Core
+  heuristic requirements follow this rule in their defaults: the eleven
+  reading-quality and style judgments among the 64 ship `warn`, not `deny`.
 
 These are authoring decisions, not new schema fields. The inventory's checker
 type does not automatically assign one of these contracts or certify precision.

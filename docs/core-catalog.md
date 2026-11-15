@@ -4,7 +4,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Version: `0.0.1`. Category: **invariants**.
 
-These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
+These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## core/pregate-integrity
 
@@ -162,17 +162,17 @@ Source metadata:
 
 ## core/software-invariants
 
-Manifest version: `1.1.0`. Status: **preview**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### core/CORE-INV-001
 
-Check: [`core/invariants/reason-for-change@1.0.0`](../catalog/checks/invariants/reason-for-change/check.json). Default severity: **deny**.
+Check: [`core/invariants/reason-for-change@1.1.0`](../catalog/checks/invariants/reason-for-change/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r001`. Minimum severity: `deny`.
 
-Divide the system by the reason for change, not by the technology. Put in one module the parts that change together for the same reason. Do not mix display logic, decision logic, and storage logic in one module.
+Divide the system by the reason for change, not by the technology. Put in one module the parts that change together for the same reason. Do not mix display logic, decision logic, and storage logic in one module. This requirement divides the system and its modules; the same condition for each unit is CORE-INV-007.
 
 Default parameters: `{"verifier":"CORE-INV-001"}`.
 
@@ -203,13 +203,13 @@ Source metadata:
 
 ### core/CORE-INV-002
 
-Check: [`core/invariants/cohesion-and-coupling@1.1.0`](../catalog/checks/invariants/cohesion-and-coupling/check.json). Default severity: **deny**.
+Check: [`core/invariants/cohesion-and-coupling@1.2.0`](../catalog/checks/invariants/cohesion-and-coupling/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r002`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r002`. Minimum severity: `warn`.
 
-Keep related parts together. Keep unrelated parts separate. A dependency must be as small as possible. A module must not know the internal parts of another module. A change in one module does not force a change in an unrelated module.
+Keep related parts together. Keep unrelated parts separate. A dependency must be as small as possible. A module must not know the internal parts of another module. A change in one module does not force a change in an unrelated module. The encapsulation clause is CORE-INV-003 and the per-unit division is CORE-INV-007; this requirement owns the cohesion and dependency-size reading, and its size bound stays advisory until the project states a measurable bound.
 
 Default parameters: `{"verifier":"CORE-INV-002"}`.
 
@@ -240,13 +240,13 @@ Source metadata:
 
 ### core/CORE-INV-003
 
-Check: [`core/invariants/information-hiding@1.1.0`](../catalog/checks/invariants/information-hiding/check.json). Default severity: **deny**.
+Check: [`core/invariants/information-hiding@1.2.0`](../catalog/checks/invariants/information-hiding/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r003`. Minimum severity: `deny`.
 
-Hide the parts that can change. The public contract must be stable. The representation, the algorithm, the storage, and the supplier must be private. A caller must depend only on the contract. Modules talk only through a stable interface. The product does not expose an internal type on a public boundary. A contract at a boundary is written and current. A public interface has current documentation.
+Hide the parts that can change. The public contract must be stable. The representation, the algorithm, the storage, and the supplier must be private. A caller must depend only on the contract. Modules talk only through a stable interface. The product does not expose an internal type on a public boundary. A contract at a boundary is written and current. A public interface has current documentation. The written and current contract and current-documentation clauses are process obligations satisfied by reviewed project evidence, not by source syntax.
 
 Default parameters: `{"verifier":"CORE-INV-003"}`.
 
@@ -277,13 +277,13 @@ Source metadata:
 
 ### core/CORE-INV-004
 
-Check: [`core/invariants/observable-contract@1.0.0`](../catalog/checks/invariants/observable-contract/check.json). Default severity: **deny**.
+Check: [`core/invariants/observable-contract@1.1.0`](../catalog/checks/invariants/observable-contract/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r004`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r004`. Minimum severity: `warn`.
 
-Each observable behavior becomes a contract. For this reason, keep each contract small.
+Each observable behavior becomes a contract. For this reason, keep each contract small. A caller must not depend on operations that it does not call (CORE-INV-011), and 'small' stays advisory until the project states a measurable bound.
 
 Default parameters: `{"verifier":"CORE-INV-004"}`.
 
@@ -314,13 +314,13 @@ Source metadata:
 
 ### core/CORE-INV-005
 
-Check: [`core/invariants/stable-dependencies@1.0.0`](../catalog/checks/invariants/stable-dependencies/check.json). Default severity: **deny**.
+Check: [`core/invariants/stable-dependencies@1.1.0`](../catalog/checks/invariants/stable-dependencies/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r005`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r005`. Minimum severity: `warn`.
 
-Dependencies must point to the stable part. Code that changes frequently must not be a dependency of code that changes rarely. A concrete part that changes must depend on a stable abstraction. Do not do the opposite.
+Dependencies must point to the stable part. Code that changes frequently must not be a dependency of code that changes rarely. A concrete part that changes must depend on a stable abstraction. Do not do the opposite. Change frequency is measured project evidence; until the project states the stability bound, this requirement is advisory.
 
 Default parameters: `{"verifier":"CORE-INV-005"}`.
 
@@ -351,13 +351,13 @@ Source metadata:
 
 ### core/CORE-INV-006
 
-Check: [`core/invariants/evidenced-abstraction@1.0.0`](../catalog/checks/invariants/evidenced-abstraction/check.json). Default severity: **deny**.
+Check: [`core/invariants/evidenced-abstraction@1.1.0`](../catalog/checks/invariants/evidenced-abstraction/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r006`. Minimum severity: `deny`.
 
-Make an abstraction only when two real implementations exist, or when a change already occurred.
+Make an abstraction only when two real implementations exist, or when a change already occurred. The two real implementations, the change that already occurred, and the third real repetition (CORE-INV-026) are one demonstrated need; any one of them establishes it.
 
 Default parameters: `{"verifier":"CORE-INV-006"}`.
 
@@ -388,13 +388,13 @@ Source metadata:
 
 ### core/CORE-INV-007
 
-Check: [`core/invariants/single-change-reason@1.1.0`](../catalog/checks/invariants/single-change-reason/check.json). Default severity: **deny**.
+Check: [`core/invariants/single-change-reason@1.2.0`](../catalog/checks/invariants/single-change-reason/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r007`. Minimum severity: `deny`.
 
-Give each unit one reason for change. This rule applies to a function, a module, a process, and a service. If two different forces change the same unit, divide the unit. Each module has one responsibility. A function does one job.
+Give each unit one reason for change. This rule applies to a function, a module, a process, and a service. If two different forces change the same unit, divide the unit. Each module has one responsibility. A function does one job. The system-level division of the same idea is CORE-INV-001; this requirement owns each unit: a function, a module, a process, and a service.
 
 Default parameters: `{"verifier":"CORE-INV-007"}`.
 
@@ -462,13 +462,13 @@ Source metadata:
 
 ### core/CORE-INV-009
 
-Check: [`core/invariants/collaborator-knowledge@1.0.0`](../catalog/checks/invariants/collaborator-knowledge/check.json). Default severity: **deny**.
+Check: [`core/invariants/collaborator-knowledge@1.1.0`](../catalog/checks/invariants/collaborator-knowledge/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r009`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r009`. Minimum severity: `warn`.
 
-A unit must use only the parts that it receives, the parts that it makes, or the parts that it owns. A unit must not go through the internal structure of a collaborator to reach a third unit.
+A unit must use only the parts that it receives, the parts that it makes, or the parts that it owns. A unit must not go through the internal structure of a collaborator to reach a third unit. This is a heuristic: the target case is a call that goes through a collaborator's internals to reach a third unit; builders, data objects and fluent calls that expose the needed behavior are valid.
 
 Default parameters: `{"verifier":"CORE-INV-009"}`.
 
@@ -499,13 +499,13 @@ Source metadata:
 
 ### core/CORE-INV-010
 
-Check: [`core/invariants/composition@1.0.0`](../catalog/checks/invariants/composition/check.json). Default severity: **deny**.
+Check: [`core/invariants/composition@1.1.0`](../catalog/checks/invariants/composition/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r010`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r010`. Minimum severity: `warn`.
 
-Use composition to reuse behavior. Do not use an inheritance tree to reuse behavior. Use inheritance only for a real "is-a" relation in the domain that will not break.
+Use composition to reuse behavior. Do not use an inheritance tree to reuse behavior. Use inheritance only for a real "is-a" relation in the domain that will not break. In a language without implementation inheritance this requirement holds vacuously; inheritance for a real domain is-a relation that will not break remains valid.
 
 Default parameters: `{"verifier":"CORE-INV-010"}`.
 
@@ -536,13 +536,13 @@ Source metadata:
 
 ### core/CORE-INV-011
 
-Check: [`core/invariants/narrow-interfaces@1.0.0`](../catalog/checks/invariants/narrow-interfaces/check.json). Default severity: **deny**.
+Check: [`core/invariants/narrow-interfaces@1.1.0`](../catalog/checks/invariants/narrow-interfaces/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r011`. Minimum severity: `deny`.
 
-Keep interfaces narrow. A caller must not depend on operations that it does not call. A large contract is coupling.
+Keep interfaces narrow. A caller must not depend on operations that it does not call. A large contract is coupling. Each observable behavior has a contract, and that contract stays small (CORE-INV-004).
 
 Default parameters: `{"verifier":"CORE-INV-011"}`.
 
@@ -795,13 +795,13 @@ Source metadata:
 
 ### core/CORE-INV-018
 
-Check: [`core/invariants/domain-language@1.1.0`](../catalog/checks/invariants/domain-language/check.json). Default severity: **deny**.
+Check: [`core/invariants/domain-language@1.2.0`](../catalog/checks/invariants/domain-language/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r018`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r018`. Minimum severity: `warn`.
 
-Use the domain language for module names, operation names, and data names. Do not use framework names for these items. Keep technical translation at the boundary. A name in a module follows one rule.
+Use the domain language for module names, operation names, and data names. Do not use framework names for these items. Keep technical translation at the boundary. A name in a module follows one rule. Names follow the project's declared domain vocabulary; the technical translation boundary is where framework names stay.
 
 Default parameters: `{"verifier":"CORE-INV-018"}`.
 
@@ -1091,13 +1091,13 @@ Source metadata:
 
 ### core/CORE-INV-026
 
-Check: [`core/invariants/demonstrated-need@1.0.0`](../catalog/checks/invariants/demonstrated-need/check.json). Default severity: **deny**.
+Check: [`core/invariants/demonstrated-need@1.1.0`](../catalog/checks/invariants/demonstrated-need/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r026`. Minimum severity: `deny`.
 
-Do not build a part that you cannot show you need. You can use a clear name and a clean boundary. Do not add a second protocol, a plugin system, or an extra layer "for later". Add an abstraction at the third real repetition, or when the change already occurred.
+Do not build a part that you cannot show you need. You can use a clear name and a clean boundary. Do not add a second protocol, a plugin system, or an extra layer "for later". Add an abstraction at the third real repetition, or when the change already occurred. The two real implementations (CORE-INV-006) and the already-moved axis (CORE-INV-030) are the same demonstrated need; any one of them establishes it.
 
 Default parameters: `{"verifier":"CORE-INV-026"}`.
 
@@ -1128,13 +1128,13 @@ Source metadata:
 
 ### core/CORE-INV-027
 
-Check: [`core/invariants/sufficient-simplicity@1.0.0`](../catalog/checks/invariants/sufficient-simplicity/check.json). Default severity: **deny**.
+Check: [`core/invariants/sufficient-simplicity@1.1.0`](../catalog/checks/invariants/sufficient-simplicity/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r027`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r027`. Minimum severity: `warn`.
 
-Use the simplest design that meets the current constraints. Simple means the smallest number of concepts, states, and failure modes. If a simpler design breaks an invariant or a current requirement, that design is incomplete.
+Use the simplest design that meets the current constraints. Simple means the smallest number of concepts, states, and failure modes. If a simpler design breaks an invariant or a current requirement, that design is incomplete. This requirement and CORE-INV-035 state one decision: the design with the fewest concepts, states, and failure modes that still meets the current constraints.
 
 Default parameters: `{"verifier":"CORE-INV-027"}`.
 
@@ -1202,13 +1202,13 @@ Source metadata:
 
 ### core/CORE-INV-029
 
-Check: [`core/invariants/vertical-slices@1.1.0`](../catalog/checks/invariants/vertical-slices/check.json). Default severity: **deny**.
+Check: [`core/invariants/vertical-slices@1.2.0`](../catalog/checks/invariants/vertical-slices/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r029`. Minimum severity: `deny`.
 
-Evolve the design with vertical slices, not with complete horizontal layers. Each increment must cross the real path: input, decision, and effect. Keep the fitness tests green. An architecture that exists only in a diagram has already diverged. Tests run before a merge. A fitness check guards each key architecture rule.
+Evolve the design with vertical slices, not with complete horizontal layers. Each increment must cross the real path: input, decision, and effect. Keep the fitness tests green. An architecture that exists only in a diagram has already diverged. Tests run before a merge. A fitness check guards each key architecture rule. The keep-fitness-tests-green and tests-before-merge clauses are owned by CORE-INV-044 and CORE-INV-056; this requirement owns the vertical-slice direction.
 
 Default parameters: `{"verifier":"CORE-INV-029"}`.
 
@@ -1239,13 +1239,13 @@ Source metadata:
 
 ### core/CORE-INV-030
 
-Check: [`core/invariants/observed-change-axis@1.0.0`](../catalog/checks/invariants/observed-change-axis/check.json). Default severity: **deny**.
+Check: [`core/invariants/observed-change-axis@1.1.0`](../catalog/checks/invariants/observed-change-axis/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r030`. Minimum severity: `deny`.
 
-Prepare for a change only in the direction that you already see. This applies to an axis that already moved, for example the payment supplier or the report schema. Do not turn every part into a strategy for symmetry.
+Prepare for a change only in the direction that you already see. This applies to an axis that already moved, for example the payment supplier or the report schema. Do not turn every part into a strategy for symmetry. This requirement and CORE-INV-026 state one demonstrated need; the moved axis is one of its triggers.
 
 Default parameters: `{"verifier":"CORE-INV-030"}`.
 
@@ -1313,13 +1313,13 @@ Source metadata:
 
 ### core/CORE-INV-032
 
-Check: [`core/invariants/clear-code@1.0.0`](../catalog/checks/invariants/clear-code/check.json). Default severity: **deny**.
+Check: [`core/invariants/clear-code@1.1.0`](../catalog/checks/invariants/clear-code/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r032`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r032`. Minimum severity: `warn`.
 
-Prefer clear code to clever code. Persons read code more often than they write it. A trick that saves lines and hides an invariant costs more than the obvious form.
+Prefer clear code to clever code. Persons read code more often than they write it. A trick that saves lines and hides an invariant costs more than the obvious form. This requirement is advisory: reading quality is a demonstrated review judgment, not a provable product condition.
 
 Default parameters: `{"verifier":"CORE-INV-032"}`.
 
@@ -1350,13 +1350,13 @@ Source metadata:
 
 ### core/CORE-INV-033
 
-Check: [`core/invariants/predictable-names@1.0.0`](../catalog/checks/invariants/predictable-names/check.json). Default severity: **deny**.
+Check: [`core/invariants/predictable-names@1.1.0`](../catalog/checks/invariants/predictable-names/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r033`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r033`. Minimum severity: `warn`.
 
-The name must predict the behavior. An operation with the name "save" must not send mail, must not recalculate tax, and must not delete rows. Use the domain language to decrease the translation between the business and the code.
+The name must predict the behavior. An operation with the name "save" must not send mail, must not recalculate tax, and must not delete rows. Use the domain language to decrease the translation between the business and the code. Name prediction is tested by behavior evidence about what the named operation does, not by the name text.
 
 Default parameters: `{"verifier":"CORE-INV-033"}`.
 
@@ -1387,13 +1387,13 @@ Source metadata:
 
 ### core/CORE-INV-034
 
-Check: [`core/invariants/abstraction-level@1.0.0`](../catalog/checks/invariants/abstraction-level/check.json). Default severity: **deny**.
+Check: [`core/invariants/abstraction-level@1.1.0`](../catalog/checks/invariants/abstraction-level/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r034`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r034`. Minimum severity: `warn`.
 
-Use one level of abstraction in each unit. A function must not mix business policy, byte arithmetic, SQL, and date format. Mixed levels force the reader to change focus on each line.
+Use one level of abstraction in each unit. A function must not mix business policy, byte arithmetic, SQL, and date format. Mixed levels force the reader to change focus on each line. The level boundary is a reading judgment; the evidence is review, not a metric.
 
 Default parameters: `{"verifier":"CORE-INV-034"}`.
 
@@ -1424,13 +1424,13 @@ Source metadata:
 
 ### core/CORE-INV-035
 
-Check: [`core/invariants/least-power@1.0.0`](../catalog/checks/invariants/least-power/check.json). Default severity: **deny**.
+Check: [`core/invariants/least-power@1.1.0`](../catalog/checks/invariants/least-power/check.json). Default severity: **warn**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r035`. Minimum severity: `deny`.
+Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r035`. Minimum severity: `warn`.
 
-Use the least powerful mechanism that solves the problem. A general rule engine for two conditions is borrowed complexity.
+Use the least powerful mechanism that solves the problem. A general rule engine for two conditions is borrowed complexity. This requirement and CORE-INV-027 state one decision: use the least powerful mechanism that meets the current constraints.
 
 Default parameters: `{"verifier":"CORE-INV-035"}`.
 
@@ -1461,13 +1461,13 @@ Source metadata:
 
 ### core/CORE-INV-036
 
-Check: [`core/invariants/named-policies@1.1.0`](../catalog/checks/invariants/named-policies/check.json). Default severity: **deny**.
+Check: [`core/invariants/named-policies@1.2.0`](../catalog/checks/invariants/named-policies/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r036`. Minimum severity: `deny`.
 
-Give each constant and each policy a name and a location. A magic number, an inline timeout, or a threshold copied in four places is a decision with no owner. Keep the policy in one place and inject it. The product does not hard-code an environment value in source. Configuration is separate from code.
+Give each constant and each policy a name and a location. A magic number, an inline timeout, or a threshold copied in four places is a decision with no owner. Keep the policy in one place and inject it. The product does not hard-code an environment value in source. Configuration is separate from code. A single literal whose meaning is obvious where it is used is not a policy; the hard-coded environment and configuration clause is the enforced condition, and repeated unnamed thresholds stay advisory.
 
 Default parameters: `{"verifier":"CORE-INV-036"}`.
 
@@ -1942,13 +1942,13 @@ Source metadata:
 
 ### core/CORE-INV-049
 
-Check: [`core/invariants/pinned-dependencies@1.1.0`](../catalog/checks/invariants/pinned-dependencies/check.json). Default severity: **deny**.
+Check: [`core/invariants/pinned-dependencies@1.2.0`](../catalog/checks/invariants/pinned-dependencies/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r049`. Minimum severity: `deny`.
 
-Each resolved dependency version must be pinned through the ecosystem's explicit manifest or dependency lock.
+Each resolved dependency version must be pinned through the ecosystem's explicit manifest or dependency lock. A committed dependency lock that records each resolved version satisfies the pin; a manifest range without a committed lock does not.
 
 Default parameters: `{"verifier":"CORE-INV-049"}`.
 
@@ -2016,13 +2016,13 @@ Source metadata:
 
 ### core/CORE-INV-051
 
-Check: [`core/invariants/dependency-update-schedule@1.1.0`](../catalog/checks/invariants/dependency-update-schedule/check.json). Default severity: **deny**.
+Check: [`core/invariants/dependency-update-schedule@1.2.0`](../catalog/checks/invariants/dependency-update-schedule/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r051`. Minimum severity: `deny`.
 
-Dependencies must be updated on an owned, stated schedule, with dated update records.
+Dependencies must be updated on an owned, stated schedule, with dated update records. This is a process obligation: the stated schedule and its dated update records are the evidence, not source code.
 
 Default parameters: `{"verifier":"CORE-INV-051"}`.
 
@@ -2127,13 +2127,13 @@ Source metadata:
 
 ### core/CORE-INV-054
 
-Check: [`core/invariants/standard-value-facilities@1.1.0`](../catalog/checks/invariants/standard-value-facilities/check.json). Default severity: **deny**.
+Check: [`core/invariants/standard-value-facilities@1.2.0`](../catalog/checks/invariants/standard-value-facilities/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r054`. Minimum severity: `deny`.
 
-Time, money and locale must use supported standard facilities appropriate to precision, time zones and locale. Do not add a dependency when supported ecosystem facilities satisfy the requirement.
+Time, money and locale must use supported standard facilities appropriate to precision, time zones and locale. Do not add a dependency when supported ecosystem facilities satisfy the requirement. An equivalent reviewed library is valid when the platform's standard facilities lack the needed precision or locale data; reimplementing those semantics by hand is not.
 
 Default parameters: `{"verifier":"CORE-INV-054"}`.
 
@@ -2275,13 +2275,13 @@ Source metadata:
 
 ### core/CORE-INV-058
 
-Check: [`core/invariants/controlled-risk-flags@1.1.0`](../catalog/checks/invariants/controlled-risk-flags/check.json). Default severity: **deny**.
+Check: [`core/invariants/controlled-risk-flags@1.2.0`](../catalog/checks/invariants/controlled-risk-flags/check.json). Default severity: **deny**.
 
 Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r058`. Minimum severity: `deny`.
 
-An identified risky feature must have a controlled safe-release flag with tested enable and disable behavior. Do not introduce speculative flags without a relevant risk.
+An identified risky feature must have a controlled safe-release flag with tested enable and disable behavior. Do not introduce speculative flags without a relevant risk. A feature is risky here when it is hard to reverse after release or it exposes new behavior to users; a feature that can be deleted safely does not need a flag.
 
 Default parameters: `{"verifier":"CORE-INV-058"}`.
 

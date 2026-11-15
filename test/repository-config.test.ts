@@ -32,7 +32,8 @@ test("repository fail-fast boundary: the actual valid contract retains all defau
   expect(loaded).toEqual(preset.sources.map((s) => s.ns));
   const core = result.lock.rules.filter((r) => r.id.startsWith("core/"));
   expect(core).toHaveLength(68);
-  expect(core.every((r) => r.severity === "deny" && r.enforcement === "enforce")).toBe(true);
+  expect(core.every((r) => r.enforcement === "enforce" && (r.severity === "deny" || r.severity === "warn"))).toBe(true);
+  expect(core.filter((r) => r.severity === "warn")).toHaveLength(11);
   expect(core.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "fitness")).toHaveLength(64);
 });
 

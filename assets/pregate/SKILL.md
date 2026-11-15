@@ -161,7 +161,11 @@ not grandfather, so those rules stay out. A rule that matches no audited file is
 never proposed; `auditedRules` gives each rule's `files` count. Shadow records deny/ask findings silently without blocking.
 Warn gives feedback; off removes a rule through a reviewed override. All 68 core
 rules activate automatically and enforce by default unless `enforcement` is set
-to `advisor` or a human explicitly overrides individual core rules. Optional packs remain selected.
+to `advisor` or a human explicitly overrides individual core rules. Eleven
+heuristic rules start in advisory `warn` mode instead (cohesion-and-coupling,
+observable-contract, stable-dependencies, collaborator-knowledge, composition,
+domain-language, sufficient-simplicity, clear-code, predictable-names,
+abstraction-level, least-power); a reviewed promote raises them. Optional packs remain selected.
 Do not claim blocking when the selected policy only advises or observes.
 An applicable static rule in enforce also blocks invalid syntax in its own
 language, scope and phase, even if the optional-rule default is shadow. An

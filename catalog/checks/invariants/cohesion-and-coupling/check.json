@@ -1,10 +1,10 @@
 {
   "id": "core/invariants/cohesion-and-coupling",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "area": "invariants",
   "cardinality": "singleton",
   "dimension": "invariant.r002",
-  "minSeverity": "deny",
+  "minSeverity": "warn",
   "params": {
     "verifier": {
       "type": "string",
