@@ -69,11 +69,11 @@ const clarify: Record<number, string> = {
   33: "Name prediction is tested by behavior evidence about what the named operation does, not by the name text.",
   34: "The level boundary is a reading judgment; the evidence is review, not a metric.",
   35: "This requirement and CORE-INV-027 state one decision: use the least powerful mechanism that meets the current constraints.",
-  36: "A single literal whose meaning is obvious where it is used is not a policy; the hard-coded environment and configuration clause is the enforced condition, and repeated unnamed thresholds stay advisory.",
-  49: "A committed dependency lock that records each resolved version satisfies the pin; a manifest range without a committed lock does not.",
+  36: "A single literal whose meaning is obvious where it is used is not a policy.",
+  49: "A committed lock that records each resolved version satisfies the pin; an exact manifest pin also satisfies it.",
   51: "This is a process obligation: the stated schedule and its dated update records are the evidence, not source code.",
   54: "An equivalent reviewed library is valid when the platform's standard facilities lack the needed precision or locale data; reimplementing those semantics by hand is not.",
-  58: "A feature is risky here when it is hard to reverse after release or it exposes new behavior to users; a feature that can be deleted safely does not need a flag.",
+  58: "A feature is risky here when it is hard to reverse after release, such as a data migration, an external contract, or an irreversible side effect; a feature that can be removed safely does not need a flag.",
 };
 function emit(path: string, value: object) {
   const text = JSON.stringify(value, null, 2) + "\n";

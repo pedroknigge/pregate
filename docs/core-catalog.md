@@ -1467,7 +1467,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r036`. Minimum severity: `deny`.
 
-Give each constant and each policy a name and a location. A magic number, an inline timeout, or a threshold copied in four places is a decision with no owner. Keep the policy in one place and inject it. The product does not hard-code an environment value in source. Configuration is separate from code. A single literal whose meaning is obvious where it is used is not a policy; the hard-coded environment and configuration clause is the enforced condition, and repeated unnamed thresholds stay advisory.
+Give each constant and each policy a name and a location. A magic number, an inline timeout, or a threshold copied in four places is a decision with no owner. Keep the policy in one place and inject it. The product does not hard-code an environment value in source. Configuration is separate from code. A single literal whose meaning is obvious where it is used is not a policy.
 
 Default parameters: `{"verifier":"CORE-INV-036"}`.
 
@@ -1948,7 +1948,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r049`. Minimum severity: `deny`.
 
-Each resolved dependency version must be pinned through the ecosystem's explicit manifest or dependency lock. A committed dependency lock that records each resolved version satisfies the pin; a manifest range without a committed lock does not.
+Each resolved dependency version must be pinned through the ecosystem's explicit manifest or dependency lock. A committed lock that records each resolved version satisfies the pin; an exact manifest pin also satisfies it.
 
 Default parameters: `{"verifier":"CORE-INV-049"}`.
 
@@ -2281,7 +2281,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `invariant.r058`. Minimum severity: `deny`.
 
-An identified risky feature must have a controlled safe-release flag with tested enable and disable behavior. Do not introduce speculative flags without a relevant risk. A feature is risky here when it is hard to reverse after release or it exposes new behavior to users; a feature that can be deleted safely does not need a flag.
+An identified risky feature must have a controlled safe-release flag with tested enable and disable behavior. Do not introduce speculative flags without a relevant risk. A feature is risky here when it is hard to reverse after release, such as a data migration, an external contract, or an irreversible side effect; a feature that can be removed safely does not need a flag.
 
 Default parameters: `{"verifier":"CORE-INV-058"}`.
 
