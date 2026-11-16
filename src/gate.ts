@@ -225,8 +225,11 @@ function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, st
   const ctx: GuardContext = {
     ...base, shellDetail: noted,
     isProtected: (p) => {
-      try { if (protects(canonical(p), machine())) return true; }
-      catch { /* fail-closed: an unreadable path is judged by the base context, not treated as safe */ }
+      try {
+        if (protects(canonical(p), machine())) return true;
+      } catch {
+        return true; // fail-closed: a path the protection check cannot resolve is protected
+      }
       return inside(p) ? false : base.isProtected(p);
     },
     inScope: (p) => inside(p) ? false : base.inScope(p),

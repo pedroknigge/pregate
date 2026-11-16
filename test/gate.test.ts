@@ -16,6 +16,7 @@ import type { Edit, HookEvent, ProposedChange, Rejected, Session } from "../src/
 import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
+import * as disk from "../src/disk.ts";
 import { pathKey } from "../src/paths.ts";
 import { report } from "../src/report-command.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
@@ -994,6 +995,28 @@ test("D28: a clone is inert until locally enabled; a worktree of a consenting re
   enable(root);
   expect(enabled(other)).toBe(true);
   expect(enabled(worktree)).toBe(false);
+});
+
+test("a disabled worktree denies a path when the protection check cannot resolve it", () => {
+  const root = repo("protect-fails");
+  disable(root);
+  const s = session("claude-code", "protect-fails");
+  expect(onPreCommand({ session: s, callId: "ordinary", tool: "Bash", cwd: root, command: "git commit --no-verify -m x" }).verdict).toBe("none");
+  const target = join(root, "unresolved");
+  const key = pathKey(target);
+  const original = disk.canonical;
+  const traced = spyOn(disk, "canonical").mockImplementation((abs: string) => {
+    const asked = pathKey(abs);
+    if (asked === key || asked.startsWith(`${key}/`)) throw new Error(`${abs}: too many symbolic links`);
+    return original(abs);
+  });
+  try {
+    const denied = onPreCommand({ session: s, callId: "unresolved", tool: "Bash", cwd: root, command: `echo changed > '${target}'` });
+    expect(denied.cause).toBe("protected-path");
+    expect(traced).toHaveBeenCalled();
+  } finally {
+    traced.mockRestore();
+  }
 });
 
 test("an agent's isolated worktree inside the project is protected by its own contract, never reported as the project's stale lock", async () => {
