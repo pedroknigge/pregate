@@ -1,12 +1,12 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { canonical } from "../src/disk.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { slash } from "../src/paths.ts";
 import { catFileBatch, git, indexFiles } from "../src/git.ts";
 import {
-  H, beforeText, beforeTexts, ensureSnapshot, eventFiles, eventName, firstContact, history, key, record, roots, sha256, snapshot, sourcesOk, stateDir, stopBlocks, turnDenials,
+  EVENT_FILE_CAP, H, beforeText, beforeTexts, ensureSnapshot, eventFiles, eventListing, eventName, firstContact, history, key, record, roots, sha256, snapshot, sourcesOk, stateDir, stopBlocks, turnDenials,
 } from "../src/state.ts";
 import type { CallEvent, Snapshot } from "../src/types.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -210,6 +210,26 @@ describe("events", () => {
     put(`${folder}/events/2026-01-01/unreadable.json`, "not JSON");
     expect(eventFiles(folder, Date.parse("2026-01-02T00:00:00Z"))).toEqual(selected);
   });
+
+  test("event listing keeps the newest files and names the omitted count", () => {
+    const folder = `${stateDir()}/sessions/s-cap`;
+    const oldDay = `${folder}/events/2020-01-01`;
+    const newDay = `${folder}/events/2026-11-16`;
+    mkdirSync(oldDay, { recursive: true });
+    mkdirSync(newDay, { recursive: true });
+    for (let i = 0; i < 3; i++) writeFileSync(`${oldDay}/old-${i}.json`, "{}");
+    for (let i = 0; i < EVENT_FILE_CAP; i++) writeFileSync(`${newDay}/n-${String(i).padStart(5, "0")}.json`, "{}");
+    const newest = `${newDay}/newest.json`;
+    writeFileSync(newest, "{}");
+    const later = Date.now() / 1000 + 120;
+    utimesSync(newest, later, later);
+    const listing = eventListing(folder);
+    expect(listing.omitted).toBe(4);
+    expect(listing.files).toHaveLength(EVENT_FILE_CAP);
+    expect(listing.files).toContain(newest);
+    expect(listing.files.some((file) => file.includes("2020-01-01"))).toBe(false);
+    expect(eventFiles(folder)).toEqual(listing.files);
+  });
 });
 
 describe("snapshots", () => {
@@ -258,6 +278,36 @@ describe("snapshots", () => {
 
   test("a repository without commits has no head", () => {
     expect(ensureSnapshot("s-pre", empty, null)).toEqual(expect.objectContaining({ root: empty, head: null, start: false, dirty: {}, at: expect.any(Number) }));
+  });
+
+  test.skipIf(WINDOWS || process.getuid?.() === 0)("an unreadable directory during the no-git walk does not publish a snapshot", () => {
+    const repo = `${base}/unreadable`;
+    put(`${repo}/src/a.ts`, "export const a = 1;\n");
+    sh(repo, "init", "-q");
+    sh(repo, "add", ".");
+    sh(repo, "commit", "-qm", "base");
+    const secret = `${repo}/secret`;
+    mkdirSync(secret);
+    writeFileSync(`${secret}/hidden.ts`, "export const hidden = 1;\n");
+    chmodSync(secret, 0);
+    const git = Bun.which("git");
+    if (git === null) throw new Error("git is required");
+    const bin = `${base}/fake-git-bin`;
+    mkdirSync(bin);
+    const shim = `${bin}/git`;
+    writeFileSync(shim, `#!/bin/sh\nif [ "$1" = status ]; then exit 1; fi\nexec '${git.replaceAll("'", "'\\''")}' "$@"\n`);
+    chmodSync(shim, 0o755);
+    const saved = process.env.PATH;
+    process.env.PATH = `${bin}${saved === undefined ? "" : `:${saved}`}`;
+    try {
+      expect(() => readdirSync(secret)).toThrow();
+      expect(ensureSnapshot("s-unreadable", repo, () => true)).toBe("state-io");
+      expect(snapshot("s-unreadable", repo)).toBeNull();
+    } finally {
+      chmodSync(secret, 0o755);
+      if (saved === undefined) delete process.env.PATH;
+      else process.env.PATH = saved;
+    }
   });
 
   test("outside a repository the first contact is denied and no snapshot is stored", () => {
