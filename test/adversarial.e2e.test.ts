@@ -481,8 +481,9 @@ test("a linked worktree inherits consent and a clone does not", () => {
   const later = hook.write("src/domain/later.ts", bad);
   expect(later.code, `${later.stdout}\n${later.stderr}`).toBe(0);
   expect(later.stderr).toBe("");
-  expect(later.stdout).toContain("PREGATE is disabled for this worktree");
-  expect(later.stdout).not.toContain("PREGATE DENY");
+  // The launcher decides before the engine. Stdout stays empty, so a Grok failClosed hook
+  // cannot treat the disabled notice as a failed decision. `pregate status` still names the scope.
+  expect(later.stdout).toBe("");
   denied(claude(r).write("src/domain/main.ts", bad), "clean-code/CC-ER-002");
   const other = join(TMP, "worktrees", randomUUID());
   ok(git(r, "worktree", "add", "-q", "-b", `other-${randomUUID()}`, other), "second worktree");

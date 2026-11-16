@@ -54,6 +54,23 @@ consented() {
   return 1
 }
 
+# Yes only. A directory `.git` means the common dir is that `.git`, so the answer does not start git.
+# A worktree, a parent walk, a proposal and an unknown git stay with consented(), which does.
+checkout_enforced() {
+  d=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  [ -d "$d/.git" ] || return 1
+  g=$(cd "$d/.git" 2>/dev/null && pwd -P) || return 1
+  r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g')
+  g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g')
+  records=$(grep -hF "\"root\":\"$r\"," "$data/consent/"*.json 2>/dev/null)
+  if [ -n "$records" ]; then
+    printf '%s' "$records" | grep -qF '"disabled":true' && return 1
+    grep -hF "\"repo\":\"$g\"" "$data/consent/"*.json 2>/dev/null | grep -qF '"disabled":true' && return 1
+    printf '%s' "$records" | grep -qF "\"common\":\"$g\"" && return 0
+  fi
+  grep -qF "{\"repo\":\"$g\"}" "$data/consent/"*.json 2>/dev/null
+}
+
 # An empty engine would run as an empty script: exit 0, which allows in four harnesses and passes a
 # pre-commit.
 installed() {
@@ -336,6 +353,9 @@ fi
 if [ "$event" = pre ] && [ -z "$bare" ]; then
   enforced=
   for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
+    [ -n "$candidate" ] || continue
+    # The directory `.git` case is the timed hook. It must not pay for a git process.
+    checkout_enforced "$candidate" && enforced=1 && break
     consented "$candidate" && enforced=1 && break
   done
   if [ -z "$enforced" ]; then
