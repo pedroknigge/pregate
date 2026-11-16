@@ -167,9 +167,10 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
     // shell-admin or shell-write is returned. `touched` is the real set: a path inside the pending
     // review, the preset, or a root this session reached. An allow that touched none of them writes
     // nothing.
-    const cause = guard(c.command, cwd, { ...ctx, machineOnly: false, harness: c.session.harness });
+    const noted = { text: null as string | null };
+    const cause = guard(c.command, cwd, { ...ctx, machineOnly: false, harness: c.session.harness, shellDetail: noted });
     const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: preset ?? pending, rel: null, startedAt };
-    const o = { ...NOTHING, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" };
+    const o = { ...NOTHING, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" };
     const decision = cause === null && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
     return preset === null ? withoutPresetDraft(decision) : decision;
   }
@@ -187,11 +188,17 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   let loaded: Loaded | Cause | null = null;
   const load = () => loaded ??= lockOf(root!);
   const ctx = shellContext(sid, root, load, machineOnly);
-  const guarded = guard(c.command, cwd, { ...ctx, machineOnly, harness: c.session.harness });
+  const noted = { text: null as string | null };
+  const guarded = guard(c.command, cwd, { ...ctx, machineOnly, harness: c.session.harness, shellDetail: noted });
   const valid = loaded === null || isCause(loaded) ? null : loaded as Loaded;
   const cause = ctx.failure() ?? guarded;
-  const o = { ...NOTHING, lock: valid?.lock ?? null, lockHash: valid?.hash ?? null, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" };
+  const o = { ...NOTHING, lock: valid?.lock ?? null, lockHash: valid?.hash ?? null, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" };
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
+}
+
+// A named orca denial carries its own sentence. Every other cause keeps the generic text.
+function commandForm(cause: Cause | null, detail: string | null) {
+  return cause === null ? null : form(cause, undefined, cause === "shell-admin" ? detail : null);
 }
 
 // Consent is off, and no enabled session root is in play. Paths inside the pending review, the

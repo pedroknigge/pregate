@@ -172,7 +172,7 @@ export function alsoInCall(full: string, compacts: string[]): string {
 // `halt`: the turn stops here (turn cap or a run of form denies), so the agent must not resend.
 export function formText(f: Form, rel: string | null, halt = false): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
-  const detail = ["lock-stale", "version-mismatch", "unresolvable-import"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), 2000) : null;
+  const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), 2000) : null;
   const headline = `PREGATE DENY ${f.cause}${at}: ${detail ?? CAUSE_EN[f.cause]}`;
   const compact = clip(headline, LINE_MAX);
   const next = FIXABLE_BY[f.cause] === "human" ? "Only the user can fix this: stop and report it to them (cause and path)."

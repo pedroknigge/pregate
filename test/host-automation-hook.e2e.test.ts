@@ -24,6 +24,7 @@ setDefaultTimeout(180_000);
 const base = realpathSync(mkdtempSync(join(tmpdir(), "host-automation-hook-")));
 const names = ["HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "TMPDIR", "PATH", "Path"] as const;
 const ORCA = "#!/bin/bash\nELECTRON=\"/Applications/Orca.app/Contents/MacOS/Orca\"\nexec \"$ELECTRON\" \"$@\"\n";
+const ORCA_CMD = "@echo off\r\n\"%~dp0orca.exe\" %*\r\n";
 const NODE = "#!/usr/bin/env node\nconst { spawn } = require(\"node:child_process\");\nspawn(process.execPath, [\"-e\", \"console.log(1)\"]);\n";
 let saved: Record<string, string | undefined>;
 let area: string;
@@ -60,7 +61,7 @@ function launcher(bin: string, name: string): string {
   return join(bin, WINDOWS ? `${name}.cmd` : name);
 }
 
-function pathScripts(bin: string, orcaText = ORCA): void {
+function pathScripts(bin: string, orcaText = WINDOWS ? ORCA_CMD : ORCA): void {
   mkdirSync(bin, { recursive: true });
   for (const name of ["orca", "orca-dev", "orca-ide"]) put(launcher(bin, name), orcaText);
   put(launcher(bin, "agent-browser"), NODE);
@@ -158,6 +159,77 @@ test("hook pre with consent denies an in-project screenshot and allows a temp on
   }
   deny(cli, root, "orca agent launch", "shell-admin", "ungated agent");
   deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
+});
+
+const LOCALE_LOOP = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'";
+const LOCALE_TEMPLATE = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(`./src/messages/${locale}.json`); console.log(m.management.hoursDashboard.table); }'";
+const BUN_LOOP = "bun -e 'for (const locale of [\"en\", \"es\"]) { console.log(require(\"./src/messages/\" + locale + \".json\")); }'";
+const NODE_DENIALS = [
+  ["node -e 'require(\"fs\").writeFileSync(\"src/a.ts\", \"x\")'", "writes to files in scope"],
+  ["node -e 'require(\"child_process\").execSync(\"ls\")'", "writes to files in scope"],
+  ["node -e 'require(\"f\" + \"s\").writeFileSync(\"x\", \"y\")'", "writes to files in scope"],
+  ["node -e 'eval(\"console.log(1)\")'", "writes to files in scope"],
+] as const;
+
+function draftLast(cli: string, cwd: string): { code: number; text: string } {
+  const draft = Bun.spawnSync([cli, "issue", "draft", "--last"], { cwd, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
+  return { code: draft.exitCode ?? 1, text: `${draft.stdout.toString()}\n${draft.stderr.toString()}` };
+}
+
+test("hook pre allows orca ports and a read-only node json loop, and issue draft --last finds a denial", () => {
+  const cli = testEngine();
+  const root = project("ports");
+  proposeContract({ root, lockText: "{}", baseline: sha256(""), writes: [] });
+  const bin = join(area, "bin");
+  pathScripts(bin);
+  const launcherText = readFileSync(launcher(bin, "orca"), "utf8");
+  expect(launcherText).toContain(WINDOWS ? "%~dp0orca.exe" : "exec \"$ELECTRON\"");
+  for (const command of ["orca ports --json", "orca ports", "orca --version", "orca worktree list", "npx -y orca ports --json", LOCALE_LOOP, LOCALE_TEMPLATE, BUN_LOOP]) {
+    allow(cli, root, command);
+  }
+  allow(cli, root, "orca not-a-verb");
+  pathScripts(join(root, "node_modules", ".bin"));
+  allow(cli, root, "orca ports --json");
+  allow(cli, root, LOCALE_LOOP);
+  const unknown = hook(cli, root, "orca frob");
+  const unknownText = `${unknown.stdout.toString()}\n${unknown.stderr.toString()}`;
+  expect(unknown.exitCode, unknownText).toBe(2);
+  expect(unknownText).toContain("shell-admin");
+  expect(unknownText).toContain("orca frob is not a read-only orca inventory or drive command.");
+  expect(unknownText).not.toContain("skips git hooks");
+  const afterOrca = draftLast(cli, root);
+  expect(afterOrca.code, afterOrca.text).toBe(0);
+  expect(afterOrca.text).toContain("shell-admin");
+  expect(afterOrca.text).toContain("Verdict: deny");
+  expect(afterOrca.text).not.toContain("No finding recorded");
+  deny(cli, root, "orca agent launch", "shell-admin", "ungated agent");
+  deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
+  for (const [command, phrase] of NODE_DENIALS) deny(cli, root, command, "shell-write", phrase);
+  const afterNode = draftLast(cli, root);
+  expect(afterNode.code, afterNode.text).toBe(0);
+  expect(afterNode.text).toContain("shell-write");
+  expect(afterNode.text).not.toContain("No finding recorded");
+
+  const enabled = consented("ports-on");
+  pathScripts(join(area, "consent-ports"));
+  for (const command of ["orca ports --json", LOCALE_LOOP, LOCALE_TEMPLATE, BUN_LOOP]) allow(cli, enabled, command);
+  pathScripts(join(enabled, "node_modules", ".bin"));
+  allow(cli, enabled, "orca ports --json");
+  const named = hook(cli, enabled, "orca-dev frobnicate");
+  const namedText = `${named.stdout.toString()}\n${named.stderr.toString()}`;
+  expect(named.exitCode, namedText).toBe(2);
+  expect(namedText).toContain("orca-dev frobnicate is not a read-only orca inventory or drive command.");
+  expect(namedText).not.toContain("skips git hooks");
+  const afterNamed = draftLast(cli, enabled);
+  expect(afterNamed.code, afterNamed.text).toBe(0);
+  expect(afterNamed.text).toContain("shell-admin");
+  expect(afterNamed.text).toContain("Verdict: deny");
+  expect(afterNamed.text).not.toContain("No finding recorded");
+  for (const [command, phrase] of NODE_DENIALS) deny(cli, enabled, command, "shell-write", phrase);
+  const afterWrite = draftLast(cli, enabled);
+  expect(afterWrite.code, afterWrite.text).toBe(0);
+  expect(afterWrite.text).toContain("shell-write");
+  expect(afterWrite.text).not.toContain("No finding recorded");
 });
 
 test("a host launcher that runs pregate approve stays shell-admin", () => {
