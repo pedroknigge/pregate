@@ -120,7 +120,7 @@ function deny(cli: string, cwd: string, command: string, cause: string, phrase: 
   expect(text, command).toContain(phrase);
 }
 
-test("hook pre allows host drive commands and denies agent launch and hooks off", () => {
+test("hook pre allows host commands, including agent launch, when the project was never enabled", () => {
   const cli = testEngine();
   const root = project("repo");
   proposeContract({ root, lockText: "{}", baseline: sha256(""), writes: [] });
@@ -138,12 +138,9 @@ test("hook pre allows host drive commands and denies agent launch and hooks off"
     "agent-desktop click", "agent-desktop type hello", "agent-desktop launch Finder",
     "npx -y agent-browser open example.com", "bunx orca console",
   ]) allow(cli, root, command);
-  for (const command of ["orca agent launch", "orca-dev agent launch --agent codex", "npx -y orca agent launch", "orca worktree create --agent claude", "orca automations run nightly"]) {
-    deny(cli, root, command, "shell-admin", "ungated agent");
+  for (const command of ["orca agent launch", "orca-dev agent launch --agent codex", "npx -y orca agent launch", "orca worktree create --agent claude", "orca automations run nightly", "orca agent hooks off", "bunx orca-ide agent hooks off", "agent-browser screenshot src/shot.png"]) {
+    allow(cli, root, command);
   }
-  deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
-  deny(cli, root, "bunx orca-ide agent hooks off", "hook-switch", "switches off");
-  allow(cli, root, "agent-browser screenshot src/shot.png");
 });
 
 test("hook pre with consent denies an in-project screenshot and allows a temp one", () => {
@@ -155,20 +152,23 @@ test("hook pre with consent denies an in-project screenshot and allows a temp on
     allow(cli, root, command);
   }
   for (const command of ["orca screenshot src/shot.png", "agent-browser screenshot src/page.png", "agent-desktop screenshot src/shot.png", "agent-desktop click --trace src/trace.jsonl"]) {
-    deny(cli, root, command, "shell-write", "writes to files in scope");
+    deny(cli, root, command, "shell-write", "inside the project");
   }
-  deny(cli, root, "orca agent launch", "shell-admin", "ungated agent");
+  for (const command of ["orca agent launch", "orca-dev agent launch --agent codex", "npx -y orca agent launch", "orca worktree create --agent claude", "orca automations run nightly"]) {
+    deny(cli, root, command, "shell-admin", "ungated agent");
+  }
   deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
+  deny(cli, root, "bunx orca-ide agent hooks off", "hook-switch", "switches off");
 });
 
 const LOCALE_LOOP = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'";
 const LOCALE_TEMPLATE = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(`./src/messages/${locale}.json`); console.log(m.management.hoursDashboard.table); }'";
 const BUN_LOOP = "bun -e 'for (const locale of [\"en\", \"es\"]) { console.log(require(\"./src/messages/\" + locale + \".json\")); }'";
 const NODE_DENIALS = [
-  ["node -e 'require(\"fs\").writeFileSync(\"src/a.ts\", \"x\")'", "writes to files in scope"],
-  ["node -e 'require(\"child_process\").execSync(\"ls\")'", "writes to files in scope"],
-  ["node -e 'require(\"f\" + \"s\").writeFileSync(\"x\", \"y\")'", "writes to files in scope"],
-  ["node -e 'eval(\"console.log(1)\")'", "writes to files in scope"],
+  ["node -e 'require(\"fs\").writeFileSync(\"src/a.ts\", \"x\")'", "inside the project"],
+  ["node -e 'require(\"child_process\").execSync(\"ls\")'", "Write that file with the edit tool"],
+  ["node -e 'require(\"f\" + \"s\").writeFileSync(\"x\", \"y\")'", "Write that file with the edit tool"],
+  ["node -e 'eval(\"console.log(1)\")'", "Write that file with the edit tool"],
 ] as const;
 
 function draftLast(cli: string, cwd: string): { code: number; text: string } {
@@ -191,24 +191,9 @@ test("hook pre allows orca ports and a read-only node json loop, and issue draft
   pathScripts(join(root, "node_modules", ".bin"));
   allow(cli, root, "orca ports --json");
   allow(cli, root, LOCALE_LOOP);
-  const unknown = hook(cli, root, "orca frob");
-  const unknownText = `${unknown.stdout.toString()}\n${unknown.stderr.toString()}`;
-  expect(unknown.exitCode, unknownText).toBe(2);
-  expect(unknownText).toContain("shell-admin");
-  expect(unknownText).toContain("orca frob is not a read-only orca inventory or drive command.");
-  expect(unknownText).not.toContain("skips git hooks");
-  const afterOrca = draftLast(cli, root);
-  expect(afterOrca.code, afterOrca.text).toBe(0);
-  expect(afterOrca.text).toContain("shell-admin");
-  expect(afterOrca.text).toContain("Verdict: deny");
-  expect(afterOrca.text).not.toContain("No finding recorded");
-  deny(cli, root, "orca agent launch", "shell-admin", "ungated agent");
-  deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
-  for (const [command, phrase] of NODE_DENIALS) deny(cli, root, command, "shell-write", phrase);
-  const afterNode = draftLast(cli, root);
-  expect(afterNode.code, afterNode.text).toBe(0);
-  expect(afterNode.text).toContain("shell-write");
-  expect(afterNode.text).not.toContain("No finding recorded");
+  allow(cli, root, "orca frob");
+  allow(cli, root, "orca agent launch");
+  for (const [command] of NODE_DENIALS) allow(cli, root, command);
 
   const enabled = consented("ports-on");
   pathScripts(join(area, "consent-ports"));
@@ -232,10 +217,9 @@ test("hook pre allows orca ports and a read-only node json loop, and issue draft
   expect(afterWrite.text).not.toContain("No finding recorded");
 });
 
-test("a host launcher that runs pregate approve stays shell-admin", () => {
+test("a host launcher that runs pregate approve stays shell-admin inside an enabled project", () => {
   const cli = testEngine();
-  const root = project("evil");
-  proposeContract({ root, lockText: "{}", baseline: sha256(""), writes: [] });
+  const root = consented("evil");
   pathScripts(join(area, "evil-bin"), "#!/bin/bash\npregate approve --yes\nexec \"$ELECTRON\" \"$@\"\n");
   deny(cli, root, "orca console", "shell-admin", "ungated agent");
 });

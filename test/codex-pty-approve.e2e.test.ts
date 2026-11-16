@@ -180,22 +180,41 @@ function attack(repo: string, env: Env, code: string): { hook: Out; pty: Out | n
   return { hook, pty: drivePty(command, `pregate approve ${code}`, repo, env) };
 }
 
-test("a Codex pty stdin-eval loop cannot approve a pending init", () => {
-  const dir = join(AREA, "init");
+function repoAt(name: string): { repo: string; env: Env } {
+  const dir = join(AREA, name);
   const repo = join(dir, "repo");
   mkdirSync(repo, { recursive: true });
   const env = envOf(dir);
   const git = Bun.spawnSync(["git", "init", "-q", "-b", "main"], { cwd: repo, env, stdout: "pipe", stderr: "pipe" });
   expect(git.exitCode, git.stderr.toString()).toBe(0);
   writeFileSync(join(repo, "README.md"), "pending\n");
+  return { repo, env };
+}
+
+test("a pty stdin-eval loop is not blocked before pregate enable", () => {
+  const { repo, env } = repoAt("init");
   const preview = run(["init", "--preview", "--preset", "legacy-safe"], env, repo);
   expect(preview.code, preview.stdout + preview.stderr).toBe(0);
-  const data = env.XDG_DATA_HOME ?? "";
-  const { file, code } = proposalCode(data);
+  const hook = run(["hook", "pre", "--harness", "codex"], env, repo, codexExec(repo, LOOP));
+  const note = `${hook.stderr}\n${hook.stdout}`;
+  expect(hook.code, note).toBe(0);
+  expect(hook.stderr, note).not.toContain("PREGATE DENY");
+  expect(existsSync(join(repo, ".pregate/preset.json")), note).toBe(false);
+  expect(existsSync(proposalCode(env.XDG_DATA_HOME ?? "").file), note).toBe(true);
+});
+
+test("a pty stdin-eval loop cannot approve a pending change after pregate enable", () => {
+  const { repo, env } = repoAt("enabled");
+  const ready = run(["init", "--yes", "--preset", "legacy-safe"], { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, repo);
+  expect(ready.code, ready.stdout + ready.stderr).toBe(0);
+  writeFileSync(join(repo, "loosen.json"), JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
+  const preview = run(["preset", "apply", "loosen.json", "--preview"], env, repo);
+  expect(preview.code, preview.stdout + preview.stderr).toBe(0);
+  const before = readFileSync(join(repo, ".pregate/preset.json"), "utf8");
+  const { file, code } = proposalCode(env.XDG_DATA_HOME ?? "");
   const { hook, pty } = attack(repo, env, code);
   const note = `${hook.stderr}\n${hook.stdout}\n${pty?.stdout ?? ""}\n${pty?.stderr ?? ""}`;
-  expect(existsSync(join(repo, ".pregate/preset.json")), note).toBe(false);
-  expect(existsSync(join(repo, ".pregate/pregate.lock.json")), note).toBe(false);
+  expect(readFileSync(join(repo, ".pregate/preset.json"), "utf8"), note).toBe(before);
   expect(existsSync(file), note).toBe(true);
   expect(hook.code, note).toBe(2);
   expect(hook.stderr, note).toContain("shell-write");

@@ -20,6 +20,28 @@ const HARNESSES = ["claude-code", "codex", "cursor", "grok", "agy", "opencode"] 
 beforeAll(() => engineAt(binary, false), 180_000);
 afterAll(() => removeTree(area));
 
+test("a pending init that was never enabled does not ask or deny", () => {
+  const root = join(area, "never");
+  mkdirSync(join(root, "src"), { recursive: true });
+  writeFileSync(join(root, "src/a.ts"), "export const value = 1;\n");
+  expect(Bun.spawnSync(["git", "init", "-q", "-b", "main", root]).exitCode).toBe(0);
+  const env = baseEnv(data);
+  const preview = Bun.spawnSync([binary, "init", "--preview", "--preset", "legacy-safe"], {
+    cwd: root, env: { ...env, PREGATE_UNATTENDED_APPROVAL: "1" }, stdout: "pipe", stderr: "pipe",
+  });
+  const text = preview.stdout.toString() + preview.stderr.toString();
+  expect(preview.exitCode, text).toBe(0);
+  const digest = /Digest: ([a-f0-9]{64})/.exec(text)?.[1];
+  expect(digest, text).toMatch(/^[a-f0-9]{64}$/);
+  const pending = { root, data, env, digest: digest!, code: digest!.slice(0, 12), preset: "" };
+  const allowed = hook(pending, "claude-code", `pregate approve ${pending.code}`);
+  expect(allowed.code, allowed.text).toBe(0);
+  expect(allowed.stdout, allowed.text).toBe("");
+  expect(allowed.text).not.toContain("DENY");
+  expect(allowed.text).not.toContain("permissionDecision");
+  expect(existsSync(join(root, ".pregate/preset.json"))).toBe(false);
+});
+
 test("a piped harness shell approves with a code or --yes, and a bare approve still refuses", () => {
   const codeProject = project("by-code", data);
   const yesProject = project("by-yes", data);
@@ -47,15 +69,15 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
     expect(bang.code, `${harness} bang\n${bang.text}`).toBe(0);
     if (harness === "claude-code") expect(claudeAsk(bang).reason).toContain(codeProject.digest);
     if (harness === "agy") expect(agyAsk(bang).reason).toContain(codeProject.digest);
-    expect(existsSync(join(codeProject.root, ".pregate/preset.json")), harness).toBe(false);
+    unchanged(codeProject);
   }
   const bare = run(codeProject, ["approve"], "y\n");
   expect(bare.code, bare.text).toBe(1);
   expect(bare.text).toContain("no terminal");
-  expect(existsSync(join(codeProject.root, ".pregate/preset.json"))).toBe(false);
+  unchanged(codeProject);
   const wrong = run(codeProject, ["approve", "--yes", "--digest", "0".repeat(64)]);
   expect(wrong.code, wrong.text).toBe(1);
-  expect(existsSync(join(codeProject.root, ".pregate/preset.json"))).toBe(false);
+  unchanged(codeProject);
   const env = hook(codeProject, "claude-code", `PREGATE_UNATTENDED_APPROVAL=1 pregate approve --yes --digest ${codeProject.digest}`);
   expect(env.code, env.text).toBe(2);
   expect(env.text).toContain("approval");
@@ -92,7 +114,7 @@ test("an interactive Claude parent gets a schema-valid ask; a subagent, CI, dont
   expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
   expect(ask.reason).toContain("Mode:");
   expect(ask.context.length).toBeGreaterThan(0);
-  expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  unchanged(asked);
   const bare = hook(asked, "claude-code", "pregate approve --yes");
   const bareAsk = claudeAsk(bare);
   expect(bareAsk.reason).toContain("pregate approve --yes");
@@ -105,7 +127,7 @@ test("an interactive Claude parent gets a schema-valid ask; a subagent, CI, dont
     expect(result.code, result.text).toBe(0);
     expect(result.text).not.toContain("DENY");
     expect(result.text).not.toContain('"permissionDecision":"ask"');
-    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+    unchanged(asked);
   };
   for (const mode of ["auto", "plan", "default"]) {
     const same = hook(asked, "claude-code", command, { patch: (payload) => { payload.permission_mode = mode; } });
@@ -134,7 +156,7 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
   expect(ask.reason).toContain("Accept runs this command. Reject runs nothing.");
   expect(ask.reason).toContain("Mode:");
   expect(ask.reason).toContain(command);
-  expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+  unchanged(asked);
   const bare = hook(asked, "agy", "pregate approve --yes");
   const bareAsk = agyAsk(bare);
   expect(bareAsk.reason).toContain("pregate approve --yes");
@@ -151,7 +173,7 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
     expect(result.stdout, result.text).toBe("");
     expect(result.text).not.toContain("force_ask");
     expect(result.text).not.toContain("DENY");
-    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+    unchanged(asked);
   };
   const skipStarted = Date.now();
   quiet(hook(asked, "agy", command, { env: agyHome("always-proceed", { toolPermission: "always-proceed" }) }));
@@ -164,7 +186,7 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
     expect(denied.code, denied.text).toBe(0);
     expect(JSON.parse(denied.stdout).decision, wrapped).toBe("deny");
     expect(denied.stdout, wrapped).not.toContain('"decision":"force_ask"');
-    expect(existsSync(join(asked.root, ".pregate/preset.json"))).toBe(false);
+    unchanged(asked);
   }
   if (process.platform !== "win32") {
     const flagged = agyParent(asked, command, ["--dangerously-skip-permissions"]);
@@ -184,22 +206,32 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
   expect(lines.some((line) => line.root === canonical(asked.root) && line.via === "yes" && line.tty === false)).toBe(true);
 }, 120_000);
 
-interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string }
+interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string; preset: string }
 
+// An enabled project with one pending contract change. The hook asks before that change applies.
 function project(name: string, data: string): Project {
   const root = join(area, name);
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(join(root, "src/a.ts"), "export const value = 1;\n");
   expect(Bun.spawnSync(["git", "init", "-q", "-b", "main", root]).exitCode).toBe(0);
   const env = baseEnv(data);
-  const preview = Bun.spawnSync([binary, "init", "--preview", "--preset", "legacy-safe"], {
+  const ready = Bun.spawnSync([binary, "init", "--yes", "--preset", "legacy-safe"], {
     cwd: root, env: { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdout: "pipe", stderr: "pipe",
+  });
+  expect(ready.exitCode, ready.stdout.toString() + ready.stderr.toString()).toBe(0);
+  writeFileSync(join(root, "loosen.json"), JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
+  const preview = Bun.spawnSync([binary, "preset", "apply", "loosen.json", "--preview"], {
+    cwd: root, env: { ...env, PREGATE_UNATTENDED_APPROVAL: "1" }, stdout: "pipe", stderr: "pipe",
   });
   const text = preview.stdout.toString() + preview.stderr.toString();
   expect(preview.exitCode, text).toBe(0);
   const digest = /Digest: ([a-f0-9]{64})/.exec(text)?.[1];
   expect(digest, text).toMatch(/^[a-f0-9]{64}$/);
-  return { root, data, env, digest: digest!, code: digest!.slice(0, 12) };
+  return { root, data, env, digest: digest!, code: digest!.slice(0, 12), preset: readFileSync(join(root, ".pregate/preset.json"), "utf8") };
+}
+
+function unchanged(p: Project): void {
+  expect(readFileSync(join(p.root, ".pregate/preset.json"), "utf8")).toBe(p.preset);
 }
 
 function baseEnv(data: string): Record<string, string> {

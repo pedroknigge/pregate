@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { canonical, samePlace, writeAtomic } from "./disk.ts";
+import { canonical, findRoot, samePlace, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
-import { storageDir } from "./platform.ts";
+import { pathKey } from "./paths.ts";
+import { homeDir, storageDir } from "./platform.ts";
 
 // Consent belongs to this machine, never to committed repo files. Enabling a worktree also consents
 // for its repository: every other worktree of it (a branch checked out beside it, an agent's isolated
@@ -81,7 +82,7 @@ function consentFlags(root: string, data: string): ConsentFlags {
 }
 
 // A human ran `pregate disable` for this worktree, or `pregate disable --project` for its repository.
-// Distinct from a project that was never enabled: a pending review still guards a project with no record.
+// A project that was never enabled has no record. Neither one is enforced.
 export function explicitlyDisabled(root: string, data = dataHome()): boolean {
   const flags = consentFlags(root, data);
   return flags.worktree || flags.project;
@@ -132,6 +133,60 @@ export function enabled(root: string, data = dataHome()): boolean {
   // A disable of this worktree or of the whole project wins over an older enable record.
   if (flags.worktree || flags.project) return false;
   return flags.enabled;
+}
+
+// The one check for "enforced here": this directory's own project, the nearest
+// .pregate/preset.json that `pregate enable` activated, not past a .git boundary.
+// Home, a parent past that boundary, a pending review, and a session that reached
+// some other root do not enforce here. `enabled` is false after `pregate disable`,
+// so a disabled worktree is the same answer.
+export function enforcedHere(dir: string): boolean {
+  let path: string;
+  try { path = canonical(dir); }
+  catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    throw error;
+  }
+  let home: string | null = null;
+  try { home = canonical(homeDir()); }
+  catch (error) {
+    if (!(error instanceof Error && error.message.endsWith(": no existing ancestor"))) throw error;
+  }
+  const own = (root: string) => home === null || pathKey(root) !== pathKey(home);
+  // `git init` after enable changes the common dir, so `enabled` can miss a record that
+  // still names this root. The record remains the enable, until disable. A project disable
+  // wins over that record, the same way `enabled` does.
+  const accepts = (root: string) => !explicitlyDisabled(root) && (enabled(root) || consentNames(root));
+  const root = findRoot(path, accepts);
+  if (root !== null && own(root)) return true;
+  // `pregate enable` was run for this checkout even when the preset file is gone.
+  const checkout = checkoutOf(path);
+  return checkout !== null && accepts(checkout) && own(checkout);
+}
+
+// A consent record names this root and is not disabled. Common-dir drift does not erase it.
+function consentNames(root: string, data = dataHome()): boolean {
+  let here: string;
+  try { here = canonical(root); }
+  catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    throw error;
+  }
+  const directory = join(data, "consent");
+  if (!existsSync(directory)) return false;
+  for (const name of readdirSync(directory).filter((entry) => entry.endsWith(".json"))) {
+    const record = consentRecord(join(directory, name));
+    if (record === null || typeof record.root !== "string" || !samePlace(record.root, here)) continue;
+    return record.disabled !== true;
+  }
+  return false;
+}
+
+function checkoutOf(dir: string): string | null {
+  for (let at = dir; ; at = dirname(at)) {
+    if (existsSync(join(at, ".git"))) return at;
+    if (dirname(at) === at) return null;
+  }
 }
 
 export function enable(root: string, data = dataHome()): void {

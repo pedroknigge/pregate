@@ -163,42 +163,37 @@ test("explicit static enforcement keeps syntax on Pre, check and Stop without a 
   expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).verdict).toBe("none");
 });
 
-test("guide cannot obtain human approval from an agent in a neutral directory", () => {
+test("a directory that was never enabled does not enforce guide or any other command", () => {
   const outside = canonical(area);
   const s = session("claude-code", "guide-neutral");
   const command = (text: string) => ({ session: s, callId: text, tool: "Bash", cwd: outside, command: text });
-  // Quoted as the engine prints it: unquoted, a Windows path's backslashes are shell escapes.
   for (const prefix of ["pregate", `'${launcher()}'`]) {
-    for (const text of [prefix, `${prefix} guide`, `env ${prefix} guide`, `sh -c '${prefix} guide'`, `${prefix} guide --yes`, `env ${prefix} guide --json`]) {
+    for (const text of [prefix, `${prefix} guide`, `env ${prefix} guide`, `sh -c '${prefix} guide'`, `${prefix} guide --yes`, `env ${prefix} guide --json`,
+      `${prefix} guide --json`, `${prefix} guide --preview`, `${prefix} guide --help`]) {
       const c = command(text);
-      expect(inert({ kind: "pre-command", command: c })).toBe(false);
-      expect(onPreCommand(c).verdict).toBe("deny");
-    }
-    for (const text of [`${prefix} guide --json`, `${prefix} guide --preview`, `${prefix} guide --help`]) {
-      const c = command(text);
-      expect(inert({ kind: "pre-command", command: c })).toBe(false);
-      expect(onPreCommand(c).verdict).toBe("none");
+      expect(inert({ kind: "pre-command", command: c }), text).toBe(true);
+      expect(onPreCommand(c).verdict, text).toBe("none");
     }
   }
   expect(onPreCommand(command('echo "pregate guide"')).verdict).toBe("none");
   expect(state.roots(state.key(s))).toEqual([]);
 });
 
-test("shell-normalized guide invocations cannot bypass rootless guard loading in any harness", () => {
+test("a directory that was never enabled stays inert for a normalized guide invocation", () => {
   const outside = canonical(area);
   for (const harness of ["claude-code", "codex", "cursor", "grok", "agy"] as const) {
     const s = session(harness, "normalized-guide-" + harness);
     for (const text of ["pregate \\\n guide", "pre'gate' guide", "pregate g\\uide", "pre'gate'", 'env pre"gate" guide',
       "sh -c 'pregate g\\uide'", 'sh -c "pre\'gate\' guide"', "pre\\gate guide", `${launcher()} \\\n guide`, "script -q /dev/null pre'gate' guide"]) {
       const command = { session: s, callId: text, tool: "shell", cwd: outside, command: text };
-      expect(inert({ kind: "pre-command", command })).toBe(false);
-      expect(onPreCommand(command).verdict).toBe("deny");
+      expect(inert({ kind: "pre-command", command }), text).toBe(true);
+      expect(onPreCommand(command).verdict, text).toBe("none");
     }
     expect(state.roots(state.key(s))).toEqual([]);
   }
 });
 
-test("production hooks deny normalized neutral-cwd guide calls in all five native protocols", () => {
+test("production hooks allow normalized guide calls from a directory that was never enabled", () => {
   const outside = canonical(area), installed = join(process.env.XDG_DATA_HOME!, "pregate", VERSIONS.engine, ENGINE_FILE);
   mkdirSync(dirname(installed), { recursive: true });
   engineAt(installed);
@@ -215,9 +210,8 @@ test("production hooks deny normalized neutral-cwd guide calls in all five nativ
       const decoded = HARNESSES[harness].decode("pre", raw, { projectDir: null, grokEvent: null, remote: false });
       expect(decoded).not.toBeNull(); expect(decoded !== null && !("cause" in decoded) && decoded.kind).toBe("pre-command");
       const out = Bun.spawnSync([installed, "hook", "pre", "--harness", harness], { cwd: outside, env: process.env, stdin: Buffer.from(raw), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
-      if (harness === "agy") { expect(out.exitCode).toBe(0); expect(JSON.parse(out.stdout.toString()).decision).toBe("deny"); }
-      else if (harness === "cursor") { expect(out.exitCode).toBe(0); expect(JSON.parse(out.stdout.toString()).permission).toBe("deny"); }
-      else { expect(out.exitCode).toBe(2); expect(out.stderr.toString().length).toBeGreaterThan(0); }
+      expect(out.exitCode, `${harness} ${command}\n${out.stderr.toString()}`).toBe(0);
+      expect(out.stdout.toString(), command).not.toContain('"deny"');
     }
     for (const command of ["pregate guide --json", 'echo "pre\'gate\' guide"']) {
       const out = Bun.spawnSync([installed, "hook", "pre", "--harness", harness], { cwd: outside, env: process.env, stdin: Buffer.from(JSON.stringify(payload(harness, command))), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
@@ -549,35 +543,31 @@ test("shell scope admission remains per-root for sibling and nested destinations
     command: `echo changed > '${join(sibling, "other.txt")}'` }).cause).toBe("shell-write");
 });
 
-test.each(["codex", "agy", "cursor"] as const)("%s initial contract review allows the exact approval command and still protects the candidate", async harness => {
+test.each(["codex", "agy", "cursor"] as const)("%s pending review without enable does not enforce the directory", async harness => {
   const root = canonical(join(area, "initial"));
   put(join(root, "src/a.ts"), "export const a = 1;\n");
   const proposal = proposeContract({ root, lockText: "{}", baseline: state.sha256(""), writes: [] });
   const digest = state.sha256(JSON.stringify(proposal));
   const s = session(harness);
   const command = { session: s, callId: "initial-approval", tool: "Bash", cwd: join(root, "src"), command: `pregate approve --yes --digest ${digest}` };
-  expect(inert({ kind: "pre-command", command })).toBe(false);
+  expect(inert({ kind: "pre-command", command })).toBe(true);
   expect(onPreCommand(command).verdict).toBe("none");
-  expect(onPreCommand({ ...command, command: `! ${command.command}` }).verdict).toBe("none");
   for (const script of [`env pregate approve --yes --digest ${digest}`, `sh -c 'pregate approve --yes --digest ${digest}'`, "pregate init --yes", "rm -rf .pregate",
-    "P=pre; ${P}gate approve --yes", "$(echo pregate) approve --yes"]) {
-    const denied = onPreCommand({ ...command, cwd: root, command: script });
-    expect(denied.verdict, script).toBe("deny");
-    if (/\bapprove\b/.test(script)) expect(denied.compact, script).toStartWith("Ask the user to approve. Do not run the approval command yourself.");
+    "P=pre; ${P}gate approve --yes", "$(echo pregate) approve --yes", "pregate approve --preview", `echo ordinary > '${join(root, "src/new.ts")}'`]) {
+    const call = { ...command, cwd: root, command: script };
+    expect(inert({ kind: "pre-command", command: call }), script).toBe(true);
+    expect(onPreCommand(call).verdict, script).toBe("none");
   }
   const write = change(root, PRESET, { form: "full", content: "{}" }, s);
-  expect(inert({ kind: "pre-edit", changes: [write] })).toBe(false);
-  expect((await onPreEdit([write])).cause).toBe("protected-path");
+  expect(inert({ kind: "pre-edit", changes: [write] })).toBe(true);
+  expect((await onPreEdit([write])).verdict).toBe("none");
   expect((await onPreEdit([change(root, "src/a.ts", { form: "full", content: "export const a = ;" }, s)])).verdict).toBe("none");
-  expect(onPreCommand({ ...command, command: "pregate approve --preview" }).verdict).toBe("none");
-  expect(onPreCommand({ ...command, command: `echo ordinary > '${join(root, "src/new.ts")}'` }).verdict).toBe("none");
   expect(readProposal(root)).toEqual(proposal);
   expect(enabled(root)).toBe(false);
   expect(existsSync(join(root, PRESET))).toBe(false);
   expect(state.roots(state.key(s))).toEqual([]);
   const malformed: Rejected = { cause: "payload-unrecognized", kind: "pre-command", reentry: false, session: null, dirs: [join(root, "src")] };
   expect(inert(malformed)).toBe(false);
-  expect(rejected(malformed).verdict).toBe("deny");
 });
 
 function pathScripts(bin: string): void {
@@ -593,7 +583,7 @@ function pathScripts(bin: string): void {
   process.env.Path = process.env.PATH;
 }
 
-test("inactive consent allows installed PATH scripts and skill reads, denies a project write sink, and records it", () => {
+test("a project that was never enabled allows PATH scripts, skill reads, and a project write sink", () => {
   const root = canonical(join(area, "inactive"));
   put(join(root, "src/a.ts"), "export const a = 1;\n");
   git(root, "init", "-q");
@@ -613,13 +603,11 @@ test("inactive consent allows installed PATH scripts and skill reads, denies a p
   expect(command("orca network").verdict).toBe("none");
   expect(command("agent-browser open").verdict).toBe("none");
   expect(command(`cat -- '${skill}'`).verdict).toBe("none");
-  const denied = command("node scripts/write.js");
-  expect(denied.cause).toBe("shell-write");
-  expect(denied.full).toContain("`pregate issue draft --last`");
-  expect(findings(root).some((f) => f.event.form === "shell-write" && f.event.verdict === "deny")).toBe(true);
+  expect(command("node scripts/write.js").verdict).toBe("none");
+  expect(findings(root)).toEqual([]);
 });
 
-test("a pending batch with inactive consent still denies a project write sink and allows an installed launcher", () => {
+test("a pending batch does not enforce a project that was never enabled", () => {
   const root = canonical(join(area, "batched"));
   put(join(root, "src/a.ts"), "export const a = 1;\n");
   git(root, "init", "-q");
@@ -633,22 +621,18 @@ test("a pending batch with inactive consent still denies a project write sink an
   const s = session("claude-code", "batched");
   const command = (text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
   expect(command("orca console").verdict).toBe("none");
-  const denied = command("node scripts/write.js");
-  expect(denied.cause).toBe("shell-write");
-  expect(findings(root).some((f) => f.event.form === "shell-write")).toBe(true);
+  expect(command("node scripts/write.js").verdict).toBe("none");
+  expect(findings(root)).toEqual([]);
 });
 
-test("a denial with no preset does not tell the agent to draft from --last", () => {
+test("pregate uninstall is not denied in a repository that was never enabled", () => {
   const root = canonical(join(area, "nopreset"));
   put(join(root, "src/a.ts"), "export const a = 1;\n");
   git(root, "init", "-q");
   proposeContract({ root, lockText: "{}", baseline: state.sha256(""), writes: [] });
-  const denied = onPreCommand({ session: session("claude-code", "nopreset"), callId: "uninstall", tool: "Bash", cwd: root, command: "pregate uninstall" });
-  expect(denied.verdict).toBe("deny");
-  expect(denied.full).not.toContain("issue draft --last");
-  expect(denied.full).toContain("no preset");
-  expect(denied.compact).not.toContain("issue draft --last");
-  expect(denied.notice ?? "").not.toContain("issue draft --last");
+  const allowed = onPreCommand({ session: session("claude-code", "nopreset"), callId: "uninstall", tool: "Bash", cwd: root, command: "pregate uninstall" });
+  expect(allowed.verdict).toBe("none");
+  expect(findings(root)).toEqual([]);
 });
 
 test("initial review discovery stops at a nested repository and expires without granting consent", () => {
@@ -1908,15 +1892,22 @@ test("agy queues Pre warnings and halt notices for PostInvocation, clears stale 
   expect(inert(postEvent)).toBe(true);
 
   // Mutating Antigravity plugin or IDE settings (and even reading pregate-global) is denied as protected-path.
+  // The hook process is started in the enabled project; that is what protects files outside it.
   const pluginHooks = join(process.env.HOME!, ".gemini/config/plugins/pregate-global/hooks.json");
   put(pluginHooks, "{}\n");
   expect(onPreCommand({ session: s, callId: "cmd-read", tool: "run_command", command: `cat "${pluginHooks}"`, cwd: root })).toMatchObject({ verdict: "deny", cause: "protected-path" });
-  for (const rel of [".gemini/config/plugins/pregate-global/hooks.json", ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json"]) {
-    const target = join(process.env.HOME!, rel);
-    put(target, "{}\n");
-    const edit = await onPreEdit([change(dirname(target), basename(target), { form: "full", content: "{}\n" }, s)]);
-    expect(edit).toMatchObject({ verdict: "deny", cause: "protected-path" });
-    const cmd = onPreCommand({ session: s, callId: "cmd", tool: "run_command", command: `echo '{}' > "${target}"`, cwd: root });
-    expect(cmd).toMatchObject({ verdict: "deny", cause: "protected-path" });
+  const previous = process.cwd();
+  process.chdir(root);
+  try {
+    for (const rel of [".gemini/config/plugins/pregate-global/hooks.json", ".gemini/antigravity/settings.json", ".gemini/antigravity-cli/settings.json"]) {
+      const target = join(process.env.HOME!, rel);
+      put(target, "{}\n");
+      const edit = await onPreEdit([change(dirname(target), basename(target), { form: "full", content: "{}\n" }, s)]);
+      expect(edit).toMatchObject({ verdict: "deny", cause: "protected-path" });
+      const cmd = onPreCommand({ session: s, callId: "cmd", tool: "run_command", command: `echo '{}' > "${target}"`, cwd: root });
+      expect(cmd).toMatchObject({ verdict: "deny", cause: "protected-path" });
+    }
+  } finally {
+    process.chdir(previous);
   }
 });

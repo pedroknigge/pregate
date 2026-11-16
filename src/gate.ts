@@ -1,17 +1,15 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agyNativeAsk, finishContract } from "./approval.ts";
-import { disabledNotice, enabled, explicitlyDisabled } from "./consent.ts";
+import { disabledNotice, enabled, enforcedHere, explicitlyDisabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
-import { withoutPresetDraft } from "./message.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
-import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
+import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
 import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
-import { pendingRoot } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
 import { gitChanges } from "./git-changes.ts";
@@ -133,6 +131,7 @@ function withInstruction(decision: Decision, ask: string): Decision {
 // parent, or an interactive agy session. Accept runs the command the agent proposed. Reject runs
 // nothing. The hook does not apply the contract. Every other session keeps the allow.
 function approvalCommandAsk(c: ProposedCommand, decision: Decision): Decision {
+  if (!enforcedHere(c.cwd)) return decision;
   if (decision.verdict !== "none" || (!claudeNativeAsk(c.session) && !agyNativeAsk(c.session))) return decision;
   const reviews = directApprovalArgv(c.command).flatMap((argv) => {
     const review = approvalAskReview(c.cwd, argv);
@@ -157,36 +156,20 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const sid = state.key(c.session);
   const cwd = canonical(c.cwd);
   const own = findRoot(cwd, () => true);
-  const disabledHere = own !== null && explicitlyDisabled(own);
-  const sessionOn = state.roots(sid).filter((r) => enabled(r));
-  // A human disable covers this checkout even when the session already reached it. A project that
-  // was never enabled keeps the pending review path below. Enforcement runs only where enable does.
-  if (findRoot(cwd, enabled) === null && (sessionOn.length === 0 || disabledHere)) {
-    if (disabledHere && own !== null) return disabledProjectCommand(c, sid, own, startedAt);
-    const pending = pendingRoot(cwd);
-    if (pending === null && !projectUpdateMention(c.command) && !guideMention(c.command)) return told(null);
-    const approval = administrativeApproval(pending, c);
-    if (approval !== null) return approval;
-    const preset = findRoot(cwd, () => true);
-    const ctx = inactiveContext(sid, preset, pending);
-    // A pending review, a pending batch, or a guide mention already selected this command, so a
-    // shell-admin or shell-write is returned. `touched` is the real set: a path inside the pending
-    // review, the preset, or a root this session reached. An allow that touched none of them writes
-    // nothing.
-    const noted = { text: null as string | null };
-    const cause = guard(c.command, cwd, { ...ctx, machineOnly: false, harness: c.session.harness, shellDetail: noted });
-    const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: preset ?? pending, rel: null, startedAt };
-    const o = { ...NOTHING, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" };
-    const decision = cause === null && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
-    return preset === null ? withoutPresetDraft(decision) : decision;
-  }
+  // Disable prints its notice and denies only a write into another worktree this session
+  // still has enabled. That comes before the allow, so the notice is not skipped.
+  if (own !== null && explicitlyDisabled(own)) return disabledProjectCommand(c, sid, own, startedAt);
+  // Same predicate as the hook's inert check. A directory that was never enabled allows.
+  if (!commandGuarded(cwd, c.command, c.session)) return told(null);
   const located = locate(sid, cwd);
   const root = isCause(located) ? null : located;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
   if (isCause(located)) return settle(call, { ...NOTHING, form: locatedForm(sid, located, cwd) });
   const approval = administrativeApproval(root, c);   // a batch code needs no root
   if (approval !== null) return approval;
-  const machineOnly = root === null && state.roots(sid).length === 0;
+  // `enabled` can miss a root after `git init` changes its common dir. The consent record
+  // still names it, so shell-admin is not dropped the way a never-enabled directory is.
+  const machineOnly = root === null && state.roots(sid).length === 0 && !enforcedHere(cwd);
   const snap = root === null ? null : state.ensureSnapshot(sid, root, null);
   if (isCause(snap)) return settle(call, { ...NOTHING, form: form(snap) });
   // Finalize an already approved contract before reading its protected source folders.
@@ -204,7 +187,7 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
 
 // A named shell-admin denial carries its own sentence. Every other cause keeps the generic text.
 function commandForm(cause: Cause | null, detail: string | null) {
-  return cause === null ? null : form(cause, undefined, cause === "shell-admin" ? detail : null);
+  return cause === null ? null : form(cause, undefined, cause === "shell-admin" || cause === "shell-write" ? detail : null);
 }
 
 // The human disabled this checkout. Nothing here is denied: shell-admin, hook-switch, approval,
@@ -238,36 +221,6 @@ function enforcedElsewhere(own: string, others: string[], p: string): boolean {
   } catch {
     return false; // fail-closed: an unresolvable path is not enforced from a disabled checkout
   }
-}
-
-// Consent is off, and no enabled session root is in play. Paths inside the pending review, the
-// preset, or a root this session already reached still count as the project: `touched` is that
-// set, and a script installed outside it is not project code.
-function inactiveContext(sid: string, preset: string | null, pending: string | null): GuardContext {
-  const globs = machine();
-  const known = [...new Set([...(preset === null ? [] : [preset]), ...(pending === null ? [] : [pending]), ...state.roots(sid)])];
-  let touched = false;
-  const note = (p: string): void => {
-    try {
-      const abs = canonical(p);
-      touched ||= known.some((r) => within(r, abs));
-    } catch (error) {
-      if (!["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) throw error;
-    }
-  };
-  return {
-    launcher: launcher(), engines: engineHome(),
-    isProtected: (p) => { note(p); return protects(canonical(p), globs); },
-    inScope: (p) => { note(p); return false; },
-    under: (p) => { note(p); return false; },
-    touched: () => touched,
-    skillRead: (p) => configurationRead(sid, preset ?? pending, p, true),
-    readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
-    outsideRoots: (p) => {
-      const abs = canonical(p);
-      return findRoot(dirname(abs), enabled) === null && !known.some((r) => within(r, abs));
-    },
-  };
 }
 
 // issue submit, feedback apply and storage apply stay on a separate terminal. `pregate approve`

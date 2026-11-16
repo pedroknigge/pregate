@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { approvalDeadline, pendingContract, proposeContract } from "./approval.ts";
-import { disabledNotice, enabled, explicitlyDisabled } from "./consent.ts";
+import { disabledNotice, enabled, enforcedHere, explicitlyDisabled } from "./consent.ts";
 import { bundledBetween, contractDiff, sourceDiff, validateContract } from "./contract.ts";
-import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, recompiled, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
+import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, recompiled, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
@@ -20,7 +20,6 @@ import { adviseText, denyText, formText, syntaxAdvisory, unresolvedAdvisory, war
 import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { checkpoint, importReviewProgress } from "./progress.ts";
-import { pendingRoot } from "./proposal.ts";
 import { comparedLock, introduced } from "./ratchet.ts";
 import { apply, normalize, window } from "./reconstruct.ts";
 import type { Recorded } from "./report.ts";
@@ -225,8 +224,10 @@ function invocationRoots(session: Session): string[] {
   for (const dir of [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT]) {
     if (typeof dir !== "string" || !absolutePath(dir)) continue;
     try {
-      const root = findRoot(canonical(dir), enabled);
-      if (root !== null) found.add(root);
+      if (enforcedHere(dir)) {
+        const root = findRoot(canonical(dir), enabled);
+        if (root !== null) found.add(root);
+      }
     } catch (error) {
       // A path with no existing ancestor is not a project. A symlink loop or any other
       // failure stays a failure: canonical() denies those on purpose.
@@ -243,7 +244,7 @@ function machineEdit(changes: ProposedChange[], paths: string[], startedAt: numb
   const session = changes[0]?.session;
   if (session === undefined) return null;
   const sid = state.key(session);
-  const known = [...new Set([...invocationRoots(session), ...state.roots(sid).filter((r) => enabled(r))])];
+  const known = invocationRoots(session);
   const root = known[0];
   if (root === undefined) return null;
   const globs = globsOf(sid, root, null);
@@ -276,11 +277,6 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
         return decide(inputOf(call, PROTECTED));
       }
     }
-    const root = pendingRoot(dirname(abs));
-    if (root !== null && !enabled(root) && protects(abs, machine())) {
-      const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root, rel: relative(root, abs), startedAt };
-      return decide(inputOf(call, { ...NOTHING, form: form("protected-path"), protectedPath: true }));
-    }
   }
   // A fresh session has not registered a root yet. The hook was still started from an enabled
   // project (cwd or the harness project variable): user-level harness files and the launcher
@@ -288,7 +284,8 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   const outside = machineEdit(changes, paths, startedAt);
   if (outside !== null) return outside;
   // A human disabled this checkout. Edits here, including harness settings and `.pregate/`, are not
-  // judged. A file in a worktree that is still enabled is not this case.
+  // judged. A file in a worktree that is still enabled is not this case. The notice comes first,
+  // because a disabled checkout is also not `enforcedHere`.
   const disabledEdit = (i: number): boolean => {
     const dir = dirname(paths[i]!);
     const root = findRoot(dir, () => true);
@@ -301,8 +298,11 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
     const root = cwdRoot ?? findRoot(dirname(paths[0]!), () => true);
     return told(null, root === null ? "" : disabledNotice(root));
   }
-  // Outside every root, there is no reason to read or reconstruct the files being written.
-  if (changes.every((c, i) => findRoot(dirname(paths[i]!), enabled) === null && state.roots(state.key(c.session)).filter((r) => enabled(r)).length === 0)) return told(null);
+  // A file outside every enabled project, and a hook that was not started from one, is not
+  // enforced. Another project this session reached, and a pending review, do not change that.
+  const session = changes[0]?.session;
+  const invoked = session === undefined ? [] : invocationRoots(session);
+  if (paths.every((abs) => !enforcedHere(dirname(abs))) && invoked.every((dir) => !enforcedHere(dir))) return told(null);
   const planned = changes.map((c, i) => plan(c, paths[i]!));
   const overlay: Overlay = new Map(planned.filter((p) => p.r.status === "exact").map((p) => [pathKey(p.abs), p.r.after]));
   const approved = await contractEdit(planned, overlay, startedAt);

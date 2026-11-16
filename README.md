@@ -267,7 +267,7 @@ A repository can register Claude Code on its own, without a machine-wide setup. 
 
 Project-rule hooks need local consent. A preset committed by someone else does not activate them. Read the [installation guide](docs/guides/installation.md) for exact paths, backups, updates, checksum verification, and signatures.
 
-- `pregate disable` revokes current-worktree consent and withdraws repository-wide consent after human confirmation. Global hooks remain. While a consent record exists, the shell guard can still reject changes to Pregate's installation and hook settings.
+- `pregate disable` revokes current-worktree consent and withdraws repository-wide consent after human confirmation. Global hooks remain installed. They enforce a directory only where `pregate enable` is in effect. A repository that was never enabled is not blocked: pre-command and pre-edit exit 0, and SessionStart may print one line. A disabled checkout is not blocked either, except a write that lands in a different worktree that is still enabled. The hook may print one line that it is disabled.
 - `pregate uninstall` removes owned global hook registrations, launcher, engines, and companion skill. Repository contracts and the original `.pregate.bak` settings backups remain.
 - `pregate uninstall --purge` also deletes local session and consent state. It still leaves repository contracts alone.
 

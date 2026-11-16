@@ -1,13 +1,13 @@
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { enabled, explicitlyDisabled } from "./consent.ts";
+import { enabled, enforcedHere, explicitlyDisabled } from "./consent.ts";
 import { canonical, findRoot } from "./disk.ts";
 import { repositoryFailure } from "./git.ts";
 import { absolutePath, pathKey } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { pendingRoot, readBatch } from "./proposal.ts";
-import { guideCommandMention } from "./shell.ts";
+import { guideCommandMention, literalPaths } from "./shell.ts";
 import { hasPostInvocation, key, roots } from "./state.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { VERSIONS } from "./versions.ts";
@@ -54,9 +54,10 @@ export function launcher(): string {
   return join(engineHome(), "bin", WINDOWS ? "pregate.cmd" : "pregate");
 }
 
-// Match the gate's existing rootless behavior before loading the parser/catalog graph. Previously
-// accepted roots remain significant even when this call names only a file outside the project.
-function disabledWorktree(dir: string): boolean {
+// A disabled checkout is not enforced, but the gate still loads so it can print one notice.
+// `explicitlyDisabled` is the disable record. `enforcedHere` is the enable record, and it is
+// already false after disable.
+function disabledCheckout(dir: string): boolean {
   try {
     const root = findRoot(canonical(dir), () => true);
     return root !== null && explicitlyDisabled(root);
@@ -66,58 +67,64 @@ function disabledWorktree(dir: string): boolean {
   }
 }
 
+function here(dir: string): boolean {
+  try { return enforcedHere(dir); }
+  catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    throw error;
+  }
+}
+
+// The guard runs for this command when the cwd was enabled, when the command updates
+// another enabled project, or when it names a path inside a root this session already
+// reached. A directory that was never enabled stays quiet. Disable is decided before
+// this predicate, so its notice still prints.
+export function commandGuarded(cwd: string, command: string, session: Session): boolean {
+  if (here(cwd) || namesProjectUpdate(command)) return true;
+  const reached = roots(key(session)).filter((root) => enabled(root));
+  return reached.length > 0 && literalPaths(command, cwd).some((abs) => reached.some((root) => within(root, abs)));
+}
+
 export function inert(event: HookEvent | Rejected): boolean {
-  const active = (dir: string) => {
-    const path = canonical(dir);
-    return findRoot(path, enabled) !== null || pendingRoot(path) !== null;
-  };
-  const accepted = (session: Session | null) => session !== null && roots(key(session)).some((r) => enabled(r));
-  if ("cause" in event) return !accepted(event.session)
-    && !(event.dirs.length === 0 ? active(process.cwd()) : event.dirs.some(active));
+  // A payload the adapter could not read is a protocol error, not enforcement of the directory.
+  if ("cause" in event) return false;
   if (event.kind === "pre-edit") {
-    // A disabled checkout still loads the gate so it can say, once, that it is not enforcing. A
-    // project that was never enabled stays inert, so a pending review is what loads the gate there.
-    if (disabledWorktree(process.cwd()) || event.changes.some((c) => disabledWorktree(dirname(canonical(c.path))))) return false;
-    // A file outside the project used to skip the gate on a fresh session. The shell guard still
-    // sees the project through cwd. Do the same for edits when this process was started there,
-    // so user-level harness files and the launcher are not inert.
-    const rooted = event.changes.some((c) => accepted(c.session) || active(dirname(canonical(c.path))));
-    if (rooted) return false;
+    // A disabled checkout still loads the gate so it can say, once, that it is not enforcing.
+    if (disabledCheckout(process.cwd()) || event.changes.some((c) => disabledCheckout(dirname(canonical(c.path))))) return false;
+    if (event.changes.some((c) => here(dirname(canonical(c.path))))) return false;
+    // The hook was started for an enabled project: user-level harness files stay protected.
     const invoked = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT];
-    return !invoked.some((dir) => {
-      if (typeof dir !== "string" || !absolutePath(dir)) return false;
-      try { return active(dir); }
-      catch (error) {
-        if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
-        throw error;
-      }
-    });
+    return !invoked.some((dir) => typeof dir === "string" && absolutePath(dir) && here(dir));
   }
   // A session that reached a root is judged at Stop even when its consent is gone: Stop warns.
   // No snapshot yet: an enabled project Git cannot read still denies. A readable repository
   // this session never reached stays quiet, without loading the gate.
   if (event.kind === "stop") {
     if (roots(key(event.session)).length > 0) return false;
-    const here = findRoot(canonical(event.cwd), enabled);
-    return here === null || repositoryFailure(here) === null;
+    const hereRoot = findRoot(canonical(event.cwd), enabled);
+    return hereRoot === null || repositoryFailure(hereRoot) === null;
   }
   if (event.kind === "post-invocation") return !hasPostInvocation(key(event.session));
   if (event.kind === "pre-command") {
     // `pregate disable` turns this checkout off. The gate runs so it can print one notice, then
-    // allows the command. A project that was never enabled stays on the pending-review path.
-    if (disabledWorktree(event.command.cwd)) return false;
-    return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
+    // allows the command. A project that was never enabled does not load the guard.
+    if (disabledCheckout(event.command.cwd)) return false;
+    return !commandGuarded(event.command.cwd, event.command.command, event.command.session);
   }
-  return !accepted(event.session) && !active(event.cwd);
+  return !here(event.cwd);
 }
 
 // Cross-project updates, and the pending batch approval they prepare, can affect consenting
 // worktrees even from an inactive cwd. This only loads the normal shell guard; quoted mentions
 // still get ordinary parsing. While a batch is pending every command is guarded: a batch approves
 // from any directory, and a spliced name (`pre''gate approve`) defeats any text match.
+function namesProjectUpdate(command: string): boolean {
+  return /\bpregate(?:\.exe|\.cmd)?\b/i.test(command) && command.includes("--projects") && /\bupdate\b/.test(command);
+}
+
 export function projectUpdateMention(command: string): boolean {
   if (readBatch() !== null) return true;
-  return /\bpregate(?:\.exe|\.cmd)?\b/i.test(command) && command.includes("--projects") && /\bupdate\b/.test(command);
+  return namesProjectUpdate(command);
 }
 
 // The guide can select projects outside its cwd. This is only a conservative loading hint;
