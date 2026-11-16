@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { approvalDeadline, pendingContract, proposeContract } from "./approval.ts";
-import { enabled } from "./consent.ts";
+import { enabled, explicitlyDisabled } from "./consent.ts";
 import { bundledBetween, contractDiff, sourceDiff, validateContract } from "./contract.ts";
 import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, recompiled, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { blocking, decide, merge } from "./decide.ts";
@@ -287,6 +287,26 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   // are protected there, the same paths the shell guard denies.
   const outside = machineEdit(changes, paths, startedAt);
   if (outside !== null) return outside;
+  // A human disabled this worktree. Its source edits are not judged. Machine files (harness
+  // settings, the launcher, consent and approval records, `.pregate/`) stay protected, which is
+  // what stops an agent re-enabling itself by writing those files. A file in a worktree that is
+  // still enabled is not this case.
+  const disabledEdit = (i: number): boolean => {
+    const dir = dirname(paths[i]!);
+    const root = findRoot(dir, () => true);
+    return root !== null && explicitlyDisabled(root) && findRoot(dir, enabled) === null;
+  };
+  const cwdRoot = findRoot(canonical(process.cwd()), () => true);
+  const cwdDisabled = cwdRoot !== null && explicitlyDisabled(cwdRoot);
+  const outsideEnabled = changes.every((_, i) => findRoot(dirname(paths[i]!), enabled) === null);
+  if (changes.length > 0 && outsideEnabled && (cwdDisabled || changes.every((_, i) => disabledEdit(i)))) {
+    const hit = changes.findIndex((_, i) => protects(paths[i]!, machine()));
+    if (hit < 0) return told(null);
+    const abs = paths[hit]!, c = changes[hit]!;
+    const root = findRoot(dirname(abs), () => true) ?? cwdRoot ?? abs;
+    const call: Call = { session: c.session, kind: "pre-edit", callId: c.callId, abs, root, rel: relative(root, abs), startedAt };
+    return decide(inputOf(call, { ...NOTHING, form: form("protected-path"), protectedPath: true }));
+  }
   // Outside every root, there is no reason to read or reconstruct the files being written.
   if (changes.every((c, i) => findRoot(dirname(paths[i]!), enabled) === null && state.roots(state.key(c.session)).filter((r) => enabled(r)).length === 0)) return told(null);
   const planned = changes.map((c, i) => plan(c, paths[i]!));

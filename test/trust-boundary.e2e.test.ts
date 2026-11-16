@@ -263,7 +263,10 @@ test("Stop and status warn when consent is disabled or removed during a session"
     expect(said(stop)).toContain(canonical(r.dir));
     const status = cli(r, ["status"]);
     expect(status.code).toBe(0);
-    expect(said(status), tamper).toContain("consent was active in");
+    // Explicit disable is a recorded human action. The old line warned that a script may have
+    // removed consent, which is the message for a missing record, not for pregate disable.
+    if (tamper === "disabled") expect(said(status), tamper).toContain("This worktree is disabled. Pre-command and pre-edit do not block it.");
+    else expect(said(status), tamper).toContain("consent was active in");
   }
 });
 

@@ -39,6 +39,14 @@ explicitly.
 without running commands. An active setup does not mean every requirement has
 proof; an unverified requirement is not a protected assertion.
 
+## Turning protection off
+
+`pregate disable` is a human command, run in a terminal in the worktree. It does not ask an agent to do it. After it, `pregate status` says this worktree is disabled: pre-command and pre-edit no longer block ordinary work here, including launching another program and `git commit --no-verify`. The agent still cannot re-enable (`pregate enable`), uninstall, switch hooks off, edit harness settings, or record an approval (`pregate approve --yes`). Those stay denied so disabling the worktree is not a way to forge a contract. The human runs `pregate enable` to turn protection back on. A worktree that was never enabled is different: an open review there still guards project writes.
+
+## Launching another harness
+
+An agent may launch a harness that already has PREGATE hooks. Global hooks come from `pregate setup`. Project hooks for Claude Code, Codex, Cursor and agy come from `pregate project hooks --harness <id>`. `claude` and `claude-code` are the same installation, as are `agy` and `antigravity`, `cursor`, `cursor-agent` and `agent`, and `opencode` and `opencode-ai`. A prompt may mention pregate. `claude -p "update the pregate docs"` is allowed when Claude Code is gated. Flags that skip permissions (`--dangerously-skip-permissions`, `--yolo`, `--dangerously-bypass-approvals-and-sandbox`) and commands that manage hooks stay denied. Launching a harness that is not gated is denied with that harness's name and the command that gates it. Gemini, Qwen, Copilot, Kilo, Amp, Droid, Auggie, Junie, Kiro, Cline and Aider have no PREGATE registration.
+
 `doctor` reports whether each detected harness has the required launcher
 registration. Direct engine hook calls lack the launcher's crash and timeout
 handling. A successful canary on the generated wrapper route does not clear

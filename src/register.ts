@@ -363,6 +363,23 @@ export function drift(m: MachineFiles, repo: RepoFiles | null, data: string, tru
   return out;
 }
 
+// A project file that turns one harness's hooks off. It must not un-gate the others: a repo
+// `.agents` file that mentions pregate is an agy concern, and `disableAllHooks` is Claude's
+// (and the Cursor and Grok sessions that read that same file).
+export function projectSwitchesOff(repo: RepoFiles | null): Set<HarnessId> {
+  const off = new Set<HarnessId>();
+  for (const [path, text] of Object.entries(repo ?? {})) {
+    if (/(^|\/)\.claude\/settings[^/]*\.json$/.test(path) && hooksOff(text)) {
+      off.add("claude-code");
+      off.add("cursor");
+      off.add("grok");
+    }
+    if (/(^|\/)\.codex\/config\.toml$/.test(path) && toml(text, ["features", "hooks"]) === "false") off.add("codex");
+    if (/(^|\/)\.grok\/config\.toml$/.test(path) && toml(text, ["compat", "claude", "hooks"]) === "false") off.add("grok");
+  }
+  return off;
+}
+
 // Use the same exact-registration and trust checks as doctor, independently for each harness.
 export function gated(m: MachineFiles, repo: RepoFiles | null, data: string, trust: Record<string, string>): Set<HarnessId> {
   const empty: MachineFiles = { claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null };

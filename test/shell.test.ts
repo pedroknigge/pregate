@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { inScope, machineGlobs, protectedGlobs, protects, scopeUnder } from "../src/paths.ts";
-import { guard, guideCommandMention, recoveryCommand } from "../src/shell.ts";
+import { guard, guideCommandMention, recoveryCommand, ungatedHarnessMessage } from "../src/shell.ts";
 import type { Cause, HarnessId, Lock } from "../src/types.ts";
 
 // The context the gate builds: real protections and a real scope over a repository at /repo.
@@ -194,6 +194,43 @@ describe("D24 gated harness invocation", () => {
   });
   test("denies a target absent from the gated set", () => {
     expect(guard("grok -p review", ROOT, { ...ctx, gated: new Set(["codex"]) })).toBe("shell-admin");
+  });
+  // A prompt is not a hook switch, including one word that is only "pregate". The old check treated
+  // every harness argument matching /hooks|pregate/ as a hook switch; that expectation was the bug.
+  test("a prompt that mentions pregate or hooks is not a hook switch", () => {
+    for (const command of [
+      'codex exec "update the pregate docs"', 'claude -p "update the pregate docs"', "codex exec pregate",
+      'claude -p "fix the git hooks"', 'agy -p "--yolo is not this prompt"', "cursor-agent -p pregate",
+    ]) {
+      expect(guard(command, ROOT, { ...ctx, gated }), command).toBeNull();
+      expect(guard(command, ROOT, ctx), command).toBe("shell-admin");
+    }
+  });
+  test("aliases, extensions, absolute paths and package runners follow the gated harness", () => {
+    for (const command of [
+      "claude-code -p review", "antigravity -p review", "cursor -p review", "agent -p review",
+      "/opt/homebrew/bin/claude.exe -p review", "npx @anthropic-ai/claude-code -p review",
+      "bunx @openai/codex exec review", "node node_modules/@anthropic-ai/claude-code/cli.js -p review",
+    ]) expect(guard(command, ROOT, { ...ctx, gated }), command).toBeNull();
+  });
+  test.each([
+    "claude --dangerously-skip-permissions -p review", "claude --yolo",
+    "codex --dangerously-bypass-approvals-and-sandbox exec review",
+  ])("denies a permission skip %s even with a gated target", (command) => {
+    expect(guard(command, ROOT, { ...ctx, gated })).toBe("hook-switch");
+  });
+  test("an ungated launch names the harness and the command that gates it", () => {
+    const gemini = { text: null as string | null };
+    expect(guard("gemini -p x", ROOT, { ...ctx, shellDetail: gemini })).toBe("shell-admin");
+    expect(gemini.text).toContain("gemini");
+    expect(gemini.text).toContain("pregate setup");
+    expect(gemini.text).not.toContain("project hooks --harness gemini");
+    const aider = { text: null as string | null };
+    expect(guard("aider --yes", ROOT, { ...ctx, shellDetail: aider })).toBe("shell-admin");
+    expect(aider.text).toContain("aider");
+    expect(aider.text).toContain("no PREGATE registration");
+    expect(ungatedHarnessMessage("claude")).toContain("pregate project hooks --harness claude-code");
+    expect(ungatedHarnessMessage("codex")).toContain("pregate setup");
   });
 });
 

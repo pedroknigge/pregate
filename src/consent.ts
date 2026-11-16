@@ -56,6 +56,19 @@ function gitDirectory(marker: string, root: string): string {
   return resolve(root, path.trim());
 }
 
+// A human ran `pregate disable` for this worktree. Distinct from a project that was never enabled:
+// a pending review still guards a project with no record, and a disabled record stops that.
+export function explicitlyDisabled(root: string, data = dataHome()): boolean {
+  const here = canonical(root);
+  const directory = join(data, "consent");
+  if (!existsSync(directory)) return false;
+  for (const name of readdirSync(directory).filter((n) => n.endsWith(".json"))) {
+    const record = consentRecord(join(directory, name));
+    if (record !== null && typeof record.root === "string" && samePlace(record.root, here) && record.disabled === true) return true;
+  }
+  return false;
+}
+
 export function enabled(root: string, data = dataHome()): boolean {
   const here = canonical(root);
   const common = commonDir(root);
@@ -133,6 +146,7 @@ function consentRecord(path: string): { root?: unknown; disabled?: unknown; repo
 
 export function status(root: string | null): string {
   if (root === null) return "This directory has no preset. Run `pregate init`.";
+  if (explicitlyDisabled(root)) return `Local consent is inactive (disabled for this worktree) in ${canonical(root)}. Pre-command and pre-edit do not block it. An agent still cannot re-enable, uninstall, switch hooks off, edit harness settings, or record an approval. The human runs \`pregate enable\`.`;
   return enabled(root)
     ? `Local consent is active in ${canonical(root)} for this worktree or its repository. Consent is not enforced coverage.`
     : `Local consent is inactive in ${canonical(root)}. Run \`pregate enable\`. A committed preset is not consent.`;

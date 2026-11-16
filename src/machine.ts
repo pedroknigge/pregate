@@ -16,7 +16,8 @@ import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
-import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, registered, type Target, unmerge, unmergeOpencode } from "./register.ts";
+import { HARNESS_NAMES } from "./shell.ts";
+import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStartOwned, cursorStopOwned, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, projectSwitchesOff, registered, type Target, unmerge, unmergeOpencode } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
 import { powershellCommand, PS_MODULES, psQuote } from "./windows-command.ts";
 import { slash } from "./paths.ts";
@@ -1126,18 +1127,32 @@ export function gatedHarnesses(root: string | null): Set<string> {
     ".agents/hooks.json", ".agents/plugins.json", ".agent/hooks.json", ".agent/plugins.json",
   ].flatMap((f) => { const text = root === null ? null : read(join(root, f)); return text === null ? [] : [[f, text]]; }));
   const empty: MachineFiles = { claude: [], codexHooks: null, codexConfig: null, grokConfig: null, agyHooks: null, agyConfig: null, cursorHooks: null };
+  const cursorText = read(join(p.home, ".cursor/hooks.json"));
+  // Global registrations are judged on their own files. A project file that names pregate, or that
+  // turns one harness off, must not make every other global harness look ungated.
   const ids = gated({
     claude: p.shared.map(read), codexHooks: read(join(p.codexHome, "hooks.json")), codexConfig: read(join(p.codexHome, "config.toml")),
     grokConfig: read(join(p.grokHome, "config.toml")), agyHooks: read(join(p.plugin, "hooks.json")),
-    agyConfig: read(join(p.home, ".gemini/config/config.json")), cursorHooks: read(join(p.home, ".cursor/hooks.json")),
-  }, repo, p.data, trusts(p));
+    agyConfig: read(join(p.home, ".gemini/config/config.json")), cursorHooks: cursorText,
+  }, null, p.data, trusts(p));
+  // Cursor and Grok run the shared Claude registration (MH-04). A native Cursor hooks file is not
+  // required, and a foreign one must not hide a good shared registration.
+  const sharedCursor = ids.has("claude-code");
+  if (sharedCursor) ids.add("cursor");
+  const nativeCursor = cursorStopOwned(cursorText, p.data) && cursorStartOwned(cursorText, p.data);
+  if (nativeCursor) ids.add("cursor");
   if (opencodeGated(p)) ids.add("opencode");
   if (process.env.GROK_CLAUDE_HOOKS_ENABLED === "0") ids.delete("grok");
-  // The project's own registration gates Claude Code or Antigravity here without a global one.
+  // The project's own registration gates Claude Code, Cursor or Antigravity here without a global one.
+  const projectCursor = root !== null && registered(read(join(root, PROJECT_CURSOR_HOOKS)), "project-cursor", p.data);
   if (registered(repo[PROJECT_SETTINGS] ?? null, "project", p.data) && !Object.keys(repo).some((f) => f.startsWith(".claude/") && parse(repo[f]!)?.disableAllHooks === true)) ids.add("claude-code");
-  if (root !== null && registered(read(join(root, PROJECT_CURSOR_HOOKS)), "project-cursor", p.data)) ids.add("cursor");
+  if (projectCursor) ids.add("cursor");
   if (registered(repo[PROJECT_AGY_HOOKS] ?? null, "project-agy", p.data) && drift(empty, repo, p.data, {}).length === 0) ids.add("agy");
-  return new Set([...ids].flatMap((h) => BINARIES[h]));
+  for (const id of projectSwitchesOff(repo)) {
+    if (id === "cursor" && (nativeCursor || projectCursor)) continue;
+    ids.delete(id);
+  }
+  return new Set([...ids].flatMap((h) => [...HARNESS_NAMES[h]]));
 }
 
 // Present harness → its binary on the PATH, or null when only its home exists.

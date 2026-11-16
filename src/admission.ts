@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { enabled } from "./consent.ts";
+import { enabled, explicitlyDisabled } from "./consent.ts";
 import { canonical, findRoot } from "./disk.ts";
 import { repositoryFailure } from "./git.ts";
 import { absolutePath, pathKey } from "./paths.ts";
@@ -56,6 +56,16 @@ export function launcher(): string {
 
 // Match the gate's existing rootless behavior before loading the parser/catalog graph. Previously
 // accepted roots remain significant even when this call names only a file outside the project.
+function disabledWorktree(dir: string): boolean {
+  try {
+    const root = findRoot(canonical(dir), () => true);
+    return root !== null && explicitlyDisabled(root);
+  } catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    throw error;
+  }
+}
+
 export function inert(event: HookEvent | Rejected): boolean {
   const active = (dir: string) => {
     const path = canonical(dir);
@@ -65,6 +75,9 @@ export function inert(event: HookEvent | Rejected): boolean {
   if ("cause" in event) return !accepted(event.session)
     && !(event.dirs.length === 0 ? active(process.cwd()) : event.dirs.some(active));
   if (event.kind === "pre-edit") {
+    // A disabled worktree still has to refuse harness settings and other machine files. A project
+    // that was never enabled stays inert, so a pending review is what loads the gate there.
+    if (disabledWorktree(process.cwd()) || event.changes.some((c) => disabledWorktree(dirname(canonical(c.path))))) return false;
     // A file outside the project used to skip the gate on a fresh session. The shell guard still
     // sees the project through cwd. Do the same for edits when this process was started there,
     // so user-level harness files and the launcher are not inert.
@@ -89,7 +102,12 @@ export function inert(event: HookEvent | Rejected): boolean {
     return here === null || repositoryFailure(here) === null;
   }
   if (event.kind === "post-invocation") return !hasPostInvocation(key(event.session));
-  if (event.kind === "pre-command") return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
+  if (event.kind === "pre-command") {
+    // `pregate disable` turns this worktree off. The gate still has to deny re-enable, uninstall
+    // and a forged approval; ordinary commands are allowed once it runs.
+    if (disabledWorktree(event.command.cwd)) return false;
+    return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
+  }
   return !accepted(event.session) && !active(event.cwd);
 }
 
