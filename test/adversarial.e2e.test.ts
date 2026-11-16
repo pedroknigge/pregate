@@ -478,7 +478,11 @@ test("a linked worktree inherits consent and a clone does not", () => {
   const clone = { dir: cloneDir, env: envOf() };
   silent(claude(clone).write("src/domain/pay.ts", bad));
   ok(cli(work, "disable", "--yes"), "disable worktree");
-  silent(hook.write("src/domain/later.ts", bad));
+  const later = hook.write("src/domain/later.ts", bad);
+  expect(later.code, `${later.stdout}\n${later.stderr}`).toBe(0);
+  expect(later.stderr).toBe("");
+  expect(later.stdout).toContain("PREGATE is disabled for this worktree");
+  expect(later.stdout).not.toContain("PREGATE DENY");
   denied(claude(r).write("src/domain/main.ts", bad), "clean-code/CC-ER-002");
   const other = join(TMP, "worktrees", randomUUID());
   ok(git(r, "worktree", "add", "-q", "-b", `other-${randomUUID()}`, other), "second worktree");

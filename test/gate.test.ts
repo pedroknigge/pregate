@@ -988,19 +988,22 @@ test("D28: a clone is inert until locally enabled; a worktree of a consenting re
     expect(enabled(dir)).toBe(false);
     expect((await onPreEdit([c])).verdict).toBe("none");
   }
-  // A worktree disable stays on that checkout. Repository consent remains, so a new worktree inherits it.
+  // A worktree disable withdraws repository consent. The checkout enabled by name stays enabled,
+  // and a worktree added afterwards does not inherit. Project disable turns those off too.
   expect(enabled(root)).toBe(true);
   const other = canonical(join(area, "worktree-2"));
   git(root, "worktree", "add", "-q", other, "-b", "consent-test-2");
+  expect(enabled(other)).toBe(false);
+  expect(enabled(worktree)).toBe(false);
+  enable(root);
   expect(enabled(other)).toBe(true);
   expect(enabled(worktree)).toBe(false);
-  // A project disable turns every checkout off, including one enabled by name. Enabling again
-  // restores the repository; a worktree disabled by name stays off.
   disableProject(root);
   expect(enabled(root)).toBe(false);
   expect(enabled(other)).toBe(false);
   expect(enabled(worktree)).toBe(false);
   enable(root);
+  expect(enabled(root)).toBe(true);
   expect(enabled(other)).toBe(true);
   expect(enabled(worktree)).toBe(false);
 });

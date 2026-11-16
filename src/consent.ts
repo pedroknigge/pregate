@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { canonical, samePlace, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
@@ -142,9 +142,13 @@ export function enable(root: string, data = dataHome()): void {
   if (existsSync(join(root, ".git")) && common !== canonical(root)) writeAtomic(repoFile(common, data), JSON.stringify({ repo: common }) + "\n");
 }
 
-// This checkout only. Other worktrees keep the repository consent, including ones that inherit it.
+// This checkout, and the repository consent other worktrees were inheriting. A worktree enabled by
+// name keeps its own record. A project-level disable record is left in place.
 export function disable(root: string, data = dataHome()): void {
   const common = commonDir(root);
+  const repo = repoFile(common, data);
+  const record = existsSync(repo) ? consentRecord(repo) : null;
+  if (record === null || record.disabled !== true) rmSync(repo, { force: true });
   const path = file(root, data);
   mkdirSync(dirname(path), { recursive: true });
   writeAtomic(path, JSON.stringify({ root: canonical(root), common, disabled: true, scope: "worktree" }) + "\n");

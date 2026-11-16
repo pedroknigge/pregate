@@ -10,7 +10,8 @@ repository on this machine. Every other worktree of the same repository is prote
 without another approval: a branch checked out beside the main one, or the isolated
 worktree Claude Code creates for a subagent under `.claude/worktrees/`. Each worktree
 is judged by its own committed contract. A human can turn one worktree off with
-`pregate disable` in a separate terminal. That leaves the rest of the repository enforced, including a worktree that only inherited consent. `pregate disable --project` turns the whole repository off, including worktrees enabled by name. `pregate status` says which scope applies. A clone is a different
+`pregate disable` in a separate terminal. That also withdraws the repository-wide
+consent. Worktrees that were enabled by name stay enabled, and a worktree added afterwards is inert until enabled. `pregate disable --project` turns the whole repository off, including worktrees enabled by name. `pregate status` says which scope applies. A clone is a different
 repository and needs its own consent.
 
 A checkout nested inside the project, such as an agent worktree or a vendored clone,
