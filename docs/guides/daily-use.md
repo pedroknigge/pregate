@@ -304,8 +304,9 @@ apply; an unrelated enforcing rule does not turn all files into a syntax gate.
 ## Capture a tool issue
 
 `dispute --last` prepares a local candidate fixture retaining the observed source
-and baseline. It does not change active rules. `issue draft --last --note "Expected behavior"`
-prepares an offline report to PREGATE's GitHub repository. Inspect `issue show <digest>`.
+and baseline. It does not change active rules. `issue draft --last --note "Expected behavior"`,
+from a directory that has a preset, prepares an offline report to PREGATE's GitHub
+repository. Inspect `issue show <digest>`.
 Ordinary drafts omit source by default; `--include-code` or a public `--repro`
 requires explicit review. Only human-approved `issue submit <digest> --yes`
 publishes. Auth/network failures preserve drafts; interrupted publication retains

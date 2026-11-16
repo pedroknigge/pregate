@@ -27,6 +27,14 @@ const WORD = /^[A-Za-z0-9@/._-]+$/;   // a shell word that needs no quoting (`$`
 const EMPTY: Text = { compact: "", full: "" };
 
 const ISSUE = "Ask the user whether to report this finding to the native PREGATE GitHub repository. Prepare a review with `pregate issue draft --last`; code is omitted unless explicitly included. Publication requires human approval in a separate terminal.";
+const NO_PRESET_REPORT = "Ask the user whether to report this finding to the native PREGATE GitHub repository. This directory has no preset, so a draft cannot be prepared from here. Publication requires human approval in a separate terminal.";
+
+// `issue draft` reads the preset in the working directory. A denial there must not name a command
+// that cannot run.
+export function withoutPresetDraft<T extends { compact: string; full: string; notice: string | null }>(decision: T): T {
+  const swap = (text: string): string => text.includes(ISSUE) ? text.replaceAll(ISSUE, NO_PRESET_REPORT) : text;
+  return { ...decision, compact: swap(decision.compact), full: swap(decision.full), notice: decision.notice === null ? null : swap(decision.notice) };
+}
 export const POLICY_ADAPTATION = "If a rule blocks a required use case, propose a bounded rule/pack change with a valid example and an invalid counterexample. Preserve the invariant and requested behavior. Inspect `pregate preset show --json` and `pregate preset request-schema`. Draft .pregate/requests/<name>.json. Codex 0.166 reports the command working directory, so name a file outside that directory with an absolute path. `pregate preset apply <request.json> --preview` prepares review without activating it. Only the human approves. Do not suggest disabling PREGATE or its hooks just to unblock the task.";
 // SessionStart's form of POLICY_ADAPTATION; the denial texts carry the full procedure.
 const ADAPTATION_BRIEF = "If a rule blocks a required use case, propose a bounded rule/pack change with a valid example and an invalid counterexample in .pregate/requests/<name>.json for human review. Do not suggest disabling PREGATE or its hooks just to unblock the task.";
@@ -175,7 +183,7 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "contract-loosened" ? `${f.detail ? `\n${f.detail}` : ""}\n${WHY["contract-loosened"]}` : f.cause === "protected-path"
     ? "\nPREGATE configuration, rule sources, harness settings and state are protected. Inspect fixed harness configuration files with one literal cat -- /absolute/path/to/settings.json command, without variables, loops, filters, wrappers, pipelines or redirections. Inspect the editable contract with `pregate preset show --json` and diagnose versions/schema with `pregate preset diagnose --json`; do not run a source pre-check on policy files. Read the request format with `pregate preset request-schema`. Propose a preset change in .pregate/requests/<name>.json for human review. Codex 0.166 reports the command working directory, so a relative path resolves there; name a file outside that directory with an absolute path. Validate and prepare its review with `pregate preset apply <request.json> --preview`; this does not activate it. Only the human approves."
     : f.cause === "shell-write"
-    ? "\nWhy: PREGATE denies a command it cannot prove is read-only. A write into the project, a script path that is not literal, or an interactive session can change files or run a control command without the edit tool.\nFix: Write project files with the edit tool. Name a script with a literal path, such as bash ./run.sh, python3 script.py, node script.js, make -f Makefile, or powershell -File build.ps1. A read-only one-liner stays allowed."
+    ? "\nWhy: PREGATE denies a command it cannot prove is read-only. A write into the project, a script path that is not literal, or an interactive session can change files or run a control command without the edit tool.\nFix: Write project files with the edit tool. Name a script with a literal path, such as bash ./run.sh, python3 script.py, node script.js, make -f Makefile, or powershell -File build.ps1. A read-only one-liner stays allowed. A Python module invocation such as python3 -m unittest, python -m, or -m joined to the module name, is scanned for write sinks only when that dotted name resolves to a file in the working directory. A module that does not resolve there, such as unittest, pytest, or pip, is not a script path."
     : "";
   return { compact, full: `${detail === null ? compact : headline}${help}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}` };
 }

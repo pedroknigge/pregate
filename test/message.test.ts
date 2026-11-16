@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { adviseText, briefing, contract, denyText, formText, notice, precheck, stopText, syntaxAdvisory, warnText } from "../src/message.ts";
+import { adviseText, briefing, contract, denyText, formText, notice, precheck, stopText, syntaxAdvisory, warnText, withoutPresetDraft } from "../src/message.ts";
 import type { Close, DenyContext, NoticeArgs, NoticeKey, Text } from "../src/message.ts";
 import { FIXABLE_BY } from "../src/types.ts";
 import type { Cause, Lock, LockRule, Severity, Violation } from "../src/types.ts";
@@ -269,6 +269,18 @@ describe("message content", () => {
     expect(text.full).toContain("`pregate storage recover --preview`");
     expect(text.full).toContain("Only the user can fix this");
   });
+  test("a directory with no preset does not offer issue draft --last", () => {
+    const text = formText({ cause: "shell-write", line: null }, null);
+    const swapped = withoutPresetDraft({ compact: text.compact, full: text.full, notice: text.full });
+    expect(text.full).toContain("`pregate issue draft --last`");
+    expect(text.full).toContain("python3 -m unittest");
+    expect(swapped.full).not.toContain("issue draft --last");
+    expect(swapped.full).toContain("no preset");
+    expect(swapped.full).toContain("Publication requires human approval in a separate terminal");
+    expect(swapped.notice).not.toContain("issue draft --last");
+    expect(swapped.compact).not.toContain("issue draft --last");
+  });
+
   test("rule, form and Stop findings offer a reviewed issue without publishing", () => {
     const messages = CLOSES.map((close) => denyText([v(1, 1)], LOCK, 1, close, CTX).full);
     messages.push(stopText([v(1, 1)], LOCK, CTX).full, formText({ cause: "syntax", line: 1 }, FILE).full);

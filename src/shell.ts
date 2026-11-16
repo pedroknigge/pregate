@@ -45,8 +45,8 @@ export interface GuardContext {
   readScriptFile?: (path: string) => { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
   // Resolves a bare command name on PATH. The shell layer supplies it; the core does not read the environment.
   commandPath?: (name: string) => string | null;
-  // Whether a program found on PATH lies outside every enabled project: an installed tool, not
-  // project code. Without it every script found on PATH is read like a project script.
+  // Whether a program found on PATH lies outside every project root the guard knows: an installed
+  // tool, not project code. Without it every script found on PATH is read like a project script.
   outsideRoots?: (abs: string) => boolean;
   // The files a git command that moves history or the worktree would change (`args` from the
   // subcommand on), or null when they cannot be known. Without it such a command may write anything.
@@ -1609,6 +1609,21 @@ function powershell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | nu
 // read the arguments.
 const PERL_ARGUMENTS = /ARGV\s*[[{]|[@#]\{?ARGV|\$\{ARGV|\bshift\b|\bpop\b/;
 const PERL_EFFECT = /\b(open|sysopen|rename|unlink|truncate|link|symlink|chmod|chown|utime|mkdir|rmdir|system|exec|eval|do|require|syscall|qx)\b|`/;
+// `python3 -m scripts.write` is `scripts/write.py`, `scripts/write.pyw`, or `scripts/write/__init__.py`
+// when one of those exists. A name that resolves to none of them (`unittest`, `pytest`, `pip`) is
+// not a script path. A file whose name is only the bare module is not that module.
+function pythonModuleCause(name: string, cwd: string | null, ctx: Ctx, options: string[]): Cause | null {
+  const rel = name.split(".").join("/");
+  for (const suffix of [".py", ".pyw", "/__init__.py"]) {
+    const abs = resolve(cwd, `${rel}${suffix}`);
+    if (abs === null) return "shell-write";
+    const peek = ctx.readScriptFile?.(abs) ?? { kind: "missing" as const };
+    if (peek.kind === "missing") continue;
+    return scriptFile(ctx, abs, "python", cwd, options);
+  }
+  return null;
+}
+
 function readsArgv(name: string, program: string): boolean {
   if (name !== "perl") return /argv/i.test(program);
   return PERL_ARGUMENTS.test(program) || (/ARGV/.test(program) && PERL_EFFECT.test(program));
@@ -1620,17 +1635,33 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   if (codeFlag === NODE && nodeInspection(args)) return null;
   const program: Word[] = [];
   const operands: Word[] = [];
+  // `python -m name` names a module, not a script file. Words after it belong to the module.
+  // A script path before `-m` keeps the old reading: `-m` is then the script's own argument.
+  let moduleWord: Word | undefined;
+  let scriptStarted = false;
   for (let i = 0; i < args.length; i++) {
     const w = args[i]!;
     const eq = w.text.indexOf("=");
+    if (name === "python" && moduleWord === undefined && !scriptStarted && /^-m(.+)$/.test(w.text)) {
+      moduleWord = { ...w, text: w.text.slice(2) };
+      continue;
+    }
+    if (name === "python" && moduleWord === undefined && !scriptStarted && /^-[A-Za-z]*m$/.test(w.text)) {
+      if (args[i + 1] !== undefined) moduleWord = args[++i]!;
+      continue;
+    }
+    if (moduleWord !== undefined) continue;
     if (codeFlag.test(w.text)) {
       if (args[i + 1] !== undefined) program.push(args[++i]!);
     } else if (w.text.startsWith("--") && eq > 0 && codeFlag.test(w.text.slice(0, eq))) {
       program.push({ ...w, text: w.text.slice(eq + 1) });
     } else if (!/^-./.test(w.text)) {
       operands.push(w);   // a script file, an option's value or the program's own arguments
+      scriptStarted = true;
     }
   }
+  // A word that is not a module name (`python3 -m node_modules/...`) stays a script path.
+  if (moduleWord !== undefined && program.length === 0 && !/^[A-Za-z_][\w.]*$/.test(moduleWord.text)) operands.unshift(moduleWord);
   // A harness run by its interpreter: the entry script lives in the package's folder. A project
   // folder that shares a harness name is not one.
   const entry = operands[0]?.text.toLowerCase() ?? "";
@@ -1643,6 +1674,10 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   const inlined = program.length > 0;
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
   const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);
+  if (name === "python" && moduleWord !== undefined && program.length === 0 && /^[A-Za-z_][\w.]*$/.test(moduleWord.text)) {
+    if (!moduleWord.literal) return "shell-write";
+    return pythonModuleCause(moduleWord.text, cwd, ctx, options);
+  }
   // Inline code and a literal script file: `python3 -c "subprocess.run(['pregate','approve'...])"`,
   // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
   const interp = name.replace(/^python[\d.]*$/, "python");
