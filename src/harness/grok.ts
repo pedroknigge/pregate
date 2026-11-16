@@ -3,10 +3,16 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 
 // The Grok Build adapter (MULTI-HARNESS MH-05, MH-12, MH-14). Grok runs the shared registration in
 // ~/.claude/settings.json with its own payload: camelCase keys (the snake twins are ignored), native
-// tool names, no turn id in Pre. Grok honours only an explicit deny: every failure, timeout or odd
-// output lets the tool run (docs/research/harness-grok-live.md §6).
+// tool names, no turn id in Pre. Payloads were captured on VERIFIED. An allow is empty stdout and
+// exit 0. Grok Build 1.0.71 (https://x.ai/changelog/build) accepts failClosed on a hook handler:
+// a crash, a timeout, or a body that starts with "{" and does not parse denies the tool. Measured
+// on 1.0.77, that same empty allow still lets the tool run, so a checkout that was never enabled
+// does not start blocking. 1.0.70 ignores the unknown field and stays fail-open on a crash.
+// The field is set on the shared PreToolUse handler in register.ts, not in this encoder.
 
 export const VERIFIED = "1.0.49";
+// First Grok Build release whose changelog documents handler failClosed. Older releases ignore it.
+export const FAIL_CLOSED_SINCE = "1.0.71";
 
 const BAD: Cause = "payload-unrecognized";
 const EVENTS: Record<string, HookKind> = { pre_tool_use: "pre", stop: "stop", subagent_stop: "stop", session_start: "session-start" };

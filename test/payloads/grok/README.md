@@ -59,3 +59,11 @@ StopFailure, StopCancelled, Notification, Pre/PostCompact.
 
 `../grok-pre-write.fabricated.json` predates this capture and its guesses are wrong. Compared with the
 real thing, it lacks `transcriptPath` and has `promptId` and a `Z` timestamp. Use these files instead.
+
+## failClosed (not a payload capture)
+
+`../../fixtures/grok-failclosed-observed.json` is a measurement of real Grok Build 1.0.77 and 1.0.70 on 2026-11-16.
+It records whether a `write` tool created its file. It is not a model of Grok and it is not
+re-executed by the unit tests. `test/grok-failclosed.e2e.test.ts` re-runs the same questions
+when `PREGATE_GROK_BIN` or `grok` on `PATH` is present, and skips otherwise. Payloads above
+stay the 1.0.49 capture. `VERIFIED` stays `1.0.49`.

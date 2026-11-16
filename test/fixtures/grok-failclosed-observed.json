@@ -1,0 +1,32 @@
+{
+  "label": "Measured against real Grok Build binaries on 2026-11-16. This file records that run. It is not a model of Grok and the unit tests do not re-execute it.",
+  "issue": 45,
+  "source": "https://x.ai/changelog/build — Grok Build 1.0.71 (2026-10-26): hooks accept \"failClosed\": true. When such a hook times out or crashes, the tool call is denied instead of going ahead. The public docs.x.ai hooks page and the public grok-build mirror still described fail-open on the measurement date.",
+  "method": "Headless grok, isolated HOME and GROK_HOME, GROK_MODELS_BASE_URL and GROK_XAI_API_BASE_URL pointed at a local mock. The model list came from GET /models. Chat completions were SSE chunks that include created and model. No xAI account. Each row is one grok process. wrote is whether the write tool created the target file. hook is a marker the hook script wrote, proving the script ran. The grok process itself exited 0 in every row because the mock then answered done. The block is wrote, not the process exit.",
+  "binaries": [
+    { "version": "1.0.77", "identity": "grok 1.0.77 (50ca579fa996)", "url": "https://x.ai/cli/grok-1.0.77-linux-x86_64" },
+    { "version": "1.0.70", "identity": "grok 1.0.70 (f50904eaee6c)", "url": "https://x.ai/cli/grok-1.0.70-linux-x86_64" }
+  ],
+  "finding": {
+    "deny": "Exit 2 with the PreToolUse deny JSON blocks the write on 1.0.77 and on 1.0.70.",
+    "crashAndTimeout": "On 1.0.77, failClosed true blocks a hook that exits 1 and a hook that sleeps past its timeout. failClosed false lets both through. On 1.0.70 the field is ignored: a crash still lets the write through.",
+    "emptyStdout": "On 1.0.77, exit 0 with empty stdout and failClosed true still lets the write through, from ~/.grok/hooks and from ~/.claude/settings.json. Cursor blocks that case. Pregate's Grok allow stays empty stdout, so a checkout that was never enabled does not start blocking.",
+    "unreadableJson": "On 1.0.77, a body that is a single '{' and exits 0 blocks when failClosed is true."
+  },
+  "rows": [
+    { "name": "77-allow-closed-grok", "version": "1.0.77", "mode": "allow", "failClosed": true, "where": "grok", "exit": 0, "wrote": true, "hook": "RAN-allow", "seconds": 0.12 },
+    { "name": "77-deny-closed-grok", "version": "1.0.77", "mode": "deny", "failClosed": true, "where": "grok", "exit": 0, "wrote": false, "hook": "RAN-deny", "seconds": 0.16 },
+    { "name": "77-crash-closed-grok", "version": "1.0.77", "mode": "crash", "failClosed": true, "where": "grok", "exit": 0, "wrote": false, "hook": "RAN-crash", "seconds": 0.12 },
+    { "name": "77-crash-open-grok", "version": "1.0.77", "mode": "crash", "failClosed": false, "where": "grok", "exit": 0, "wrote": true, "hook": "RAN-crash", "seconds": 0.13 },
+    { "name": "77-timeout-closed-grok", "version": "1.0.77", "mode": "timeout", "failClosed": true, "where": "grok", "exit": 0, "wrote": false, "hook": "RAN-timeout", "seconds": 1.15 },
+    { "name": "77-timeout-open-grok", "version": "1.0.77", "mode": "timeout", "failClosed": false, "where": "grok", "exit": 0, "wrote": true, "hook": "RAN-timeout", "seconds": 1.15 },
+    { "name": "77-badjson-closed-grok", "version": "1.0.77", "mode": "badjson", "failClosed": true, "where": "grok", "exit": 0, "wrote": false, "hook": "RAN-badjson", "seconds": 0.14 },
+    { "name": "77-allow-closed-claude", "version": "1.0.77", "mode": "allow", "failClosed": true, "where": "claude", "exit": 0, "wrote": true, "hook": "RAN-allow", "seconds": 0.13 },
+    { "name": "77-deny-closed-claude", "version": "1.0.77", "mode": "deny", "failClosed": true, "where": "claude", "exit": 0, "wrote": false, "hook": "RAN-deny", "seconds": 0.15 },
+    { "name": "77-crash-closed-claude", "version": "1.0.77", "mode": "crash", "failClosed": true, "where": "claude", "exit": 0, "wrote": false, "hook": "RAN-crash", "seconds": 0.14 },
+    { "name": "70-allow-closed-claude", "version": "1.0.70", "mode": "allow", "failClosed": true, "where": "claude", "exit": 0, "wrote": true, "hook": "RAN-allow", "seconds": 0.33 },
+    { "name": "70-deny-closed-claude", "version": "1.0.70", "mode": "deny", "failClosed": true, "where": "claude", "exit": 0, "wrote": false, "hook": "RAN-deny", "seconds": 0.34 },
+    { "name": "70-crash-closed-claude", "version": "1.0.70", "mode": "crash", "failClosed": true, "where": "claude", "exit": 0, "wrote": true, "hook": "RAN-crash", "seconds": 0.32 },
+    { "name": "70-crash-open-claude", "version": "1.0.70", "mode": "crash", "failClosed": false, "where": "claude", "exit": 0, "wrote": true, "hook": "RAN-crash", "seconds": 0.31 }
+  ]
+}

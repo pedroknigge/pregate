@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
-import { AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, projectCursorHookOwned, registered, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
+import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStopOwned, drift, exact, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, projectCursorHookOwned, registered, sharedPreFailClosed, type Sub, type Target, unmerge, unmergeOpencode } from "../src/register.ts";
 import type { HarnessId } from "../src/types.ts";
 import { commandScript } from "../src/windows-command.ts";
 import { DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
@@ -125,8 +125,11 @@ describe("merge", () => {
     expect(fresh.hooks.PreToolUse).toEqual([{ matcher: "^(apply_patch|Bash)$", hooks: [{ type: "command", command: HOOK_COMMAND["pre codex"], timeout: 120 }] }]);
     expect(fresh.hooks.Stop).toEqual([{ hooks: [{ type: "command", command: HOOK_COMMAND["stop codex"], timeout: 60 }] }]);
     expect(fresh.hooks.SessionStart).toEqual([{ hooks: [{ type: "command", command: HOOK_COMMAND["session-start codex"], timeout: 15 }] }]);
-    expect(obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].matcher)
+    const sharedPre = obj(merge(null, "shared", DATA)).hooks.PreToolUse[0];
+    expect(sharedPre.matcher)
       .toBe("Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command");
+    expect(sharedPre.hooks[0]).toMatchObject({ type: "command", timeout: 120, failClosed: true });
+    expect(sharedPre.hooks[0].command).toBe(HOOK_COMMAND["pre claude-code"]);
     const matcher = new RegExp(obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].matcher);
     for (const tool of ["write", "search_replace", "hashline_edit", "run_terminal_command"]) expect(matcher.test(tool)).toBe(true);
   });
@@ -413,6 +416,34 @@ describe("project", () => {
       expect(obj(unmerge(both, "project-codex", DATA)!.text)).toEqual(obj(merge(null, other, DATA)));
       expect(obj(unmerge(both, other, DATA)!.text)).toEqual(obj(merge(null, "project-codex", DATA)));
     }
+  });
+
+  test("failClosed is only on the shared PreToolUse handler, and setup puts it back when it was removed", () => {
+    const shared = obj(merge(null, "shared", DATA));
+    for (const event of ["Stop", "SubagentStop", "SessionStart", "SubagentStart"]) {
+      expect(shared.hooks[event][0].hooks[0].failClosed).toBeUndefined();
+      expect(shared.hooks[event][0].hooks[0].timeout).toBe(event === "SessionStart" || event === "SubagentStart" ? 15 : 60);
+    }
+    for (const t of ["project", "codex", "project-codex"] as const) {
+      const handler = obj(merge(null, t, DATA)).hooks.PreToolUse[0].hooks[0];
+      expect(handler.failClosed).toBeUndefined();
+      expect(handler.timeout).toBe(120);
+    }
+    for (const t of ["agy", "project-agy"] as const) {
+      const key = t === "agy" ? AGY_PLUGIN : AGY_PROJECT_HOOK;
+      const handler = obj(merge(null, t, DATA))[key].PreToolUse[0].hooks[0];
+      expect(handler.failClosed).toBeUndefined();
+      expect(handler.timeout).toBe(120);
+    }
+    const stale = obj(merge(null, "shared", DATA));
+    delete stale.hooks.PreToolUse[0].hooks[0].failClosed;
+    expect(exact(stale.hooks.PreToolUse[0], "shared", DATA)).toBe(false);
+    expect(sharedPreFailClosed(JSON.stringify(stale), DATA)).toBe(false);
+    const replaced = obj(merge(JSON.stringify(stale), "shared", DATA));
+    expect(replaced.hooks.PreToolUse).toHaveLength(1);
+    expect(replaced.hooks.PreToolUse[0].hooks[0].failClosed).toBe(true);
+    expect(replaced.hooks.PreToolUse[0].hooks[0].timeout).toBe(120);
+    expect(sharedPreFailClosed(JSON.stringify(replaced), DATA)).toBe(true);
   });
 
   test("the Cursor project registration is native: version 1, flat entries, failClosed on preToolUse, and no machine path", () => {

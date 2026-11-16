@@ -17,7 +17,8 @@ import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
 import { isObject, type Payload, parse } from "./harness/wire.ts";
 import { HARNESS_NAMES } from "./shell.ts";
-import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStartOwned, cursorStopOwned, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, projectSwitchesOff, registered, type Target, unmerge, unmergeOpencode } from "./register.ts";
+import { FAIL_CLOSED_SINCE } from "./harness/grok.ts";
+import { AGY_PLUGIN, AGY_PROJECT_HOOK, agyPlugin, codexProjectTrust, cursorStartOwned, cursorStopOwned, drift, exact, gated, hookCommand, type MachineFiles, merge, mergeOpencode, opencodeState, ownedCommand, projectSwitchesOff, registered, sharedPreFailClosed, type Target, unmerge, unmergeOpencode } from "./register.ts";
 import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
 import { powershellCommand, PS_MODULES, psQuote } from "./windows-command.ts";
 import { slash } from "./paths.ts";
@@ -564,6 +565,11 @@ export async function doctor(): Promise<Result> {
   lines.push((checked.size === 0 && standalone.size === 0) || [...checked.keys()].some((h) => !admitted.has(h))
     ? warn(`Hook supervision is not established for every detected harness. ${supervisionLimit} Run pregate setup and review the registrations.`)
     : ok(`Hook supervision: required launcher commands are registered. ${supervisionLimit}`));
+  if (checked.has("grok")) {
+    lines.push(m.claude.some((text) => text !== null && sharedPreFailClosed(text, p.data))
+      ? ok(`Grok PreToolUse sets failClosed (Grok Build >= ${FAIL_CLOSED_SINCE} denies a crashed or timed-out hook; empty stdout and exit 0 still allow).`)
+      : warn(`Grok PreToolUse is missing failClosed. On Grok Build >= ${FAIL_CLOSED_SINCE} a crashed or timed-out hook fails open. Run pregate setup.`));
+  }
   const codexBin = machine.get("codex");
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !standalone.has("codex")) lines.push(codexOffPath(p));

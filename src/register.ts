@@ -278,6 +278,19 @@ export function exact(group: unknown, t: Target, data: string): boolean {
   return Object.values(ours(t, data)).some((o) => Bun.deepEquals(o, group, true));
 }
 
+// The shared PreToolUse group setup writes, with failClosed on its command handler. A registration
+// that drifted off that field is not exact, so doctor can name it until setup runs again.
+export function sharedPreFailClosed(text: string | null, data: string): boolean {
+  const hooks = parse(text ?? "")?.hooks;
+  const list = isObject(hooks) ? hooks.PreToolUse : null;
+  if (!Array.isArray(list)) return false;
+  return list.some((group) => {
+    if (!exact(group, "shared", data)) return false;
+    const handlers = isObject(group) && Array.isArray(group.hooks) ? group.hooks : [];
+    return handlers.some((handler) => isObject(handler) && handler.failClosed === true);
+  });
+}
+
 // The agy plugin: relative path → bytes.
 export const AGY_PLUGIN = "pregate-global";
 export const AGY_PROJECT_HOOK = "pregate-project";
@@ -416,7 +429,15 @@ function ours(t: Target, data: string): Record<string, object> {
   if (t === "project-cursor") {
     return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t], failClosed: true }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   }
-  const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
+  const preHook = run("pre", 120);
+  // Grok Build >= 1.0.71 denies a PreToolUse hook that crashes or times out when the handler sets
+  // failClosed (xAI changelog, measured on 1.0.77 from this shared file and from ~/.grok/hooks).
+  // 1.0.70 ignores the unknown key. Stop and SessionStart do not get it: Grok ignores it there.
+  // Project Claude hooks stay without it. Those files are committed, and Claude Code runs them.
+  // An allow stays empty stdout. On 1.0.77 that still lets the tool run, including a checkout
+  // where pregate enable was never run. Cursor's import of this field is still recorded as forced
+  // off and was not re-measured. The timeout stays 120.
+  const pre = { matcher: MATCHER[t], hooks: [t === "shared" ? { ...preHook, failClosed: true } : preHook] };
   if (t === "agy" || t === "project-agy") {
     return { PreToolUse: pre, PostInvocation: run("post-invocation", 15), Stop: run("stop", 60), SessionStart: run("session-start", 15) };
   }
