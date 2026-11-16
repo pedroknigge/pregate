@@ -8,7 +8,7 @@ import { WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { pendingRoot, readBatch } from "./proposal.ts";
 import { guideCommandMention, literalPaths } from "./shell.ts";
-import { hasPostInvocation, key, roots } from "./state.ts";
+import { hasPostInvocation, key, roots, sessionDir } from "./state.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { VERSIONS } from "./versions.ts";
 import type { Cause, Clock, Decision, Form, HookEvent, Lock, Rejected, Session, Violation } from "./types.ts";
@@ -88,6 +88,9 @@ export function commandGuarded(cwd: string, command: string, session: Session): 
 export function inert(event: HookEvent | Rejected): boolean {
   // A payload the adapter could not read is a protocol error, not enforcement of the directory.
   if ("cause" in event) return false;
+  // An id that would leave the data directory is refused here, before admission records a checkpoint.
+  const session = event.kind === "pre-command" ? event.command.session : event.kind === "pre-edit" ? event.changes[0]?.session : event.session;
+  if (session !== undefined) sessionDir(key(session));
   if (event.kind === "pre-edit") {
     // A disabled checkout still loads the gate so it can say, once, that it is not enforcing.
     if (disabledCheckout(process.cwd()) || event.changes.some((c) => disabledCheckout(dirname(canonical(c.path))))) return false;
