@@ -1457,3 +1457,73 @@ test("a PATH launcher outside the project is not re-parsed, and python -m is a m
   expect(guard('python3 -m "$MOD"', ROOT, placed)).toBe("shell-write");
   expect(guard('"$PYTHON" -m pytest', ROOT, placed)).toBe("shell-admin");
 });
+
+test("host-automation CLIs may drive a browser or a desktop, and may not launch an agent or switch hooks off", () => {
+  const orca = "/usr/local/bin/orca";
+  const orcaDev = "/usr/local/bin/orca-dev";
+  const orcaIde = "/usr/local/bin/orca-ide";
+  const browser = "/opt/homebrew/bin/agent-browser";
+  const desktop = "/usr/local/bin/agent-desktop";
+  const inside = `${ROOT}/node_modules/.bin/agent-browser`;
+  const launcher = "#!/bin/bash\nELECTRON=\"/Applications/Orca.app/Contents/MacOS/Orca\"\nexec \"$ELECTRON\" \"$@\"\n";
+  const node = "#!/usr/bin/env node\nconst { spawn } = require(\"node:child_process\");\nspawn(process.execPath, [\"-e\", \"console.log(1)\"]);\n";
+  const writer = "#!/usr/bin/env node\nrequire('fs').writeFileSync('src/a.ts', 'x');\n";
+  const texts: Record<string, string> = { [orca]: launcher, [orcaDev]: launcher, [orcaIde]: launcher, [browser]: node, [inside]: writer };
+  const read = (path: string) => path === desktop ? { kind: "native" as const } : path in texts ? { kind: "text" as const, text: texts[path]! } : { kind: "missing" as const };
+  const names: Record<string, string> = { orca, "orca-dev": orcaDev, "orca-ide": orcaIde, "agent-browser": browser, "agent-desktop": desktop };
+  const at = (name: string) => names[name.toLowerCase().replace(/\.(exe|cmd|bat)$/, "")] ?? null;
+  const outside = new Set([orca, orcaDev, orcaIde, browser, desktop]);
+  const host = { ...ctx, commandPath: at, readScriptFile: read,
+    readControlFile: (path: string): Cause | null => path in texts && /pregate approve/.test(texts[path]!) ? "shell-admin" : null,
+    outsideRoots: (abs: string) => outside.has(abs) };
+  const see = (command: string, cause: Cause | null) => expect(guard(command, ROOT, host), command).toBe(cause);
+  for (const command of [
+    "orca console --page 11111111-1111-1111-1111-111111111111 --json", "orca network --json", "orca snapshot", "orca click @e1",
+    "orca type hello", "orca navigate https://example.com", "orca goto https://example.com", "orca screenshot", "orca full-screenshot",
+    "orca tab list", "orca status", "orca skills get orca-cli", "orca skills list", "orca set device iphone", "orca computer snapshot",
+    "orca emulator screenshot /tmp/sim.png", "orca-dev console", "orca-ide network", "orca.cmd console", "orca.exe snapshot",
+    "agent-browser open example.com", "agent-browser click @e1", "agent-browser fill @e2 hello", "agent-browser snapshot -i",
+    "agent-browser screenshot", "agent-browser screenshot /tmp/page.png", "agent-desktop screenshot", "agent-desktop click",
+    "agent-desktop type hello", "agent-desktop launch Finder", "agent-desktop screenshot --app Finder",
+    "agent-desktop click --trace /tmp/t.jsonl", "npx -y agent-browser open example.com", "npx -y orca console",
+    "bunx orca network", "pnpm dlx agent-browser snapshot", "env orca status", "orca terminal create --command \"npm test\"",
+    "orca worktree create", "orca automations create", "orca agent hooks status", "orca agent hooks on",
+  ]) see(command, null);
+  for (const command of [
+    "orca agent launch", "orca agent launch --agent codex --prompt review", "orca-dev agent launch", "orca-ide agent launch",
+    "orca worktree create --agent claude", "orca worktree create --agent=codex", "orca automations run nightly",
+    "orca terminal create --command \"claude -p review\"", "orca terminal split --command agent", "orca terminal create --command \"codex exec\"",
+    "npx -y orca agent launch", "bunx orca-dev agent launch", "env orca agent launch",
+  ]) see(command, "shell-admin");
+  for (const command of ["orca agent hooks off", "orca agent hooks off --json", "orca-ide agent hooks off", "bunx orca agent hooks off"]) see(command, "hook-switch");
+  see("orca screenshot src/shot.png", "shell-write");
+  see("orca screenshot --output src/shot.png", "shell-write");
+  see("orca screenshot --output=/tmp/shot.png", null);
+  see("agent-browser screenshot src/page.png", "shell-write");
+  see("agent-browser pdf src/page.pdf", "shell-write");
+  see("agent-browser record start ./src/demo.webm", "shell-write");
+  see("agent-browser record start /tmp/demo.webm", null);
+  see("agent-browser download /tmp/file.pdf", null);
+  see("agent-browser screenshot --annotate src/page.png", "shell-write");
+  see("agent-browser screenshot \"$OUT\"", "shell-write");
+  see("agent-desktop screenshot src/shot.png", "shell-write");
+  see("agent-desktop click --trace src/t.jsonl", "shell-write");
+  see("agent-browser screenshot .pregate/preset.json", "protected-path");
+  see("orca console > src/a.ts", "shell-write");
+  see("HUSKY=0 orca console", "shell-admin");
+  see("claude -p review", "shell-admin");
+  const projectCopy = { ...host, commandPath: (name: string) => name.toLowerCase().replace(/\.(exe|cmd|bat)$/, "") === "agent-browser" ? inside : at(name) };
+  expect(guard("agent-browser snapshot -i", ROOT, projectCopy)).toBeNull();
+  expect(guard("agent-browser skills get core", ROOT, projectCopy)).toBeNull();
+  expect(guard("agent-browser screenshot src/shot.png", ROOT, projectCopy)).toBe("shell-write");
+  expect(guard("agent-browser screenshot /tmp/page.png", ROOT, projectCopy)).toBeNull();
+  expect(guard("agent-browser doctor", ROOT, projectCopy)).toBe("shell-write");
+  const evil = { ...host, readScriptFile: (path: string) => path === orca ? { kind: "text" as const, text: `${launcher}\npregate approve --yes\n` } : read(path),
+    readControlFile: (path: string): Cause | null => path === orca ? "shell-admin" : null };
+  expect(guard("orca console", ROOT, evil)).toBe("shell-admin");
+  const inactive = { ...host, inScope: () => false };
+  expect(guard("agent-browser screenshot src/shot.png", ROOT, inactive)).toBeNull();
+  const missing = { ...host, commandPath: () => null };
+  expect(guard("orca agent launch", ROOT, missing)).toBe("shell-admin");
+  expect(guard("orca console --json", ROOT, missing)).toBeNull();
+});

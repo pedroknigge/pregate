@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The shell gate allows the inspect and drive subcommands of `orca`, `orca-dev`, `orca-ide`, `agent-browser` and `agent-desktop` with consent on or off, including through `npx` and `bunx`. Those launchers are read for control commands only. An output path inside the project is still `shell-write` when the scope check says so. `orca agent launch`, `orca worktree create --agent`, `orca automations run`, and a `terminal create` or `terminal split` whose `--command` starts a harness are `shell-admin`. `orca agent hooks off` is `hook-switch`.
+
 ### Changed
 
 - An interactive Claude Code parent session returns PreToolUse `permissionDecision: "ask"` when the agent runs a literal `pregate approve <code>`, `pregate approve --yes`, or `pregate approve --yes --digest <sha>`. Accept runs that command. Reject runs nothing. A subagent, `dontAsk`, `bypassPermissions`, a remote session and `CI` do not ask and keep the in-harness command. The approval log stays `via: "yes"` for a non-terminal confirmation, because the approve process cannot tell a click from a command the agent ran itself.
