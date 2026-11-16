@@ -152,7 +152,7 @@ JSON/JSONL retain all evidence. `--plan` still requests the complete plan.
 
 `orca`, `orca-dev` and `orca-ide` (the Linux install name, and the dev-checkout CLI), `agent-browser` and `agent-desktop` inspect or drive a browser or a desktop. The same command after `npx` or `bunx` is judged the same way. These are host-automation commands. The shell gate allows their inspect and drive subcommands with consent on and with consent off, and it reads the launcher for control commands only.
 
-A drive command includes `orca console`, `network`, `snapshot`, `click`, `type`, `navigate`, `goto`, `screenshot`, `tab`, `status`, `skills get` and `skills list`, plus `computer` and `emulator`; `agent-browser open`, `click`, `fill`, `type`, `snapshot` and `screenshot`; and `agent-desktop screenshot`, `click`, `type` and `launch` (that `launch` starts an application). A subcommand outside that drive loop, such as `agent-browser doctor`, is still project code when the file on `PATH` lies inside the project.
+A drive command includes `orca console`, `network`, `snapshot`, `click`, `type`, `navigate`, `goto`, `screenshot`, `tab`, `status`, `skills get` and `skills list`, plus `computer` and `emulator`; `agent-browser open`, `click`, `fill`, `type`, `snapshot` and `screenshot`; and `agent-desktop screenshot`, `click`, `type` and `launch` (that `launch` starts an application). Read-only orca inventory is allowed with consent on or off, including when the launcher is inside the project: `ports` (and `ports --json`), `list`, `info`, `version`, `help`, `doctor`, `diagnostics`, `agent-context`, a second word `list`, `info`, `help` or `version` (`worktree list`, `project list`), bare `orca`, and `--help` or `-h`. `--version` and `-v` count only when there is no subcommand. A subcommand outside that drive loop, such as `agent-browser doctor`, is still project code when the file on `PATH` lies inside the project. An orca verb that is not inventory, not a drive command, and not a denial in the table below is `shell-admin` when that launcher is inside the project. The message names the tool and the verb. An installed launcher outside the project is still read for control commands only, so the same unclassified verb stays allowed there.
 
 These commands are denied:
 
@@ -163,6 +163,7 @@ These commands are denied:
 | `orca automations run <id>` | `shell-admin` | It runs a scheduled agent prompt. |
 | `orca terminal create --command <harness>` and `terminal split --command <harness>` | `shell-admin` | The command's first token is a harness (`claude`, `codex`, `agent`, and the other harness names). `terminal create --command "npm test"` stays allowed. |
 | `orca agent hooks off` | `hook-switch` | It removes the agent status hooks. `hooks status` and `hooks on` stay allowed. |
+| `orca frob` (launcher inside the project) | `shell-admin` | `frob` is not a read-only inventory or drive command. The message names `orca` and `frob`. The same command on a launcher outside the project stays allowed. |
 
 `agent-browser` and `agent-desktop` have no agent-launch or hook-off command.
 

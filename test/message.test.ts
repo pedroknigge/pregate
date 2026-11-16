@@ -269,6 +269,16 @@ describe("message content", () => {
     expect(text.full).toContain("`pregate storage recover --preview`");
     expect(text.full).toContain("Only the user can fix this");
   });
+  test("a named orca denial replaces the generic shell-admin sentence", () => {
+    const named = formText({ cause: "shell-admin", line: null, detail: "orca frob is not a read-only orca inventory or drive command." }, null);
+    expect(named.full).toContain("orca frob is not a read-only orca inventory or drive command.");
+    expect(named.full).not.toContain("skips git hooks");
+    expect(named.full).toContain("`pregate issue draft --last`");
+    const generic = formText({ cause: "shell-admin", line: null }, null);
+    expect(generic.full).toContain("skips git hooks");
+    expect(generic.full).toContain("ungated agent harness");
+  });
+
   test("a directory with no preset does not offer issue draft --last", () => {
     const text = formText({ cause: "shell-write", line: null }, null);
     const swapped = withoutPresetDraft({ compact: text.compact, full: text.full, notice: text.full });

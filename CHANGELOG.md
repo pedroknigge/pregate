@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - The shell gate allows the inspect and drive subcommands of `orca`, `orca-dev`, `orca-ide`, `agent-browser` and `agent-desktop` with consent on or off, including through `npx` and `bunx`. Those launchers are read for control commands only. An output path inside the project is still `shell-write` when the scope check says so. `orca agent launch`, `orca worktree create --agent`, `orca automations run`, and a `terminal create` or `terminal split` whose `--command` starts a harness are `shell-admin`. `orca agent hooks off` is `hook-switch`.
+- Read-only orca inventory is allowed on both consent paths, including when the launcher is inside the project: `ports`, `list`, `info`, `version`, `help`, `--help`, `--version`, `doctor`, `diagnostics`, `agent-context`, and a second word `list`, `info`, `help` or `version`. An orca verb outside the inventory, the drive list and those denials is `shell-admin` when the launcher is inside the project, and the message names the tool and the verb. The same verb on a launcher outside the project stays allowed.
+- `node -e`, `node -p` and `bun -e` allow a closed read-only program: a `for…of` over string literals, `require` or `import` of a JSON path whose static prefix starts with `./`, `../` or `/` and whose static suffix is `.json`, and `console.log`. `fs` writes, `child_process`, `eval`, `process.binding`, `Bun.write` and any other `require` stay `shell-write`.
 
 ### Changed
 

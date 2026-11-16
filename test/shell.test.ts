@@ -555,6 +555,12 @@ const allowed: string[] = [
   // #69: a closed inline node inspection
   "node -e 'const a=require(\"./package.json\");const b=require(\"./src/x.json\");console.log(a.version,b)'",
   "node -p 'require(\"./package.json\").version'",
+  // #118: a for-of over string literals and a require/import whose prefix and `.json` suffix are static
+  "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'",
+  "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(`./src/messages/${locale}.json`); console.log(m.management.hoursDashboard.table); }'",
+  "node -e 'const locales = [\"en\", \"es\"]; for (const locale of locales) { console.log(require(\"./src/messages/\" + locale + \".json\")); }'",
+  "bun -e 'for (const locale of [\"en\", \"es\"]) { console.log(require(\"./src/messages/\" + locale + \".json\")); }'",
+  "node -e 'import(\"./package.json\")'",
   // A path or a script name that contains a hook stem is not a bypass flag.
   "git add src/disable-hooks.ts",
   "git add test/disable-hooks.test.ts",
@@ -669,6 +675,11 @@ const denied: [string, Cause][] = [
   ["node -e 'fs.writeFileSync(\"x\",\"y\")'", "shell-write"],
   ["node -e 'process.binding(\"fs\")'", "shell-write"],
   ["node -e 'console[\"constructor\"]'", "shell-write"],
+  ["node -e 'require(\"child_process\").execSync(\"ls\")'", "shell-write"],
+  ["node -e 'eval(\"console.log(1)\")'", "shell-write"],
+  ["node -e 'const locale = \"en\"; require(\"./src/\" + locale)'", "shell-write"],
+  ["node -e 'const locale = \"en\"; require(locale)'", "shell-write"],
+  ["node -e 'require(\"f\" + \"s\")'", "shell-write"],
   ["ruby -e 'File.write(\"x\", \"y\")'", "shell-write"],
   ["ruby -rfileutils -e 'FileUtils.touch(\"x\")'", "shell-write"],
   ["perl -e 'open(my $f, \">\", \"x\")'", "shell-write"],
@@ -1185,7 +1196,9 @@ describe("without a valid lock everything under the root is in scope", () => {
     // inspection (#69)
     ['node -e "console.log(1)"', null],
     ["node -e 'console.log(require(\"./package.json\").version)'", null],
+    ["node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'", null],
     ["node -e 'console.log(process.version)'", "shell-write"],
+    ["node -e 'eval(\"1\")'", "shell-write"],
     ["node -e 'const x=require(\"./a.json\");x.constructor.constructor(\"return process\")()'", "shell-write"],
     ["node -e 'require(\"fs\").writeFileSync(\"sr\"+\"c/a.ts\",\"x\")'", "shell-write"],
     ["python3 -c 'print(1)'", null],
@@ -1488,6 +1501,9 @@ test("host-automation CLIs may drive a browser or a desktop, and may not launch 
     "agent-desktop click --trace /tmp/t.jsonl", "npx -y agent-browser open example.com", "npx -y orca console",
     "bunx orca network", "pnpm dlx agent-browser snapshot", "env orca status", "orca terminal create --command \"npm test\"",
     "orca worktree create", "orca automations create", "orca agent hooks status", "orca agent hooks on",
+    "orca ports --json", "orca ports", "orca --help", "orca --version", "orca -v", "orca worktree list",
+    "orca project list", "orca diagnostics memory", "orca agent-context", "orca doctor", "orca help",
+    "orca agent launch --help",
   ]) see(command, null);
   for (const command of [
     "orca agent launch", "orca agent launch --agent codex --prompt review", "orca-dev agent launch", "orca-ide agent launch",
@@ -1526,4 +1542,22 @@ test("host-automation CLIs may drive a browser or a desktop, and may not launch 
   const missing = { ...host, commandPath: () => null };
   expect(guard("orca agent launch", ROOT, missing)).toBe("shell-admin");
   expect(guard("orca console --json", ROOT, missing)).toBeNull();
+  const projectOrca = `${ROOT}/node_modules/.bin/orca`;
+  const projectDev = `${ROOT}/scripts/orca-dev.mjs`;
+  const orcaTexts: Record<string, string> = { ...texts, [projectOrca]: launcher, [projectDev]: launcher };
+  const readOrca = (path: string) => path === desktop ? { kind: "native" as const } : path in orcaTexts ? { kind: "text" as const, text: orcaTexts[path]! } : { kind: "missing" as const };
+  const projectHost = { ...host, readScriptFile: readOrca,
+    commandPath: (name: string) => name === "orca" ? projectOrca : name === "orca-dev" ? projectDev : at(name) };
+  expect(guard("orca ports --json", ROOT, projectHost)).toBeNull();
+  expect(guard("orca-dev diagnostics memory", ROOT, projectHost)).toBeNull();
+  expect(guard("orca worktree list", ROOT, projectHost)).toBeNull();
+  expect(guard("orca agent launch", ROOT, projectHost)).toBe("shell-admin");
+  expect(guard("orca agent hooks off", ROOT, projectHost)).toBe("hook-switch");
+  const shellDetail = { text: null as string | null };
+  expect(guard("orca frob --json", ROOT, { ...projectHost, shellDetail })).toBe("shell-admin");
+  expect(shellDetail.text).toBe("orca frob is not a read-only orca inventory or drive command.");
+  shellDetail.text = null;
+  expect(guard("orca agent launch", ROOT, { ...projectHost, shellDetail })).toBe("shell-admin");
+  expect(shellDetail.text).toBeNull();
+  expect(guard("orca not-a-verb", ROOT, host)).toBeNull();
 });

@@ -48,6 +48,9 @@ export interface GuardContext {
   // Whether a program found on PATH lies outside every project root the guard knows: an installed
   // tool, not project code. Without it every script found on PATH is read like a project script.
   outsideRoots?: (abs: string) => boolean;
+  // Set when an orca verb is denied by name, so the hook can say which verb instead of the
+  // generic shell-admin sentence. Absent in callers that only need the cause.
+  shellDetail?: { text: string | null };
   // The files a git command that moves history or the worktree would change (`args` from the
   // subcommand on), or null when they cannot be known. Without it such a command may write anything.
   // `worktree` paths are edits when they are in scope. `index` paths deny only when protected.
@@ -1086,9 +1089,11 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
 // Host-automation CLIs drive a browser or a desktop for an agent. They are not harnesses.
 // The policy applies once the guard can place files (`outsideRoots` is set), which is both the
 // consent path and the inactive-consent path. A context that cannot place the file still reads
-// the launcher as a project script. A drive command is not a project write: the launcher text
-// is read for control commands only. An output path still goes through `writes`. Launching
-// another agent is shell-admin. Switching that agent's hooks off is hook-switch.
+// the launcher as a project script. A drive or inventory command is not a project write: the
+// launcher text is read for control commands only. An output path still goes through `writes`.
+// Launching another agent is shell-admin. Switching that agent's hooks off is hook-switch.
+// An orca verb that is none of those, when the launcher is inside a project, is shell-admin and
+// names the tool and the verb. The same verb on a launcher outside every project stays allowed.
 const HOST_TOOLS = new Set(["orca", "orca-dev", "orca-ide", "agent-browser", "agent-desktop"]);
 const OUTPUT_FLAGS = ["--output", "--out", "-o", "--path", "--file", "--trace", "--screenshot", "--annotate"];
 const HOST_VALUED = [...OUTPUT_FLAGS, "--url", "--element", "--value", "--text", "--worktree", "--page", "--limit", "--selector",
@@ -1124,6 +1129,7 @@ function hostPolicy(name: string, head: Word, args: Word[], cwd: string | null, 
   if (spilled !== null) return spilled;
   if (kind.drive) return null;
   if (located !== null && ctx.outsideRoots(located)) return null;
+  if (name === "orca" || name === "orca-dev" || name === "orca-ide") return orcaUnknown(name, words, ctx);
   return undefined;
 }
 
@@ -1135,10 +1141,34 @@ function hostPath(head: Word, cwd: string | null, ctx: Ctx): string | null {
 }
 
 function classifyHost(name: string, words: string[], flags: Flag[]): { drive: boolean; deny: Cause | null } {
-  if (name === "orca" || name === "orca-dev" || name === "orca-ide") return { drive: orcaDrive(words), deny: orcaDenied(words, flags) };
+  if (name === "orca" || name === "orca-dev" || name === "orca-ide") {
+    if (orcaInspect(words, flags)) return { drive: true, deny: null };
+    return { drive: orcaDrive(words), deny: orcaDenied(words, flags) };
+  }
   const [a, b] = words;
   const verbs = name === "agent-browser" ? BROWSER_DRIVE : DESKTOP_DRIVE;
   return { drive: (a !== undefined && verbs.has(a)) || (a === "skills" && (b === "get" || b === "list")), deny: null };
+}
+
+// Read-only inventory. The real orca CLI has `ports`, `diagnostics memory`, `agent-context`,
+// `status`, bare help, and `--help`/`--version` (version only when no subcommand is present).
+// `doctor`, `info`, `version`, `list` and a second word `list`/`info`/`help`/`version`
+// (`worktree list`, `project list`) are the same kind of read: they do not launch an agent.
+// `--help`/`-h` returns before dispatch, including on a command that would otherwise be denied.
+function orcaInspect(words: string[], flags: Flag[]): boolean {
+  if (words.length === 0) return true;
+  if (flags.some(([flag]) => flag === "--help" || flag === "-h")) return true;
+  const [a, b] = words;
+  if (a === "ports" || a === "doctor" || a === "version" || a === "info" || a === "help" || a === "list" || a === "agent-context") return true;
+  if (a === "diagnostics" && (b === undefined || b === "memory")) return true;
+  return b === "list" || b === "info" || b === "help" || b === "version";
+}
+
+// The launcher is project code, so an unclassified verb is not silently re-parsed. The sentence
+// names the tool and the verb; agent launch and hooks off keep the generic sentences.
+function orcaUnknown(name: string, words: string[], ctx: Ctx): Cause {
+  if (ctx.shellDetail) ctx.shellDetail.text = `${name} ${words.join(" ")} is not a read-only orca inventory or drive command.`;
+  return "shell-admin";
 }
 
 function orcaDrive(words: string[]): boolean {

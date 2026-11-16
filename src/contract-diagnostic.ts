@@ -427,7 +427,8 @@ export function turnOf(s: Session): string {
   return s.turnId ?? `after-stop-${state.history(state.key(s), "-", "stop").filter((e) => e.verdict !== "deny").at(-1)?.at ?? 0}`;
 }
 
-export function form(cause: Cause, root?: string): Form {
+export function form(cause: Cause, root?: string, detail?: string | null): Form {
+  if (detail) return { cause, line: null, detail };
   return { cause, line: null, ...(root !== undefined && ["lock-stale", "version-mismatch"].includes(cause)
     ? { detail: diagnosis(root) } : {}) };
 }
