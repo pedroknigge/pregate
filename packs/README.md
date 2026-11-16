@@ -33,7 +33,9 @@ pregate pack enable typescript/strict-types --only TS-SWITCH-001 --preview
 Categories are `invariants`, `language`, `pattern`, `library`, `practice` and
 `process`. They describe sources and filter discovery; they do not select rules.
 The builtin core contains 64 project fitness requirements, retaining the original
-48 identities, and four general change guards. All 68 are active by default.
+48 identities, and four general change guards. All 68 are active by default;
+eleven heuristic requirements start in advisory `warn` mode and the rest
+enforce by default.
 Language and practice policies live in optional packs.
 A category can
 exist without a bundled source. TypeScript, JavaScript, Python, Go and Rust are parsed directly by the engine.

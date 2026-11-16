@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, setDefaultTimeout, spyOn, test } from "bun:test";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
@@ -21,7 +21,10 @@ import { report } from "../src/report-command.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { proposeContract, readProposal, PENDING_MS } from "../src/approval.ts";
-import { inert } from "../src/admission.ts";
+import { commandOnPath } from "../src/control-file.ts";
+import { proposeBatch } from "../src/proposal.ts";
+import { findings } from "../src/recorded.ts";
+import { inert, projectUpdateMention } from "../src/admission.ts";
 import { pendingRoot } from "../src/proposal.ts";
 import { issueContent } from "../src/issue.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -30,7 +33,7 @@ import { removeTree } from "./remove-tree.ts";
 setDefaultTimeout(60_000);
 
 const base = realpathSync(mkdtempSync(join(tmpdir(), "mh-w6-gate-")));
-const names = ["HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "TMPDIR", "CODEX_HOME", "GROK_HOME", "CLAUDE_CONFIG_DIR", "PATH", "PREGATE_TESTING", "PREGATE_TEST_ANSWER"] as const;
+const names = ["HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "TMPDIR", "CODEX_HOME", "GROK_HOME", "CLAUDE_CONFIG_DIR", "PATH", "Path", "PREGATE_TESTING", "PREGATE_TEST_ANSWER"] as const;
 let saved: Record<string, string | undefined>;
 let run = 0;
 let area: string;
@@ -573,6 +576,77 @@ test.each(["codex", "agy", "cursor"] as const)("%s initial contract review allow
   const malformed: Rejected = { cause: "payload-unrecognized", kind: "pre-command", reentry: false, session: null, dirs: [join(root, "src")] };
   expect(inert(malformed)).toBe(false);
   expect(rejected(malformed).verdict).toBe("deny");
+});
+
+function pathScripts(bin: string): void {
+  const orcaName = WINDOWS ? "orca.cmd" : "orca";
+  const browserName = WINDOWS ? "agent-browser.cmd" : "agent-browser";
+  put(join(bin, orcaName), "#!/bin/bash\nELECTRON=\"/Applications/Orca.app/Contents/MacOS/Orca\"\nexec \"$ELECTRON\" \"$@\"\n");
+  put(join(bin, browserName), "#!/usr/bin/env node\nconst { spawn } = require(\"node:child_process\");\nspawn(process.execPath, [\"-e\", \"console.log(1)\"]);\n");
+  if (!WINDOWS) {
+    chmodSync(join(bin, orcaName), 0o755);
+    chmodSync(join(bin, browserName), 0o755);
+  }
+  process.env.PATH = `${bin}${delimiter}${process.env.PATH ?? ""}`;
+  process.env.Path = process.env.PATH;
+}
+
+test("inactive consent allows installed PATH scripts and skill reads, denies a project write sink, and records it", () => {
+  const root = canonical(join(area, "inactive"));
+  put(join(root, "src/a.ts"), "export const a = 1;\n");
+  git(root, "init", "-q");
+  put(join(root, PRESET), "{}\n");
+  proposeContract({ root, lockText: "{}", baseline: state.sha256(""), writes: [] });
+  expect(enabled(root)).toBe(false);
+  expect(pendingRoot(root)).toBe(root);
+  pathScripts(join(area, "bin"));
+  expect(commandOnPath("orca")?.replaceAll("\\", "/")).toContain("/bin/orca");
+  expect(commandOnPath("agent-browser")?.replaceAll("\\", "/")).toContain("/bin/agent-browser");
+  put(join(root, "scripts/write.js"), "const fs = require(\"node:fs\");\nfs.writeFileSync(\"out.txt\", \"x\\n\");\n");
+  const skill = join(process.env.HOME!, ".agents/skills/pregate/SKILL.md");
+  put(skill, "# pregate\n");
+  const s = session("claude-code", "inactive");
+  const command = (text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
+  expect(command("orca console").verdict).toBe("none");
+  expect(command("orca network").verdict).toBe("none");
+  expect(command("agent-browser open").verdict).toBe("none");
+  expect(command(`cat -- '${skill}'`).verdict).toBe("none");
+  const denied = command("node scripts/write.js");
+  expect(denied.cause).toBe("shell-write");
+  expect(denied.full).toContain("`pregate issue draft --last`");
+  expect(findings(root).some((f) => f.event.form === "shell-write" && f.event.verdict === "deny")).toBe(true);
+});
+
+test("a pending batch with inactive consent still denies a project write sink and allows an installed launcher", () => {
+  const root = canonical(join(area, "batched"));
+  put(join(root, "src/a.ts"), "export const a = 1;\n");
+  git(root, "init", "-q");
+  put(join(root, PRESET), "{}\n");
+  proposeBatch([{ root, digest: "a".repeat(64) }]);
+  expect(pendingRoot(root)).toBeNull();
+  expect(projectUpdateMention("node scripts/write.js")).toBe(true);
+  expect(enabled(root)).toBe(false);
+  pathScripts(join(area, "batch-bin"));
+  put(join(root, "scripts/write.js"), "const fs = require(\"node:fs\");\nfs.writeFileSync(\"out.txt\", \"x\\n\");\n");
+  const s = session("claude-code", "batched");
+  const command = (text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
+  expect(command("orca console").verdict).toBe("none");
+  const denied = command("node scripts/write.js");
+  expect(denied.cause).toBe("shell-write");
+  expect(findings(root).some((f) => f.event.form === "shell-write")).toBe(true);
+});
+
+test("a denial with no preset does not tell the agent to draft from --last", () => {
+  const root = canonical(join(area, "nopreset"));
+  put(join(root, "src/a.ts"), "export const a = 1;\n");
+  git(root, "init", "-q");
+  proposeContract({ root, lockText: "{}", baseline: state.sha256(""), writes: [] });
+  const denied = onPreCommand({ session: session("claude-code", "nopreset"), callId: "uninstall", tool: "Bash", cwd: root, command: "pregate uninstall" });
+  expect(denied.verdict).toBe("deny");
+  expect(denied.full).not.toContain("issue draft --last");
+  expect(denied.full).toContain("no preset");
+  expect(denied.compact).not.toContain("issue draft --last");
+  expect(denied.notice ?? "").not.toContain("issue draft --last");
 });
 
 test("initial review discovery stops at a nested repository and expires without granting consent", () => {

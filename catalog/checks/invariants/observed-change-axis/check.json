@@ -1,6 +1,6 @@
 {
   "id": "core/invariants/observed-change-axis",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "invariants",
   "cardinality": "singleton",
   "dimension": "invariant.r030",

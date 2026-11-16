@@ -4,6 +4,7 @@ import { agyNativeAsk, finishContract } from "./approval.ts";
 import { enabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
+import { withoutPresetDraft } from "./message.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, guideMention, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, projectUpdateMention, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
@@ -147,16 +148,21 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const sid = state.key(c.session);
   const cwd = canonical(c.cwd);
   if (findRoot(cwd, enabled) === null && state.roots(sid).filter((r) => enabled(r)).length === 0) {
-    const root = pendingRoot(cwd);
-    if (root === null && !projectUpdateMention(c.command) && !guideMention(c.command)) return told(null);
-    const approval = administrativeApproval(root, c);
+    const pending = pendingRoot(cwd);
+    if (pending === null && !projectUpdateMention(c.command) && !guideMention(c.command)) return told(null);
+    const approval = administrativeApproval(pending, c);
     if (approval !== null) return approval;
-    const globs = machine();
-    const ctx: GuardContext = { launcher: launcher(), engines: engineHome(), isProtected: (p) => protects(canonical(p), globs),
-      inScope: () => false, under: () => false, touched: () => true, readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges };
-    const cause = guard(c.command, cwd, { ...ctx, machineOnly: root === null, harness: c.session.harness });
-    const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
-    return decide(inputOf(call, { ...NOTHING, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" }));
+    const preset = findRoot(cwd, () => true);
+    const ctx = inactiveContext(sid, preset, pending);
+    // A pending review, a pending batch, or a guide mention already selected this command, so a
+    // shell-admin or shell-write is returned. `touched` is the real set: a path inside the pending
+    // review, the preset, or a root this session reached. An allow that touched none of them writes
+    // nothing.
+    const cause = guard(c.command, cwd, { ...ctx, machineOnly: false, harness: c.session.harness });
+    const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: preset ?? pending, rel: null, startedAt };
+    const o = { ...NOTHING, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" };
+    const decision = cause === null && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
+    return preset === null ? withoutPresetDraft(decision) : decision;
   }
   const located = locate(sid, cwd);
   const root = isCause(located) ? null : located;
@@ -177,6 +183,36 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const cause = ctx.failure() ?? guarded;
   const o = { ...NOTHING, lock: valid?.lock ?? null, lockHash: valid?.hash ?? null, form: cause === null ? null : form(cause), protectedPath: cause === "protected-path" };
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
+}
+
+// Consent is off, and no enabled session root is in play. Paths inside the pending review, the
+// preset, or a root this session already reached still count as the project: `touched` is that
+// set, and a script installed outside it is not project code.
+function inactiveContext(sid: string, preset: string | null, pending: string | null): GuardContext {
+  const globs = machine();
+  const known = [...new Set([...(preset === null ? [] : [preset]), ...(pending === null ? [] : [pending]), ...state.roots(sid)])];
+  let touched = false;
+  const note = (p: string): void => {
+    try {
+      const abs = canonical(p);
+      touched ||= known.some((r) => within(r, abs));
+    } catch (error) {
+      if (!["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) throw error;
+    }
+  };
+  return {
+    launcher: launcher(), engines: engineHome(),
+    isProtected: (p) => { note(p); return protects(canonical(p), globs); },
+    inScope: (p) => { note(p); return false; },
+    under: (p) => { note(p); return false; },
+    touched: () => touched,
+    skillRead: (p) => configurationRead(sid, preset ?? pending, p, true),
+    readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    outsideRoots: (p) => {
+      const abs = canonical(p);
+      return findRoot(dirname(abs), enabled) === null && !known.some((r) => within(r, abs));
+    },
+  };
 }
 
 // issue submit, feedback apply and storage apply stay on a separate terminal. `pregate approve`

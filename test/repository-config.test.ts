@@ -6,6 +6,7 @@ import { compile } from "../src/compile.ts";
 import { VERSIONS } from "../src/gate.ts";
 import { librarySource } from "../src/library.ts";
 import type { Preset } from "../src/types.ts";
+import { ADVISORY_CHECKS, advisoryChecksFromScript, checkId, expectAdvisoryTier } from "./core-tier.ts";
 
 // Cases spawn git or the engine; on Windows each spawn costs 0.3-1 s.
 setDefaultTimeout(60_000);
@@ -32,8 +33,17 @@ test("repository fail-fast boundary: the actual valid contract retains all defau
   expect(loaded).toEqual(preset.sources.map((s) => s.ns));
   const core = result.lock.rules.filter((r) => r.id.startsWith("core/"));
   expect(core).toHaveLength(68);
-  expect(core.every((r) => r.severity === "deny" && r.enforcement === "enforce")).toBe(true);
+  expectAdvisoryTier(core);
   expect(core.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "fitness")).toHaveLength(64);
+});
+
+test("repository fail-fast boundary: the script advisory set is the compiled warn tier", () => {
+  const { result } = inspect(text);
+  if ("errors" in result) throw new Error(result.errors.join("\n"));
+  const fromScript = advisoryChecksFromScript();
+  expect(fromScript).toEqual([...ADVISORY_CHECKS]);
+  const core = result.lock.rules.filter((r) => r.id.startsWith("core/"));
+  expect(core.filter((r) => r.severity === "warn").map(checkId)).toEqual(fromScript);
 });
 
 const invalid: [string, object, string][] = [
