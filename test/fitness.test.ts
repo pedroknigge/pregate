@@ -399,6 +399,16 @@ test("both supplied invariant sets retain traceability without duplicate obligat
   expect(statement("CORE-INV-053")).toContain("dated authoritative support evidence");
   expect(statement("CORE-INV-058")).toContain("Do not introduce speculative flags");
   expect(statement("CORE-INV-064")).toContain("target date");
+  expect(statement("CORE-INV-036")).toContain("A single literal whose meaning is obvious where it is used is not a policy");
+  expect(statement("CORE-INV-036").toLowerCase()).not.toContain("advisory");
+  expect(statement("CORE-INV-049")).toContain("A committed lock that records each resolved version satisfies the pin; an exact manifest pin also satisfies it");
+  expect(statement("CORE-INV-049")).not.toContain("without a committed lock");
+  expect(statement("CORE-INV-058")).toContain("hard to reverse after release, such as a data migration, an external contract, or an irreversible side effect");
+  expect(statement("CORE-INV-058")).toContain("a feature that can be removed safely does not need a flag");
+  expect(statement("CORE-INV-058")).not.toContain("exposes new behavior");
+  for (const rule of manifest.invariants as { severity: string; why: string }[]) {
+    if (rule.severity !== "warn") expect(rule.why.toLowerCase()).not.toContain("advisory");
+  }
 });
 
 test("missing, stale, incomplete and failed evidence cannot establish a requirement", () => {

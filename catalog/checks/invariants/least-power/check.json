@@ -1,10 +1,10 @@
 {
   "id": "core/invariants/least-power",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "invariants",
   "cardinality": "singleton",
   "dimension": "invariant.r035",
-  "minSeverity": "deny",
+  "minSeverity": "warn",
   "params": {
     "verifier": {
       "type": "string",

@@ -12,6 +12,7 @@ import { sha256 } from "../src/state.ts";
 import { contractState } from "../src/status.ts";
 import { projectFitness } from "../src/fitness-command.ts";
 import type { Lock, Session } from "../src/types.ts";
+import { expectAdvisoryTier } from "./core-tier.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // Cases spawn git or the engine; on Windows each spawn costs 0.3-1 s.
@@ -61,7 +62,7 @@ function project(preset = actualPreset, lockEnding = "LF") {
   if ("errors" in result) throw new Error(result.errors.join("\n"));
   const core = result.lock.rules.filter((rule) => rule.id.startsWith("core/"));
   expect(core).toHaveLength(68);
-  expect(core.every((rule) => rule.severity === "deny" && rule.enforcement === "enforce")).toBe(true);
+  expectAdvisoryTier(core);
   put(join(root, LOCK), lockEnding === "CRLF" ? result.text.replace(/\n/g, "\r\n") : result.text);
   git(root, "init", "-q");
   git(root, "add", ".");
