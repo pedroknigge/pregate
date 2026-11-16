@@ -83,6 +83,8 @@ Other commands, substitutions, protected paths and output redirections remain
 guarded. A literal output path outside project/protected scope is permitted;
 uncertain targets or an output into source do not acquire that permission.
 
+`orca` (and `orca-dev` / `orca-ide`), `agent-browser` and `agent-desktop` are host-automation CLIs, including under `npx` and `bunx`. Their inspect and drive subcommands are allowed with consent on or off, and the launcher is read for control commands only. A screenshot or output path still uses the ordinary write check. `orca agent launch` and the other agent-launch forms are `shell-admin`. `orca agent hooks off` is `hook-switch`.
+
 Pre-command loads the full contract when the guard queries project scope.
 Inspection still checks protected paths, administrative commands and harness
 registration; it retains root acceptance, snapshots and events. Local pack

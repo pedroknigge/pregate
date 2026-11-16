@@ -148,6 +148,28 @@ The default `audit` is compact: totals and coverage gaps first,
 then a limited number of examples. Use `audit --full` to see every text location;
 JSON/JSONL retain all evidence. `--plan` still requests the complete plan.
 
+## Driving a browser or a desktop
+
+`orca`, `orca-dev` and `orca-ide` (the Linux install name, and the dev-checkout CLI), `agent-browser` and `agent-desktop` inspect or drive a browser or a desktop. The same command after `npx` or `bunx` is judged the same way. These are host-automation commands. The shell gate allows their inspect and drive subcommands with consent on and with consent off, and it reads the launcher for control commands only.
+
+A drive command includes `orca console`, `network`, `snapshot`, `click`, `type`, `navigate`, `goto`, `screenshot`, `tab`, `status`, `skills get` and `skills list`, plus `computer` and `emulator`; `agent-browser open`, `click`, `fill`, `type`, `snapshot` and `screenshot`; and `agent-desktop screenshot`, `click`, `type` and `launch` (that `launch` starts an application). A subcommand outside that drive loop, such as `agent-browser doctor`, is still project code when the file on `PATH` lies inside the project.
+
+These commands are denied:
+
+| Command | Cause | Why |
+| --- | --- | --- |
+| `orca agent launch` | `shell-admin` | It starts an ungated agent. `orca-dev` and `orca-ide` are the same command. |
+| `orca worktree create --agent <id>` | `shell-admin` | `--agent` launches that agent in the new worktree. `worktree create` without `--agent` stays allowed. |
+| `orca automations run <id>` | `shell-admin` | It runs a scheduled agent prompt. |
+| `orca terminal create --command <harness>` and `terminal split --command <harness>` | `shell-admin` | The command's first token is a harness (`claude`, `codex`, `agent`, and the other harness names). `terminal create --command "npm test"` stays allowed. |
+| `orca agent hooks off` | `hook-switch` | It removes the agent status hooks. `hooks status` and `hooks on` stay allowed. |
+
+`agent-browser` and `agent-desktop` have no agent-launch or hook-off command.
+
+A screenshot or other output path is an ordinary write. The path commands are `screenshot`, `full-screenshot`, `pdf`, `record` and `download`. The path flags are `--output`, `-o`, `--out`, `--path`, `--file`, `--trace`, `--screenshot` and `--annotate`. A path inside the project is `shell-write` while consent is on. A temp path is allowed. A path that is not literal is `shell-write`. A bare `screenshot`, with no path, is a drive command. With consent inactive the scope check does not mark project paths in scope, the same as any other write.
+
+See [Guarantees and limits](../guarantees.md).
+
 ## When an edit is denied
 
 The [project-update workflow](../features/project-update.md)

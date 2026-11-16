@@ -185,6 +185,8 @@ const ASSIGNMENT = /^([A-Za-z_]\w*)=/;
 const PIECES = /[^\w./@+~%-]+/;
 
 const HARNESS = /(^|[/@])(claude|claude-code|codex|grok|gemini|gemini-cli|qwen|qwen-code|copilot|cursor|cursor-agent|agy|antigravity|aider|aider-chat|opencode|opencode-ai|kilo|kilocode|amp|cline|junie|kiro-cli|droid|auggie)(@[^/]*)?(\/|$)/;
+// orca, orca-dev, orca-ide, agent-browser and agent-desktop drive a browser or a desktop.
+// They are not harnesses. hostPolicy judges their subcommands. Do not add those names here.
 // Git takes any unambiguous prefix of a long option: `--no-veri` is the shortest --no-verify.
 const ADMIN_WORD = /--no-veri|core\.hookspath/i;
 const GIT_SWITCH = /^(HUSKY|HUSKY_SKIP_HOOKS|LEFTHOOK|SKIP|PRE_COMMIT_ALLOW_NO_CONFIG|GIT_CONFIG\w*|KILO_PURE)$/;
@@ -1079,6 +1081,110 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   return admin === null || (cause !== null && ALWAYS.has(cause)) ? cause : admin;
 }
 
+// Host-automation CLIs drive a browser or a desktop for an agent. They are not harnesses.
+// The policy applies once the guard can place files (`outsideRoots` is set), which is both the
+// consent path and the inactive-consent path. A context that cannot place the file still reads
+// the launcher as a project script. A drive command is not a project write: the launcher text
+// is read for control commands only. An output path still goes through `writes`. Launching
+// another agent is shell-admin. Switching that agent's hooks off is hook-switch.
+const HOST_TOOLS = new Set(["orca", "orca-dev", "orca-ide", "agent-browser", "agent-desktop"]);
+const OUTPUT_FLAGS = ["--output", "--out", "-o", "--path", "--file", "--trace", "--screenshot", "--annotate"];
+const HOST_VALUED = [...OUTPUT_FLAGS, "--url", "--element", "--value", "--text", "--worktree", "--page", "--limit", "--selector",
+  "--depth", "--name", "--index", "--command", "--expression", "--input", "--files", "--key", "--direction", "--amount",
+  "--timeout", "--timeout-ms", "--host", "--environment", "--agent", "--prompt", "--model", "--effort", "--device", "--app",
+  "--window-id", "--screen", "--session", "--fps", "--threshold", "--agent-id", "--wait-timeout"];
+const OUTPUT_COMMANDS = new Set(["screenshot", "full-screenshot", "pdf", "record", "download"]);
+const OUTPUT_EXT = /\.(?:png|jpe?g|gif|webp|pdf|html?|jsonl|webm|mp4|mkv|txt)$/i;
+const ORCA_DRIVE = new Set(["console", "network", "snapshot", "click", "type", "navigate", "goto", "screenshot", "full-screenshot", "pdf",
+  "fill", "wait", "exec", "back", "reload", "forward", "select", "check", "uncheck", "scroll", "hover", "focus", "keypress", "key", "press",
+  "upload", "eval", "cookie", "cookies", "inserttext", "viewport", "status", "open"]);
+const BROWSER_DRIVE = new Set(["open", "back", "forward", "reload", "read", "snapshot", "get", "is", "click", "dblclick", "fill", "type",
+  "press", "keyboard", "hover", "focus", "select", "check", "uncheck", "scroll", "drag", "upload", "mouse", "find", "wait", "screenshot",
+  "pdf", "record", "download", "diff", "cookies", "storage", "network", "set", "clipboard", "eval", "pushstate", "tab", "frame", "dialog",
+  "console", "errors", "highlight", "inspect", "trace", "profiler", "vitals", "react", "a11y", "session", "state", "auth", "profiles",
+  "close", "connect", "goto", "navigate", "scrollintoview", "key", "keydown", "keyup", "confirm", "deny"]);
+const DESKTOP_DRIVE = new Set(["snapshot", "find", "get", "is", "screenshot", "list-surfaces", "click", "double-click", "triple-click",
+  "right-click", "type", "set-value", "clear", "focus", "select", "toggle", "check", "uncheck", "expand", "collapse", "scroll", "scroll-to",
+  "press", "hover", "drag", "mouse-move", "mouse-click", "mouse-wheel", "key-down", "key-up", "mouse-down", "mouse-up", "launch", "close-app",
+  "list-apps", "list-windows", "list-displays", "focus-window", "resize-window", "move-window", "minimize", "maximize", "restore",
+  "open-system-surface", "notifications", "clipboard", "wait", "status", "permissions", "version"]);
+
+function hostPolicy(name: string, head: Word, args: Word[], cwd: string | null, ctx: Ctx): Cause | null | undefined {
+  if (!HOST_TOOLS.has(name) || ctx.outsideRoots === undefined) return undefined;
+  const located = hostPath(head, cwd, ctx);
+  const control = controlFile(ctx, located);
+  if (control !== null) return control;
+  const { flags, operands } = getopt(args, HOST_VALUED);
+  const words = operands.map((word) => word.text);
+  const kind = classifyHost(name, words, flags);
+  if (kind.deny !== null) return kind.deny;
+  const spilled = hostOutputs(words, flags, operands, cwd, ctx);
+  if (spilled !== null) return spilled;
+  if (kind.drive) return null;
+  if (located !== null && ctx.outsideRoots(located)) return null;
+  return undefined;
+}
+
+function hostPath(head: Word, cwd: string | null, ctx: Ctx): string | null {
+  if (/[\\/]/.test(head.text)) return resolve(cwd, head.text);
+  if (ctx.commandPath === undefined || head.text === "" || head.text.includes("\0")) return null;
+  const found = ctx.commandPath(head.text);
+  return found === null || found === "" ? null : found;
+}
+
+function classifyHost(name: string, words: string[], flags: Flag[]): { drive: boolean; deny: Cause | null } {
+  if (name === "orca" || name === "orca-dev" || name === "orca-ide") return { drive: orcaDrive(words), deny: orcaDenied(words, flags) };
+  const [a, b] = words;
+  const verbs = name === "agent-browser" ? BROWSER_DRIVE : DESKTOP_DRIVE;
+  return { drive: (a !== undefined && verbs.has(a)) || (a === "skills" && (b === "get" || b === "list")), deny: null };
+}
+
+function orcaDrive(words: string[]): boolean {
+  const [a, b] = words;
+  if (a === undefined) return false;
+  if (ORCA_DRIVE.has(a) || a === "computer" || a === "emulator" || a === "tab" || a === "capture") return true;
+  if (a === "skills" && (b === "get" || b === "list")) return true;
+  return a === "set" && b === "device";
+}
+
+// `agent launch` starts an agent. `worktree create --agent` launches one in the new worktree.
+// `automations run` runs a scheduled agent prompt. `terminal create|split --command` starts a
+// harness when its command's first token is one. `agent hooks off` removes the status hooks.
+function orcaDenied(words: string[], flags: Flag[]): Cause | null {
+  const [a, b, c] = words;
+  if (a === "agent" && b === "launch") return "shell-admin";
+  if (a === "agent" && b === "hooks" && c === "off") return "hook-switch";
+  if (a === "worktree" && b === "create" && flags.some(([flag]) => flag === "--agent")) return "shell-admin";
+  if (a === "automations" && b === "run") return "shell-admin";
+  if (a === "terminal" && (b === "create" || b === "split")) {
+    const command = flags.find(([flag]) => flag === "--command")?.[1];
+    if (command !== undefined && harnessToken(command.text)) return "shell-admin";
+  }
+  return null;
+}
+
+function harnessToken(text: string): boolean {
+  const token = text.trim().split(/[ \t]+/)[0] ?? "";
+  if (token === "") return false;
+  const base = basename(slash(token)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
+  return base === "agent" || HARNESS.test(base);
+}
+
+function hostOutputs(words: string[], flags: Flag[], operands: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  const flagged = flags.flatMap((entry): Word[] => {
+    const [flag, value] = entry;
+    return OUTPUT_FLAGS.includes(flag) && value !== undefined ? [value] : [];
+  });
+  const at = words.findIndex((word) => OUTPUT_COMMANDS.has(word));
+  const positional = at < 0 ? [] : operands.slice(at + 1).filter((word) => !word.literal || outputPath(word.text));
+  return writes([...flagged, ...positional], cwd, ctx.inScope);
+}
+
+function outputPath(text: string): boolean {
+  if (text === "" || text.startsWith("-") || text.startsWith("@")) return false;
+  return text.startsWith(".") || text.startsWith("~") || text.includes("/") || text.includes("\\") || OUTPUT_EXT.test(text);
+}
+
 function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
   const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
   if (!head.literal) return unnamed(head, args, cwd, ctx, stdin);
@@ -1105,6 +1211,8 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
   if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd, ctx) ?? writes(targets(name, args), cwd, ctx.inScope);
+  const hosted = hostPolicy(name, head, args, cwd, ctx);
+  if (hosted !== undefined) return hosted;
   const scripted = head.literal ? namedScript(head, name, cwd, ctx) : null;
   if (scripted !== null) return scripted;
   if (COPIES.has(name)) return copies(name === "copy" || name === "move" ? args.filter((w) => !/^\/-?[yabvndz]$/i.test(w.text)) : args, cwd, ctx);
