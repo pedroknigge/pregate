@@ -18,7 +18,7 @@ const FORM_RUN_MAX = 3;
 // target may be a protected path. An unresolved import is not one of these: shadow still blocks
 // it, and advisor blocks it only when an enforced static rule would be skipped.
 const GUARDS: ReadonlySet<Cause> = new Set<Cause>([
-  "protected-path", "request-invalid", "shell-admin", "shell-write", "hook-switch",
+  "protected-path", "request-invalid", "shell-admin", "shell-write", "hook-switch", "approval",
 ]);
 
 const NO_STOP: NonNullable<DecideInput["stop"]> = { blocks: 0, reentry: false, approved: [] };

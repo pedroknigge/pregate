@@ -26,7 +26,7 @@ test("inline interpreters name pregate control commands and leave benign code al
   expect(pregateControlCause("pregate status")).toBeNull();
   expect(pregateControlCause("print(1 + 1)")).toBeNull();
   expect(pregateControlCause('trusted_hash = "abc"')).toBe("hook-switch");
-  expect(pregateControlCause("PREGATE_TESTING=1")).toBe("hook-switch");
+  expect(pregateControlCause("PREGATE_TESTING=1")).toBe("approval");
   expect(scriptControlCause("/repo/run.sh", "#!/bin/sh\npregate approve x\n")).toBe("shell-admin");
   expect(scriptControlCause("/repo/Makefile", "approve:\n\tpregate approve x\n")).toBe("shell-admin");
   expect(scriptControlCause("/repo/src/a.ts", "export const pregate = 1;\n")).toBeNull();
@@ -65,7 +65,11 @@ test("continued lines, computed verbs and contract-writing commands are control 
   expect(pregateControlCause("pregate feedback apply x --yes")).toBe("shell-admin");
   expect(pregateControlCause("pregate storage apply x --yes")).toBe("shell-admin");
   expect(pregateControlCause("pregate issue submit x --yes")).toBe("shell-admin");
-  expect(pregateControlCause("export PREGATE_UNATTENDED_APPROVAL=1")).toBe("hook-switch");
+  expect(pregateControlCause("export PREGATE_UNATTENDED_APPROVAL=1")).toBe("approval");
+  expect(pregateControlCause("PREGATE_TEST_ANSWER=y")).toBe("approval");
+  expect(pregateControlCause("export PREGATE_ACCEPT_CONTRACT=abc")).toBe("approval");
+  expect(pregateControlCause("export PREGATE_UNATTENDED_APPROVAL=1\npregate uninstall")).toBe("hook-switch");
+  expect(pregateControlCause("PREGATE_PROJECT_HOOK=1")).toBeNull();
   expect(pregateControlCause("rm ~/.local/share/pregate/consent/*.json")).toBe("hook-switch");
   expect(pregateControlCause("pregate preset show")).toBeNull();
   expect(pregateControlCause("echo pregate is \\\nfine")).toBeNull();

@@ -455,6 +455,13 @@ describe("message content", () => {
     expect(formText({ cause: "git-not-repository", line: null }, null).full).toContain("Fix: run `git init`");
     expect(formText({ cause: "git-not-repository", line: null }, null).full).toContain("restore the removed .git");
     expect(formText({ cause: "git-error", line: null }, null).full).toContain("pregate disable");
+    const approval = formText({ cause: "approval", line: null }, null);
+    expect(approval.compact).toContain("PREGATE DENY approval");
+    expect(approval.full).toContain("cannot grant itself approval");
+    expect(approval.full).toContain("separate terminal");
+    expect(approval.full).not.toContain("rule adaptation");
+    expect(approval.full).not.toContain("propose a bounded rule/pack change");
+    expect(formText({ cause: "hook-switch", line: null }, null).full).toContain("rule adaptation");
   });
 
   test("advisor parse failure names the file and is not a clean result", () => {

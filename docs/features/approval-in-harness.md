@@ -157,7 +157,10 @@ disable PREGATE. See native observations.
 With `PREGATE_UNATTENDED_APPROVAL=1` already in the environment (an unattended CI
 job; `CI` alone does not count), `--yes` on the other control commands applies
 without the `/dev/tty` question. Assigning that variable on a command is still
-denied. The digest binds the writes, compiled lock, baseline and expiry; a
+denied, as cause `approval`. The text says an agent cannot grant itself approval
+and names the exact command for a separate terminal. It does not suggest a rule
+adaptation. `PREGATE_TESTING`, `PREGATE_TEST_ANSWER` and `PREGATE_ACCEPT_CONTRACT`
+are the same cause. Other `PREGATE_*` assignments stay `hook-switch`. The digest binds the writes, compiled lock, baseline and expiry; a
 replaced proposal, changed baseline or altered sources cannot apply the reviewed
 proposal. It expires 24 hours after preparation. A non-terminal approval is
 appended to `contract-approvals/log.jsonl` under the data directory.

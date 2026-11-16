@@ -197,6 +197,47 @@ describe("D24 gated harness invocation", () => {
   });
 });
 
+test("approval-forging variables stay denied and are not a hook switch", () => {
+  const rootless = { ...ctx, machineOnly: true, touched: () => false };
+  const approval = [
+    "PREGATE_UNATTENDED_APPROVAL=1 pregate disable --yes",
+    "PREGATE_UNATTENDED_APPROVAL=1 pregate approve --yes",
+    "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve abc123def456",
+    "export PREGATE_ACCEPT_CONTRACT=abc",
+    "env PREGATE_UNATTENDED_APPROVAL=1 pregate disable --yes",
+    "env PREGATE_UNATTENDED_APPROVAL=1 sh -c 'pregate disable --yes'",
+    "sh -c 'PREGATE_UNATTENDED_APPROVAL=1 pregate disable --yes'",
+    "sh -c 'env PREGATE_TESTING=1 pregate approve --yes'",
+    "$env:PREGATE_UNATTENDED_APPROVAL='1'; pregate disable --yes",
+    "set PREGATE_UNATTENDED_APPROVAL=1 & pregate disable --yes",
+    "env -u PREGATE_UNATTENDED_APPROVAL pregate status",
+    "env -u PREGATE_TEST_ANSWER echo ok",
+    "export PREGATE_UNATTENDED_APPROVAL=1; pregate disable --yes",
+    "$env:PREGATE_TESTING='1'; pregate approve --yes",
+  ];
+  for (const command of approval) {
+    expect(guard(command, ROOT, ctx), command).toBe("approval");
+    expect(guard(command, "/tmp/elsewhere", rootless), command).toBe("approval");
+  }
+  const hook = [
+    "pregate uninstall",
+    "PREGATE_UNATTENDED_APPROVAL=1 pregate uninstall",
+    "export PREGATE_UNATTENDED_APPROVAL=1; pregate uninstall",
+    "$env:PREGATE_UNATTENDED_APPROVAL='1'; pregate uninstall",
+    "env PREGATE_TESTING=1 pregate setup",
+    "PREGATE_PROJECT_HOOK=1 pregate status",
+    "env -u PREGATE_PROJECT_HOOK pregate status",
+    "env -u HOME codex exec review",
+    "env -i pregate status",
+    "HOME=/tmp/h codex exec x",
+    "GROK_CLAUDE_HOOKS_ENABLED=0 grok -p x",
+    "$env:CODEX_HOME='/tmp/c'; codex",
+  ];
+  for (const command of hook) expect(guard(command, ROOT, ctx), command).toBe("hook-switch");
+  expect(guard("pregate status", ROOT, ctx)).toBeNull();
+  expect(guard("echo ok", ROOT, ctx)).toBeNull();
+});
+
 test("the protected launcher permits help without changing the contract", () => {
   for (const flag of ["--help", "-h"]) expect(guard(`/repo/.pregate/bin/pregate ${flag}`, ROOT, ctx)).toBeNull();
   expect(guard("/repo/.pregate/bin/pregate --help > .pregate/preset.json", ROOT, ctx)).not.toBeNull();

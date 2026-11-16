@@ -331,8 +331,10 @@ test("CI in the environment neither approves nor reveals codes; the dedicated op
   const s = fresh();
   const a = claude(s);
   ok(a.start(), "session");
-  denied(a.bash("PREGATE_UNATTENDED_APPROVAL=1 pregate disable --yes"), "hook-switch");
-  denied(a.bash("env PREGATE_UNATTENDED_APPROVAL=1 sh -c 'pregate disable --yes'"), "hook-switch");
+  const forged = a.bash("PREGATE_UNATTENDED_APPROVAL=1 pregate disable --yes");
+  denied(forged, "approval");
+  expect(said(forged)).not.toContain("rule adaptation");
+  denied(a.bash("env PREGATE_UNATTENDED_APPROVAL=1 sh -c 'pregate disable --yes'"), "approval");
 });
 
 // ── P1-4: an interactive Claude parent asks before a literal approval command runs ──────
