@@ -141,7 +141,7 @@ test("a gated harness may launch claude, codex and agy, including a prompt that 
   }
 });
 
-test("pregate disable stops blocking this project and still denies a forged approval", () => {
+test("pregate disable stops blocking this worktree, including approval and settings writes", () => {
   installGlobal();
   const cli = testEngine();
   const root = project();
@@ -155,7 +155,7 @@ test("pregate disable stops blocking this project and still denies a forged appr
   expect(off.stdout.toString()).toContain("disabled");
   const status = Bun.spawnSync([cli, "status"], { cwd: root, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 60_000 });
   expect(status.exitCode, status.stdout.toString()).toBe(0);
-  expect(status.stdout.toString()).toContain("disabled");
+  expect(status.stdout.toString()).toContain("disabled for this worktree");
   expect(status.stdout.toString()).toContain("do not block");
   // The same session already reached this root while it was enabled.
   const allowed = hook(cli, "codex", root, "git commit --no-verify -m x");
@@ -164,16 +164,29 @@ test("pregate disable stops blocking this project and still denies a forged appr
   const launched = hook(cli, "codex", root, "gemini -p hello");
   expect(launched.exitCode, text(launched)).toBe(0);
   const forge = hook(cli, "codex", root, "pregate approve --yes");
-  expect(forge.exitCode, text(forge)).toBe(2);
-  expect(forge.stderr.toString()).toContain("shell-admin");
-  expect(forge.stderr.toString()).toContain("human-only");
-  const enable = hook(cli, "claude-code", root, "pregate enable --yes");
-  expect(enable.exitCode, text(enable)).toBe(2);
-  expect(enable.stderr.toString()).toContain("human-only");
+  expect(forge.exitCode, text(forge)).toBe(0);
+  expect(text(forge)).not.toContain("PREGATE DENY");
+  const turnedOn = hook(cli, "claude-code", root, "pregate enable --yes");
+  expect(turnedOn.exitCode, text(turnedOn)).toBe(0);
+  expect(text(turnedOn)).not.toContain("PREGATE DENY");
   const edit = hook(cli, "claude-code", root, join(root, "src/a.ts"), "Write");
   expect(edit.exitCode, text(edit)).toBe(0);
   expect(text(edit)).not.toContain("PREGATE DENY");
   const settings = hook(cli, "claude-code", root, join(process.env.HOME!, ".claude/settings.json"), "Write");
-  expect(settings.exitCode, text(settings)).toBe(2);
-  expect(settings.stderr.toString()).toContain("protected-path");
+  expect(settings.exitCode, text(settings)).toBe(0);
+  expect(text(settings)).not.toContain("PREGATE DENY");
+  const back = Bun.spawnSync([cli, "enable", "--yes"], {
+    cwd: root, env: { ...process.env, PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y" }, stdout: "pipe", stderr: "pipe", timeout: 60_000,
+  });
+  expect(back.exitCode, `${back.stdout.toString()}\n${back.stderr.toString()}`).toBe(0);
+  const whole = Bun.spawnSync([cli, "disable", "--project", "--yes"], {
+    cwd: root, env: { ...process.env, PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y" }, stdout: "pipe", stderr: "pipe", timeout: 60_000,
+  });
+  expect(whole.exitCode, `${whole.stdout.toString()}\n${whole.stderr.toString()}`).toBe(0);
+  expect(whole.stdout.toString()).toContain("disabled for this project");
+  const projectStatus = Bun.spawnSync([cli, "status"], { cwd: root, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 60_000 });
+  expect(projectStatus.stdout.toString()).toContain("This project is disabled");
+  const projectApprove = hook(cli, "codex", root, "pregate approve --yes");
+  expect(projectApprove.exitCode, text(projectApprove)).toBe(0);
+  expect(text(projectApprove)).not.toContain("PREGATE DENY");
 });

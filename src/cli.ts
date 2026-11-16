@@ -18,7 +18,7 @@ import { relativePath as relative } from "./paths.ts";
 import { writeAll } from "./write-all.ts";
 import { applyRequest, listChecks } from "./compile.ts";
 import { canonical, findRoot, readStdin, readTree, STDIN_TIMEOUT, writeAtomic } from "./disk.ts";
-import { disable, enable } from "./consent.ts";
+import { disable, disableProject, enable } from "./consent.ts";
 import { testCheck, testFixture } from "./fixtures.ts";
 import { readFixture } from "./fixture-replay.ts";
 import { check, clock, delegate, grammars, launcher, LOCK, lockOf, PRESET, readText, sourceDirs, sourcesOf, VERSIONS } from "./gate.ts";
@@ -65,7 +65,7 @@ const USAGE = `usage:
   pregate compile <rules.md> [--json|--template|--preview] | compile apply <proposals.json> --preview
   pregate rules draft <pack-dir> <area>/<name> [--pattern <rule.json|auto> --message <text> --why <text> --fix <text>] [--files <glob>] [--fail <file>]... [--pass <file>]... [--trap <file> --trap-note <text>]...
   pregate storage inspect [--json] | prune --older-than <days> [--preview] | recover [--preview] | show <digest> | apply <digest> [--yes]
-  pregate enable | disable [--yes] | status [--json|--verbose]
+  pregate enable | disable [--project] [--yes] | status [--json|--verbose]
   pregate approve --preview [--full] | <code> [--no-commit] | [--yes] [--digest <sha256>] [--no-commit]
   pregate init [--preview|--yes] [--preset <name>]
   pregate scan [--json|--plan]
@@ -121,11 +121,15 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
     case "status": return statusCommand(args);
     case "approve": return approveCommand(args);
     case "enable": case "disable": {
-      if (args.length > 1 || (args.length === 1 && args[0] !== "--yes")) return BAD;
+      const flags = new Set(args);
+      if (args.length !== flags.size || [...flags].some((arg) => arg !== "--yes" && arg !== "--project") || (flags.has("--project") && cmd !== "disable")) return BAD;
       const root = here();
       if (root === null) return noPreset(process.cwd());
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for worktree ${root}.`, cmd === "disable", args.includes("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
-      if (cmd === "enable") enable(root); else disable(root);
+      const place = flags.has("--project") ? `project of ${root}` : `worktree ${root}`;
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
+      if (cmd === "enable") enable(root);
+      else if (flags.has("--project")) disableProject(root);
+      else disable(root);
       return { code: 0, text: statusText(protectionStatus(root)) };
     }
     case "check": return checkCommand(args);

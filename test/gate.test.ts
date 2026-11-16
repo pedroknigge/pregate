@@ -5,8 +5,9 @@ import { basename, delimiter, dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { canonical as lockText, compile } from "../src/compile.ts";
 import * as compiler from "../src/compile.ts";
-import { enable, disable, enabled } from "../src/consent.ts";
+import { disable, disableProject, enable, enabled, explicitlyDisabled } from "../src/consent.ts";
 import { check, delegate, engineHome, FLOOR, launcher, LOCK, lockOf, onPostInvocation, onPreCommand, onPreEdit, onSessionStart, onStop, sessionStart, pinned, PRESET, REDIRECT, redirect, rejected, sourcesOf, VERSIONS } from "../src/gate.ts";
+import { protectionStatus, statusText } from "../src/status.ts";
 import { decode as claude } from "../src/harness/claude.ts";
 import { decode as codex } from "../src/harness/codex.ts";
 import * as state from "../src/state.ts";
@@ -987,21 +988,36 @@ test("D28: a clone is inert until locally enabled; a worktree of a consenting re
     expect(enabled(dir)).toBe(false);
     expect((await onPreEdit([c])).verdict).toBe("none");
   }
-  // Disabling a worktree withdraws repository consent; the worktree enabled by name keeps its own.
+  // A worktree disable stays on that checkout. Repository consent remains, so a new worktree inherits it.
   expect(enabled(root)).toBe(true);
   const other = canonical(join(area, "worktree-2"));
   git(root, "worktree", "add", "-q", other, "-b", "consent-test-2");
+  expect(enabled(other)).toBe(true);
+  expect(enabled(worktree)).toBe(false);
+  // A project disable turns every checkout off, including one enabled by name. Enabling again
+  // restores the repository; a worktree disabled by name stays off.
+  disableProject(root);
+  expect(enabled(root)).toBe(false);
   expect(enabled(other)).toBe(false);
+  expect(enabled(worktree)).toBe(false);
   enable(root);
   expect(enabled(other)).toBe(true);
   expect(enabled(worktree)).toBe(false);
 });
 
-test("a disabled worktree denies a path when the protection check cannot resolve it", () => {
+test("a disabled worktree blocks nothing, including when a path cannot be resolved", () => {
   const root = repo("protect-fails");
+  const kept = repo("protect-kept");
   disable(root);
   const s = session("claude-code", "protect-fails");
-  expect(onPreCommand({ session: s, callId: "ordinary", tool: "Bash", cwd: root, command: "git commit --no-verify -m x" }).verdict).toBe("none");
+  onSessionStart({ kind: "session-start", session: s, cwd: kept });
+  for (const command of ["git commit --no-verify -m x", "pregate approve --yes", "pregate enable --yes", "pregate uninstall", `echo x > '${join(root, ".pregate/preset.json")}'`]) {
+    const decision = onPreCommand({ session: s, callId: command, tool: "Bash", cwd: root, command });
+    expect(decision.verdict, command).toBe("none");
+    expect(decision.cause, command).toBeNull();
+  }
+  const intoKept = onPreCommand({ session: s, callId: "sibling", tool: "Bash", cwd: root, command: `echo x > '${join(kept, "src/domain/a.ts")}'` });
+  expect(intoKept.cause).toBe("shell-write");
   const target = join(root, "unresolved");
   const key = pathKey(target);
   const original = disk.canonical;
@@ -1011,12 +1027,37 @@ test("a disabled worktree denies a path when the protection check cannot resolve
     return original(abs);
   });
   try {
-    const denied = onPreCommand({ session: s, callId: "unresolved", tool: "Bash", cwd: root, command: `echo changed > '${target}'` });
-    expect(denied.cause).toBe("protected-path");
+    const allowed = onPreCommand({ session: s, callId: "unresolved", tool: "Bash", cwd: root, command: `echo changed > '${target}'` });
+    expect(allowed.verdict).toBe("none");
+    expect(allowed.cause).toBeNull();
     expect(traced).toHaveBeenCalled();
   } finally {
     traced.mockRestore();
   }
+  expect(explicitlyDisabled(root)).toBe(true);
+  const reported = statusText(protectionStatus(root));
+  expect(reported).toContain("disabled for this worktree (branch ");
+  expect(reported).toContain("This worktree is disabled. Pre-command and pre-edit do not block it.");
+});
+
+test("a project disable blocks nothing and status names the project", () => {
+  const root = repo("project-off");
+  disableProject(root);
+  expect(explicitlyDisabled(root)).toBe(true);
+  expect(enabled(root)).toBe(false);
+  const s = session("claude-code", "project-off");
+  for (const command of ["pregate approve --yes", "pregate enable --yes", "git commit --no-verify -m x"]) {
+    const decision = onPreCommand({ session: s, callId: command, tool: "Bash", cwd: root, command });
+    expect(decision.verdict, command).toBe("none");
+  }
+  const text = statusText(protectionStatus(root));
+  expect(text).toContain("disabled for this project");
+  expect(text).toContain("This project is disabled. Pre-command and pre-edit do not block it.");
+  expect(text).not.toContain("this worktree");
+  disable(root);
+  const both = statusText(protectionStatus(root));
+  expect(both).toContain("disabled for this project and this worktree");
+  expect(both).toContain("This project and this worktree are disabled. Pre-command and pre-edit do not block it.");
 });
 
 test("an agent's isolated worktree inside the project is protected by its own contract, never reported as the project's stale lock", async () => {

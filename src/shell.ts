@@ -1613,25 +1613,6 @@ function inHarnessApproval(args: Word[]): boolean {
 // Quote-concatenation (`pre''gate`) and a leading `!` are that command. A wrapper, a
 // substitution, a script and a brace group are not: the guard denies those, and this
 // list is only used to turn an already-allowed command into a prompt.
-// After `pregate disable`, ordinary commands are allowed. These two are not: turning protection
-// back on, and recording an approval. uninstall/setup stay hook-switch on their own.
-export function controlWhileDisabled(command: string): { cause: Cause; detail: string } | null {
-  if (directApprovalArgv(command).length > 0) {
-    return { cause: "shell-admin", detail: "Recording an approval is human-only. The human runs pregate approve in a terminal. Disabling this worktree does not approve a contract." };
-  }
-  for (const call of lex(command)) {
-    if (call.grouped || call.words.length === 0) continue;
-    const head = call.words[0]!;
-    if (!head.literal || head.subs.length !== 0) continue;
-    const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
-    if (name !== "pregate") continue;
-    const sub = call.words.slice(1).find((w) => w.literal && !w.text.startsWith("-"));
-    if (sub?.text !== "enable" && sub?.text !== "disable") continue;
-    return { cause: "shell-admin", detail: `pregate ${sub.text} is human-only. The human runs pregate ${sub.text} in a terminal.` };
-  }
-  return null;
-}
-
 export function directApprovalArgv(command: string): string[][] {
   if (!command.includes("approve")) return [];
   const sources = [command, ...(command.includes("\\") ? [command.replace(/\\(?=[\w.-])/g, "/")] : [])];

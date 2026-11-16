@@ -41,7 +41,7 @@ proof; an unverified requirement is not a protected assertion.
 
 ## Turning protection off
 
-`pregate disable` is a human command, run in a terminal in the worktree. It does not ask an agent to do it. After it, `pregate status` says this worktree is disabled: pre-command and pre-edit no longer block ordinary work here, including launching another program and `git commit --no-verify`. The agent still cannot re-enable (`pregate enable`), uninstall, switch hooks off, edit harness settings, or record an approval (`pregate approve --yes`). Those stay denied so disabling the worktree is not a way to forge a contract. The human runs `pregate enable` to turn protection back on. A worktree that was never enabled is different: an open review there still guards project writes.
+`pregate disable` is a human command, run in a terminal. It does not ask an agent to do it. With no extra flag it disables the current worktree, the checkout of the current branch, and leaves every other worktree of the repository enforced. `pregate disable --project` disables the whole repository, including worktrees that were enabled by name. `pregate status` says which one applies: this worktree (and the branch checked out there) or this project. After either, pre-command and pre-edit exit 0 and block nothing in that scope. That includes `git commit --no-verify`, launching another program, `pregate approve --yes`, `pregate enable`, a hook switch, and a write to harness settings. The hook may print one informational line. It does not deny. The human runs `pregate enable` to turn protection back on. A worktree that was never enabled is different: an open review there still guards project writes.
 
 ## Launching another harness
 

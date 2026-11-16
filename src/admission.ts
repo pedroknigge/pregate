@@ -75,8 +75,8 @@ export function inert(event: HookEvent | Rejected): boolean {
   if ("cause" in event) return !accepted(event.session)
     && !(event.dirs.length === 0 ? active(process.cwd()) : event.dirs.some(active));
   if (event.kind === "pre-edit") {
-    // A disabled worktree still has to refuse harness settings and other machine files. A project
-    // that was never enabled stays inert, so a pending review is what loads the gate there.
+    // A disabled checkout still loads the gate so it can say, once, that it is not enforcing. A
+    // project that was never enabled stays inert, so a pending review is what loads the gate there.
     if (disabledWorktree(process.cwd()) || event.changes.some((c) => disabledWorktree(dirname(canonical(c.path))))) return false;
     // A file outside the project used to skip the gate on a fresh session. The shell guard still
     // sees the project through cwd. Do the same for edits when this process was started there,
@@ -103,8 +103,8 @@ export function inert(event: HookEvent | Rejected): boolean {
   }
   if (event.kind === "post-invocation") return !hasPostInvocation(key(event.session));
   if (event.kind === "pre-command") {
-    // `pregate disable` turns this worktree off. The gate still has to deny re-enable, uninstall
-    // and a forged approval; ordinary commands are allowed once it runs.
+    // `pregate disable` turns this checkout off. The gate runs so it can print one notice, then
+    // allows the command. A project that was never enabled stays on the pending-review path.
     if (disabledWorktree(event.command.cwd)) return false;
     return !accepted(event.command.session) && !active(event.command.cwd) && !projectUpdateMention(event.command.command) && !guideMention(event.command.command);
   }

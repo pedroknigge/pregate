@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agyNativeAsk, finishContract } from "./approval.ts";
-import { enabled, explicitlyDisabled } from "./consent.ts";
+import { disabledNotice, enabled, explicitlyDisabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
 import { withoutPresetDraft } from "./message.ts";
@@ -15,7 +15,7 @@ import { pendingRoot } from "./proposal.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
 import { gitChanges } from "./git-changes.ts";
-import { controlWhileDisabled, directApprovalArgv, guard, type GuardContext } from "./shell.ts";
+import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
 import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand, Session } from "./types.ts";
@@ -159,9 +159,8 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const own = findRoot(cwd, () => true);
   const disabledHere = own !== null && explicitlyDisabled(own);
   const sessionOn = state.roots(sid).filter((r) => enabled(r));
-  // A human disable covers this worktree even when the session already reached it, or reached
-  // another worktree that is still enabled. A project that was never enabled keeps the pending
-  // review path below.
+  // A human disable covers this checkout even when the session already reached it. A project that
+  // was never enabled keeps the pending review path below. Enforcement runs only where enable does.
   if (findRoot(cwd, enabled) === null && (sessionOn.length === 0 || disabledHere)) {
     if (disabledHere && own !== null) return disabledProjectCommand(c, sid, own, startedAt);
     const pending = pendingRoot(cwd);
@@ -208,43 +207,37 @@ function commandForm(cause: Cause | null, detail: string | null) {
   return cause === null ? null : form(cause, undefined, cause === "shell-admin" ? detail : null);
 }
 
-// The human disabled this worktree. Ordinary commands and edits are allowed, including a command
-// the shell guard used to call shell-admin (an ungated harness, git --no-verify). What stays denied
-// is the machine's own files, a hook switch, forging approval, re-enabling, and recording an
-// approval. A write that lands in a different worktree the session still has enabled is still that
-// worktree's write.
+// The human disabled this checkout. Nothing here is denied: shell-admin, hook-switch, approval,
+// protected paths, `pregate approve`, `pregate enable`, and harness settings. A path that lands in
+// a different worktree this session still has enabled is still that worktree's write.
 function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, startedAt: number): Decision {
-  const cwd = canonical(c.cwd);
-  const noted = { text: null as string | null };
+  const notice = told(null, disabledNotice(own));
   const others = state.roots(sid).filter((r) => enabled(r) && r !== own);
-  const base = others.length === 0 ? inactiveContext(sid, null, null) : shellContext(sid, others[0]!, () => lockOf(others[0]!), false);
-  const inside = (p: string): boolean => {
-    try { return within(own, canonical(p)); }
-    catch { return false; /* fail-closed: an unresolvable path is not exempted from the other worktree or the machine globs */ }
-  };
+  if (others.length === 0) return notice;
+  const noted = { text: null as string | null };
+  const base = shellContext(sid, others[0]!, () => lockOf(others[0]!), false);
+  const elsewhere = (p: string): boolean => enforcedElsewhere(own, others, p);
   const ctx: GuardContext = {
     ...base, shellDetail: noted,
-    isProtected: (p) => {
-      try {
-        if (protects(canonical(p), machine())) return true;
-      } catch {
-        return true; // fail-closed: a path the protection check cannot resolve is protected
-      }
-      return inside(p) ? false : base.isProtected(p);
-    },
-    inScope: (p) => inside(p) ? false : base.inScope(p),
-    under: (p) => inside(p) ? false : base.under(p),
+    isProtected: (p) => elsewhere(p) && base.isProtected(p),
+    inScope: (p) => elsewhere(p) && base.inScope(p),
+    under: (p) => elsewhere(p) && base.under(p),
   };
-  const guarded = guard(c.command, cwd, { ...ctx, machineOnly: others.length === 0, harness: c.session.harness });
-  const self = controlWhileDisabled(c.command);
-  const cause: Cause | null = guarded === "protected-path" || guarded === "hook-switch" || guarded === "approval" ? guarded
-    : self !== null ? self.cause
-    : guarded === "shell-write" ? guarded
-    : null;
-  if (self !== null && cause === self.cause && noted.text === null) noted.text = self.detail;
+  const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
+  if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: own, rel: null, startedAt };
-  if (cause === null) return told(null);
-  return settle(call, { ...NOTHING, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" });
+  return settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: guarded === "protected-path" });
+}
+
+// True only when the path is inside some other enabled root. A path in the disabled checkout, a
+// machine file, and a path that cannot be resolved are not enforced from here.
+function enforcedElsewhere(own: string, others: string[], p: string): boolean {
+  try {
+    const abs = canonical(p);
+    return !within(own, abs) && others.some((root) => within(root, abs));
+  } catch {
+    return false; // fail-closed: an unresolvable path is not enforced from a disabled checkout
+  }
 }
 
 // Consent is off, and no enabled session root is in play. Paths inside the pending review, the
