@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { canonical, samePlace, writeAtomic } from "./disk.ts";
+import { canonical, findRoot, samePlace, writeAtomic } from "./disk.ts";
 import { git } from "./git.ts";
-import { storageDir } from "./platform.ts";
+import { pathKey } from "./paths.ts";
+import { homeDir, storageDir } from "./platform.ts";
 
 // Consent belongs to this machine, never to committed repo files. Enabling a worktree also consents
 // for its repository: every other worktree of it (a branch checked out beside it, an agent's isolated
@@ -56,32 +57,81 @@ function gitDirectory(marker: string, root: string): string {
   return resolve(root, path.trim());
 }
 
-type ConsentFlags = { worktree: boolean; project: boolean; enabled: boolean };
+type ConsentFlags = { worktree: boolean; project: boolean; enabled: boolean; named: boolean };
+
+// One hook reads the same consent directory many times. The directory mtime changes when a record
+// is added, replaced, or removed, and enable/disable drop the cache even when a filesystem clock
+// would not. A read in another process has its own cache.
+const flagCache = new Map<string, ConsentFlags>();
+let flagStamp = "";
+const hereCache = new Map<string, boolean>();
+let hereStamp = "";
+// Bumped when this process writes a record, so a same-millisecond replace cannot reuse the old flags.
+let consentGeneration = 0;
+
+function forgetConsent(): void {
+  consentGeneration += 1;
+  flagStamp = "";
+  flagCache.clear();
+  hereStamp = "";
+  hereCache.clear();
+}
+
+function consentStamp(data: string): string {
+  const stat = statSync(join(data, "consent"), { throwIfNoEntry: false });
+  return `${consentGeneration}\0${data}\0${stat === undefined ? "" : stat.mtimeMs}`;
+}
+
+// A path that is a file has no `.git` child. `stat` throws ENOTDIR there; that is a missing marker,
+// the same as a directory that was never initialized.
+function gitMarker(path: string): string {
+  try {
+    const stat = statSync(join(path, ".git"), { throwIfNoEntry: false });
+    return stat === undefined ? "" : String(stat.mtimeMs);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR" || code === "ENAMETOOLONG") return "";
+    throw error;
+  }
+}
 
 // One pass over the consent directory. A worktree record names `root`. A project record names `repo`.
+// `named` is a non-disabled worktree record, even when `git init` moved the common dir and `enabled`
+// no longer matches it.
 function consentFlags(root: string, data: string): ConsentFlags {
+  const stamp = consentStamp(data);
+  if (stamp !== flagStamp) { flagCache.clear(); flagStamp = stamp; }
   const here = canonical(root);
+  // `git init` changes the common dir without touching the consent directory. The marker's mtime
+  // is part of the key, so that read is not served from the pre-init flags.
+  const key = `${pathKey(here)}\0${gitMarker(here)}`;
+  const cached = flagCache.get(key);
+  if (cached !== undefined) return cached;
   const common = commonDir(root);
   const directory = join(data, "consent");
   const names = existsSync(directory) ? readdirSync(directory).filter((name) => name.endsWith(".json")) : [];
-  const flags = { worktree: false, project: false, enabled: false };
+  const flags = { worktree: false, project: false, enabled: false, named: false };
   for (const name of names) {
     const record = consentRecord(join(directory, name));
     if (record === null) continue;
     if (typeof record.root === "string" && samePlace(record.root, here)) {
       if (record.disabled === true) flags.worktree = true;
-      else if ((typeof record.common === "string" && samePlace(record.common, common)) || !existsSync(join(here, ".git"))) flags.enabled = true;
+      else {
+        flags.named = true;
+        if ((typeof record.common === "string" && samePlace(record.common, common)) || !existsSync(join(here, ".git"))) flags.enabled = true;
+      }
     }
     if (typeof record.repo === "string" && samePlace(record.repo, common)) {
       if (record.disabled === true) flags.project = true;
       else flags.enabled = flags.enabled || (existsSync(join(here, ".git")) && !samePlace(common, here));
     }
   }
+  flagCache.set(key, flags);
   return flags;
 }
 
 // A human ran `pregate disable` for this worktree, or `pregate disable --project` for its repository.
-// Distinct from a project that was never enabled: a pending review still guards a project with no record.
+// A project that was never enabled has no record. Neither one is enforced.
 export function explicitlyDisabled(root: string, data = dataHome()): boolean {
   const flags = consentFlags(root, data);
   return flags.worktree || flags.project;
@@ -134,7 +184,59 @@ export function enabled(root: string, data = dataHome()): boolean {
   return flags.enabled;
 }
 
+// The one check for "enforced here": this directory's own project, the nearest
+// .pregate/preset.json that `pregate enable` activated, not past a .git boundary.
+// Home, a parent past that boundary, a pending review, and a session that reached
+// some other root do not enforce here. `enabled` is false after `pregate disable`,
+// so a disabled worktree is the same answer.
+export function enforcedHere(dir: string): boolean {
+  const stamp = consentStamp(dataHome());
+  if (stamp !== hereStamp) { hereCache.clear(); hereStamp = stamp; }
+  // A new `.git` in this directory is a new checkout boundary. It changes the answer without
+  // rewriting the consent record, so it cannot share the previous result. A file path has none.
+  const memo = `${dir}\0${gitMarker(dir)}`;
+  const cached = hereCache.get(memo);
+  if (cached !== undefined) return cached;
+  const value = enforcedAt(dir);
+  hereCache.set(memo, value);
+  return value;
+}
+
+function enforcedAt(dir: string): boolean {
+  let path: string;
+  try { path = canonical(dir); }
+  catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    throw error;
+  }
+  let home: string | null = null;
+  try { home = canonical(homeDir()); }
+  catch (error) {
+    if (!(error instanceof Error && error.message.endsWith(": no existing ancestor"))) throw error;
+  }
+  const own = (root: string) => home === null || pathKey(root) !== pathKey(home);
+  // `git init` after enable changes the common dir, so `enabled` can miss a record that
+  // still names this root. `named` keeps that record. A project disable wins over it.
+  const accepts = (root: string) => {
+    const flags = consentFlags(root, dataHome());
+    return !flags.worktree && !flags.project && (flags.enabled || flags.named);
+  };
+  const root = findRoot(path, accepts);
+  if (root !== null && own(root)) return true;
+  // `pregate enable` was run for this checkout even when the preset file is gone.
+  const checkout = checkoutOf(path);
+  return checkout !== null && accepts(checkout) && own(checkout);
+}
+
+function checkoutOf(dir: string): string | null {
+  for (let at = dir; ; at = dirname(at)) {
+    if (existsSync(join(at, ".git"))) return at;
+    if (dirname(at) === at) return null;
+  }
+}
+
 export function enable(root: string, data = dataHome()): void {
+  forgetConsent();
   const common = commonDir(root);
   const path = file(root, data);
   mkdirSync(dirname(path), { recursive: true });
@@ -145,6 +247,7 @@ export function enable(root: string, data = dataHome()): void {
 // This checkout, and the repository consent other worktrees were inheriting. A worktree enabled by
 // name keeps its own record. A project-level disable record is left in place.
 export function disable(root: string, data = dataHome()): void {
+  forgetConsent();
   const common = commonDir(root);
   const repo = repoFile(common, data);
   const record = existsSync(repo) ? consentRecord(repo) : null;
@@ -156,6 +259,7 @@ export function disable(root: string, data = dataHome()): void {
 
 // The whole repository. Every worktree stops, including one that was enabled by name.
 export function disableProject(root: string, data = dataHome()): void {
+  forgetConsent();
   const common = commonDir(root);
   const path = repoFile(common, data);
   mkdirSync(dirname(path), { recursive: true });

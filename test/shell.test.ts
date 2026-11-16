@@ -1506,13 +1506,30 @@ test("an installed tool that is a script is read for control commands only; a sc
   const base = { ...ctx, commandPath: at, readScriptFile: (path: string) => path in texts ? { kind: "text" as const, text: texts[path]! } : { kind: "missing" as const },
     readControlFile: (path: string): Cause | null => path in texts && /pregate approve/.test(texts[path]!) ? "shell-admin" : null };
   const placed = { ...base, outsideRoots: (abs: string) => !abs.startsWith(`${ROOT}/`) };
-  for (const command of ["npm install", "npm test", "NODE_ENV=test npm run build", "npm test | tail -5"]) expect(guard(command, ROOT, placed), command).toBeNull();
+  for (const command of ["npm install", "npm test", "NODE_ENV=test npm run build", "npm test | tail -5", "npm view next version", "pnpm install", "docker compose up -d", "git init"]) expect(guard(command, ROOT, placed), command).toBeNull();
   expect(guard("deploy", ROOT, placed)).toBe("shell-admin");
   expect(guard("fmt", ROOT, placed)).toBe("shell-write");
   // What the installed tool is asked to write is still judged by the command's own targets.
   expect(guard("npm test > src/a.ts", ROOT, placed)).toBe("shell-write");
-  // A context that cannot place the file reads every script on PATH like a project script.
-  expect(guard("npm install", ROOT, base)).toBe("shell-write");
+  // npm install is a package mutator. It is not a scan of the npm shim, even when that shim sits in the project.
+  expect(guard("npm install", ROOT, base)).toBeNull();
+  expect(guard("npm publish", ROOT, base)).toBe("shell-write");
+});
+
+test("a package script is scanned, and the denial names the write", () => {
+  const pkg = `${ROOT}/package.json`;
+  const text = JSON.stringify({ scripts: { test: "echo x > src/a.ts", dev: "echo ok", build: "pregate approve --yes" } });
+  const detail = { text: null as string | null };
+  const context = { ...ctx, shellDetail: detail, readScriptFile: (path: string) => path === pkg ? { kind: "text" as const, text } : { kind: "missing" as const } };
+  expect(guard("pnpm test", ROOT, context)).toBe("shell-write");
+  expect(detail.text).toContain("src/a.ts");
+  expect(detail.text).toContain("inside the project");
+  detail.text = null;
+  expect(guard("pnpm dev", ROOT, context)).toBeNull();
+  expect(guard("npm run build", ROOT, context)).toBe("shell-admin");
+  expect(guard("npm run x -- --no-verify", ROOT, context)).toBe("shell-admin");
+  expect(guard("pnpm exec sed -i 's/a/b/' src/x.ts", ROOT, context)).toBe("shell-write");
+  expect(guard("make", ROOT, { ...context, readControlFile: () => null, readScriptFile: (path: string) => path === `${ROOT}/Makefile` ? { kind: "text" as const, text: "all:\n\techo x > src/a.ts\n" } : { kind: "missing" as const } })).toBe("shell-write");
 });
 
 test("a PATH launcher outside the project is not re-parsed, and python -m is a module", () => {

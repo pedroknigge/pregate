@@ -12,8 +12,8 @@ import { sha256 } from "../src/state.ts";
 import { testEngine } from "./compiled-engine.ts";
 import { removeTree } from "./remove-tree.ts";
 
-// The compiled `hook pre` entry point, with consent inactive. A pending review or a pending batch
-// is what makes the guard run; a directory with neither stays inert.
+// The compiled `hook pre` entry point. A pending review or a pending batch does not
+// enforce a project that was never enabled: the hook exits 0.
 setDefaultTimeout(180_000);
 
 const base = realpathSync(mkdtempSync(join(tmpdir(), "inactive-hook-")));
@@ -81,57 +81,39 @@ function hook(cli: string, cwd: string, command: string) {
   });
 }
 
-test("hook pre allows installed PATH scripts and a skill read, denies a project write sink, and issue draft --last finds it", () => {
+function allows(cli: string, root: string, command: string): void {
+  const out = hook(cli, root, command);
+  const text = `${out.stdout.toString()}\n${out.stderr.toString()}`;
+  expect(out.exitCode, `${command}\n${text}`).toBe(0);
+  expect(out.stdout.toString(), command).not.toContain('"deny"');
+}
+
+test("hook pre allows a project write when a review is pending and the project was never enabled", () => {
   const cli = testEngine();
   const root = project("repo", true);
   proposeContract({ root, lockText: "{}", baseline: sha256(""), writes: [] });
   pathScripts(join(area, "bin"));
   expect(commandOnPath("orca")?.replaceAll("\\", "/")).toContain("/bin/orca");
-  expect(commandOnPath("agent-browser")?.replaceAll("\\", "/")).toContain("/bin/agent-browser");
   const skill = slash(join(process.env.HOME!, ".agents/skills/pregate/SKILL.md"));
   put(skill, "# pregate\n");
-  for (const command of ["orca console", "orca network", "agent-browser open", `cat -- '${skill}'`]) {
-    const out = hook(cli, root, command);
-    expect(out.exitCode, `${command}\n${out.stderr.toString()}`).toBe(0);
-    expect(out.stdout.toString(), command).not.toContain('"deny"');
+  for (const command of ["orca console", "orca network", "agent-browser open", `cat -- '${skill}'`, "node scripts/write.js", "git commit --no-verify"]) {
+    allows(cli, root, command);
   }
-  const denied = hook(cli, root, "node scripts/write.js");
-  expect(denied.exitCode, denied.stdout.toString()).toBe(2);
-  expect(denied.stderr.toString()).toContain("shell-write");
-  expect(denied.stderr.toString()).toContain("`pregate issue draft --last`");
-  const draft = Bun.spawnSync([cli, "issue", "draft", "--last"], { cwd: root, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
-  const text = `${draft.stdout.toString()}\n${draft.stderr.toString()}`;
-  expect(draft.exitCode, text).toBe(0);
-  expect(text).toContain("shell-write");
-  expect(text).not.toContain("No finding recorded");
 });
 
-test("hook pre with only a pending batch denies a project write sink and allows an installed launcher", () => {
+test("hook pre allows a project write when only a batch is pending", () => {
   const cli = testEngine();
   const root = project("batched", true);
   proposeBatch([{ root, digest: "a".repeat(64) }]);
   pathScripts(join(area, "batch-bin"));
-  const allowed = hook(cli, root, "orca console");
-  expect(allowed.exitCode, allowed.stderr.toString()).toBe(0);
-  expect(allowed.stdout.toString()).not.toContain('"deny"');
-  const denied = hook(cli, root, "node scripts/write.js");
-  expect(denied.exitCode, denied.stdout.toString()).toBe(2);
-  expect(denied.stderr.toString()).toContain("shell-write");
-  const draft = Bun.spawnSync([cli, "issue", "draft", "--last"], { cwd: root, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
-  expect(draft.exitCode, draft.stderr.toString()).toBe(0);
-  expect(draft.stdout.toString()).toContain("shell-write");
+  allows(cli, root, "orca console");
+  allows(cli, root, "node scripts/write.js");
 });
 
-test("hook pre with no preset does not tell the agent to run issue draft --last", () => {
+test("hook pre allows pregate uninstall when the repository was never enabled", () => {
   const cli = testEngine();
   const root = project("nopreset", false);
   proposeContract({ root, lockText: "{}", baseline: sha256(""), writes: [] });
-  const denied = hook(cli, root, "node scripts/write.js");
-  expect(denied.exitCode, denied.stdout.toString()).toBe(2);
-  expect(denied.stderr.toString()).toContain("shell-write");
-  expect(denied.stderr.toString()).not.toContain("issue draft --last");
-  expect(denied.stderr.toString()).toContain("no preset");
-  const draft = Bun.spawnSync([cli, "issue", "draft", "--last"], { cwd: root, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
-  expect(draft.exitCode).toBe(1);
-  expect(draft.stdout.toString()).toContain("needs a PREGATE preset");
+  allows(cli, root, "pregate uninstall");
+  allows(cli, root, "node scripts/write.js");
 });

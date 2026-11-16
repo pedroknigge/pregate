@@ -304,12 +304,17 @@ export function coverageLead(s: Status): string[] {
   ];
 }
 
+function notEnforced(where: string): string {
+  return `Nothing is enforced in ${where}. Pregate blocks commands and edits only where \`pregate enable\` was run for this project.`;
+}
+
 // The short form leads with enforced, monitored and unverified rules, then the lock size.
 function briefStatus(s: Status): string[] {
-  if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview (the human approves its review)."];
+  if (s.root === null) return [notEnforced("this directory"), "Next: pregate guide --preview (the human approves its review)."];
+  const lead = s.consent ? coverageLead(s) : [notEnforced(s.root), ...coverageLead(s)];
   return [
-    ...coverageLead(s),
-    `Local consent is ${s.root !== null && s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
+    ...lead,
+    `Local consent is ${s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
     ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
@@ -356,8 +361,10 @@ function providerLine(providers: { id: string; detail: string; checks: string[] 
 
 function verboseStatus(s: Status): string {
   const b = breakdown(s);
+  const lead = s.root === null ? [notEnforced("this directory"), ...coverageLead(s)]
+    : s.consent ? coverageLead(s) : [notEnforced(s.root), ...coverageLead(s)];
   return [
-    ...coverageLead(s),
+    ...lead,
     `PREGATE local consent is ${s.root !== null && s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"}${s.root === null ? "" : ` in ${s.root}`}. Effective protection: ${s.state}.`,
     ...consentLostLine(s),
     `Contract: ${s.contract.valid ? "valid; preset, sources and compiled lock match" : "not ready"}.`, ...s.contract.errors,
