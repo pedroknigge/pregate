@@ -54,21 +54,50 @@ consented() {
   return 1
 }
 
-# Yes only. A directory `.git` means the common dir is that `.git`, so the answer does not start git.
-# A worktree, a parent walk, a proposal and an unknown git stay with consented(), which does.
+# 0 = enforced, 1 = not enforced, 2 = unsure (the caller uses consented, which starts git).
+# A real directory `.git` whose path needs no JSON escaping is answered in the shell: no git,
+# grep, or sed. That is the timed hook. A worktree, a parent walk, a quoted path, and an
+# unknown git stay with consented(). A settled "no" does not.
 checkout_enforced() {
-  d=$(cd "$1" 2>/dev/null && pwd -P) || return 1
-  [ -d "$d/.git" ] || return 1
-  g=$(cd "$d/.git" 2>/dev/null && pwd -P) || return 1
-  r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g')
-  g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g')
-  records=$(grep -hF "\"root\":\"$r\"," "$data/consent/"*.json 2>/dev/null)
-  if [ -n "$records" ]; then
-    printf '%s' "$records" | grep -qF '"disabled":true' && return 1
-    grep -hF "\"repo\":\"$g\"" "$data/consent/"*.json 2>/dev/null | grep -qF '"disabled":true' && return 1
-    printf '%s' "$records" | grep -qF "\"common\":\"$g\"" && return 0
+  if [ "$1" = "$PWD" ] && [ -d "$PWD/.git" ] && [ ! -L "$PWD" ] && [ ! -L "$PWD/.git" ]; then
+    ce_d=$PWD
+    ce_g=$PWD/.git
+  else
+    ce_d=$(cd "$1" 2>/dev/null && pwd -P) || return 2
+    [ -d "$ce_d/.git" ] && [ ! -L "$ce_d/.git" ] || return 2
+    ce_g=$(cd "$ce_d/.git" 2>/dev/null && pwd -P) || return 2
   fi
-  grep -qF "{\"repo\":\"$g\"}" "$data/consent/"*.json 2>/dev/null
+  case $ce_d in *\\*|*\"*) return 2 ;; esac
+  case $ce_g in *\\*|*\"*) return 2 ;; esac
+  # zsh aborts a script when a glob matches nothing. An absent proposals directory is that case.
+  [ -n "${ZSH_VERSION:-}" ] && setopt local_options null_glob
+  ce_root_off=; ce_project_off=; ce_root_on=; ce_repo_on=; ce_proposal=
+  for ce_dir in "$data/consent" "$data/proposals"; do
+    [ -d "$ce_dir" ] || continue
+    for ce_record in "$ce_dir"/*.json; do
+      [ -f "$ce_record" ] || continue
+      IFS= read -r ce_line < "$ce_record" || continue
+      case $ce_dir in
+        "$data/proposals")
+          case $ce_line in *"\"root\":\"$ce_d\""*) ce_proposal=1 ;; esac
+          continue ;;
+      esac
+      case $ce_line in
+        *"\"root\":\"$ce_d\""*)
+          case $ce_line in *'"disabled":true'*) ce_root_off=1 ;; esac
+          case $ce_line in *"\"common\":\"$ce_g\""*) ce_root_on=1 ;; esac
+          ;;
+      esac
+      case $ce_line in
+        *"\"repo\":\"$ce_g\""*)
+          case $ce_line in *'"disabled":true'*) ce_project_off=1 ;; *) ce_repo_on=1 ;; esac
+          ;;
+      esac
+    done
+  done
+  if [ -n "$ce_project_off" ] || [ -n "$ce_root_off" ]; then return 1; fi
+  if [ -n "$ce_root_on" ] || [ -n "$ce_repo_on" ] || [ -n "$ce_proposal" ]; then return 0; fi
+  return 2
 }
 
 # An empty engine would run as an empty script: exit 0, which allows in four harnesses and passes a
@@ -355,8 +384,12 @@ if [ "$event" = pre ] && [ -z "$bare" ]; then
   for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
     [ -n "$candidate" ] || continue
     # The directory `.git` case is the timed hook. It must not pay for a git process.
-    checkout_enforced "$candidate" && enforced=1 && break
-    consented "$candidate" && enforced=1 && break
+    # 1 is a settled no (disabled, or no record). Only 2 may start git.
+    # A bare call would abort a shell with errexit when the answer is not 0.
+    ce_state=0
+    checkout_enforced "$candidate" || ce_state=$?
+    if [ "$ce_state" -eq 0 ]; then enforced=1; break; fi
+    if [ "$ce_state" -eq 2 ] && consented "$candidate"; then enforced=1; break; fi
   done
   if [ -z "$enforced" ]; then
     if [ ! -f "$tmp/in" ]; then
