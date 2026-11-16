@@ -1,12 +1,14 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import * as fs from "node:fs";
 import { tmpdir } from "node:os";
 import { canonical } from "../src/disk.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { slash } from "../src/paths.ts";
 import { catFileBatch, git, indexFiles } from "../src/git.ts";
+import * as gitHost from "../src/git.ts";
 import {
-  H, beforeText, beforeTexts, ensureSnapshot, eventFiles, eventName, firstContact, history, key, record, roots, sha256, snapshot, sourcesOk, stateDir, stopBlocks, turnDenials,
+  EVENT_READ_CAP, H, beforeText, beforeTexts, ensureSnapshot, eventFiles, eventName, eventWindow, firstContact, history, key, record, roots, sessionDir, sha256, snapshot, sourcesOk, stateDir, stopBlocks, turnDenials,
 } from "../src/state.ts";
 import type { CallEvent, Snapshot } from "../src/types.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -409,4 +411,73 @@ describe("git", () => {
   });
 
   test("indexFiles outside a repository throws", () => expect(() => indexFiles(`${base}/plain`, ".")).toThrow());
+});
+
+test("a session at the event cap reports nothing omitted, and past it keeps the newest events", () => {
+  const sid = "s-cap";
+  const baseAt = Date.parse("2026-06-01T12:00:00Z");
+  for (let i = 0; i < EVENT_READ_CAP; i++) record(sid, event({ callId: `c${i}`, at: baseAt + i, path: "src/a.ts" }), null);
+  expect(eventWindow(sessionDir(sid)).omitted).toBe(0);
+  expect(eventWindow(sessionDir(sid)).files).toHaveLength(EVENT_READ_CAP);
+  const oldest = event({ callId: "oldest", at: baseAt - 2, path: "src/a.ts" });
+  const older = event({ callId: "older", at: baseAt - 1, path: "src/a.ts" });
+  record(sid, older, null);
+  record(sid, oldest, null);
+  const window = eventWindow(sessionDir(sid));
+  expect(window.omitted).toBe(2);
+  expect(window.files).toHaveLength(EVENT_READ_CAP);
+  const kept = history(sid, "-", H("src/a.ts")).map((e) => e.callId);
+  expect(kept).toHaveLength(EVENT_READ_CAP);
+  expect(kept).not.toContain("oldest");
+  expect(kept).not.toContain("older");
+  expect(kept[0]).toBe("c0");
+  expect(kept.at(-1)).toBe(`c${EVENT_READ_CAP - 1}`);
+  const day = new Date(baseAt).toISOString().slice(0, 10);
+  const stored = readdirSync(`${sessionDir(sid)}/events/${day}`).map((name) => JSON.parse(readFileSync(`${sessionDir(sid)}/events/${day}/${name}`, "utf8")) as { callId: string; omittedEvents?: number });
+  expect(stored).toHaveLength(EVENT_READ_CAP + 2);
+  expect(stored.find((e) => e.callId === "c0")?.omittedEvents).toBeUndefined();
+  expect(stored.find((e) => e.callId === "oldest")?.omittedEvents).toBe(1);
+});
+
+test("an unreadable tree is not published when git status fails", () => {
+  const mini = `${base}/unreadable`;
+  put(`${mini}/src/kept.ts`, "export const kept = 1;\n");
+  put(`${mini}/secret/hidden.ts`, "export const hidden = 1;\n");
+  sh(mini, "init", "-q");
+  sh(mini, "add", ".");
+  sh(mini, "commit", "-qm", "init");
+  const real = gitHost.git;
+  const original = fs.readdirSync;
+  const status = spyOn(gitHost, "git").mockImplementation((cwd: string, args: string[]) => args[0] === "status" ? null : real(cwd, args));
+  const reading = spyOn(fs, "readdirSync").mockImplementation(((path: fs.PathLike, options?: unknown) => {
+    if (String(path) === `${mini}/secret`) throw Object.assign(new Error("EACCES"), { code: "EACCES" });
+    return original(path, options as never);
+  }) as typeof fs.readdirSync);
+  try {
+    expect(ensureSnapshot("unreadable-deny", mini, () => true)).toBe("state-io");
+    expect(snapshot("unreadable-deny", mini)).toBeNull();
+  } finally {
+    status.mockRestore();
+    reading.mockRestore();
+  }
+});
+
+test("a completed walk still publishes when git status fails", () => {
+  const mini = `${base}/walked`;
+  put(`${mini}/src/kept.ts`, "export const kept = 1;\n");
+  sh(mini, "init", "-q");
+  sh(mini, "add", ".");
+  sh(mini, "commit", "-qm", "init");
+  put(`${mini}/src/fresh.ts`, "export const fresh = 1;\n");
+  const real = gitHost.git;
+  const status = spyOn(gitHost, "git").mockImplementation((cwd: string, args: string[]) => args[0] === "status" ? null : real(cwd, args));
+  try {
+    const made = ensureSnapshot("status-walk", mini, (rel) => rel.startsWith("src/"));
+    expect(typeof made).toBe("object");
+    const found = snapshot("status-walk", mini);
+    expect(typeof found).toBe("object");
+    if (typeof found === "object" && found !== null) expect(found.dirty["src/fresh.ts"]).toBe(sha256("export const fresh = 1;\n"));
+  } finally {
+    status.mockRestore();
+  }
 });
