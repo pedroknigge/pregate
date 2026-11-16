@@ -58,7 +58,9 @@ test("a piped harness shell approves with a code or --yes, and a bare approve st
   expect(existsSync(join(codeProject.root, ".pregate/preset.json"))).toBe(false);
   const env = hook(codeProject, "claude-code", `PREGATE_UNATTENDED_APPROVAL=1 pregate approve --yes --digest ${codeProject.digest}`);
   expect(env.code, env.text).toBe(2);
-  expect(env.text).toContain("hook-switch");
+  expect(env.text).toContain("approval");
+  expect(env.text).toContain("cannot grant itself approval");
+  expect(env.text).not.toContain("rule adaptation");
   expect(env.text).toContain("You may propose the literal command pregate approve <code>");
   const state = hook(codeProject, "claude-code", "echo x > .pregate/preset.json");
   expect(state.code, state.text).toBe(2);

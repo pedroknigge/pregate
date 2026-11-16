@@ -203,7 +203,7 @@ export interface Host { read: Read; now: Clock }                // what analyze 
 export type Cause =
   // the agent can fix it ⇒ form deny: does not consume the (file, rule) counter
   | "protected-path" | "request-invalid" | "tool-will-fail" | "cannot-reconstruct"
-  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch"   // hook-switch: MH-17
+  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch" | "approval"   // hook-switch: MH-17; approval: the agent cannot grant itself approval
   // only a human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
   | "snapshot-missing" | "state-io" | "git-missing" | "git-not-repository" | "git-error"
@@ -211,7 +211,7 @@ export type Cause =
 export const FIXABLE_BY = {
   "protected-path": "agent", "request-invalid": "agent", "tool-will-fail": "agent",
   "cannot-reconstruct": "agent", "syntax": "agent", "unresolvable-import": "agent",
-  "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent",
+  "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent", "approval": "agent",
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-missing": "human", "git-not-repository": "human",
   "git-error": "human", "regex-limit": "human",
@@ -520,7 +520,7 @@ Steps 0–2 (in `tool_input` only `command` is read; the other keys are ignored,
 
 **Permissive lexer.** What it does not recognize (`$(…)`, `<(…)`, `[[ ]]`, PowerShell `{}` blocks) remains an opaque word, and that word is still checked against protected paths and write patterns. Unclosed quotes are not denied: the shell fails and does not write. `sh|bash -c '<literal>'` and `eval '<literal>'` are analyzed again on the inner string; a non-literal argument ⇒ `shell-write`. **[Δ waves 1–2] Pipe to an interpreter:** a script that arrives by pipe to a shell or interpreter (`… | bash`, `curl … | sh`, `cat s.py | python3`, `… | bash -s foo`) is unknown text ⇒ `shell-write`; a literal heredoc or here-string is re-analyzed as a `-c` and a non-literal one ⇒ `shell-write`; a script from a file (`bash f.sh`, `bash < f`) is not analyzed (Stop sees it). Also counted as inline code: `fish --command`, `npx -c`/`--call`, and `pnpm -c`. A single GNU option parser (`getopt`) serves every command (O21).
 
-Outside every preset, only machine protections run: `hook-switch` blocks disabling PREGATE, editing global harness configs/installation/state, and setup/update/uninstall; no git, WASM or state writes. Other harness administration is restricted only inside a root. Codex relative shell write destinations and interactive shells are refused (MH-17/29).
+Outside every preset, only machine protections run: `hook-switch` blocks disabling PREGATE, editing global harness configs/installation/state, and setup/update/uninstall; `approval` blocks an agent setting `PREGATE_UNATTENDED_APPROVAL`, `PREGATE_TESTING`, `PREGATE_TEST_ANSWER`, or `PREGATE_ACCEPT_CONTRACT`; no git, WASM or state writes. Other harness administration is restricted only inside a root. Codex relative shell write destinations and interactive shells are refused (MH-17/29).
 
 **Denies:**
 - writes to in-scope paths: output redirections (`>`, `>>`, `>|`, `&>`), `tee`, `sed -i`, `perl -pi`, the destination of `cp`/`mv`/`ln`/`install`, `dd of=`, `truncate`, `git apply|checkout --|restore`, `patch`, `curl -o`, `wget -O`, and `python|node|bun|perl -e/-c` that mention an in-scope path;
@@ -530,7 +530,7 @@ Outside every preset, only machine protections run: `hook-switch` blocks disabli
 - `pregate` subcommands other than `check|explain|preset show|rules test`, by any path;
 - `--no-verify`, `core.hooksPath`, `disableAllHooks`, `claude plugin disable|uninstall`, and `--settings`;
 - other harnesses' binaries;
-- inline environment assignments (`VAR=… cmd`) that turn hooks off.
+- inline environment assignments (`VAR=… cmd`) that turn hooks off. Assigning `PREGATE_UNATTENDED_APPROVAL`, `PREGATE_TESTING`, `PREGATE_TEST_ANSWER`, or `PREGATE_ACCEPT_CONTRACT` is `approval`. Other `PREGATE_*` assignments stay `hook-switch`.
 
 **Allows** reads and pre-check: `pregate` on PATH or `<DATA>/bin/pregate`, with `check --stdin`, `explain`, `preset show` or `rules test`. Input redirection and literal heredocs to these commands remain read-only (MH-29).
 

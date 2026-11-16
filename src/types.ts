@@ -23,7 +23,7 @@ export interface Host {
 export type Cause =
   // the agent can fix it ⇒ form deny: does not consume the (file, rule) counter
   | "protected-path" | "request-invalid" | "tool-will-fail" | "cannot-reconstruct"
-  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch"
+  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch" | "approval"
   // only the human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
   | "snapshot-missing" | "state-io" | "git-missing" | "git-not-repository" | "git-error"
@@ -31,7 +31,7 @@ export type Cause =
 export const FIXABLE_BY = Object.freeze({
   "protected-path": "agent", "request-invalid": "agent", "tool-will-fail": "agent",
   "cannot-reconstruct": "agent", "syntax": "agent", "unresolvable-import": "agent",
-  "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent",
+  "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent", "approval": "agent",
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-missing": "human", "git-not-repository": "human",
   "git-error": "human", "regex-limit": "human",
@@ -42,7 +42,8 @@ export const FIXABLE_BY = Object.freeze({
 // the edit is still denied. "timeout" and "engine-crash" are not causes: launcher.sh emits them (A6).
 // "regex-limit": a rule's regex may have given up on this file, so its "no match" is not an answer
 // (O27); the rule's author fixes it. "contract-loosened": the contract now enforces less than the
-// session started with, and no human approval of it was recorded.
+// session started with, and no human approval of it was recorded. "approval": the agent set
+// PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT.
 
 // ── Normalized input (harness-agnostic) ──────────────────────────────────────────
 export type HarnessId = "claude-code" | "codex" | "cursor" | "grok" | "agy" | "opencode";
