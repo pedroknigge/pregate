@@ -2,6 +2,13 @@ import type { Node, Parsed } from "./ts.ts";
 
 const TOKEN = /sk_live_[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|BEGIN PRIVATE KEY/;
 const CREDENTIAL_URL = /:\/\/[^/\s:]+:[^/\s@]+@/;
+const REDACTED = "[redacted]";
+
+// The same token and credential-URL shapes as credentialLiterals, for text that is not source.
+// A fresh expression keeps TOKEN.lastIndex untouched for the source scan.
+export function redactCredentialText(text: string): string {
+  return text.replace(new RegExp(TOKEN.source, "g"), REDACTED).replace(new RegExp(CREDENTIAL_URL.source, "g"), "://[redacted]@");
+}
 const PLACEHOLDER_URL = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/\s:]+:(?:secret|password|changeme)@[^/\s@]+(?:\/[^\s]*)?$/;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/i;
 

@@ -239,7 +239,12 @@ export function escapedRoot(spelled: string, landed: string, accepted: (root: st
 // Readers see the old file or the new one, never a partial write.
 export function writeAtomic(path: string, text: string): void {
   const tmp = `${path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
-  writeFileSync(tmp, text);
+  try {
+    writeFileSync(tmp, text);
+  } catch (error) {
+    rmSync(tmp, { force: true, recursive: true });
+    throw error;
+  }
   renameOrDiscard(tmp, path);
 }
 

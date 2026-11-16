@@ -57,7 +57,8 @@ function consented(path: string, data: string): boolean {
 }
 
 // Output goes to files: a surviving grandchild cannot keep the harness's pipes open past the
-// deadline. The deadline races process exit independently; termination never delays the deny.
+// deadline. The deadline races process exit. On expiry the engine is killed and the deny is
+// returned only after that process has exited, so a caller that ignores SIGTERM cannot outlive it.
 async function child(engine: string, argv: string[], raw: string | Buffer, dir: string, watch: Watch): Promise<Run> {
   const out = join(dir, "out");
   const err = join(dir, "err");
@@ -70,11 +71,18 @@ async function child(engine: string, argv: string[], raw: string | Buffer, dir: 
         watch.end = performance.now() + 95_000;
         rmSync(watch.extension);
       }
-      if (performance.now() >= watch.end) { proc.kill(); resolve(-1); }
+      if (performance.now() >= watch.end) {
+        proc.kill("SIGKILL");
+        resolve(-1);
+      }
     }, 20);
   });
   const code = await Promise.race([proc.exited, expired]);
   clearInterval(timer);
+  if (code === -1) {
+    proc.kill("SIGKILL");
+    await proc.exited;
+  }
   return { code, stdout: readFileSync(out, "utf8"), stderr: readFileSync(err, "utf8") };
 }
 

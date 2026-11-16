@@ -15,6 +15,7 @@ import { trackedWorkspacePaths, workspaceFile, workspacePaths } from "./workspac
 import type { FitnessBinding, FitnessReceipt, Lock, Phase, Preset, Violation } from "./types.ts";
 import { fitnessPlan, fitnessPlanText, fitnessTemplate } from "./fitness-plan.ts";
 import { candidateRationale, FITNESS_CANDIDATES, readFitnessCandidates } from "./fitness-candidates.ts";
+import { redactCredentialText } from "./credential-literal.ts";
 
 const MAX_INPUT_BYTES = 128 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
@@ -258,7 +259,7 @@ function runVerifier(root: string, lock: Lock, verifiers: string[], lockHash: st
     ...(!unchanged || !bounded || child.error || child.signal || child.status !== 0 ? { diagnostics: [
       ...(child.error ? [child.error.message] : []), ...(!unchanged ? ["Contract or project inputs changed during verification."] : []),
       ...(!bounded ? ["Command output exceeds the 16 MiB per-channel budget."] : []),
-      ...Object.entries(output).map(([name, bytes]) => `${name} (first 4096 bytes):\n${bytes.subarray(0, 4096).toString("utf8")}`),
+      ...Object.entries(output).map(([name, bytes]) => `${name} (first 4096 bytes):\n${redactCredentialText(bytes.subarray(0, 4096).toString("utf8"))}`),
     ].join("\n") } : {}) };
   for (const name of verifiers) writeAtomic(receiptPath(root, contractHash, name), canonicalJSON({ ...receipt, verifier: name }));
 }

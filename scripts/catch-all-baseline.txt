@@ -65,7 +65,6 @@ src/rules-draft-command.ts	catch (e) { return `Cannot read pattern ${file}: ${(e
 src/scan-command.ts	catch (e) { return { code: 1, text: visible(`Scan failed: ${(e as Error).message}. Project and consent unchanged.`) }; }
 src/schema.ts	catch { return false; }
 src/session-command.ts	catch (error) { return { code: 1, text: visible(`Session baseline unchanged: ${(error as Error).message}`) }; }
-src/state.ts	catch { // Without git this is best effort: an unreadable folder or file ends that folder's walk, // keeping what it already read, and the rest of the tree is still walked. return; }
 src/status.ts	catch (e) { errors.push(`Cannot read lock: ${(e as Error).message}`); return null; }
 src/status.ts	catch (e) { errors.push(`Cannot read preset: ${(e as Error).message}`); return null; }
 src/status.ts	catch (e) { errors.push(`Cannot verify local consent: ${(e as Error).message}`); return false; }

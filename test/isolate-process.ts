@@ -18,15 +18,50 @@ if (Reflect.get(globalThis, installed) === true) {
   installIsolation();
 }
 
-// Every test resolves its user state under a throwaway HOME unless the file isolates the
-// environment itself: a file that forgets the manual isolation used to write the real
-// `~/.local/state/pregate` (XDG_STATE_HOME fallback in src/state.ts). `??=` keeps every
-// deliberate per-file isolation intact.
+// Every test resolves its user state under a throwaway HOME. Assignment, not `??=`: an already-set
+// HOME, harness directory, or XDG directory is the machine under test and used to leak into the
+// suite (a global pregate hook, or this host's gitconfig). A file that sets these after preload
+// still overrides them. Git identity is copied; signing, hooks, fsmonitor, and insteadOf are not.
 function isolateEnvironment(): void {
+  const identity = process.env.GIT_CONFIG_GLOBAL === undefined ? gitIdentity() : null;
   const root = mkdtempSync(join(tmpdir(), "pregate-test-home-"));
-  for (const key of ["HOME", "USERPROFILE", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CONFIG_HOME", "CODEX_HOME", "GROK_HOME", "CLAUDE_CONFIG_DIR"]) {
-    process.env[key] ??= join(root, key.toLowerCase());
+  const home = join(root, "home");
+  for (const dir of [home, join(root, "data"), join(root, "state"), join(root, "config"), join(root, "codex"), join(root, "grok"), join(root, "claude")]) {
+    fs.mkdirSync(dir, { recursive: true });
   }
+  process.env.HOME = home;
+  process.env.USERPROFILE = home;
+  process.env.XDG_DATA_HOME = join(root, "data");
+  process.env.XDG_STATE_HOME = join(root, "state");
+  process.env.XDG_CONFIG_HOME = join(root, "config");
+  process.env.CODEX_HOME = join(root, "codex");
+  process.env.GROK_HOME = join(root, "grok");
+  process.env.CLAUDE_CONFIG_DIR = join(root, "claude");
+  if (process.platform === "win32") {
+    process.env.LOCALAPPDATA = join(root, "data");
+    process.env.APPDATA = join(root, "config");
+  }
+  process.env.GIT_CONFIG_NOSYSTEM ??= "1";
+  if (identity !== null) {
+    const file = join(root, "gitconfig");
+    const lines = ["[user]"];
+    if (identity.name !== "") lines.push(`\tname = ${identity.name}`);
+    if (identity.email !== "") lines.push(`\temail = ${identity.email}`);
+    lines.push("[commit]", "\tgpgsign = false", "");
+    fs.writeFileSync(file, lines.join("\n"));
+    process.env.GIT_CONFIG_GLOBAL = file;
+  }
+}
+
+function gitIdentity(): { name: string; email: string } {
+  const read = (key: string): string => {
+    const out = Bun.spawnSync(["git", "-c", "core.fsmonitor=", "-c", "core.hooksPath=", "config", "--global", "--get", key], {
+      stdout: "pipe", stderr: "pipe", timeout: 2000,
+    });
+    const value = out.exitCode === 0 ? out.stdout.toString().trim() : "";
+    return /^[^\r\n]+$/.test(value) ? value : "";
+  };
+  return { name: read("user.name"), email: read("user.email") };
 }
 
 function installIsolation(): void {

@@ -90,7 +90,7 @@ A7 (fuel per rule) and A8 (one child process per check in `rules test`) were rem
 2. **What cannot be established is denied, and the guarantee lives outside the code that can fail.**
    - Inside the engine, every known cause is a `Cause` that goes through `decide → encode`. There is no last-resort `try/catch`: the unforeseen exits with exit 1.
    - Outside the engine, the parent launcher turns any death, hang, or exit ∉ {0,2} into the event deny (A6).
-3. **The lock is the only contract at evaluation time.** The hook does not compile. It verifies hashes and versions, and evaluates. Compiling and testing sources is a human act through the CLI (U4, U10).
+3. **The lock is the only contract at evaluation time.** It verifies hashes and versions, and evaluates. Compiling and testing sources is a human act through the CLI (U4, U10).
 4. **Rules are data over a closed vocabulary:** five primitives and a pattern language (the ast-grep subset over tree-sitter *kinds*). An unknown key, `kind`, `field`, or regex is a compilation error, never "does not match".
 5. **One parser, one tree.** tree-sitter serves the file, the patterns, the imports, and error detection. There is no second oracle that can disagree at runtime.
 6. **Functional core, imperative shell.**
@@ -113,7 +113,7 @@ pregate/
 ├─ package.json                 version (= ENGINE); build/test/typecheck/bench scripts; "dependencies": {} ;
 │                               exact devDependencies: typescript (typecheck), @types/bun, @ast-grep/napi (oracle)
 ├─ bun.lock                     devDependency integrity
-├─ .bun-version                 1.3.14
+├─ .bun-version                 1.4.4
 ├─ tsconfig.json                strict, noUncheckedIndexedAccess, noEmit
 ├─ bunfig.toml                  [test] root = "test": `bun test` does not enter the pilot's `*.test.ts` fixtures
 ├─ LICENSE                    **[Δ wave 3] pending (user decision, SPEC P19)**: without it `build.ts` warns and the tar is emitted without it (O28)
@@ -122,7 +122,7 @@ pregate/
 ├─ README.md                    installation, contract, and honest limits (hook + pre-commit + CI)
 ├─ .github/workflows/ci.yml     typecheck · bun test · build 2 targets · e2e · dogfooding;
 │                               separate job: bench (does not break the suite on noise)
-├─ .gitignore                   node_modules · dist · `*.bun-build` (bun 1.3.14 leaves a ~63 MB copy per `--compile`)
+├─ .gitignore                   node_modules · dist · `*.bun-build` (bun 1.4.4 leaves a ~63 MB copy per `--compile`)
 ├─ .claude/settings.json        dogfooding: hooks written by `pregate install` **[Δ wave 3] pending (requires the user's sign-off)**
 ├─ .pregate/                     dogfooding: preset.json (pinned in W0), pregate.lock.json (wave 3); bin/pregate and git-hooks/pre-commit pending
 ├─ vendor/
@@ -141,49 +141,145 @@ pregate/
 │  ├─ pre-commit.sh             global pregate check --staged --ratchet
 │  └─ ci-github.yml             timeout-minutes; installs the base branch's engine (sha256 + cosign);
 │                               pregate rules test (path sources) + pregate check --ratchet --base <sha>
-├─ src/
-│  ├─ main.ts        shell · argv → hook <event> | hook auto | CLI (no last-resort try/catch: A6)
-│  ├─ types.ts       pure    · shared vocabulary (plain data) + FIXABLE_BY
-│  ├─ harness/       pure    · [MH-W0] one adapter per harness (claude, codex, cursor, grok, agy): payload → HookEvent | Rejected; Decision → Emission
-│  │                         · wire.ts (parse, closed keys, absolute paths) and profile.ts (HARNESSES, profile: MH-03)
-│  ├─ gate.ts        shell · orchestrates session-start / pre-edit / pre-command / stop and `check`
-│  ├─ reconstruct.ts pure    · Write/Edit + disk → after + reconstruction; BOM/CRLF; changed window
-│  ├─ paths.ts       pure    · fixed protections + path sources, scope, layer, language; one case-insensitive comparison (A26)
-│  ├─ ts.ts          pure    · tree-sitter: parse, errorIn(window), facts (functions, classes, imports), symbol, astHash
-│  ├─ match.ts       pure    · pattern engine (ast-grep subset)
-│  ├─ resolve.ts     pure    · imports: relative, tsconfig paths/baseUrl/extends, re-exports ≤ 3 hops (more ⇒ "too-deep")
-│  ├─ evaluate.ts    pure    · analyze(): lock rules over a file state; placement() without parsing
-│  ├─ ratchet.ts     pure    · introduced(): no-new (new symbols + count) and diff
-│  ├─ decide.ts      pure    · severity × enforcement × counters × no-progress × ask → Decision; blocking() for check
-│  ├─ message.ts     pure    · line ≤ 256, detail ≤ 4,000, sanitization, human-facing text (es); the only one that renders
-│  ├─ shell.ts       pure    · shell guard: permissive POSIX/PowerShell lexer + §10.2.3 rules
-│  ├─ schema.ts      pure    · JSON Schema subset interpreter
-│  ├─ compile.ts     pure    · preset + sources → Lock; freshness (versions, preset, builtin catalog); sourcesHash; fixtureLock; JSON-patch of requests
-│  ├─ fixtures.ts    pure    · rules test of a check: pass/fail/trap, determinism, minimums, IDs
-│  ├─ assets.ts      shell · embedded bytes: catalog/ (BUILTIN) and assets/* (ASSETS) by macro (via embedded.ts), WASM (with {type:"file"})
-│  ├─ embedded.ts    shell · catalog, assets, demo, and evaluator fingerprint by macro; like library-assets.ts, loaded with `require` because Bun 1.4 omits the macro if a static graph reaches the module twice
-│  ├─ wasm.d.ts      types for `.wasm` imports (O13; avoids a suppression)
-│  ├─ disk.ts        shell · canonical (lstat + ancestor realpath), root, readTree, atomic write (tmp+rename, link)
-│  ├─ state.ts       shell · data directory: snapshot, "before" text, events, blobs, session roots
-│  ├─ git.ts         shell · git spawn: HEAD, status -z, cat-file --batch, diff --name-only, ls-files, index
-│  ├─ cli.ts         shell · check · explain · preset show|compile|apply · rules test · install
-│  └─ install.ts     shell · versioned engine, launcher, idempotent merge of .claude/settings.json, pre-commit, CI
-├─ scripts/
-│  ├─ build.ts       rules test catalog (aborts on failure) → bun build --compile per target → tar + sha256
-│  ├─ bench.ts       p50/p95 per path over test/demo-repo with the release binary (compileBinary from build.ts)
-│  └─ demo.sh        UC1/UC2 end to end: two presets, the same Writes, opposite verdicts (POSIX; sh and dash)
-├─ eval/                        MVP evaluation (W10, outside the binary): tasks, arms A/B/D/E, metrics from state/
-└─ test/
-   ├─ reconstruct · paths · shell · resolve · match · decide · message · schema · compile · state · ts · ratchet (.test.ts)
-   ├─ catalog.test.ts   claude.test.ts   e2e.test.ts   vendor.test.ts
-   ├─ payloads/         real Claude Code payloads + expected output (contract; closes each "to verify")
-   ├─ presets/          invalid presets with their exact error
-   └─ demo-repo/        fixture repo: src/{domain,application,infra}, presets backend-clean-ddd and functional-ts
+├─ src/                        135 TypeScript modules, 28,573 lines, plus wasm.d.ts (5). Counts are `wc -l`.
+│  The longest are shell.ts (2002), machine.ts (1318), match.ts (851), guided.ts (609), and compile.ts (597).
+│  ├─ admission.ts                     167
+│  ├─ approval-command.ts              287
+│  ├─ approval.ts                      441
+│  ├─ arkgate-command.ts               73
+│  ├─ arkgate-import.ts                252
+│  ├─ assets.ts                        43
+│  ├─ audit-cache.ts                   149
+│  ├─ audit-command.ts                 444
+│  ├─ audit.ts                         76
+│  ├─ capabilities.ts                  18
+│  ├─ catalog-discovery.ts             57
+│  ├─ ci/command.ts                    128
+│  ├─ ci/detect.ts                     97
+│  ├─ ci/github.ts                     155
+│  ├─ ci/provider.ts                   219
+│  ├─ cli.ts                           470
+│  ├─ compile.ts                       597
+│  ├─ consent.ts                       139
+│  ├─ contract-diagnostic.ts           441
+│  ├─ contract.ts                      290
+│  ├─ control-file.ts                  99
+│  ├─ control.ts                       102
+│  ├─ credential-literal.ts            32
+│  ├─ decide.ts                        223
+│  ├─ demo-command.ts                  169
+│  ├─ demo-run.ts                      153
+│  ├─ demo-samples.ts                  18
+│  ├─ dependencies.ts                  200
+│  ├─ dependency-cache.ts              189
+│  ├─ dependency-since.ts              122
+│  ├─ disk.ts                          286
+│  ├─ dispute-command.ts               61
+│  ├─ dispute.ts                       30
+│  ├─ drizzle-query.ts                 316
+│  ├─ embedded.ts                      23
+│  ├─ enforcement.ts                   19
+│  ├─ evaluate.ts                      297
+│  ├─ feedback-command.ts              142
+│  ├─ feedback.ts                      73
+│  ├─ fitness-candidates.ts            76
+│  ├─ fitness-command.ts               265
+│  ├─ fitness-plan.ts                  103
+│  ├─ fitness.ts                       40
+│  ├─ fixture-replay.ts                24
+│  ├─ fixtures.ts                      241
+│  ├─ gate.ts                          387
+│  ├─ git-changes.ts                   260
+│  ├─ git.ts                           164
+│  ├─ guided-review.ts                 85
+│  ├─ guided-terminal.ts               72
+│  ├─ guided-update.ts                 78
+│  ├─ guided.ts                        609
+│  ├─ harness/agy.ts                   181
+│  ├─ harness/claude.ts                116
+│  ├─ harness/codex.ts                 189
+│  ├─ harness/cursor.ts                124
+│  ├─ harness/grok.ts                  97
+│  ├─ harness/opencode.ts              207
+│  ├─ harness/profile.ts               35
+│  ├─ harness/wire.ts                  43
+│  ├─ init-presets.ts                  11
+│  ├─ init.ts                          214
+│  ├─ inline-sinks.ts                  170
+│  ├─ install.ts                       330
+│  ├─ interval-cleanup.ts              115
+│  ├─ issue-command.ts                 244
+│  ├─ issue-submission.ts              65
+│  ├─ issue.ts                         62
+│  ├─ language-facts.ts                159
+│  ├─ languages.ts                     48
+│  ├─ library-assets.ts                16
+│  ├─ library.ts                       41
+│  ├─ lock-cache.ts                    171
+│  ├─ loosening.ts                     77
+│  ├─ machine.ts                       1318
+│  ├─ main.ts                          181
+│  ├─ markers.ts                       68
+│  ├─ match.ts                         851
+│  ├─ message.ts                       529
+│  ├─ module-resolve.ts                129
+│  ├─ next-config.ts                   100
+│  ├─ node-target.ts                   129
+│  ├─ onboard.ts                       440
+│  ├─ pack-command.ts                  490
+│  ├─ pack-compose.ts                  107
+│  ├─ pack-template.ts                 264
+│  ├─ package-version.ts               219
+│  ├─ packs.ts                         90
+│  ├─ paths.ts                         214
+│  ├─ pending-review.ts                217
+│  ├─ platform.ts                      18
+│  ├─ product.ts                       26
+│  ├─ progress.ts                      95
+│  ├─ project-claude.ts                183
+│  ├─ project-discovery.ts             100
+│  ├─ project-updates.ts               177
+│  ├─ proposal.ts                      108
+│  ├─ python-inspection.ts             409
+│  ├─ python-legacy.ts                 469
+│  ├─ ratchet.ts                       109
+│  ├─ react-index-key.ts               91
+│  ├─ reconstruct.ts                   124
+│  ├─ recorded.ts                      445
+│  ├─ refactor-plan.ts                 86
+│  ├─ register.ts                      526
+│  ├─ release-download.ts              93
+│  ├─ release-install.ts               103
+│  ├─ release-verify.ts                97
+│  ├─ report-command.ts                67
+│  ├─ report.ts                        176
+│  ├─ resolve.ts                       270
+│  ├─ rules-add-command.ts             557
+│  ├─ rules-draft-command.ts           280
+│  ├─ rust-facts.ts                    133
+│  ├─ rust-resolve.ts                  182
+│  ├─ sarif.ts                         63
+│  ├─ scan-command.ts                  557
+│  ├─ schema.ts                        121
+│  ├─ session-command.ts               404
+│  ├─ shell.ts                         2002
+│  ├─ skill.ts                         41
+│  ├─ state-lease.ts                   52
+│  ├─ state.ts                         527
+│  ├─ status.ts                        372
+│  ├─ storage-command.ts               127
+│  ├─ storage-recovery.ts              87
+│  ├─ storage.ts                       102
+│  ├─ supervisor.ts                    160
+│  ├─ ts.ts                            549
+│  ├─ types.ts                         322
+│  ├─ typescript-version.ts            80
+│  ├─ versions.ts                      4
+│  ├─ wasm.d.ts                        5
+│  ├─ windows-command.ts               80
+│  ├─ workspace.ts                     413
+│  └─ write-all.ts                     24
 ```
-
-There are **23 modules** in `src` (plus `wasm.d.ts`). Estimate: ~3,000 lines. **Measured after wave 3: 4,718**; the longest are `shell.ts` (603), `gate.ts` (546), `match.ts` (494, parity with ast-grep), and `compile.ts` (465).
-
-**Dogfooding.** Pure (`core` layer): `types`, `claude`, `reconstruct`, `paths`, `ts`, `match`, `resolve`, `evaluate`, `ratchet`, `decide`, `message`, `shell`, `schema`, `compile`, and `fixtures`. Imperative shell: `main`, `gate`, `assets`, `disk`, `state`, `git`, `cli`, and `install`. The shell imports the core and never the reverse.
 
 ---
 
