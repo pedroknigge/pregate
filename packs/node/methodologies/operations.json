@@ -1,0 +1,309 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "node/operations",
+  "version": "1.0.0",
+  "status": "preview",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "NODE-LOCK-001",
+      "check": "node/supply/locked-ci-install",
+      "defaults": {
+        "verifier": "NODE-LOCK-001"
+      },
+      "severity": "deny",
+      "source": {
+        "work": "Node.js and npm documentation, reproducible installs",
+        "locator": "npm ci; pnpm install --frozen-lockfile; yarn install --immutable; core CORE-INV-050",
+        "paraphrase": "A Node.js CI install uses the committed lockfile. npm ci, pnpm install --frozen-lockfile, and yarn install --immutable refuse a drift between the manifest and the lock."
+      },
+      "why": "An unlocked install can resolve different bytes than the ones reviewed, so CI and production are not the same dependency tree.",
+      "fixHint": "Bind NODE-LOCK-001 and core CORE-INV-050 to one reviewed assertion. The assertion checks that a lockfile is committed and that CI installs with npm ci, pnpm install --frozen-lockfile, or yarn install --immutable. Include a control that changes the lock without updating the install. Run pregate fitness run NODE-LOCK-001.",
+      "avoid": "Fidelity: evidence. This is the Node.js evidence for core CORE-INV-050, not a second product invariant and not a shell-gate pattern. The pack does not scan workflow YAML. A green test suite does not prove the install was frozen.",
+      "examples": {
+        "pass": "pass/current-inputs",
+        "fail": "fail/no-evidence"
+      }
+    },
+    {
+      "id": "NODE-ENVFILE-001",
+      "check": "node/supply/env-file-hygiene",
+      "defaults": {
+        "verifier": "NODE-ENVFILE-001"
+      },
+      "severity": "deny",
+      "source": {
+        "work": "Node.js and Twelve-Factor, config and secrets",
+        "locator": ".gitignore and .env.example; packs/ENGINE-REQUESTS.md section 6, forbidden path",
+        "paraphrase": ".env stays untracked because .gitignore lists it, and .env.example is committed with names and no secrets so a new checkout knows which variables exist."
+      },
+      "why": "A committed .env puts secrets in history. A missing example leaves the next checkout guessing names.",
+      "fixHint": "Bind NODE-ENVFILE-001 to a reviewed assertion that fails when .env is not ignored or .env.example is absent, and that fails when the example contains a live secret. Run pregate fitness run NODE-ENVFILE-001.",
+      "avoid": "Fidelity: evidence. The forbidden-path primitive requested in packs/ENGINE-REQUESTS.md section 6 is not in the engine. Until it lands, a committed .env is not a syntax finding. This obligation is the stand-in and names that dependency.",
+      "examples": {
+        "pass": "pass/current-inputs",
+        "fail": "fail/no-evidence"
+      }
+    },
+    {
+      "id": "NODE-PIN-001",
+      "check": "node/supply/require-node-pin",
+      "defaults": {
+        "verifier": "NODE-PIN-001"
+      },
+      "severity": "deny",
+      "source": {
+        "work": "Node.js release schedule, LTS",
+        "locator": ".nvmrc, .node-version, .tool-versions, package.json engines.node and volta.node",
+        "paraphrase": "The project declares a Node.js version the pack can read, and that major is a current LTS line. The same files already gate the Node.js 26 removals."
+      },
+      "why": "An unpinned tool changes under the team. A current major that is not LTS drops support on the next release train.",
+      "fixHint": "Bind NODE-PIN-001 to a reviewed assertion that reads one of .nvmrc, .node-version, .tool-versions, engines.node, or volta.node, checks the major, and checks that major against the current LTS list with an explicit maxAgeMs. Run pregate fitness run NODE-PIN-001.",
+      "avoid": "Fidelity: evidence. The pack already reads these pins for the Node.js 26 gate. A missing or unreadable pin such as lts/* stays unverified. Which majors are LTS is a dated fact, so the assertion owns the list. The pack does not hardcode majors.",
+      "examples": {
+        "pass": "pass/current-inputs",
+        "fail": "fail/no-evidence"
+      }
+    },
+    {
+      "id": "NODE-SCRIPTS-001",
+      "check": "node/supply/install-scripts",
+      "defaults": {
+        "verifier": "NODE-SCRIPTS-001"
+      },
+      "severity": "deny",
+      "source": {
+        "work": "npm documentation, ignore-scripts",
+        "locator": "npm ci --ignore-scripts; pnpm install --frozen-lockfile --ignore-scripts; package.json install lifecycle",
+        "paraphrase": "Dependency install scripts do not run unless they are on a reviewed allowlist. The default install passes --ignore-scripts."
+      },
+      "why": "A postinstall script from a dependency runs at install time with the developer's privileges.",
+      "fixHint": "Bind NODE-SCRIPTS-001 to a reviewed assertion that accepts CI installs using --ignore-scripts, or an explicit allowlist of preinstall, install, postinstall, and prepare scripts. A script that is not listed fails the assertion. Run pregate fitness run NODE-SCRIPTS-001.",
+      "avoid": "Fidelity: evidence. Workflow YAML is not a pattern grammar. This is not a shell-gate rule. A package.json script name by itself is not the allowlist.",
+      "examples": {
+        "pass": "pass/current-inputs",
+        "fail": "fail/no-evidence"
+      }
+    },
+    {
+      "id": "NODE-EDGE-001",
+      "check": "node/server/edge-security-headers",
+      "defaults": {
+        "verifier": "NODE-EDGE-001"
+      },
+      "severity": "deny",
+      "source": {
+        "work": "OWASP HTTP security response headers",
+        "locator": "edge or gateway header policy",
+        "paraphrase": "When the Node.js process does not set security headers, the edge that terminates the request sets them, and that configuration is reviewed evidence."
+      },
+      "why": "A process behind a proxy can look header-less in source while the browser still receives no framing or transport policy if the edge never set one.",
+      "fixHint": "Bind NODE-EDGE-001 to a reviewed assertion that shows the edge or gateway config setting the security headers, or that shows the process sets them. Turn NODE-HEADERS-001 off when this evidence is the one you adopt. Run pregate fitness run NODE-EDGE-001.",
+      "avoid": "Fidelity: evidence. The syntax proxy cannot see the edge. A comment in server code is not this evidence.",
+      "examples": {
+        "pass": "pass/current-inputs",
+        "fail": "fail/no-evidence"
+      }
+    },
+    {
+      "id": "NODE-SIGNAL-001",
+      "check": "node/server/require-graceful-close",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Node.js documentation, signal events and server.close",
+        "locator": "SIGTERM, SIGINT, and server.close",
+        "paraphrase": "A long-running server closes its listener when it receives SIGTERM or SIGINT so in-flight requests can finish."
+      },
+      "why": "A process that exits without close drops requests that the kernel has already accepted.",
+      "fixHint": "In the file that calls createServer or listen, register process.on for SIGTERM and for SIGINT, and call server.close from each handler.",
+      "avoid": "Fidelity: proxy, same-file. A handler in another file is not seen. close under another name is not seen. Test files are ignored. A comment does not count.",
+      "examples": {
+        "pass": "pass/both-signals",
+        "fail": "fail/no-handlers"
+      }
+    },
+    {
+      "id": "NODE-CRASH-001",
+      "relations": [
+        {
+          "with": "node/NODE-UNCAUGHT-001",
+          "kind": "duplicates",
+          "why": "An empty uncaughtException callback is also a crash handler that does not exit or rethrow.",
+          "settle": "Keep both. NODE-UNCAUGHT-001 is the empty callback. NODE-CRASH-001 is any uncaughtException or unhandledRejection handler that resumes. Rethrow, or omit the listener."
+        }
+      ],
+      "check": "node/process/crash-handler-exits",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Node.js documentation, uncaughtException and unhandledRejection",
+        "locator": "warning: using these events incorrectly can cause an infinite loop or a process that resumes after a crash",
+        "paraphrase": "A handler for uncaughtException or unhandledRejection exits with process.exit or rethrows. Logging and returning leaves the process running after an unknown failure."
+      },
+      "why": "The process keeps taking work after its state is unknown. The next request sees that state.",
+      "fixHint": "Rethrow from the handler, or call process.exit. Rethrow also satisfies NODE-EXIT-001. Setting process.exitCode and returning does not.",
+      "avoid": "Fidelity: proxy, same-call. A named listener such as process.on(\"uncaughtException\", crash) is reported, because the body is another statement. shutdown() is not process.exit. NODE-UNCAUGHT-001 still owns the empty callback. NODE-EXIT-001 still reports process.exit outside this choice.",
+      "examples": {
+        "pass": "pass/rethrow",
+        "fail": "fail/log-only"
+      }
+    },
+    {
+      "id": "NODE-TIMEOUT-001",
+      "relations": [
+        {
+          "with": "express",
+          "kind": "idiom",
+          "why": "Express JSON and urlencoded parsers already cap bodies at 100kb. EX-LIMIT-001 is that optional explicit limit and stays off.",
+          "settle": "Keep EX-LIMIT-001 off unless the project wants an explicit parser limit. This proxy is the raw server timeouts plus a named limit in the listen file."
+        }
+      ],
+      "check": "node/server/require-http-timeouts",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Node.js documentation, http.Server timeouts",
+        "locator": "headersTimeout, requestTimeout, keepAliveTimeout, and a request body limit",
+        "paraphrase": "An HTTP server bounds how long headers, the request, and a keep-alive socket may live, and it bounds the request body."
+      },
+      "why": "An unbounded header read or body holds the socket and memory for as long as the client wants.",
+      "fixHint": "Set server.headersTimeout, server.requestTimeout, and server.keepAliveTimeout, and name a body limit, maxBodySize, or bodyLimit in that file.",
+      "avoid": "Fidelity: proxy, same-file. Express parser limits stay express/EX-LIMIT-001, which is off because the 100kb default holds. A variable merely named limit satisfies the body half. Timeouts configured in another file are not seen. Test files are ignored.",
+      "examples": {
+        "pass": "pass/timeouts-and-limit",
+        "fail": "fail/listen-only"
+      }
+    },
+    {
+      "id": "NODE-ROUTE-001",
+      "check": "node/server/require-health-routes",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Node.js production practice, health and readiness",
+        "locator": "GET /health and GET /ready",
+        "paraphrase": "A server registers /health for liveness and /ready for readiness so a platform can tell a live process from one that can take traffic."
+      },
+      "why": "A platform that cannot probe those paths restarts a healthy process or sends traffic to one that is not ready.",
+      "fixHint": "Register both \"/health\" and \"/ready\" in the file that calls createServer or listen.",
+      "avoid": "Fidelity: proxy, same-file. /api/health and /healthz do not count. A router mounted from another file is not seen. Test files are ignored.",
+      "examples": {
+        "pass": "pass/both-routes",
+        "fail": "fail/health-only"
+      }
+    },
+    {
+      "id": "NODE-ENVPARSE-001",
+      "check": "node/process/env-schema-parse",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Node.js documentation, process.env",
+        "locator": "validate environment at startup",
+        "paraphrase": "The process reads process.env through one schema parse at startup. Later code uses the parsed value, not a fresh raw read."
+      },
+      "why": "A scattered read accepts a missing or mistyped variable at the moment of use, which is often the first request.",
+      "fixHint": "Parse process.env once with parse, safeParse, or cleanEnv in the file that needs a value, and pass the result down. Prefer one config module.",
+      "avoid": "Fidelity: proxy, same-file. schema.parse(process.env) in the same file excuses every raw read there, including one the schema does not return. const raw = process.env; schema.parse(raw) is not seen. JSON.parse does not count as that schema parse, so the raw read is still reported. Test files are ignored.",
+      "examples": {
+        "pass": "pass/schema-parse",
+        "fail": "fail/scattered-port"
+      }
+    },
+    {
+      "id": "NODE-HEADERS-001",
+      "relations": [
+        {
+          "with": "express",
+          "kind": "idiom",
+          "why": "Helmet presence is an Express backlog item because the policy may live in a reverse proxy.",
+          "settle": "Use this proxy for a header or helmet() call in the listen file. Use NODE-EDGE-001 when the edge owns the headers, and turn this rule off there."
+        }
+      ],
+      "check": "node/server/security-headers",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "OWASP HTTP security response headers and Helmet",
+        "locator": "helmet(), or Content-Security-Policy, X-Frame-Options, Strict-Transport-Security, X-Content-Type-Options",
+        "paraphrase": "A server sets a standard security-header policy in process, or the edge does and that fact is reviewed evidence."
+      },
+      "why": "Without those headers a browser will frame the response, sniff content, or skip transport rules the app thought it had.",
+      "fixHint": "Call helmet() or set one of the named headers in the listen file. When the edge sets them, bind NODE-EDGE-001 and turn this rule off.",
+      "avoid": "Fidelity: proxy, same-file. One header literal satisfies the proxy; it does not prove a complete policy. The edge is NODE-EDGE-001. Test files are ignored.",
+      "examples": {
+        "pass": "pass/helmet",
+        "fail": "fail/listen-only"
+      }
+    },
+    {
+      "id": "NODE-OBSERVE-001",
+      "check": "node/server/request-id-logger",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Node.js production practice, request ids and structured logs",
+        "locator": "pino or winston, and requestId or x-request-id",
+        "paraphrase": "A server log line can be tied to one request. The logger is pino or winston, and the file names a request id."
+      },
+      "why": "A text log with no request id cannot be joined to the request that failed.",
+      "fixHint": "Import pino or winston, or call pino() or winston.createLogger(), and use requestId or the header x-request-id in that file.",
+      "avoid": "Fidelity: proxy, same-file. The id does not have to be passed into the logger call. console.log does not count. A logger other than pino or winston is not seen. Test files are ignored.",
+      "examples": {
+        "pass": "pass/pino-request-id",
+        "fail": "fail/console-only"
+      }
+    },
+    {
+      "id": "NODE-ASYNC-001",
+      "relations": [
+        {
+          "with": "express",
+          "kind": "idiom",
+          "why": "Express 4 drops async rejections unless they are forwarded. Express 5 forwards them. The express pack left that as a backlog item because it depends on the major.",
+          "settle": "Keep this proxy at warn. When an express rule for the installed major is admitted, enable that rule and turn NODE-ASYNC-001 off for those files."
+        },
+        {
+          "with": "hono",
+          "kind": "idiom",
+          "why": "Hono handlers are async and HONO-NEXT-001 owns awaiting next() in middleware.",
+          "settle": "Turn NODE-ASYNC-001 off for Hono routes. Keep HONO-NEXT-001 for middleware that calls next()."
+        }
+      ],
+      "check": "node/server/async-route-wrapped",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Express and Node.js HTTP, async route errors",
+        "locator": "async handlers on get, post, put, patch, delete, all, and createServer",
+        "paraphrase": "An async route callback is wrapped by asyncHandler, catchAsync, or wrap, or its body contains try, so a rejection reaches the error path."
+      },
+      "why": "A rejected async handler that nobody catches becomes an unhandled rejection, and the client waits.",
+      "fixHint": "Wrap the handler with asyncHandler, catchAsync, or wrap, or put the awaited work in try. Sync handlers are out of scope.",
+      "avoid": "Fidelity: proxy, call. Express 5 and Hono forward async rejections, so this warns on a shape their runtime already handles. app.use is not a route verb here. A wrapper with another name is not seen. Test files are ignored. Empty catch stays clean-code/CC-ER-002.",
+      "examples": {
+        "pass": "pass/wrapped",
+        "fail": "fail/async-arrow"
+      }
+    },
+    {
+      "id": "NODE-LOGSECRET-001",
+      "check": "node/logging/no-secret-log",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Node.js logging practice, redaction",
+        "locator": "logger and console arguments named password, secret, token, apiKey, and the other credential names",
+        "paraphrase": "A log call does not receive a value whose name is a credential. Secrets in source stay a vibe-proof rule."
+      },
+      "why": "The log line keeps the credential in the aggregator, which is a second copy of the secret.",
+      "fixHint": "Log an id or a redacted field. Do not pass password, secret, token, apiKey, accessToken, or the other listed names to logger or console.",
+      "avoid": "Fidelity: proxy, argument name. A binding literally named token is flagged even when it is not a credential. requestId and tokenCount are not. A string that merely says token is not. A spread of an object is not seen. Hardcoded secret literals stay vibe-proof/VP-SECRET-001.",
+      "examples": {
+        "pass": "pass/request-id",
+        "fail": "fail/password-shorthand"
+      }
+    }
+  ]
+}

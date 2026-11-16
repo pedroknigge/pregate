@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/request-id-logger",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.request-id-logger",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "request-id-logger",
+          "rule": {
+            "kind": "program",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "regex": "createServer|\\.listen\\s*\\("
+                }
+              },
+              {
+                "any": [
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "import_statement",
+                            "has": {
+                              "stopBy": "end",
+                              "kind": "string",
+                              "regex": "^[\"'](pino|winston)[\"']$"
+                            }
+                          },
+                          {
+                            "kind": "call_expression",
+                            "regex": "^require\\s*\\(\\s*[\"'](pino|winston)[\"']"
+                          },
+                          {
+                            "kind": "call_expression",
+                            "has": {
+                              "field": "function",
+                              "regex": "^(pino|winston\\.createLogger)$"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "property_identifier",
+                            "regex": "^(requestId)$"
+                          },
+                          {
+                            "kind": "identifier",
+                            "regex": "^(requestId)$"
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^(requestId)$"
+                          },
+                          {
+                            "kind": "string",
+                            "regex": "(?i)^[\"']x-request-id[\"']$"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} listens without a pino or winston logger and a request id. Import one logger and carry requestId or x-request-id."
+  }
+}

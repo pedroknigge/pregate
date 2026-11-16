@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "node/internals",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -18,6 +18,14 @@
     },
     {
       "id": "NODE-UNCAUGHT-001",
+      "relations": [
+        {
+          "with": "node/NODE-CRASH-001",
+          "kind": "duplicates",
+          "why": "An empty uncaughtException callback is also a crash handler that does not exit or rethrow.",
+          "settle": "Keep both. NODE-UNCAUGHT-001 is the empty callback. NODE-CRASH-001 is any uncaughtException or unhandledRejection handler that resumes. Rethrow, or omit the listener."
+        }
+      ],
       "check": "node/process/no-uncaught-exception-empty",
       "defaults": {},
       "severity": "deny",

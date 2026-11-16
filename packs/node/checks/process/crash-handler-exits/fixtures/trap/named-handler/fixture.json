@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/server.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "named-handler",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "The listener is a name. The rule sees the call, not the function body in another statement."
+  }
+}

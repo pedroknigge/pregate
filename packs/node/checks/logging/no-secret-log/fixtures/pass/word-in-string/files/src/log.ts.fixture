@@ -1,0 +1,2 @@
+logger.info("invalid token");
+console.log(tokenCount);
