@@ -92,9 +92,11 @@ export function inert(event: HookEvent | Rejected): boolean {
   const session = event.kind === "pre-command" ? event.command.session : event.kind === "pre-edit" ? event.changes[0]?.session : event.session;
   if (session !== undefined) sessionDir(key(session));
   if (event.kind === "pre-edit") {
-    // A disabled checkout still loads the gate so it can say, once, that it is not enforcing.
-    if (disabledCheckout(process.cwd()) || event.changes.some((c) => disabledCheckout(dirname(canonical(c.path))))) return false;
-    if (event.changes.some((c) => here(dirname(canonical(c.path))))) return false;
+    // An enabled file loads the gate. A disabled checkout still loads it so the notice can print.
+    // The file is checked first: an enabled project never pays for the disable walk.
+    const dirs = event.changes.map((c) => dirname(canonical(c.path)));
+    if (dirs.some((dir) => here(dir))) return false;
+    if (disabledCheckout(process.cwd()) || dirs.some((dir) => disabledCheckout(dir))) return false;
     // The hook was started for an enabled project: user-level harness files stay protected.
     const invoked = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT];
     return !invoked.some((dir) => typeof dir === "string" && absolutePath(dir) && here(dir));

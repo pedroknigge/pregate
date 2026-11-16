@@ -243,6 +243,8 @@ function invocationRoots(session: Session): string[] {
 function machineEdit(changes: ProposedChange[], paths: string[], startedAt: number): Decision | null {
   const session = changes[0]?.session;
   if (session === undefined) return null;
+  // A file already inside an enabled project takes the normal pre-edit path.
+  if (paths.every((abs) => findRoot(dirname(abs), enabled) !== null)) return null;
   const sid = state.key(session);
   const known = invocationRoots(session);
   const root = known[0];
@@ -286,23 +288,28 @@ export async function onPreEdit(changes: ProposedChange[]): Promise<Decision> {
   // A human disabled this checkout. Edits here, including harness settings and `.pregate/`, are not
   // judged. A file in a worktree that is still enabled is not this case. The notice comes first,
   // because a disabled checkout is also not `enforcedHere`.
-  const disabledEdit = (i: number): boolean => {
-    const dir = dirname(paths[i]!);
-    const root = findRoot(dir, () => true);
-    return root !== null && explicitlyDisabled(root) && findRoot(dir, enabled) === null;
-  };
-  const cwdRoot = findRoot(canonical(process.cwd()), () => true);
-  const cwdDisabled = cwdRoot !== null && explicitlyDisabled(cwdRoot);
   const outsideEnabled = changes.every((_, i) => findRoot(dirname(paths[i]!), enabled) === null);
-  if (changes.length > 0 && outsideEnabled && (cwdDisabled || changes.every((_, i) => disabledEdit(i)))) {
-    const root = cwdRoot ?? findRoot(dirname(paths[0]!), () => true);
-    return told(null, root === null ? "" : disabledNotice(root));
+  if (changes.length > 0 && outsideEnabled) {
+    const disabledEdit = (i: number): boolean => {
+      const dir = dirname(paths[i]!);
+      const root = findRoot(dir, () => true);
+      return root !== null && explicitlyDisabled(root) && findRoot(dir, enabled) === null;
+    };
+    const cwdRoot = findRoot(canonical(process.cwd()), () => true);
+    const cwdDisabled = cwdRoot !== null && explicitlyDisabled(cwdRoot);
+    if (cwdDisabled || changes.every((_, i) => disabledEdit(i))) {
+      const root = cwdRoot ?? findRoot(dirname(paths[0]!), () => true);
+      return told(null, root === null ? "" : disabledNotice(root));
+    }
   }
   // A file outside every enabled project, and a hook that was not started from one, is not
   // enforced. Another project this session reached, and a pending review, do not change that.
+  // The invocation walk runs only when the file itself is not enforced.
   const session = changes[0]?.session;
-  const invoked = session === undefined ? [] : invocationRoots(session);
-  if (paths.every((abs) => !enforcedHere(dirname(abs))) && invoked.every((dir) => !enforcedHere(dir))) return told(null);
+  if (paths.every((abs) => !enforcedHere(dirname(abs)))) {
+    const invoked = session === undefined ? [] : invocationRoots(session);
+    if (invoked.every((dir) => !enforcedHere(dir))) return told(null);
+  }
   const planned = changes.map((c, i) => plan(c, paths[i]!));
   const overlay: Overlay = new Map(planned.filter((p) => p.r.status === "exact").map((p) => [pathKey(p.abs), p.r.after]));
   const approved = await contractEdit(planned, overlay, startedAt);
