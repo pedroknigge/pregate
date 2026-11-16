@@ -7,7 +7,9 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 // exit 0. Grok Build 1.0.71 (https://x.ai/changelog/build) accepts failClosed on a hook handler:
 // a crash, a timeout, or a body that starts with "{" and does not parse denies the tool. Measured
 // on 1.0.77, that same empty allow still lets the tool run, so a checkout that was never enabled
-// does not start blocking. 1.0.70 ignores the unknown field and stays fail-open on a crash.
+// does not start blocking. The launcher exits 0 before starting the engine when this directory
+// is not enforced, including a disabled checkout, so a missing, crashed, or slow engine does not
+// block there either. 1.0.70 ignores the unknown field and stays fail-open on a crash.
 // The field is set on the shared PreToolUse handler in register.ts, not in this encoder.
 
 export const VERIFIED = "1.0.49";

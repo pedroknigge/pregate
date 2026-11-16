@@ -37,7 +37,10 @@ consented() {
     records=$(grep -hF "\"root\":\"$r\"," "$data/consent/"*.json 2>/dev/null)
     # An unavailable Git identity cannot make a consenting root fail open when the engine fails.
     if [ -n "$records" ]; then
+      # A worktree disable, and a project disable, are not enforced. The project record can sit
+      # beside an older worktree enable record; disable wins, so a crash here must not block.
       printf '%s' "$records" | grep -qF '"disabled":true' && return 1
+      grep -hF "\"repo\":\"$g\"" "$data/consent/"*.json 2>/dev/null | grep -qF '"disabled":true' && return 1
       { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0
     fi
     # Repository consent covers every worktree top of that repository.
@@ -321,6 +324,35 @@ if [ "$event" = auto ]; then
   SessionStart) event=session-start; arm 10 ;;
   *) event=pre ;;
   esac
+fi
+
+# Pre decides enforcement before the engine exists. A directory that was never enabled, and a
+# checkout that was disabled, exits 0 with empty stdout even when the engine is missing, exits
+# non-zero, or would hang. Grok Build >= 1.0.71 treats a crashed or timed-out hook as a deny, so
+# the engine must not start there. A candidate the payload names still runs the engine: a session
+# that started outside an enforced root can edit a file inside it. A probe that fails, before any
+# candidate was enforced, exits 0.
+# A bare call is a person or a script (`hook auto`). Registered hooks name the event.
+if [ "$event" = pre ] && [ -z "$bare" ]; then
+  enforced=
+  for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
+    consented "$candidate" && enforced=1 && break
+  done
+  if [ -z "$enforced" ]; then
+    if [ ! -f "$tmp/in" ]; then
+      cat <&3 >"$tmp/in" 3<&- 4>&- || exit 0
+      exec 3<"$tmp/in" || exit 0
+    fi
+    : >"$tmp/candidates" || exit 0
+    sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p' "$tmp/in" >>"$tmp/candidates" 2>/dev/null
+    grep -oE '"(cwd|workspaceRoot|workspace_root|file_path|filePath|TargetFile|Path|Cwd)"[[:space:]]*:[[:space:]]*"[^"\\]*"' "$tmp/in" 2>/dev/null \
+      | sed -n 's/.*"\([^"\\]*\)"$/\1/p' >>"$tmp/candidates"
+    while IFS= read -r candidate; do
+      [ -n "$candidate" ] || continue
+      consented "$candidate" && enforced=1 && break
+    done <"$tmp/candidates"
+  fi
+  [ -n "$enforced" ] || exit 0
 fi
 
 installed "$version" || fail_closed "engine $version is not installed; reinstall PREGATE" "engine $version is not installed" "Reinstall PREGATE."

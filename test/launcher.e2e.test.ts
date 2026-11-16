@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ENGINE_VERSION, REDIRECT } from "../src/gate.ts";
-import { enable } from "../src/consent.ts";
+import { disable, disableProject, enable } from "../src/consent.ts";
 import type { HarnessId } from "../src/types.ts";
 import { DATA as FIXTURE_DATA, HOOK_COMMAND } from "./fixtures/hook-command.ts";
 import { removeTree } from "./remove-tree.ts";
@@ -239,7 +239,10 @@ test("a pinned engine that hangs denies also when the session started above the 
   mkdirSync(outside, { recursive: true });
   try {
     const hung = install({ [VERSION]: redirect(PINNED), [PINNED]: HANG });
-    const out = run(hook(SHELLS[0]!, hung, "pre", HARNESSES["claude-code"]), payload(HARNESSES["claude-code"].pre), {}, outside);
+    const aimed = JSON.parse(payload(HARNESSES["claude-code"].pre)) as { cwd: string; tool_input: { file_path: string } };
+    aimed.cwd = REPO;
+    aimed.tool_input.file_path = REPO;
+    const out = run(hook(SHELLS[0]!, hung, "pre", HARNESSES["claude-code"]), JSON.stringify(aimed), {}, outside);
     expect(deniedPre(out)).toContain("timed out after 5 s");
     // Without a redirect nothing names a project, and a session outside every root stays silent.
     const alone = install({ [VERSION]: "exit 7" });
@@ -539,6 +542,40 @@ test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, P
     neutral(run([sh, "-c", command(i, "stop", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
     neutral(run([sh, "-c", command(i, "post-invocation", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
   }
+});
+
+test("a missing, crashing, or slow engine stays silent outside an enforced directory", () => {
+  const slow = `echo started >"$0.started"; exec /bin/sleep 30`;
+  const started = (i: Install): boolean => existsSync(`${i.engine(VERSION)}.started`);
+  const never = install({ [VERSION]: slow });
+  for (const sh of SHELLS) {
+    const out = run(hook(sh, never, "pre", HARNESSES["claude-code"]), payload(HARNESSES["claude-code"].pre), {}, OUTSIDE);
+    neutral(out);
+    expect(out.ms).toBeLessThan(2_000);
+    expect(started(never)).toBe(false);
+  }
+  const missing = install({});
+  const missingOut = run(hook(SHELLS[0]!, missing, "pre", HARNESSES["claude-code"]), payload("pre-write.json"), {}, OUTSIDE);
+  neutral(missingOut);
+  expect(missingOut.ms).toBeLessThan(2_000);
+  const off = install({ [VERSION]: slow });
+  disable(REPO, off.data);
+  const disabledOut = run(hook(SHELLS[0]!, off, "pre", HARNESSES["claude-code"]), payload("pre-write.json"), {}, REPO);
+  neutral(disabledOut);
+  expect(disabledOut.ms).toBeLessThan(2_000);
+  expect(started(off)).toBe(false);
+  const project = install({ [VERSION]: slow });
+  disableProject(REPO, project.data);
+  const projectOut = run(hook(SHELLS[0]!, project, "pre", HARNESSES["claude-code"]), payload("pre-write.json"), {}, REPO);
+  neutral(projectOut);
+  expect(projectOut.ms).toBeLessThan(2_000);
+  expect(started(project)).toBe(false);
+  const absent = install({});
+  rmSync(absent.launcher);
+  disable(REPO, absent.data);
+  neutral(run([SHELLS[0]!, "-c", command(absent, "pre", "claude-code")], "{}", {}, REPO));
+  disableProject(TMP, absent.data);
+  neutral(run([SHELLS[0]!, "-c", command(absent, "pre", "codex")], "{}", {}, TMP));
 });
 
 // Last: whatever ran before, a deadline and a cancellation included, cleaned up after itself.

@@ -3,8 +3,10 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { disable, enable } from "../src/consent.ts";
 import { FAIL_CLOSED_SINCE } from "../src/harness/grok.ts";
 import { compareVersions } from "../src/product.ts";
+import { hookCommand } from "../src/register.ts";
 
 // Issue #45. The JSON file is the 2026-11-16 measurement of real Grok Build 1.0.77 and 1.0.70.
 // It is not a model of Grok. The live describe re-runs the same questions when a real binary is
@@ -14,6 +16,7 @@ import { compareVersions } from "../src/product.ts";
 const ROOT = join(import.meta.dir, "..");
 const OBSERVED = JSON.parse(readFileSync(join(import.meta.dir, "fixtures/grok-failclosed-observed.json"), "utf8")) as {
   label: string;
+  finding: { inertEngine: string };
   rows: { name: string; wrote: boolean; hook: string; version: string; mode: string; failClosed: boolean; where: string }[];
 };
 
@@ -40,6 +43,10 @@ test("the recorded Grok failClosed measurement is the real 1.0.77 and 1.0.70 run
   expect(row("70-crash-closed-claude")).toMatchObject({ wrote: true, failClosed: true, version: "1.0.70" });
   expect(row("70-allow-closed-claude")).toMatchObject({ wrote: true, version: "1.0.70" });
   for (const item of OBSERVED.rows) expect(item.hook.startsWith("RAN-")).toBe(true);
+  expect(OBSERVED.finding.inertEngine).toContain("never enabled");
+  expect(OBSERVED.finding.inertEngine).toContain("disabled");
+  expect(OBSERVED.finding.inertEngine).toContain("did not start");
+  expect(OBSERVED.finding.inertEngine).toContain("write landed");
 });
 
 const bin = process.env.PREGATE_GROK_BIN || Bun.which("grok") || null;
@@ -120,13 +127,24 @@ describe.skipIf(bin === null || version === null)(
           const init = spawnSync("git", ["init"], { cwd: repo, encoding: "utf8" });
           if (init.status !== 0) throw new Error(`git init failed: ${init.stderr}`);
           const script = join(dir, "hook.sh");
-          writeFileSync(script, hookScript(mode, log));
-          chmodSync(script, 0o755);
+          const inert = mode.startsWith("inert-");
+          if (inert) installInert(mode, dir, repo, log);
+          else {
+            writeFileSync(script, hookScript(mode, log));
+            chmodSync(script, 0o755);
+          }
           writeFileSync(join(home, ".claude/settings.json"), JSON.stringify({
             hooks: {
               PreToolUse: [{
                 matcher: "write|search_replace|hashline_edit|run_terminal_command",
-                hooks: [{ type: "command", command: script, timeout: mode === "timeout" ? 1 : 30, failClosed }],
+                hooks: [{
+                  type: "command",
+                  command: inert
+                    ? `printf '%s\\n' 'RAN-${mode}' >> '${log}'; ${hookCommand(join(dir, "data"), "pre", "claude-code")}`
+                    : script,
+                  timeout: mode === "timeout" ? 1 : inert ? 2 : 30,
+                  failClosed,
+                }],
               }],
             },
           }));
@@ -162,6 +180,7 @@ describe.skipIf(bin === null || version === null)(
             wrote: existsSync(target),
             hook: existsSync(log) ? readFileSync(log, "utf8") : "",
             out: existsSync(`${log}.out`) ? readFileSync(`${log}.out`, "utf8") : "",
+            engineStarted: existsSync(`${log}.engine`),
             grokExit, stderr: stderr.slice(-500), stdout: stdout.slice(-200),
           };
         };
@@ -184,6 +203,10 @@ describe.skipIf(bin === null || version === null)(
         const engine = await check("engine", true, true);
         expect(engine.hook).toContain("exit=0");
         expect(engine.out).toBe("");
+        for (const mode of ["inert-crash", "inert-missing", "inert-disabled"]) {
+          const result = await check(mode, true, true);
+          expect(result.engineStarted, mode).toBe(false);
+        }
       } finally {
         server.stop(true);
         for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
@@ -191,6 +214,22 @@ describe.skipIf(bin === null || version === null)(
     }, 180_000);
   },
 );
+
+const LAUNCHER = readFileSync(join(ROOT, "assets/launcher.sh"), "utf8");
+function installInert(mode: string, dir: string, repo: string, log: string): void {
+  const data = join(dir, "data");
+  const other = join(dir, "other");
+  mkdirSync(join(data, "bin"), { recursive: true });
+  mkdirSync(other, { recursive: true });
+  const init = spawnSync("git", ["init"], { cwd: other, encoding: "utf8" });
+  if (init.status !== 0) throw new Error(`git init failed: ${init.stderr}`);
+  enable(other, data);
+  if (mode === "inert-disabled") { enable(repo, data); disable(repo, data); }
+  writeFileSync(join(data, "bin/pregate"), LAUNCHER.replace("@ENGINE_VERSION@", "9.9.9"), { mode: 0o755 });
+  if (mode === "inert-missing") return;
+  mkdirSync(join(data, "9.9.9"), { recursive: true });
+  writeFileSync(join(data, "9.9.9/pregate"), "#!/bin/sh\nprintf '%s\\n' started >> '" + log + ".engine'\nsleep 30\nexit 1\n", { mode: 0o755 });
+}
 
 function hookScript(mode: string, log: string): string {
   const mark = `printf '%s\\n' 'RAN-${mode}' >> '${log}'`;
