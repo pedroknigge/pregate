@@ -20,8 +20,8 @@ const TEST_BUILD = typeof PREGATE_TEST_BUILD !== "undefined" && PREGATE_TEST_BUI
 // A machine with nobody at the keyboard (a CI job, this repository's tests) opts in to approval
 // without a terminal with PREGATE_UNATTENDED_APPROVAL=1 in its own environment. `CI` is not that
 // opt-in: tools and harness sessions set it. The shell guard denies a command that assigns any
-// PREGATE_ variable and the control scan flags a script that does; a job that also runs an agent
-// must not set it.
+// PREGATE_ variable. Approval-forging names report `approval`; the rest stay `hook-switch`.
+// The control scan flags a script that sets one. A job that also runs an agent must not set it.
 export function unattendedApproval(): boolean {
   return process.env.PREGATE_UNATTENDED_APPROVAL === "1";
 }

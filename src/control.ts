@@ -42,16 +42,20 @@ const STATE_PATH = /\bpregate[\\/]+(?:consent|sessions|contract-approvals|pendin
 export function pregateControlCause(input: string): Cause | null {
   const a = scan(input.replace(COMMENT_LINE, "").replace(CONTINUATION, ""));
   if (a === "hook-switch") return a;
-  return scan(input.replace(CONTINUATION, "").replace(COMMENT_LINE, "")) ?? a;
+  const b = scan(input.replace(CONTINUATION, "").replace(COMMENT_LINE, ""));
+  if (b === "hook-switch") return b;
+  if (a === "approval" || b === "approval") return "approval";
+  return b ?? a;
 }
 
 function scan(text: string): Cause | null {
   // Inline code must not set CI and call pregate.
   if (/\bpregate\b/i.test(text) && (CI_ASSIGNMENT.test(text) || /(?:environ|env|putenv|setenv)[^;\n]{0,80}['"]CI['"]/.test(text))) return "hook-switch";
   if (/trusted_hash\s*["']?\s*[:=]|dangerously-bypass-hook-trust|hooks\.state\s*=/i.test(text)) return "hook-switch";
-  // The shell guard already rejects PREGATE_* assignments; inline programs and scripts must not set them either.
-  if (APPROVAL_VARIABLE.test(text) || STATE_PATH.test(text)) return "hook-switch";
-  let cause: Cause | null = null;
+  // Consent and session records stay a hook switch. Approval-forging names are their own cause.
+  // A later pregate uninstall still wins: that command really switches hooks off.
+  if (STATE_PATH.test(text)) return "hook-switch";
+  let cause: Cause | null = APPROVAL_VARIABLE.test(text) ? "approval" : null;
   for (const match of text.matchAll(HEAD)) {
     const next = invocation(text, (match.index ?? 0) + match[0].length);
     if (next === "hook-switch") return next;

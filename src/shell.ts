@@ -62,9 +62,10 @@ export interface GitChanges { worktree: string[]; index: string[] }
 type Ctx = GuardContext & { machineOnly: boolean; harness: HarnessId; held: Cause | null; origin: string; guideInspection: boolean; configurationInspection: boolean;
   vars: Map<string, string>; pendingProtected: Set<string>; bound: Set<string>; ciSet: boolean; direct: boolean };
 
-// What denies in any session: the machine's protected paths (isProtected answers which) and what
-// switches off the hooks of every repo. The rest needs a path of the command to reach a root.
-const ALWAYS: ReadonlySet<Cause> = new Set<Cause>(["protected-path", "hook-switch"]);
+// What denies in any session: the machine's protected paths (isProtected answers which), what
+// switches off the hooks of every repo, and an agent granting itself approval. The rest needs a
+// path of the command to reach a root.
+const ALWAYS: ReadonlySet<Cause> = new Set<Cause>(["protected-path", "hook-switch", "approval"]);
 
 function controlFile(ctx: Ctx, path: string | null): Cause | null {
   return path === null || path === "" ? null : ctx.readControlFile?.(path) ?? null;
@@ -202,7 +203,15 @@ const GIT_SWITCH = /^(HUSKY|HUSKY_SKIP_HOOKS|LEFTHOOK|SKIP|PRE_COMMIT_ALLOW_NO_C
 const HOOK_WORD = /--ignore-user-config|--setting-sources|--settings|disableallhooks|features\.hooks|--dangerously-bypass-hook-trust|compat\.claude\.hooks/i;
 const HOOK_FLAG = /^--(?:no-hooks|skip-hooks|disable[-_]?hooks?|hooks?[-_]?off|bypass[-_]?hooks?)(?:=.*)?$/i;
 const HOOK_STEM = /^(?:--)?(?:no-hooks|skip-hooks|disable[-_]?hooks?|hooks?[-_]?off|bypass[-_]?hooks?)(?:=.*)?$/i;
+// Names that forge approval, reveal a test answer, or accept a loosened contract. They match
+// PREGATE_\w+ below, so callers check this first and report `approval` instead of `hook-switch`.
+const APPROVAL_VAR = /^PREGATE_(?:UNATTENDED_APPROVAL|TESTING|TEST_ANSWER|ACCEPT_CONTRACT)$/;
 const HOOK_SWITCH = /^(HOME|USERPROFILE|LOCALAPPDATA|APPDATA|XDG_\w+|PREGATE_\w+|GROK_CLAUDE_HOOKS_ENABLED|CODEX_HOME|GROK_HOME|CLAUDE_CONFIG_DIR)$/;
+
+function variableCause(name: string): "approval" | "hook-switch" | null {
+  if (APPROVAL_VAR.test(name)) return "approval";
+  return HOOK_SWITCH.test(name) ? "hook-switch" : null;
+}
 // An argument of a harness command that names its hooks or the pregate plugin as a word or a key,
 // not inside a prompt: `agy plugin disable pregate`, `codex -c hooks.state=…`, `--no-hooks`.
 const HOOK_ARG = /^\S*(?<![a-z])(hooks|pregate)(?![a-z])\S*$/i;
@@ -660,7 +669,7 @@ function nestedScript(src: string, cwd: string | null, ctx: Ctx, block = false):
 function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause | null {
   const saved: (string | null)[] = [];
   const subCtx: Ctx = { ...ctx, vars: new Map(ctx.vars), pendingProtected: new Set() };
-  let pipedIn = false, called = false, calling = false, subshell = 0;
+  let pipedIn = false, called = false, calling = false, subshell = 0, forged = false;
   for (const command of lex(src)) {
     bindNames(command, subCtx.bound);
     const { words } = command;
@@ -669,8 +678,12 @@ function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause
     if (command.grouped || subshell > 0) subCtx.direct = false;
     const cause = computed(command, calling) ? "shell-admin" : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
     subCtx.direct = savedDirect;
-    if (cause !== null && (!subCtx.machineOnly || ALWAYS.has(cause))) return cause;
-    ctx.held ??= subCtx.held ?? cause;
+    // An approval-forging assignment stays denied. A later statement that really switches hooks
+    // off, or touches a protected path, keeps that cause. A later shell-admin does not replace it.
+    if (cause === "hook-switch" || cause === "protected-path") return cause;
+    if (cause === "approval") forged = true;
+    else if (cause !== null && !forged && (!subCtx.machineOnly || ALWAYS.has(cause))) return cause;
+    else ctx.held ??= subCtx.held ?? cause;
     const { op } = command;
     if (op === "(") subshell++;
     else if (op === ")" && subshell > 0) subshell--;
@@ -683,7 +696,8 @@ function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause
     if (op === "(") saved.push(cwd);
     if (op === ")" && saved.length > 0) cwd = saved.pop()!;
   }
-  return subCtx.pendingProtected.size > 0 ? "protected-path" : null;
+  if (subCtx.pendingProtected.size > 0) return "protected-path";
+  return forged ? "approval" : null;
 }
 
 // `& (…)` and `. (…)` run whatever a PowerShell expression yields; a POSIX shell rejects both.
@@ -1080,6 +1094,9 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   if (ci) ctx.ciSet = true;
   const cause = invoke(head, args, cwd, ctx, stdin);
   if (ci) ctx.ciSet = was;   // `export CI=1` inside invoke binds the rest of the line and is kept
+  // The assignment forged approval. A command that itself switches hooks off, or touches a
+  // protected path, keeps that cause. Anything else stays `approval`, still denied.
+  if (admin === "approval") return cause === "hook-switch" || cause === "protected-path" ? cause : "approval";
   return admin === null || (cause !== null && ALWAYS.has(cause)) ? cause : admin;
 }
 
@@ -1270,13 +1287,15 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   const psEnv = /^\$env:(\w+)/i.exec(head?.text ?? "")?.[1]!.toUpperCase() ?? "";
   const cmdEnv = head?.text.toLowerCase() === "set" ? /^(\w+)=/.exec(args[0]?.text ?? "")?.[1]?.toUpperCase() ?? "" : "";
   const names = [...assigned, psEnv, cmdEnv];
+  const named = names.map(variableCause);
   // Cursor's CLI is also `agent`: only as the command itself, never as a folder name.
   const command = slash(head?.text ?? "").toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
   const harness = head !== undefined && (HARNESS.test(command) || basename(command) === "agent");
-  if (words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text)) || (harness && args.some((w) => HOOK_STEM.test(w.text))) || names.some((n) => HOOK_SWITCH.test(n))) return "hook-switch";
+  if (words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text)) || (harness && args.some((w) => HOOK_STEM.test(w.text))) || named.includes("hook-switch")) return "hook-switch";
   if (harness && (names.includes("HOME") || args.some((w) => HOOK_ARG.test(w.text)))) return "hook-switch";
   if (harness && args.some((w) => /^(plugins?|hooks?|--config|--config-file|--plugins-path|--plugin-dir)$/i.test(w.text))) return "hook-switch";
   if (harness && args.some((w, i) => /^(?:-c|--config)(?:=|$)/.test(w.text) && /\b(hooks|disableAllHooks|pregate)\b/i.test(w.text + " " + (args[i + 1]?.text ?? "")))) return "hook-switch";
+  if (named.includes("approval")) return "approval";
   const other = harness && (!head?.literal || !gated?.has(basename(command)));
   // A proven read still denies `--no-verify`. Every other `core.hooksPath` spelling stays admin.
   // `sh -c` and the other script wrappers are the same command again; the wrapper's text is not
@@ -1515,12 +1534,28 @@ function runWrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, st
   if (name === "npx" && call !== undefined) return inline(call[1], cwd, ctx);
   if (name === "timeout") inner.shift();   // the duration
   if (name !== "env") return run(inner, cwd, ctx, stdin);
-  if (flags.some(([flag, value]) => ["-i", "--ignore-environment"].includes(flag) || (["-u", "--unset"].includes(flag) && value !== undefined && HOOK_SWITCH.test(value.text)))) return "hook-switch";
+  const denial = envDenial(flags);
+  if (denial === "hook-switch") return "hook-switch";
   const dir = option(/^(-C|--chdir)$/) === undefined ? cwd : null;   // the command runs elsewhere
   // -S splits one string into the command line.
   const split = option(/^(-S|--split-string)$/);
-  if (split === undefined) return run(inner, dir, ctx, stdin);
-  return inline(joined(split[1] === undefined ? inner : [split[1], ...inner]), dir, ctx);
+  const cause = split === undefined ? run(inner, dir, ctx, stdin) : inline(joined(split[1] === undefined ? inner : [split[1], ...inner]), dir, ctx);
+  return denial === "approval" && cause !== "hook-switch" && cause !== "protected-path" ? "approval" : cause;
+}
+
+// `env -i` clears the harness configuration. `env -u` of a hook variable does too. Unsetting an
+// approval-forging name is `approval` unless the command that follows is itself a hook switch.
+function envDenial(flags: Flag[]): "approval" | "hook-switch" | null {
+  let approval = false;
+  for (const [flag, value] of flags) {
+    if (flag === "-i" || flag === "--ignore-environment") return "hook-switch";
+    if ((flag === "-u" || flag === "--unset") && value !== undefined) {
+      const cause = variableCause(value.text);
+      if (cause === "hook-switch") return "hook-switch";
+      if (cause === "approval") approval = true;
+    }
+  }
+  return approval ? "approval" : null;
 }
 
 // xargs appends the arguments it reads, unless a replace string stands for them (-I R, -J R,
