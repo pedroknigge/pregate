@@ -1364,3 +1364,37 @@ test("an installed tool that is a script is read for control commands only; a sc
   // A context that cannot place the file reads every script on PATH like a project script.
   expect(guard("npm install", ROOT, base)).toBe("shell-write");
 });
+
+test("a PATH launcher outside the project is not re-parsed, and python -m is a module", () => {
+  const orca = "/usr/local/bin/orca";
+  const browser = "/opt/homebrew/bin/agent-browser";
+  const texts: Record<string, string> = {
+    [orca]: "#!/bin/bash\nELECTRON=\"/Applications/Orca.app/Contents/MacOS/Orca\"\nexec \"$ELECTRON\" \"$@\"\n",
+    [browser]: "#!/usr/bin/env node\nconst { spawn } = require(\"node:child_process\");\nspawn(process.execPath, [\"-e\", \"console.log(1)\"]);\n",
+    [`${ROOT}/scripts/write.py`]: "open('out.txt', 'w').write('x')\n",
+    [`${ROOT}/scripts/pkg/__init__.py`]: "open('out.txt', 'w').write('x')\n",
+    [`${ROOT}/unittest`]: "open('out.txt', 'w').write('x')\n",
+    [`${ROOT}/scripts/write.sh`]: "echo x > src/a.ts\n",
+  };
+  const read = (path: string) => path in texts ? { kind: "text" as const, text: texts[path]! } : { kind: "missing" as const };
+  const at = (name: string) => name === "orca" ? orca : name === "agent-browser" ? browser : null;
+  const bare = { ...ctx, commandPath: at, readScriptFile: read };
+  expect(guard("orca console", ROOT, bare)).toBe("shell-admin");
+  expect(guard("agent-browser open", ROOT, bare)).toBe("shell-write");
+  const placed = { ...bare, outsideRoots: (abs: string) => abs === orca || abs === browser };
+  expect(guard("orca console", ROOT, placed)).toBeNull();
+  expect(guard("orca network", ROOT, placed)).toBeNull();
+  expect(guard("agent-browser open", ROOT, placed)).toBeNull();
+  expect(guard("python3 scripts/write.py", ROOT, placed)).toBe("shell-write");
+  expect(guard("bash scripts/write.sh", ROOT, placed)).toBe("shell-write");
+  expect(guard("python3 -m scripts.write", ROOT, placed)).toBe("shell-write");
+  expect(guard("python3 -m scripts.pkg", ROOT, placed)).toBe("shell-write");
+  expect(guard("python3 -mscripts.write", ROOT, placed)).toBe("shell-write");
+  expect(guard("python3 -m unittest", ROOT, placed)).toBeNull();
+  expect(guard("python3 -munittest", ROOT, placed)).toBeNull();
+  expect(guard("python3 -m pytest -q", ROOT, placed)).toBeNull();
+  expect(guard("python3 -m pip install -r requirements.txt", ROOT, placed)).toBeNull();
+  expect(guard("python3 -Im unittest", ROOT, placed)).toBeNull();
+  expect(guard('python3 -m "$MOD"', ROOT, placed)).toBe("shell-write");
+  expect(guard('"$PYTHON" -m pytest', ROOT, placed)).toBe("shell-admin");
+});

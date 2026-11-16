@@ -12,6 +12,11 @@ the last recorded finding without contacting GitHub:
 pregate issue draft --last --note "Expected behavior and why this needs investigation"
 ```
 
+`issue draft` reads the preset in the working directory. A directory with no preset
+cannot prepare a draft, and a denial there does not ask the agent to run
+`pregate issue draft --last`. A denial recorded while consent is inactive is
+still a finding once that directory has a preset.
+
 The preview shows the destination, title, complete body and SHA-256 digest.
 It includes engine/core versions, harness, phase, verdict, cause and recorded
 rule/check versions. It omits code, local paths, session identifiers and rule

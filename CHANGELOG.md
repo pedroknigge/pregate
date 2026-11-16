@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   those eleven checks at `warn` and every other core rule at `deny` and
   `enforce`.
 
+### Fixed
+
+- The pre-command guard that runs without consent (a pending review or a pending batch, and no enabled root) treats an executable installed outside the project like the consent path: control commands only, not a full re-parse. A project script with a write sink is still denied. A literal `cat` of the installed skill file is allowed. A denial on this path is recorded, so `pregate issue draft --last` can find it when the directory has a preset. A denial in a directory with no preset does not tell the agent to run that command.
+- `python3 -m unittest` and the same `-m` form are module invocations. They are scanned for write sinks only when the dotted name resolves to a file under the working directory. A literal `python3 script.py` or `bash script.sh` is unchanged.
+
 ## [0.0.10] - 2026-11-14
 
 A rule whose primitive the engine does not evaluate now fails closed, instead of disappearing from a mistyped lock. The shell guard still catches a hook bypass, and a file path or an npm script whose name merely contains those words is an ordinary command again. A malformed `pregate hook` flag is reported instead of being routed to the wrong harness. `bun run clean` removes the scratch copies a compiled build can leave behind. See the [0.0.10 notes](docs/releases/0.0.10.md).
