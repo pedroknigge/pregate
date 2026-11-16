@@ -21,9 +21,12 @@ if (Reflect.get(globalThis, installed) === true) {
 // Every test resolves its user state under a throwaway HOME. Assignment, not `??=`: an already-set
 // HOME, harness directory, or XDG directory is the machine under test and used to leak into the
 // suite (a global pregate hook, or this host's gitconfig). A file that sets these after preload
-// still overrides them. Git identity is copied; signing, hooks, fsmonitor, and insteadOf are not.
+// still overrides them. Git identity is copied into that home; signing, hooks, fsmonitor, and
+// insteadOf are not. The copy is the home gitconfig, not GIT_CONFIG_GLOBAL: a test that points
+// HOME at its own directory must not inherit an identity file, and the system gitconfig stays in
+// force so Windows keeps filemode and autocrlf.
 function isolateEnvironment(): void {
-  const identity = process.env.GIT_CONFIG_GLOBAL === undefined ? gitIdentity() : null;
+  const identity = gitIdentity();
   const root = mkdtempSync(join(tmpdir(), "pregate-test-home-"));
   const home = join(root, "home");
   for (const dir of [home, join(root, "data"), join(root, "state"), join(root, "config"), join(root, "codex"), join(root, "grok"), join(root, "claude")]) {
@@ -41,16 +44,15 @@ function isolateEnvironment(): void {
     process.env.LOCALAPPDATA = join(root, "data");
     process.env.APPDATA = join(root, "config");
   }
-  process.env.GIT_CONFIG_NOSYSTEM ??= "1";
-  if (identity !== null) {
-    const file = join(root, "gitconfig");
-    const lines = ["[user]"];
-    if (identity.name !== "") lines.push(`\tname = ${identity.name}`);
-    if (identity.email !== "") lines.push(`\temail = ${identity.email}`);
-    lines.push("[commit]", "\tgpgsign = false", "");
-    fs.writeFileSync(file, lines.join("\n"));
-    process.env.GIT_CONFIG_GLOBAL = file;
-  }
+  delete process.env.GIT_CONFIG_GLOBAL;
+  const file = join(home, ".gitconfig");
+  const set = (key: string, value: string): void => {
+    const out = Bun.spawnSync(["git", "config", "--file", file, key, value], { stdout: "pipe", stderr: "pipe", timeout: 2000 });
+    if (out.exitCode !== 0) throw new Error(out.stderr.toString());
+  };
+  if (identity.name !== "") set("user.name", identity.name);
+  if (identity.email !== "") set("user.email", identity.email);
+  set("commit.gpgsign", "false");
 }
 
 function gitIdentity(): { name: string; email: string } {

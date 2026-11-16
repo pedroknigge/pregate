@@ -141,9 +141,9 @@ pregate/
 │  ├─ pre-commit.sh             global pregate check --staged --ratchet
 │  └─ ci-github.yml             timeout-minutes; installs the base branch's engine (sha256 + cosign);
 │                               pregate rules test (path sources) + pregate check --ratchet --base <sha>
-├─ src/                        135 TypeScript modules, 28,573 lines, plus wasm.d.ts (5). Counts are `wc -l`.
-│  The longest are shell.ts (2002), machine.ts (1318), match.ts (851), guided.ts (609), and compile.ts (597).
-│  ├─ admission.ts                     167
+├─ src/                        135 TypeScript modules, 28,874 lines, plus wasm.d.ts (5). Counts are `wc -l`.
+│  The longest are shell.ts (2116), machine.ts (1333), match.ts (851), guided.ts (609), and compile.ts (597).
+│  ├─ admission.ts                     185
 │  ├─ approval-command.ts              287
 │  ├─ approval.ts                      441
 │  ├─ arkgate-command.ts               73
@@ -158,9 +158,9 @@ pregate/
 │  ├─ ci/detect.ts                     97
 │  ├─ ci/github.ts                     155
 │  ├─ ci/provider.ts                   219
-│  ├─ cli.ts                           470
+│  ├─ cli.ts                           474
 │  ├─ compile.ts                       597
-│  ├─ consent.ts                       139
+│  ├─ consent.ts                       210
 │  ├─ contract-diagnostic.ts           441
 │  ├─ contract.ts                      290
 │  ├─ control-file.ts                  99
@@ -188,7 +188,7 @@ pregate/
 │  ├─ fitness.ts                       40
 │  ├─ fixture-replay.ts                24
 │  ├─ fixtures.ts                      241
-│  ├─ gate.ts                          387
+│  ├─ gate.ts                          426
 │  ├─ git-changes.ts                   260
 │  ├─ git.ts                           164
 │  ├─ guided-review.ts                 85
@@ -217,7 +217,7 @@ pregate/
 │  ├─ library.ts                       41
 │  ├─ lock-cache.ts                    171
 │  ├─ loosening.ts                     77
-│  ├─ machine.ts                       1318
+│  ├─ machine.ts                       1333
 │  ├─ main.ts                          181
 │  ├─ markers.ts                       68
 │  ├─ match.ts                         851
@@ -245,9 +245,9 @@ pregate/
 │  ├─ ratchet.ts                       109
 │  ├─ react-index-key.ts               91
 │  ├─ reconstruct.ts                   124
-│  ├─ recorded.ts                      445
+│  ├─ recorded.ts                      459
 │  ├─ refactor-plan.ts                 86
-│  ├─ register.ts                      526
+│  ├─ register.ts                      543
 │  ├─ release-download.ts              93
 │  ├─ release-install.ts               103
 │  ├─ release-verify.ts                97
@@ -262,11 +262,11 @@ pregate/
 │  ├─ scan-command.ts                  557
 │  ├─ schema.ts                        121
 │  ├─ session-command.ts               404
-│  ├─ shell.ts                         2002
+│  ├─ shell.ts                         2116
 │  ├─ skill.ts                         41
 │  ├─ state-lease.ts                   52
 │  ├─ state.ts                         527
-│  ├─ status.ts                        372
+│  ├─ status.ts                        381
 │  ├─ storage-command.ts               127
 │  ├─ storage-recovery.ts              87
 │  ├─ storage.ts                       102

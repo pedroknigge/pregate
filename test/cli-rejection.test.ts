@@ -19,7 +19,9 @@ const bin = join(area, "bin");
 function stallGit(): void {
   mkdirSync(bin, { recursive: true });
   if (process.platform === "win32") {
-    writeFileSync(join(bin, "git.cmd"), "@echo off\r\nping -n 30 127.0.0.1 >nul\r\nexit /b 1\r\n");
+    // Leave the project directory before sleeping. A killed git.cmd can leave ping running, and
+    // Windows refuses to delete a directory that is still a process's working directory.
+    writeFileSync(join(bin, "git.cmd"), "@echo off\r\ncd /d %SystemRoot%\r\nping -n 30 127.0.0.1 >nul\r\nexit /b 1\r\n");
     return;
   }
   const path = join(bin, "git");
