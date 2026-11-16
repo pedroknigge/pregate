@@ -186,6 +186,8 @@ const PIECES = /[^\w./@+~%-]+/;
 
 const HARNESS = /(^|[/@])(claude|claude-code|codex|grok|gemini|gemini-cli|qwen|qwen-code|copilot|cursor|cursor-agent|agy|antigravity|aider|aider-chat|opencode|opencode-ai|kilo|kilocode|amp|cline|junie|kiro-cli|droid|auggie)(@[^/]*)?(\/|$)/;
 // Git takes any unambiguous prefix of a long option: `--no-veri` is the shortest --no-verify.
+// `core.hooksPath` is a hook switch when a command sets it. A read-only `git config` query names
+// that key and is not one; `readOnlyGitConfig` is the only exemption (issue 114).
 const ADMIN_WORD = /--no-veri|core\.hookspath/i;
 const GIT_SWITCH = /^(HUSKY|HUSKY_SKIP_HOOKS|LEFTHOOK|SKIP|PRE_COMMIT_ALLOW_NO_CONFIG|GIT_CONFIG\w*|KILO_PURE)$/;
 // A harness run without the user's configuration runs without PREGATE (MH-17, MH-29). Specific
@@ -1154,7 +1156,8 @@ function psValue(head: Word, args: Word[], bound: ReadonlySet<string>): Word[] |
 // runs a harness without the user's configuration, or a harness command that manages its hooks or
 // the pregate plugin, or a harness run with another HOME. shell-admin: a git hook switch, such as
 // --no-verify or `HUSKY=0 git …` (PowerShell's `$env:HUSKY=0` sets it for the commands that
-// follow), or another harness as the command.
+// follow), setting `core.hooksPath`, or another harness as the command. Reading that key with
+// `git config` is not one.
 function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, gated: GuardContext["gated"]): Cause | null {
   const psEnv = /^\$env:(\w+)/i.exec(head?.text ?? "")?.[1]!.toUpperCase() ?? "";
   const cmdEnv = head?.text.toLowerCase() === "set" ? /^(\w+)=/.exec(args[0]?.text ?? "")?.[1]?.toUpperCase() ?? "" : "";
@@ -1167,7 +1170,136 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   if (harness && args.some((w) => /^(plugins?|hooks?|--config|--config-file|--plugins-path|--plugin-dir)$/i.test(w.text))) return "hook-switch";
   if (harness && args.some((w, i) => /^(?:-c|--config)(?:=|$)/.test(w.text) && /\b(hooks|disableAllHooks|pregate)\b/i.test(w.text + " " + (args[i + 1]?.text ?? "")))) return "hook-switch";
   const other = harness && (!head?.literal || !gated?.has(basename(command)));
-  return other || words.some((w) => ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n)) ? "shell-admin" : null;
+  // A proven read still denies `--no-verify`. Every other `core.hooksPath` spelling stays admin.
+  // `sh -c` and the other script wrappers are the same command again; the wrapper's text is not
+  // a second copy of the check.
+  const query = words.some((w) => /core\.hookspath/i.test(w.text)) && commandAllowsHooks(words, 0);
+  return other || words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n)) ? "shell-admin" : null;
+}
+
+// Global git options that do not assign config. `-c` and `--config-env` are checked apart: a
+// `core.hooksPath` value there skips hooks for the command that follows.
+const GIT_PLAIN = new Set(["-p", "-P", "-v", "-h", "--paginate", "--no-pager", "--version", "--help", "--bare",
+  "--no-replace-objects", "--literal-pathspecs", "--glob-pathspecs", "--noglob-pathspecs", "--icase-pathspecs",
+  "--no-optional-locks", "--html-path", "--man-path", "--info-path", "--exec-path"]);
+const GIT_PATH = new Set(["-C", "--git-dir", "--work-tree", "--namespace"]);
+// `git config` actions. A write, an unknown option, or `--no-get` (it sets) is not a query.
+// Git accepts a unique prefix (`--replace-al` is `--replace-all`); an option not spelled here is not one.
+const CONFIG_WRITE = new Set(["--add", "--replace-all", "--unset", "--unset-all", "--rename-section", "--remove-section", "--edit", "-e"]);
+const CONFIG_GET = new Set(["--get", "--get-all", "--get-regexp", "--get-color", "--get-colorbool"]);
+const CONFIG_MOD = new Set(["--global", "--system", "--local", "--worktree", "--file", "-f", "--blob", "--bool", "--int",
+  "--bool-or-int", "--bool-or-str", "--path", "--expiry-date", "--null", "-z", "--name-only", "--includes", "--no-includes",
+  "--show-origin", "--show-scope", "--fixed-value", "--type", "-t", "--default"]);
+const CONFIG_VALUED = ["--file", "-f", "--blob", "--type", "-t", "--default"];
+
+// True only when every word is a literal `git config` query: `--get`, `--get-all`, `--get-regexp`,
+// `--list`/`-l`, `--show-origin`, or the one-argument get. A value after the name without one of
+// those actions is a set (`git config core.hooksPath /dev/null`, and `git config core.hooksPath --get`
+// sets the value to `--get`). Options after the key are that command's operands.
+function readOnlyGitConfig(words: Word[]): boolean {
+  const at = words.findIndex((w) => !ASSIGNMENT.test(w.text));
+  const head = at < 0 ? undefined : words[at];
+  if (head === undefined || !head.literal || head.subs.length !== 0) return false;
+  if (basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "") !== "git") return false;
+  const args = words.slice(at + 1);
+  if (args.some((w) => !w.literal || w.subs.length !== 0)) return false;
+  const { flags, operands } = getopt(args, ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"], true);
+  if (operands[0]?.text !== "config") return false;
+  for (const [flag, value] of flags) {
+    if (flag === "-c" || flag === "--config-env") {
+      if (value === undefined || /core\.hookspath/i.test(value.text)) return false;
+      continue;
+    }
+    if (GIT_PATH.has(flag)) {
+      if (value === undefined) return false;
+      continue;
+    }
+    if (!GIT_PLAIN.has(flag)) return false;
+  }
+  return configQuery(operands.slice(1));
+}
+
+function configQuery(args: Word[]): boolean {
+  const { flags, operands } = getopt(args, CONFIG_VALUED, true);
+  let action: "get" | "url" | "list" | null = null;
+  for (const [flag, value] of flags) {
+    if (CONFIG_WRITE.has(flag) || (flag.startsWith("--no-") && flag !== "--no-includes")) return false;
+    if (flag === "--list" || flag === "-l") {
+      if ((action !== null && action !== "list") || value !== undefined) return false;
+      action = "list";
+      continue;
+    }
+    if (flag === "--get-urlmatch") {
+      if (action !== null || value !== undefined) return false;
+      action = "url";
+      continue;
+    }
+    if (CONFIG_GET.has(flag)) {
+      if (action !== null || value !== undefined) return false;
+      action = "get";
+      continue;
+    }
+    if (!CONFIG_MOD.has(flag)) return false;
+    if (CONFIG_VALUED.includes(flag) ? value === undefined || !value.literal : value !== undefined) return false;
+  }
+  const n = operands.length;
+  if (action === "list") return n === 0;
+  if (action === "url") return n === 2;
+  if (action === "get") return n === 1 || n === 2;
+  return n === 1;
+}
+
+// The literal script `sh -c`, `eval`, `pwsh -Command` and `cmd /c` run. null: this command is not one
+// of those, or the script is not a literal this process can read.
+function scriptBody(words: Word[]): Word | null {
+  const at = words.findIndex((w) => !ASSIGNMENT.test(w.text));
+  const head = at < 0 ? undefined : words[at];
+  if (head === undefined || !head.literal || head.subs.length !== 0) return null;
+  const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
+  const args = words.slice(at + 1);
+  if (SHELLS.has(name)) {
+    const options = args.map((w) => (w.text.startsWith("+") ? { ...w, text: `-${w.text.slice(1)}` } : w));
+    const { flags, operands } = getopt(options, ["-o", "-O", "--rcfile", "--init-file"], true);
+    const command = flags.find(([flag]) => flag === "-c" || flag === "--command");
+    return command === undefined ? null : command[1] ?? operands[0] ?? null;
+  }
+  if (name === "eval" || name === "invoke-expression" || name === "iex") {
+    if (args.length === 0 || args.some((w) => !w.literal || w.subs.length !== 0)) return null;
+    return { text: args.map((w) => w.text).join(" "), literal: true, subs: [] };
+  }
+  if (name === "pwsh" || name === "powershell") {
+    for (let i = 0; i < args.length; i++) {
+      const param = /^-([a-z]+)$/i.exec(args[i]!.text)?.[1]!.toLowerCase();
+      if (param === undefined || !"command".startsWith(param)) continue;
+      const rest = args.slice(i + 1);
+      if (rest.length === 0 || rest.some((w) => !w.literal || w.subs.length !== 0) || rest[0]!.text === "-") return null;
+      return { text: rest.map((w) => w.text).join(" "), literal: true, subs: [] };
+    }
+    return null;
+  }
+  if (name !== "cmd") return null;
+  const flag = args.findIndex((w) => /^\/[ck]$/i.test(w.text));
+  const rest = flag < 0 ? [] : args.slice(flag + 1);
+  if (rest.length === 0 || rest.some((w) => !w.literal || w.subs.length !== 0)) return null;
+  return { text: rest.map((w) => w.text).join(" "), literal: true, subs: [] };
+}
+
+// True when this command is a read-only git config query, or a script whose every command that
+// names core.hooksPath is one. A write redirect stays out: the outer word would otherwise hide it.
+function commandAllowsHooks(words: Word[], depth: number): boolean {
+  if (readOnlyGitConfig(words)) return true;
+  if (depth > 4) return false;
+  const body = scriptBody(words);
+  if (body === null || !body.literal || body.subs.length !== 0 || /--no-veri/i.test(body.text)) return false;
+  const commands = lex(body.text);
+  if (commands.length === 0) return false;
+  return commands.every((command) => {
+    const parts = [...command.words, ...command.redirs.map((r) => r.target)];
+    if (parts.some((w) => w.subs.length !== 0)) return false;
+    if (!parts.some((w) => /core\.hookspath/i.test(w.text))) return true;
+    if (command.redirs.some((r) => WRITE_REDIRS.has(r.op))) return false;
+    return commandAllowsHooks(command.words, depth + 1);
+  });
 }
 
 // The read-only subcommands run; setup, update and uninstall, or one that cannot be named, change
