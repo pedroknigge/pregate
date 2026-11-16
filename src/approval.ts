@@ -68,7 +68,7 @@ export function humanApprovalInstructions(command: string, route: "harness" | "t
     `After reviewing, the human runs in this shell, including a harness ! line: ${command}`,
     "A code or --yes needs no terminal. Claude Code, Codex, Grok, agy, OpenCode and Cursor can run that command in the agent shell. A bare approve still asks for y on a terminal.",
     "In an interactive Claude Code parent session, the agent may propose that exact command. Pregate then returns Claude Code's permission prompt: Accept runs the command, Reject runs nothing. A subagent, dontAsk, bypassPermissions, a remote session and CI do not get that prompt.",
-    "In an interactive agy session, the agent may propose that exact command. Pregate then returns force_ask: Accept runs the command, Reject runs nothing. Skip-permissions, always-proceed, Turbo, print mode, a child conversation and CI do not get that prompt and keep the command.",
+    "In an interactive agy session, the agent may propose that exact command. Pregate then returns force_ask: Accept runs the command, Reject runs nothing. Skip-permissions, always-proceed, Turbo, print mode, a child conversation and CI do not get that prompt and keep the command. Auto, accept-edits, plan and an explicit Default still get it.",
     "The agent must not run the approval command. Ask the human to. The exceptions are those two prompts.",
     "A non-terminal approval is recorded in the approval log as via yes. That record cannot tell a clicked Accept from an agent that ran the command itself.",
   ];
@@ -233,6 +233,14 @@ export function finishContract(root: string): void {
 // confirmation"), and earlier force_ask replies stalled under skip-permissions.
 // Emit it only when this session can still show a prompt. Anything else keeps
 // the in-harness allow. interactive stays false so decide() does not ask on edits.
+//
+// Antigravity 1.5.7 made Auto the default agent mode where that mode is available,
+// including `agy -p`, and Default where it is not. Auto is not this skip. The
+// 1.5.9 CLI auto-approves tool confirmations only for always-proceed. Auto still
+// prompts on irreversible actions, and strict still asks. A live 1.5.9 session
+// asked for `--mode=auto` reported the enable-auto-permission-preset rollout off
+// and continued in Default; deny still blocked, and headless `-p` did not apply
+// the approval command.
 
 const WALK = 16;
 
@@ -259,8 +267,14 @@ function argvDecision(argv: readonly string[]): "skip" | "prompt" | "file" {
   if (argv.slice(1).includes("--dangerously-skip-permissions") || printMode(argv)) return "skip";
   const settings = settingsValue(argv);
   if (settings === undefined) return "file";
-  const mode = toolPermissionOf(settings);
-  if (mode === "request-review" || mode === "strict" || mode === "proceed-in-sandbox") return "prompt";
+  const parsed = agySettings(settings);
+  if (parsed === null) return "skip"; // fail-closed: an unreadable --settings value does not get force_ask
+  if (parsed.toolPermission === "always-proceed") return "skip";
+  if (parsed.permissionPreset === "always-proceed" || parsed.permissionPreset === "turbo") return "skip";
+  if (parsed.toolPermission === "request-review" || parsed.toolPermission === "strict" || parsed.toolPermission === "proceed-in-sandbox") return "prompt";
+  // No tool-permission override. agentMode auto, accept-edits, plan and "" do not
+  // skip: Auto still prompts on irreversible actions. The saved file decides.
+  if (parsed.toolPermission === null && parsed.permissionPreset === null) return "file";
   return "skip";
 }
 
@@ -284,11 +298,12 @@ function settingsValue(argv: readonly string[]): string | undefined {
   return undefined;
 }
 
-function toolPermissionOf(value: string): string | null {
+function agySettings(value: string): { toolPermission: string | null; permissionPreset: string | null } | null {
   try {
     const text = value.startsWith("{") ? value : readFileSync(value, "utf8");
-    const parsed = JSON.parse(text) as { toolPermission?: unknown };
-    return typeof parsed.toolPermission === "string" ? parsed.toolPermission : null;
+    const parsed = JSON.parse(text) as { toolPermission?: unknown; permissionPreset?: unknown };
+    const textOf = (item: unknown) => typeof item === "string" ? item : null;
+    return { toolPermission: textOf(parsed.toolPermission), permissionPreset: textOf(parsed.permissionPreset) };
   } catch {
     return null; // fail-closed: an unreadable --settings value does not get force_ask
   }
@@ -296,17 +311,20 @@ function toolPermissionOf(value: string): string | null {
 
 // ~/.gemini/antigravity-cli/settings.json is the file the CLI documents.
 // always-proceed is Turbo and what --dangerously-skip-permissions selects.
-// A missing file is the default, request-review, which still prompts.
+// agentMode auto, accept-edits, plan and "" do not. A missing file still prompts:
+// 1.5.7 starts that session in Auto only where the rollout is on, and in Default
+// where it is off, and this hook cannot see the rollout flag.
 function savedAlwaysProceed(): boolean {
   try {
     const file = join(homeDir(), ".gemini", "antigravity-cli", "settings.json");
     const info = statSync(file);
     if (!info.isFile() || info.size > 1_000_000) return true;
-    const parsed = JSON.parse(readFileSync(file, "utf8")) as { toolPermission?: unknown; permissionPreset?: unknown };
+    const parsed = agySettings(readFileSync(file, "utf8"));
+    if (parsed === null) return true;
     if (parsed.toolPermission === "always-proceed") return true;
     return parsed.permissionPreset === "always-proceed" || parsed.permissionPreset === "turbo";
   } catch (e) {
-    // fail-closed: a missing file is the CLI default, which still prompts. Any other error does not get force_ask.
+    // fail-closed: a missing file still prompts. Any other error does not get force_ask.
     return (e as { code?: string }).code !== "ENOENT";
   }
 }

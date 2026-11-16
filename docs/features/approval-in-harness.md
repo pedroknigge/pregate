@@ -80,19 +80,26 @@ The reply is exit 0 with empty stderr, and the only keys are `decision` and
 `allow`, which would skip agy's own prompt, and does not emit `auto_approve`.
 The living hooks page lists `auto_approve`. The agy 1.5.9 decision schema does not.
 
-agy 1.5.9's hook payload has no permission mode, print mode, or skip-permissions
-field. `HookArgsCommon` can carry `parentConversationId`, and protojson omits it
-when empty. Pregate returns `force_ask` only when `CI` is unset, that parent id
-is absent or empty, `~/.gemini/antigravity-cli/settings.json` does not set
-`toolPermission` to `always-proceed` or `permissionPreset` to `always-proceed` or
-`turbo`, and no ancestor process named `agy` or `antigravity` was started with
-`--dangerously-skip-permissions`, print mode (`-p`, `--print`, or `--prompt`),
-or a `--settings` value whose `toolPermission` is `always-proceed`. A session
-override that selects another `toolPermission` wins over the saved file. Those
-other sessions keep the in-harness allow: empty stdout, so the command can run,
-recorded as `via: "yes"`. They do not receive `force_ask`. always-proceed
-auto-approves tool confirmations, and earlier `force_ask` replies stalled under
-skip-permissions, so emitting it there would fail open or stall.
+agy 1.5.9's hook payload has no permission mode, print mode, agent mode, or
+skip-permissions field. `HookArgsCommon` can carry `parentConversationId`, and
+protojson omits it when empty. Pregate returns `force_ask` only when `CI` is
+unset, that parent id is absent or empty, `~/.gemini/antigravity-cli/settings.json`
+does not set `toolPermission` to `always-proceed` or `permissionPreset` to
+`always-proceed` or `turbo`, and no ancestor process named `agy` or `antigravity`
+was started with `--dangerously-skip-permissions`, print mode (`-p`, `--print`,
+or `--prompt`), or a `--settings` value whose `toolPermission` is `always-proceed`
+or whose `permissionPreset` is `always-proceed` or `turbo`. A session override
+that selects another `toolPermission` wins over the saved file. A `--settings`
+value that sets neither of those keys does not: the saved file decides.
+`agentMode` of `auto`, `accept-edits`, `plan`, or `""` is not a skip. Antigravity
+1.5.7 made Auto the default agent mode where that mode is available, including
+`agy -p`, and Default where it is not. Auto still prompts on irreversible
+actions. The 1.5.9 CLI auto-approves a tool confirmation for always-proceed, not
+for Auto, and `strict` still asks. Those other sessions keep the in-harness
+allow: empty stdout, so the command can run, recorded as `via: "yes"`. They do
+not receive `force_ask`. always-proceed auto-approves tool confirmations, and
+earlier `force_ask` replies stalled under skip-permissions, so emitting it there
+would fail open or stall.
 `session.interactive` stays false, so a contract edit is not asked on this path.
 A code or digest that matches nothing stays on the current path. Wrappers,
 `sh -c`, scripts, subshells and a pipe into `approve` stay denied.
@@ -179,7 +186,10 @@ command returns `permissionDecision: "ask"`, a subagent, `dontAsk`,
 headless/subagent behavior, and literal-command bounds. An interactive agy
 session returns `decision: "force_ask"` for that command. Saved always-proceed,
 Turbo, `--dangerously-skip-permissions`, print mode, a child conversation and
-`CI` keep the allow and do not wait.
+`CI` keep the allow and do not wait. Saved Auto, accept-edits, plan and an
+explicit Default still ask. `test/agy-auto-mode.e2e.test.ts` runs those checks
+against a real `agy` when `AGY_BIN` points at the CLI. On agy 1.5.9, `--mode=auto`
+stayed in Default when the `enable-auto-permission-preset` rollout was off.
 Earlier Codex, Claude Code, Grok and agy human-shell runs were recorded while
 the gate denied this command. Those notes describe that older gate. Controlled
 test inputs are not actual user consent receipts.

@@ -206,6 +206,46 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
   expect(lines.some((line) => line.root === canonical(asked.root) && line.via === "yes" && line.tty === false)).toBe(true);
 }, 120_000);
 
+// Auto (the 1.5.7 default where the CLI can enter it) still prompts on irreversible
+// actions. It is not always-proceed. A --settings overlay that does not set a tool
+// permission leaves the saved file in charge.
+test("agy Auto mode still gets force_ask; always-proceed and Turbo still do not", () => {
+  const asked = project("agy-auto", data);
+  const command = `pregate approve ${asked.code}`;
+  const asks = (result: { code: number; stdout: string; text: string }) => {
+    expect(agyAsk(result).reason).toContain("Accept runs this command. Reject runs nothing.");
+    unchanged(asked);
+  };
+  const quiet = (result: { code: number; text: string; stdout: string }) => {
+    expect(result.code, result.text).toBe(0);
+    expect(result.stdout, result.text).toBe("");
+    expect(result.text).not.toContain("force_ask");
+    expect(result.text).not.toContain("DENY");
+    unchanged(asked);
+  };
+  asks(hook(asked, "agy", command, { env: agyHome("auto", { agentMode: "auto" }) }));
+  asks(hook(asked, "agy", command, { env: agyHome("auto-strict", { agentMode: "auto", toolPermission: "strict" }) }));
+  asks(hook(asked, "agy", command, { env: agyHome("default-mode", { agentMode: "" }) }));
+  asks(hook(asked, "agy", command, { env: agyHome("accept-edits", { agentMode: "accept-edits" }) }));
+  asks(hook(asked, "agy", command, { env: agyHome("plan", { agentMode: "plan" }) }));
+  quiet(hook(asked, "agy", command, { env: agyHome("auto-proceed", { agentMode: "auto", toolPermission: "always-proceed" }) }));
+  quiet(hook(asked, "agy", command, { env: agyHome("auto-turbo", { agentMode: "auto", permissionPreset: "turbo" }) }));
+  if (process.platform !== "win32") {
+    asks(agyParent(asked, command, ["--mode=auto"]));
+    asks(agyParent(asked, command, ["--mode", "auto"]));
+    asks(agyParent(asked, command, ["--mode=accept-edits"]));
+    asks(agyParent(asked, command, ["--settings", JSON.stringify({ agentMode: "auto" })]));
+    asks(agyParent(asked, command, ["--settings", JSON.stringify({ agentMode: "auto", toolPermission: "strict" })], agyHome("strict-wins", { toolPermission: "always-proceed" })));
+    quiet(agyParent(asked, command, ["--settings", JSON.stringify({ agentMode: "auto" })], agyHome("overlay-saved", { toolPermission: "always-proceed" })));
+    quiet(agyParent(asked, command, ["--settings", JSON.stringify({ agentMode: "auto", toolPermission: "always-proceed" })]));
+    quiet(agyParent(asked, command, ["--settings", JSON.stringify({ permissionPreset: "turbo" })]));
+    quiet(agyParent(asked, command, ["-p", "--mode=auto"]));
+    const started = Date.now();
+    quiet(agyParent(asked, command, ["--mode=auto", "--dangerously-skip-permissions"]));
+    expect(Date.now() - started).toBeLessThan(10_000);
+  }
+}, 120_000);
+
 interface Project { root: string; data: string; env: Record<string, string>; digest: string; code: string; preset: string }
 
 // An enabled project with one pending contract change. The hook asks before that change applies.
