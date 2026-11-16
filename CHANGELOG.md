@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Antigravity 1.5.7 made Auto the default agent mode where that mode is available, including `agy -p`, and Default where it is not. Auto is not always-proceed and not Turbo: an interactive session whose saved `agentMode` is `auto`, `accept-edits`, `plan`, or `""` still receives `force_ask`, and `strict` still asks. A `--settings` overlay that sets neither `toolPermission` nor `permissionPreset` leaves that decision to the saved file. On agy 1.5.9, `--mode=auto` reported the `enable-auto-permission-preset` rollout off and continued in Default. In that session a hook `deny` still blocked a contract write, including under `--dangerously-skip-permissions`, and headless `-p` did not apply `pregate approve`. A checkout that was never enabled, and one disabled with `pregate disable`, still got an empty hook reply.
+
 ## [0.0.11] - 2026-11-16
 
 Pregate enforces a project only where someone ran `pregate enable`. Global hooks stay installed. A directory that was never enabled, and a checkout that was disabled, block nothing. Inside an enabled project, package installs, `git init`, Docker, and build, test, and dev commands run, and one gated harness may start another. `pregate disable` turns off the current worktree, or the whole project with `--project`. Orca may inspect and drive a browser, a read-only `git config` of `core.hooksPath` is allowed, and setting an approval variable is reported as an approval rather than a hook switch. Eleven core heuristics start as advice. A long session keeps the newest 1,024 events and fails closed when state or the engine is incomplete. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.11. See the [0.0.11 notes](docs/releases/0.0.11.md).

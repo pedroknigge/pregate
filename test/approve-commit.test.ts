@@ -223,6 +223,20 @@ test("an interactive agy session asks, and skip-permissions, CI and a child conv
     expect(onPreCommand(call).verdict).toBe("none");
     writeFileSync(settings, JSON.stringify({ toolPermission: "request-review" }));
     expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "auto" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "auto", toolPermission: "strict" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "accept-edits" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "plan" }));
+    expect(onPreCommand(call).verdict).toBe("ask");
+    writeFileSync(settings, JSON.stringify({ agentMode: "auto", toolPermission: "always-proceed" }));
+    expect(onPreCommand(call).verdict).toBe("none");
+    writeFileSync(settings, JSON.stringify({ agentMode: "auto", permissionPreset: "turbo" }));
+    expect(onPreCommand(call).verdict).toBe("none");
   } finally {
     rmSync(settings, { force: true });
   }
