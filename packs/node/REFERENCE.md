@@ -44,23 +44,19 @@ Source metadata:
 
 ### node/NODE-UNCAUGHT-001
 
-Check: [`node/process/no-uncaught-exception-empty@1.0.0`](checks/process/no-uncaught-exception-empty/check.json). Default severity: **deny**.
+Check: [`node/process/no-uncaught-exception-empty@1.1.0`](checks/process/no-uncaught-exception-empty/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
 Languages: `typescript`. Cardinality: `singleton`. Dimension: `node.no-uncaught-exception-empty`. Minimum severity: `none`.
 
-An empty listener keeps a process alive in an undefined state after an uncaught exception.
+The process keeps taking work after its state is unknown. The next request sees that state.
 
 Default parameters: `{}`.
 
-**Repair:** Report the failure and terminate cleanly, or omit the listener and let the runtime exit.
+**Repair:** Rethrow from the handler, or call process.exit. Rethrow also satisfies NODE-EXIT-001. Setting process.exitCode and returning does not. Omitting the listener lets the runtime exit.
 
-**Scope and limits:** Changing quote style or using an empty function callback does not handle the error.
-
-**Interactions when active together:**
-
-- Duplicates `node/NODE-CRASH-001`: An empty uncaughtException callback is also a crash handler that does not exit or rethrow. Settle: Keep both. NODE-UNCAUGHT-001 is the empty callback. NODE-CRASH-001 is any uncaughtException or unhandledRejection handler that resumes. Rethrow, or omit the listener.
+**Scope and limits:** Fidelity: proxy, same-call. A named listener such as process.on("uncaughtException", crash) is reported, because the body is another statement. shutdown() is not process.exit. NODE-EXIT-001 still reports process.exit outside this choice. This is the only id for that requirement.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -72,9 +68,9 @@ Source metadata:
 
 ```json
 {
-  "work": "Node.js documentation, process events",
-  "locator": "uncaughtException",
-  "paraphrase": "An uncaughtException listener must perform emergency handling; an empty callback suppresses the default failure path."
+  "work": "Node.js documentation, uncaughtException and unhandledRejection",
+  "locator": "warning: using these events incorrectly can cause an infinite loop or a process that resumes after a crash",
+  "paraphrase": "A handler for uncaughtException or unhandledRejection exits with process.exit or rethrows. Logging and returning leaves the process running after an unknown failure. An empty callback is the same resume."
 }
 ```
 
@@ -466,42 +462,6 @@ Source metadata:
   "work": "Node.js documentation, signal events and server.close",
   "locator": "SIGTERM, SIGINT, and server.close",
   "paraphrase": "A long-running server closes its listener when it receives SIGTERM or SIGINT so in-flight requests can finish."
-}
-```
-
-### node/NODE-CRASH-001
-
-Check: [`node/process/crash-handler-exits@1.0.0`](checks/process/crash-handler-exits/check.json). Default severity: **deny**.
-
-Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
-
-Languages: `typescript`. Cardinality: `singleton`. Dimension: `node.crash-handler-exits`. Minimum severity: `none`.
-
-The process keeps taking work after its state is unknown. The next request sees that state.
-
-Default parameters: `{}`.
-
-**Repair:** Rethrow from the handler, or call process.exit. Rethrow also satisfies NODE-EXIT-001. Setting process.exitCode and returning does not.
-
-**Scope and limits:** Fidelity: proxy, same-call. A named listener such as process.on("uncaughtException", crash) is reported, because the body is another statement. shutdown() is not process.exit. NODE-UNCAUGHT-001 still owns the empty callback. NODE-EXIT-001 still reports process.exit outside this choice.
-
-**Interactions when active together:**
-
-- Duplicates `node/NODE-UNCAUGHT-001`: An empty uncaughtException callback is also a crash handler that does not exit or rethrow. Settle: Keep both. NODE-UNCAUGHT-001 is the empty callback. NODE-CRASH-001 is any uncaughtException or unhandledRejection handler that resumes. Rethrow, or omit the listener.
-
-Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
-
-```json
-{}
-```
-
-Source metadata:
-
-```json
-{
-  "work": "Node.js documentation, uncaughtException and unhandledRejection",
-  "locator": "warning: using these events incorrectly can cause an infinite loop or a process that resumes after a crash",
-  "paraphrase": "A handler for uncaughtException or unhandledRejection exits with process.exit or rethrows. Logging and returning leaves the process running after an unknown failure."
 }
 ```
 

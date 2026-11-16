@@ -33,7 +33,7 @@ Hono already forward async rejections; those packs own that idiom.
 | `node/security/no-vm-run` | `vm.runIn*` / `vm.compileFunction` | The vm module is not a sandbox | deny |
 | `node/api/no-url-parse` | Legacy `url.parse()` | The frozen parser differs from the standard URL | deny |
 | `node/modules/no-process-binding` | `process.binding()` | Internal bindings are unstable | deny |
-| `node/process/no-uncaught-exception-empty` | Empty `uncaughtException` handlers | They suppress the default crash without recovery | deny |
+| `node/process/no-uncaught-exception-empty` | `uncaughtException` or `unhandledRejection` handlers that resume | The process keeps taking work after an unknown failure. Exit or rethrow. Fidelity: proxy, same-call | deny |
 | `node/security/no-tls-reject-unauthorized-false` | `rejectUnauthorized: false` | It disables peer certificate verification | deny |
 | `node/security/no-shell-true` | Shell-enabled `spawn`/`execFile` | The shell interprets arguments as commands | deny |
 | `node/modules/no-module-compile` | `module._compile` / `require.extensions` | Loader internals have unstable contracts | deny |
@@ -58,7 +58,6 @@ proxy, or a helper whose name is not the one listed.
 | `NODE-SCRIPTS-001` | CI install uses `--ignore-scripts`, or install lifecycle scripts are on a reviewed allowlist. | evidence | deny |
 | `NODE-EDGE-001` | Security headers are set at the edge when the process does not set them. | evidence | deny |
 | `NODE-SIGNAL-001` | A file that calls `createServer` or `.listen(` registers SIGTERM and SIGINT handlers that call `.close(`. | proxy, same-file | warn |
-| `NODE-CRASH-001` | `uncaughtException` / `unhandledRejection` handlers `process.exit` or rethrow. | proxy, same-call | deny |
 | `NODE-TIMEOUT-001` | That server file sets `headersTimeout`, `requestTimeout`, `keepAliveTimeout`, and a `limit` / `maxBodySize` / `bodyLimit`. | proxy, same-file | warn |
 | `NODE-ROUTE-001` | That server file registers `"/health"` and `"/ready"`. | proxy, same-file | warn |
 | `NODE-ENVPARSE-001` | A raw `process.env` read shares a file with a schema `parse` / `safeParse` / `cleanEnv` of `process.env`. | proxy, same-file | warn |
@@ -72,7 +71,7 @@ proxy, or a helper whose name is not the one listed.
 - `node/runtime` — NODE-SYNC-001, NODE-EXIT-001, NODE-ENV-001, NODE-PREFIX-001, NODE-BUF-001, NODE-URL-001, NODE-HEADER-001
 - `node/security` — NODE-EXEC-001, NODE-VM-001, NODE-EXEC-002, NODE-CIPHER-001
 - `node/internals` — NODE-BIND-001, NODE-UNCAUGHT-001, NODE-TLS-001, NODE-SHELL-001, NODE-COMPILE-001, NODE-STREAM-001, NODE-REGISTER-001
-- `node/operations` (preview) — NODE-LOCK-001, NODE-ENVFILE-001, NODE-PIN-001, NODE-SCRIPTS-001, NODE-EDGE-001, NODE-SIGNAL-001, NODE-CRASH-001, NODE-TIMEOUT-001, NODE-ROUTE-001, NODE-ENVPARSE-001, NODE-HEADERS-001, NODE-OBSERVE-001, NODE-ASYNC-001, NODE-LOGSECRET-001
+- `node/operations` (preview) — NODE-LOCK-001, NODE-ENVFILE-001, NODE-PIN-001, NODE-SCRIPTS-001, NODE-EDGE-001, NODE-SIGNAL-001, NODE-TIMEOUT-001, NODE-ROUTE-001, NODE-ENVPARSE-001, NODE-HEADERS-001, NODE-OBSERVE-001, NODE-ASYNC-001, NODE-LOGSECRET-001
 
 The Node.js 26 rules apply only when every declared Node.js target for that file is 26 or newer. Pins are read from `package.json` `engines.node` and `volta.node`, `.nvmrc`, `.node-version`, and `.tool-versions`, walking from the file's directory to the repository root. A missing pin, an older pin beside a newer one, or an unreadable pin such as `lts/*` leaves the rule quiet, so a project that still supports an older Node.js is not newly denied or warned.
 
@@ -82,7 +81,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.4.0`. 33 distinct check IDs.
+Category: **library**. Version: `1.4.0`. 32 distinct check IDs.
 
 Methodologies: `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete).
 

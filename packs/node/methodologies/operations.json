@@ -124,32 +124,6 @@
       }
     },
     {
-      "id": "NODE-CRASH-001",
-      "relations": [
-        {
-          "with": "node/NODE-UNCAUGHT-001",
-          "kind": "duplicates",
-          "why": "An empty uncaughtException callback is also a crash handler that does not exit or rethrow.",
-          "settle": "Keep both. NODE-UNCAUGHT-001 is the empty callback. NODE-CRASH-001 is any uncaughtException or unhandledRejection handler that resumes. Rethrow, or omit the listener."
-        }
-      ],
-      "check": "node/process/crash-handler-exits",
-      "defaults": {},
-      "severity": "deny",
-      "source": {
-        "work": "Node.js documentation, uncaughtException and unhandledRejection",
-        "locator": "warning: using these events incorrectly can cause an infinite loop or a process that resumes after a crash",
-        "paraphrase": "A handler for uncaughtException or unhandledRejection exits with process.exit or rethrows. Logging and returning leaves the process running after an unknown failure."
-      },
-      "why": "The process keeps taking work after its state is unknown. The next request sees that state.",
-      "fixHint": "Rethrow from the handler, or call process.exit. Rethrow also satisfies NODE-EXIT-001. Setting process.exitCode and returning does not.",
-      "avoid": "Fidelity: proxy, same-call. A named listener such as process.on(\"uncaughtException\", crash) is reported, because the body is another statement. shutdown() is not process.exit. NODE-UNCAUGHT-001 still owns the empty callback. NODE-EXIT-001 still reports process.exit outside this choice.",
-      "examples": {
-        "pass": "pass/rethrow",
-        "fail": "fail/log-only"
-      }
-    },
-    {
       "id": "NODE-TIMEOUT-001",
       "relations": [
         {

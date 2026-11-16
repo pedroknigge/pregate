@@ -107,7 +107,7 @@ test("the node pack fixtures pass through the CLI", () => {
   const tested = root.run(["rules", "test", "--library", "node"]);
   expect(tested.code, tested.text).toBe(0);
   expect(tested.text).toContain("ok   node/supply/locked-ci-install");
-  expect(tested.text).toContain("ok   node/process/crash-handler-exits");
+  expect(tested.text).toContain("ok   node/process/no-uncaught-exception-empty");
   expect(tested.text).toContain("ok   node/logging/no-secret-log");
   expect(tested.text).toContain("ok   node/server/require-health-routes");
 }, 60_000);
@@ -155,12 +155,23 @@ test("operations rules deny, warn, and allow only after the methodology is enabl
   expect(allowedWord.code, allowedWord.text).toBe(0);
   expect(allowedWord.text).not.toContain("NODE-LOGSECRET-001");
 
-  const crash = p.write(enabledSession, "crash", "src/crash.ts", crashLog);
-  expect(crash.code, crash.text).toBe(2);
-  expect(crash.text).toContain("node/NODE-CRASH-001");
+  const crashBefore = p.write(enabledSession, "crash-before", "src/crash.ts", crashLog);
+  expect(crashBefore.code, crashBefore.text).toBe(0);
+  expect(crashBefore.text).not.toContain("NODE-UNCAUGHT-001");
+  expect(crashBefore.text).not.toContain("NODE-CRASH-001");
 
-  const rethrow = p.write(enabledSession, "rethrow", "src/crash.ts", crashRethrow);
+  expect(p.run(["pack", "enable", "node/internals", "--only", "NODE-UNCAUGHT-001", "--yes"]).code).toBe(0);
+  const crashSession = randomUUID();
+  expect(p.hook("SessionStart", crashSession, { source: "startup" }).code).toBe(0);
+
+  const crash = p.write(crashSession, "crash", "src/crash.ts", crashLog);
+  expect(crash.code, crash.text).toBe(2);
+  expect(crash.text).toContain("node/NODE-UNCAUGHT-001");
+  expect(crash.text).not.toContain("NODE-CRASH-001");
+
+  const rethrow = p.write(crashSession, "rethrow", "src/crash.ts", crashRethrow);
   expect(rethrow.code, rethrow.text).toBe(0);
+  expect(rethrow.text).not.toContain("NODE-UNCAUGHT-001");
   expect(rethrow.text).not.toContain("NODE-CRASH-001");
 
   const warned = p.write(enabledSession, "listen", "src/server.ts", listenOnly);
