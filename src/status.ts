@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "./capabilities.ts";
 import { compile } from "./compile.ts";
-import { dataHome, enabled } from "./consent.ts";
+import { dataHome, disabledLabel, disableScope, enabled, explicitlyDisabled } from "./consent.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { projectFitness } from "./fitness-command.ts";
 import { conflictDiagnostic, conflictedContract, pinned, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
@@ -164,6 +164,8 @@ function pendingApprovalCode(root: string): string | null {
 export function protectionStatus(root: string | null) {
   const contract = root === null ? { valid: false, errors: ["No preset here or above; run pregate init."], lock: null } : contractState(root);
   const consent = localConsent(root, contract.errors);
+  const disabled = root !== null && explicitlyDisabled(root);
+  const disabledScope = root === null ? null : disableScope(root);
   const configured = gatedHarnesses(root);
   const data = dataHome();
   // A project that registers its own Claude Code or Antigravity hooks runs its own launcher: no global one is needed.
@@ -191,7 +193,7 @@ export function protectionStatus(root: string | null) {
   const diagnosis = root === null ? null : contractDiagnosis(root);
   const globWarnings = root === null || typeof diagnosis?.preset !== "object" || diagnosis.preset === null ? [] : deadGlobLines(diagnosis.preset, () => listedPaths(root));
   const consentLostIn = consent || root === null ? 0 : sessionsOf(root);
-  return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, consentLostIn, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
+  return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, disabled, disabledScope, consentLostIn, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
     engine: VERSIONS.engine, core: VERSIONS.core, project: diagnosis?.project ?? null,
     servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent }, claudeCodeHooks: claudeCode.scope,
@@ -222,6 +224,13 @@ function sessionsOf(root: string): number {
 }
 
 function consentLostLine(s: Status): string[] {
+  if (s.disabled && s.root !== null) {
+    const scope = s.disabledScope;
+    const lead = scope === "project" ? "This project is disabled."
+      : scope === "both" ? "This project and this worktree are disabled."
+      : "This worktree is disabled.";
+    return [`${lead} Pre-command and pre-edit do not block it. The human runs pregate enable to turn protection back on.`];
+  }
   if (s.consentLostIn === 0) return [];
   return [`WARNING: consent was active in ${s.consentLostIn} session${s.consentLostIn === 1 ? "" : "s"} recorded for ${s.root} in the last day and is now disabled or missing. If no human ran pregate disable, a command or script removed it: re-enable with pregate enable in a terminal and review the changes made since.`];
 }
@@ -300,7 +309,7 @@ function briefStatus(s: Status): string[] {
   if (s.root === null) return ["PREGATE is not set up here.", "Next: pregate guide --preview (the human approves its review)."];
   return [
     ...coverageLead(s),
-    `Local consent is ${s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
+    `Local consent is ${s.root !== null && s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
     ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
@@ -349,7 +358,7 @@ function verboseStatus(s: Status): string {
   const b = breakdown(s);
   return [
     ...coverageLead(s),
-    `PREGATE local consent is ${s.consent ? "active" : "inactive"}${s.root === null ? "" : ` in ${s.root}`}. Effective protection: ${s.state}.`,
+    `PREGATE local consent is ${s.root !== null && s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"}${s.root === null ? "" : ` in ${s.root}`}. Effective protection: ${s.state}.`,
     ...consentLostLine(s),
     `Contract: ${s.contract.valid ? "valid; preset, sources and compiled lock match" : "not ready"}.`, ...s.contract.errors,
     ...uncommittedLine(s), ...s.globWarnings,

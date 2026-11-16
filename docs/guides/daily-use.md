@@ -39,6 +39,14 @@ explicitly.
 without running commands. An active setup does not mean every requirement has
 proof; an unverified requirement is not a protected assertion.
 
+## Turning protection off
+
+`pregate disable` is a human command, run in a terminal. It does not ask an agent to do it. With no extra flag it disables the current worktree, the checkout of the current branch, and withdraws the repository consent other worktrees were inheriting. A checkout that was enabled by name stays enforced, and a worktree added afterwards is not enforced until someone enables it. `pregate disable --project` disables the whole repository, including worktrees that were enabled by name. `pregate status` says which one applies: this worktree (and the branch checked out there) or this project. After either, pre-command and pre-edit exit 0 and block nothing in that scope. That includes `git commit --no-verify`, launching another program, `pregate approve --yes`, `pregate enable`, a hook switch, and a write to harness settings. The hook may print one informational line and does not deny. The human runs `pregate enable` to turn protection back on. A worktree that was never enabled is different: an open review there still guards project writes.
+
+## Launching another harness
+
+An agent may launch a harness that already has PREGATE hooks. Global hooks come from `pregate setup`. Project hooks for Claude Code, Codex, Cursor and agy come from `pregate project hooks --harness <id>`. `claude` and `claude-code` are the same installation, as are `agy` and `antigravity`, `cursor`, `cursor-agent` and `agent`, and `opencode` and `opencode-ai`. A prompt may mention pregate. `claude -p "update the pregate docs"` is allowed when Claude Code is gated. Flags that skip permissions (`--dangerously-skip-permissions`, `--yolo`, `--dangerously-bypass-approvals-and-sandbox`) and commands that manage hooks stay denied. Launching a harness that is not gated is denied with that harness's name and the command that gates it. Gemini, Qwen, Copilot, Kilo, Amp, Droid, Auggie, Junie, Kiro, Cline and Aider have no PREGATE registration.
+
 `doctor` reports whether each detected harness has the required launcher
 registration. Direct engine hook calls lack the launcher's crash and timeout
 handling. A successful canary on the generated wrapper route does not clear

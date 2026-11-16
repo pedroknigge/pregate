@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { agyNativeAsk, finishContract } from "./approval.ts";
-import { enabled } from "./consent.ts";
+import { disabledNotice, enabled, explicitlyDisabled } from "./consent.ts";
 import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, machine, onSessionStart, pinned, redirect, rejected, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { decide } from "./decide.ts";
 import { withoutPresetDraft } from "./message.ts";
@@ -156,7 +156,13 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const startedAt = clock();
   const sid = state.key(c.session);
   const cwd = canonical(c.cwd);
-  if (findRoot(cwd, enabled) === null && state.roots(sid).filter((r) => enabled(r)).length === 0) {
+  const own = findRoot(cwd, () => true);
+  const disabledHere = own !== null && explicitlyDisabled(own);
+  const sessionOn = state.roots(sid).filter((r) => enabled(r));
+  // A human disable covers this checkout even when the session already reached it. A project that
+  // was never enabled keeps the pending review path below. Enforcement runs only where enable does.
+  if (findRoot(cwd, enabled) === null && (sessionOn.length === 0 || disabledHere)) {
+    if (disabledHere && own !== null) return disabledProjectCommand(c, sid, own, startedAt);
     const pending = pendingRoot(cwd);
     if (pending === null && !projectUpdateMention(c.command) && !guideMention(c.command)) return told(null);
     const approval = administrativeApproval(pending, c);
@@ -196,9 +202,42 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
 }
 
-// A named orca denial carries its own sentence. Every other cause keeps the generic text.
+// A named shell-admin denial carries its own sentence. Every other cause keeps the generic text.
 function commandForm(cause: Cause | null, detail: string | null) {
   return cause === null ? null : form(cause, undefined, cause === "shell-admin" ? detail : null);
+}
+
+// The human disabled this checkout. Nothing here is denied: shell-admin, hook-switch, approval,
+// protected paths, `pregate approve`, `pregate enable`, and harness settings. A path that lands in
+// a different worktree this session still has enabled is still that worktree's write.
+function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, startedAt: number): Decision {
+  const notice = told(null, disabledNotice(own));
+  const others = state.roots(sid).filter((r) => enabled(r) && r !== own);
+  if (others.length === 0) return notice;
+  const noted = { text: null as string | null };
+  const base = shellContext(sid, others[0]!, () => lockOf(others[0]!), false);
+  const elsewhere = (p: string): boolean => enforcedElsewhere(own, others, p);
+  const ctx: GuardContext = {
+    ...base, shellDetail: noted,
+    isProtected: (p) => elsewhere(p) && base.isProtected(p),
+    inScope: (p) => elsewhere(p) && base.inScope(p),
+    under: (p) => elsewhere(p) && base.under(p),
+  };
+  const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
+  if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
+  const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: own, rel: null, startedAt };
+  return settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: guarded === "protected-path" });
+}
+
+// True only when the path is inside some other enabled root. A path in the disabled checkout, a
+// machine file, and a path that cannot be resolved are not enforced from here.
+function enforcedElsewhere(own: string, others: string[], p: string): boolean {
+  try {
+    const abs = canonical(p);
+    return !within(own, abs) && others.some((root) => within(root, abs));
+  } catch {
+    return false; // fail-closed: an unresolvable path is not enforced from a disabled checkout
+  }
 }
 
 // Consent is off, and no enabled session root is in play. Paths inside the pending review, the

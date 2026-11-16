@@ -5,6 +5,33 @@ import { pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
 import { inlineSink, nodeFile, noNewNodeSinks } from "./inline-sinks.ts";
 
+// Executable names each supported harness is launched as. `claude` and `cursor-agent` stay in the
+// list because status and the shell guard already look those up. Any one of a harness's names being
+// gated means every alias is: `claude` and `claude-code` are the same installation.
+export const HARNESS_NAMES: Record<HarnessId, readonly string[]> = {
+  "claude-code": ["claude", "claude-code"],
+  codex: ["codex"],
+  cursor: ["cursor-agent", "agent", "cursor"],
+  grok: ["grok"],
+  agy: ["agy", "antigravity"],
+  opencode: ["opencode", "opencode-ai"],
+};
+
+// Recognized CLIs that PREGATE cannot register. Launching one stays denied, and the message says so
+// instead of inventing a `pregate setup` step that would not gate them.
+export const UNGATED_HARNESSES: readonly string[] = [
+  "gemini", "gemini-cli", "qwen", "qwen-code", "copilot", "kilo", "kilocode", "amp", "cline", "junie",
+  "kiro-cli", "droid", "auggie", "aider", "aider-chat",
+];
+
+const ID_BY_NAME = new Map<string, HarnessId>(
+  (Object.entries(HARNESS_NAMES) as [HarnessId, readonly string[]][]).flatMap(([id, names]) => names.map((name) => [name, id])),
+);
+
+export function harnessIdOf(name: string): HarnessId | null {
+  return ID_BY_NAME.get(name) ?? null;
+}
+
 // Help must exit before any command can inspect or change installation/project state.
 const HELP_COMMANDS = new Set([
   "check", "audit", "promote", "fitness", "init", "scan", "demo", "report", "feedback", "storage", "dispute", "issue", "pack", "explain",
@@ -48,8 +75,8 @@ export interface GuardContext {
   // Whether a program found on PATH lies outside every project root the guard knows: an installed
   // tool, not project code. Without it every script found on PATH is read like a project script.
   outsideRoots?: (abs: string) => boolean;
-  // Set when an orca verb is denied by name, so the hook can say which verb instead of the
-  // generic shell-admin sentence. Absent in callers that only need the cause.
+  // Set when a shell-admin denial should replace the generic sentence: an orca verb, an ungated
+  // harness, or a human-only pregate enable/disable. Absent in callers that only need the cause.
   shellDetail?: { text: string | null };
   // The files a git command that moves history or the worktree would change (`args` from the
   // subcommand on), or null when they cannot be known. Without it such a command may write anything.
@@ -215,9 +242,17 @@ function variableCause(name: string): "approval" | "hook-switch" | null {
   if (APPROVAL_VAR.test(name)) return "approval";
   return HOOK_SWITCH.test(name) ? "hook-switch" : null;
 }
-// An argument of a harness command that names its hooks or the pregate plugin as a word or a key,
-// not inside a prompt: `agy plugin disable pregate`, `codex -c hooks.state=…`, `--no-hooks`.
-const HOOK_ARG = /^\S*(?<![a-z])(hooks|pregate)(?![a-z])\S*$/i;
+// Real flags that skip a harness's permissions or approvals. They are options, never prompt text:
+// `claude -p "--yolo"` is a prompt, `claude --yolo` is the flag.
+const SKIP_PERMISSION = /^(--dangerously-skip-permissions|--yolo|--dangerously-bypass-approvals-and-sandbox|--dangerously-bypass-hook-trust)$/i;
+// Replacing the config file, or naming a plugin directory, leaves the installed hooks behind.
+// `-c` is a single override and is a hook switch only when that override names hooks.
+const HARNESS_CONFIG_FILE = new Set(["--config", "--config-file", "--plugins-path", "--plugin-dir"]);
+const HARNESS_PROMPT = new Set(["-p", "--print", "--prompt"]);
+// Flags whose next word is a value, not a hook subcommand and not a prompt to scan.
+const HARNESS_VALUE = new Set(["-p", "--print", "--prompt", "--model", "-m", "--output-format", "--resume", "--session-id",
+  "--permission-mode", "--add-dir", "--append-system-prompt", "--system-prompt"]);
+const LAUNCH_MODE = /^(exec|run|e|x|review|resume|chat|prompt)$/i;
 // pregate subcommands that change what every harness runs.
 const MACHINE = /^(prepare|setup|update|uninstall)$/;
 // Variables that name a protected folder whatever their value: read as the folder they default to,
@@ -1091,7 +1126,7 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   const ci = assigned.includes("CI");
   if (ci && head === undefined) ctx.ciSet = true;
   const descriptions = commandDescriptions(words);
-  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx.gated);
+  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx);
   if (admin === "hook-switch" || head === undefined) return admin;
   const was = ctx.ciSet;
   if (ci) ctx.ciSet = true;
@@ -1240,7 +1275,14 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (EXPORTS.has(name)) return run(args.filter((w) => ASSIGNMENT.test(w.text)), cwd, ctx, stdin);
   // A sourced script runs like a command: `. pregate approve` runs the launcher in this shell.
   if (name === "source" || name === ".") return run(args, cwd, ctx, stdin);
-  if (name === "pregate") return ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
+  if (name === "pregate") {
+    const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
+    if (cause === "shell-admin" && ctx.shellDetail && ctx.shellDetail.text === null) {
+      const sub = args.find((w) => w.literal && !w.text.startsWith("-"));
+      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is human-only. The human runs pregate ${sub.text} in a terminal.`;
+    }
+    return cause;
+  }
   if (name === "command" && args.some((w) => /^-[vV]$/.test(w.text))) return null;   // lookup, no execution
   const runner = RUNNERS.has(`${name} ${args[0]?.text}`);
   if (WRAPPERS.has(name) || runner) return wrapped(runner ? "npx" : name, runner ? args.slice(1) : args, cwd, ctx, stdin);
@@ -1307,26 +1349,93 @@ function psValue(head: Word, args: Word[], bound: ReadonlySet<string>): Word[] |
   return args.length === 0 || head.text.endsWith(",") || PS_OPERATOR.test(args[0]!.text) ? [] : null;
 }
 
+// The harness a command launches, by its executable name: `claude`, `claude.exe`, an absolute path,
+// `claude-code` from `npx @anthropic-ai/claude-code`, or `cli.js` inside that package's folder.
+// Cursor's CLI is also `agent`, only as the command itself.
+function launchedHarness(command: string): string | null {
+  const base = basename(slash(command).toLowerCase().replace(/\.(exe|cmd|bat)$/, ""));
+  if (base === "agent" || harnessIdOf(base) !== null || UNGATED_HARNESSES.includes(base)) return base;
+  return HARNESS.exec(command)?.[2] ?? null;
+}
+
+function harnessGated(name: string, gated: GuardContext["gated"]): boolean {
+  if (gated === undefined) return false;
+  if (gated.has(name)) return true;
+  const id = harnessIdOf(name);
+  if (id === null) return false;
+  return gated.has(id) || HARNESS_NAMES[id].some((alias) => gated.has(alias));
+}
+
+// What the denial tells the agent: the harness, and the command a human runs to gate it.
+export function ungatedHarnessMessage(name: string): string {
+  const id = harnessIdOf(name);
+  if (id === null) return `${name} has no PREGATE registration. Do not launch it. The human runs \`pregate setup\` for claude-code, codex, cursor, grok, agy or opencode.`;
+  const project = id === "grok" || id === "opencode" ? "" : ` or \`pregate project hooks --harness ${id}\``;
+  return `${name} (${id}) is not gated. Gate it: \`pregate setup\`${project}.`;
+}
+
+function noteUngated(ctx: Ctx, name: string): void {
+  if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = ungatedHarnessMessage(name);
+}
+
+// Options and subcommands that manage hooks, plugins or config, or that skip permissions.
+// A prompt (`-p`, `--prompt`, or the words after `exec`/`run`) is not one of those, even when it
+// mentions pregate or hooks.
+function harnessSwitchesHooks(args: Word[]): boolean {
+  let prompt = false;
+  const positionals: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const text = args[i]!.text;
+    if (text === "--") break;
+    if (text.startsWith("-") && text !== "-") {
+      const eq = text.indexOf("=");
+      const name = eq > 0 ? text.slice(0, eq) : text;
+      const inline = eq > 0 ? text.slice(eq + 1) : undefined;
+      if (SKIP_PERMISSION.test(name) || HOOK_FLAG.test(name) || HOOK_WORD.test(name) || HARNESS_CONFIG_FILE.has(name)) return true;
+      if (name === "-c") {
+        const value = inline ?? args[i + 1]?.text ?? "";
+        if (HOOK_WORD.test(value) || /\b(hooks|disableAllHooks|pregate)\b/i.test(value)) return true;
+        if (inline === undefined) i++;
+        continue;
+      }
+      if (HARNESS_PROMPT.has(name)) prompt = true;
+      if (HARNESS_VALUE.has(name) && inline === undefined) i++;
+      continue;
+    }
+    if (prompt) continue;
+    positionals.push(text);
+    if (LAUNCH_MODE.test(text)) prompt = true;
+  }
+  if (positionals.some((word) => HOOK_STEM.test(word))) return true;
+  const head = positionals[0]?.toLowerCase() ?? "";
+  if (/^(plugins?|hooks?)$/.test(head)) return true;
+  if (head === "features" && positionals.some((word) => /^hooks?$/i.test(word) || HOOK_STEM.test(word))) return true;
+  if (head === "config" && positionals.some((word) => HOOK_WORD.test(word) || /\b(hooks|disableAllHooks|pregate)\b/i.test(word))) return true;
+  return false;
+}
+
 // What switches hooks off or reaches past this harness. hook-switch: an option or variable that
 // runs a harness without the user's configuration, or a harness command that manages its hooks or
-// the pregate plugin, or a harness run with another HOME. shell-admin: a git hook switch, such as
-// --no-verify or `HUSKY=0 git …` (PowerShell's `$env:HUSKY=0` sets it for the commands that
-// follow), setting `core.hooksPath`, or another harness as the command. Reading that key with
-// `git config` is not one.
-function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, gated: GuardContext["gated"]): Cause | null {
+// the pregate plugin, or a harness run with another HOME. A prompt is not a hook switch.
+// shell-admin: a git hook switch, such as --no-verify or `HUSKY=0 git …` (PowerShell's
+// `$env:HUSKY=0` sets it for the commands that follow), setting `core.hooksPath`, or an ungated
+// harness as the command. Reading that key with `git config` is not one.
+function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, ctx: Ctx): Cause | null {
   const psEnv = /^\$env:(\w+)/i.exec(head?.text ?? "")?.[1]!.toUpperCase() ?? "";
   const cmdEnv = head?.text.toLowerCase() === "set" ? /^(\w+)=/.exec(args[0]?.text ?? "")?.[1]?.toUpperCase() ?? "" : "";
   const names = [...assigned, psEnv, cmdEnv];
   const named = names.map(variableCause);
-  // Cursor's CLI is also `agent`: only as the command itself, never as a folder name.
   const command = slash(head?.text ?? "").toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
-  const harness = head !== undefined && (HARNESS.test(command) || basename(command) === "agent");
-  if (words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text)) || (harness && args.some((w) => HOOK_STEM.test(w.text))) || named.includes("hook-switch")) return "hook-switch";
-  if (harness && (names.includes("HOME") || args.some((w) => HOOK_ARG.test(w.text)))) return "hook-switch";
-  if (harness && args.some((w) => /^(plugins?|hooks?|--config|--config-file|--plugins-path|--plugin-dir)$/i.test(w.text))) return "hook-switch";
-  if (harness && args.some((w, i) => /^(?:-c|--config)(?:=|$)/.test(w.text) && /\b(hooks|disableAllHooks|pregate)\b/i.test(w.text + " " + (args[i + 1]?.text ?? "")))) return "hook-switch";
+  const launched = head === undefined ? null : launchedHarness(command);
+  const harness = launched !== null;
+  // A harness prompt is free-form. Every other command still matches a hook flag wherever it sits
+  // (`jq '.disableAllHooks = true'`, `some-tool --settings`). An approval variable is not a hook
+  // switch: `run` reports `approval` unless the command itself switches hooks off.
+  if (!harness && words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text))) return "hook-switch";
+  if (named.includes("hook-switch") || (harness && harnessSwitchesHooks(args))) return "hook-switch";
   if (named.includes("approval")) return "approval";
-  const other = harness && (!head?.literal || !gated?.has(basename(command)));
+  const other = harness && (!head?.literal || !harnessGated(launched, ctx.gated));
+  if (other && launched !== null) noteUngated(ctx, launched);
   // A proven read still denies `--no-verify`. Every other `core.hooksPath` spelling stays admin.
   // `sh -c` and the other script wrappers are the same command again; the wrapper's text is not
   // a second copy of the check.
@@ -1970,7 +2079,12 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // A harness run by its interpreter: the entry script lives in the package's folder. A project
   // folder that shares a harness name is not one.
   const entry = operands[0]?.text.toLowerCase() ?? "";
-  if (entry.includes("node_modules/") && HARNESS.test(entry)) return "shell-admin";
+  if (entry.includes("node_modules/") && HARNESS.test(entry)) {
+    const name = launchedHarness(entry);
+    if (name !== null && harnessGated(name, ctx.gated)) return null;
+    if (name !== null) noteUngated(ctx, name);
+    return "shell-admin";
+  }
   // A REPL: run bare, on `-` or `repl` (bun, deno), or with -i, which python and node keep open
   // after the script. Options alone (`node --test`) usually run something else.
   const repl = args.length === 0 || entry === "-" || entry === "repl"
