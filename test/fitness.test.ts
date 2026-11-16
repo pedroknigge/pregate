@@ -316,6 +316,25 @@ setTimeout(() => { writeFileSync("child-finished", "by itself"); process.exit(0)
   expect(existsSync(join(root, "child-finished"))).toBe(false);
 }, 15000);
 
+test("fitness diagnostics redact token-shaped verifier output", () => {
+  const token = `ghp_${"A".repeat(20)}`;
+  const live = `sk_live_${"B".repeat(20)}`;
+  const { run } = verifierProject("source", "redact", `console.log(${JSON.stringify(token)});
+console.error(${JSON.stringify(`https://user:${live}@example.com/resource`)});
+process.exit(1);
+`, 9000);
+  const result = run("fitness", "run", "--all");
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(1);
+  const status = run("fitness", "status", "--json");
+  expect(status.status).toBe(1);
+  const diagnostics = JSON.parse(status.stdout).requirements[0].diagnostics as string;
+  expect(diagnostics).toContain("[redacted]");
+  expect(diagnostics).not.toContain(token);
+  expect(diagnostics).not.toContain(live);
+  expect(diagnostics).not.toContain("user:");
+});
+
 const outputCases = (["source", "compiled"] as const).flatMap((kind) => (["stdout", "stderr"] as const).map((channel) => [kind, channel] as const));
 test.each(outputCases)("%s fitness output budget terminates an oversized %s verifier", (kind, channel) => {
   const { run, marker, root } = verifierProject(kind, `output-${channel}`, `import { writeFileSync, writeSync } from "node:fs";

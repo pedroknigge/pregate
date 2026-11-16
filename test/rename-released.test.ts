@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { expect, spyOn, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { renameReleased, writeAtomic } from "../src/disk.ts";
@@ -29,6 +29,21 @@ test("an atomic write replaces the previous bytes", inTemp((dir) => {
   writeAtomic(path, "two");
   expect(readFileSync(path, "utf8")).toBe("two");
   expect(existsSync(path)).toBe(true);
+}));
+
+test("a failed atomic write removes the temporary file", inTemp((dir) => {
+  const path = join(dir, "lock.json");
+  writeAtomic(path, "kept");
+  const random = spyOn(Math, "random").mockReturnValue(0.5);
+  const tmp = `${path}.${process.pid}.i.tmp`;
+  mkdirSync(tmp);
+  try {
+    expect(() => writeAtomic(path, "next")).toThrow();
+    expect(existsSync(tmp)).toBe(false);
+    expect(readFileSync(path, "utf8")).toBe("kept");
+  } finally {
+    random.mockRestore();
+  }
 }));
 
 test("a free file is renamed at once", inTemp((dir) => {

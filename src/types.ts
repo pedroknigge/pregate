@@ -309,6 +309,7 @@ export interface CallEvent {       // event file content (for decide and for man
   warningMessages?: string[];      // feedback aligned with warnings
   enforcement?: Record<string, Enforcement>; // effective policy at the time of the call
   evaluationMs?: number;           // monotonic gate evaluation through decision, before event persistence; absent in older events
+  omittedEvents?: number;          // older events left out of EVENT_READ_CAP on this call; absent at or under the cap
   at: number;                      // ms, set by the shell; history() orders by it
   callId: string; turn: string; agentId: string | null; kind: HookEvent["kind"]; path: string | null;
   verdict: Decision["verdict"]; halted: boolean; form: Cause | null; shadowed: boolean;

@@ -4,15 +4,15 @@ on:
   workflow_call:
 jobs:
   native:
-    # The check context stays "native (macos-15, darwin-arm64)". GitHub is not
-    # assigning macos-15 runners (the job is cancelled after 15 minutes in the
-    # queue). macos-latest is arm64 and is being assigned, so the same smoke runs there.
+    # The check context stays "native (macos-15, darwin-arm64)" so the required
+    # status name does not change. The job runs on macos-26, the fixed arm64
+    # image GitHub assigns. macos-latest tracks that image and can move.
     name: native (${{ matrix.check }}, ${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-26
             target: darwin-arm64
             check: macos-15
           - os: ubuntu-24.04

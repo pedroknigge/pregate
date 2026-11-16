@@ -37,7 +37,7 @@ publication; the publish job downloads the checked artifact rather than rebuildi
 Ordinary CI calls the same native workflow. Post-publication bootstrap remains a
 separate check of the GitHub download path.
 
-The matrix uses `macos-15`, `ubuntu-24.04`, `ubuntu-24.04-arm` and `windows-2022`.
+The darwin job runs on the fixed `macos-26` image and reports the check `native (macos-15, darwin-arm64)`. The other runners are `ubuntu-24.04`, `ubuntu-24.04-arm` and `windows-2022`.
 GitHub documents these images in its
 [hosted-runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 This repository is public.

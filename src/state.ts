@@ -90,6 +90,20 @@ function linkOnce(tmp: string, path: string): void {
 // Every filter key is in the name, so counters come from a readdir and only the events of one
 // (agent, file) are ever read. A Stop has no file and no tool call: "stop" and its timestamp. The
 // file key uses the same normalized path identity as history lookups (A26).
+//
+// A session read keeps at most EVENT_READ_CAP events: every name at or under the cap, and past it
+// the newest ones. A whole UTC day that fits is kept without opening the files. The day that
+// crosses the cap is ordered by `at`, then by name. Older days and flat legacy files are counted,
+// not opened. A repeated file name is one event: the newer copy wins and the older copy is not an
+// extra omission. Nothing is deleted. Denials that fall outside the window no longer count, and a
+// new violation still denies. At the cap, `omitted` is 0.
+export const EVENT_READ_CAP = 1024;
+
+export interface EventWindow {
+  files: string[];
+  omitted: number;
+}
+
 export function eventName(e: CallEvent): string {
   const file = e.kind === "stop" ? "stop" : e.path === null ? "-" : H(pathKey(e.path));
   const call = H(e.kind === "stop" ? String(e.at) : e.callId);
@@ -99,25 +113,55 @@ export function eventName(e: CallEvent): string {
 // New histories are date-partitioned before any event content is read. Flat histories remain
 // readable for compatibility, but their timestamps require reading the old event content.
 export function eventFiles(folder: string, since = 0): string[] {
-  const dir = join(folder, "events");
-  const floor = new Date(since).toISOString().slice(0, 10);
-  return datedEventFiles(dir, floor, new Map<string, string>());
+  return eventWindow(folder, since).files;
 }
 
-function datedEventFiles(dir: string, floor: string, found: Map<string, string>): string[] {
+export function eventWindow(folder: string, since = 0): EventWindow {
+  const dir = join(folder, "events");
+  const floor = new Date(since).toISOString().slice(0, 10);
   try {
     const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-    for (const e of entries) if (e.isFile() && e.name.endsWith(".json")) found.set(e.name, join(dir, e.name));
-    for (const e of entries) if (e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name) && e.name >= floor) {
-      for (const file of readdirSync(join(dir, e.name), { withFileTypes: true })) {
-        if (file.isFile() && file.name.endsWith(".json")) found.set(file.name, join(dir, e.name, file.name));
-      }
+    const flat = entries.filter((e) => e.isFile() && e.name.endsWith(".json")).map((e) => ({ name: e.name, path: join(dir, e.name) }));
+    const days = entries.filter((e) => e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name) && e.name >= floor);
+    const dated = days.map((day) => readdirSync(join(dir, day.name), { withFileTypes: true })
+      .filter((file) => file.isFile() && file.name.endsWith(".json"))
+      .map((file) => ({ name: file.name, path: join(dir, day.name, file.name) })));
+    const total = flat.length + dated.reduce((sum, files) => sum + files.length, 0);
+    if (total <= EVENT_READ_CAP) {
+      const found = new Map<string, string>();
+      for (const file of flat) found.set(file.name, file.path);
+      for (const files of dated) for (const file of files) found.set(file.name, file.path);
+      return { files: [...found.values()], omitted: 0 };
     }
-    return [...found.values()];
+    const kept = new Map<string, string>();
+    let omitted = 0;
+    for (let i = dated.length - 1; i >= 0; i--) omitted += keepNewest(dated[i]!, kept);
+    omitted += keepNewest(flat, kept);
+    return { files: [...kept.values()], omitted };
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return { files: [], omitted: 0 };
     throw e;
   }
+}
+
+// `room === 0` counts the names without opening them. Only the day that crosses the cap is parsed.
+function keepNewest(files: { name: string; path: string }[], kept: Map<string, string>): number {
+  const fresh = files.filter((file) => !kept.has(file.name));
+  const room = EVENT_READ_CAP - kept.size;
+  if (fresh.length <= room) {
+    for (const file of fresh) kept.set(file.name, file.path);
+    return 0;
+  }
+  if (room === 0) return fresh.length;
+  const ranked = fresh.map((file) => ({ file, at: eventAt(file.path) }))
+    .sort((a, b) => b.at - a.at || (a.file.name < b.file.name ? 1 : a.file.name > b.file.name ? -1 : 0));
+  for (const item of ranked.slice(0, room)) kept.set(item.file.name, item.file.path);
+  return ranked.length - room;
+}
+
+function eventAt(path: string): number {
+  const at = (JSON.parse(readFileSync(path, "utf8")) as { at?: unknown }).at;
+  return typeof at === "number" && Number.isFinite(at) ? at : 0;
 }
 
 function eventNames(sid: string): string[] {
@@ -200,7 +244,9 @@ export function record(sid: string, e: CallEvent, after: string | null, before: 
     }
     const dated = `${dir}/events/${new Date(e.at).toISOString().slice(0, 10)}`;
     mkdirSync(dated, { recursive: true });
-    writeAtomic(`${dated}/${eventName(e)}`, JSON.stringify(e));
+    const omitted = eventWindow(dir).omitted;
+    const body = omitted > 0 ? { ...e, omittedEvents: omitted } : e;
+    writeAtomic(`${dated}/${eventName(e)}`, JSON.stringify(body));
   }));
   return done === "state-io" ? done : undefined;
 }
@@ -272,30 +318,49 @@ function revision(root: string): { head: string | null; prefix: string } | Cause
 
 // rel → current text (null: absent) of every file under root that differs from HEAD or is
 // untracked, among those `keep` accepts. Porcelain paths are relative to the repository top.
-function dirtyTexts(root: string, prefix: string, keep: (rel: string) => boolean): Record<string, string | null> {
-  const status = git(root, ["status", "--porcelain", "-z", "--untracked-files=all", "--", "."]);
-  if (status === null) {
-    const texts: Record<string, string | null> = {};
-    const skip = new Set([".git", ".pregate", "node_modules", ".claude", ".cursor", ".codex", ".grok", ".gemini", "dist", "build"]);
-    const walk = (rel: string): void => {
-      try {
-        for (const entry of readdirSync(rel === "" ? root : `${root}/${rel}`, { withFileTypes: true })) {
-          if (skip.has(entry.name)) continue;
-          const p = rel === "" ? entry.name : `${rel}/${entry.name}`;
-          if (entry.isDirectory()) walk(p);
-          else if (entry.isFile() && keep(p)) {
-            texts[p] = readFileSync(`${root}/${p}`, "utf8");
-          }
+function isErrno(error: unknown): boolean {
+  return typeof (error as { code?: unknown }).code === "string";
+}
+
+// Git could not list the changes. An unreadable directory is state-io for the whole snapshot.
+// An unreadable file ends that directory's walk and keeps what was already read.
+function dirtyWithoutGit(root: string, keep: (rel: string) => boolean): Record<string, string | null> | "state-io" {
+  const texts: Record<string, string | null> = {};
+  const skip = new Set([".git", ".pregate", "node_modules", ".claude", ".cursor", ".codex", ".grok", ".gemini", "dist", "build"]);
+  let unreadable = false;
+  const walk = (rel: string): void => {
+    if (unreadable) return;
+    let entries;
+    try {
+      entries = readdirSync(rel === "" ? root : `${root}/${rel}`, { withFileTypes: true });
+    } catch (error) {
+      if (!isErrno(error)) throw error;
+      unreadable = true;
+      return;
+    }
+    for (const entry of entries) {
+      if (skip.has(entry.name)) continue;
+      const p = rel === "" ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isDirectory()) {
+        walk(p);
+        if (unreadable) return;
+      } else if (entry.isFile() && keep(p)) {
+        try {
+          texts[p] = readFileSync(`${root}/${p}`, "utf8");
+        } catch (error) {
+          if (!isErrno(error)) throw error;
+          return;
         }
-      } catch {
-        // Without git this is best effort: an unreadable folder or file ends that folder's walk,
-        // keeping what it already read, and the rest of the tree is still walked.
-        return;
       }
-    };
-    walk("");
-    return texts;
-  }
+    }
+  };
+  walk("");
+  return unreadable ? "state-io" : texts;
+}
+
+function dirtyTexts(root: string, prefix: string, keep: (rel: string) => boolean): Record<string, string | null> | "state-io" {
+  const status = git(root, ["status", "--porcelain", "-z", "--untracked-files=all", "--", "."]);
+  if (status === null) return dirtyWithoutGit(root, keep);
   const texts: Record<string, string | null> = {};
   const fields = status.split("\0");
   for (let k = 0; k < fields.length; k++) {
@@ -325,6 +390,7 @@ export function ensureSnapshot(sid: string, root: string, start: ((rel: string) 
   // records no tips, so its Stop treats no moved-HEAD file as arrived.
   const tips = rev.head === null || start === null ? undefined : refTips(root);
   const texts = start === null ? {} : dirtyTexts(root, rev.prefix, start);
+  if (texts === "state-io") return "state-io";
   const dir = sessionDir(sid);
   const made = io(() => withStateWrite(dir, () => {
     const dirty = Object.fromEntries(Object.entries(texts).map(([rel, text]) => [rel, text === null ? null : blob(dir, text)]));

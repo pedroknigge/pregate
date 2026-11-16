@@ -170,7 +170,12 @@ function dispatch(e: HookEvent, gate: Gate): Decision | Promise<Decision> {
   }
 }
 
-// No top-level await: `--bytecode` does not allow it (§5.4).
+// No top-level await: `--bytecode` does not allow it (§5.4). A rejection is the same fail-closed
+// exit as any other unforeseen failure: code 1, which the launcher denies and never turns into an allow.
 main(process.argv.slice(2)).then((code) => {
   process.exit(code);
+}, (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  writeAll(2, `pregate: ${message}\n`);
+  process.exit(1);
 });

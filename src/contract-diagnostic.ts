@@ -422,7 +422,8 @@ function counted(call: Call, input: DecideInput): DecideInput {
 }
 
 // Without prompt_id the turn is everything since the last recorded end of turn (SPEC §11.3): a Stop
-// that blocks keeps the turn going, or maxStopBlocks would never be reached.
+// that blocks keeps the turn going, or maxStopBlocks would never be reached. Past EVENT_READ_CAP
+// the newest events remain; a window with no releasing Stop is the turn `after-stop-0`.
 export function turnOf(s: Session): string {
   return s.turnId ?? `after-stop-${state.history(state.key(s), "-", "stop").filter((e) => e.verdict !== "deny").at(-1)?.at ?? 0}`;
 }

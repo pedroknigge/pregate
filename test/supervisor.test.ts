@@ -1,5 +1,5 @@
 import { afterAll, expect, setDefaultTimeout, test } from "bun:test";
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,21 @@ test("actual supervisor deadline names the individual rule still executing", asy
   expect(out.stdout + out.stderr).not.toContain("PREGATE-RULE");
   expect(performance.now() - start).toBeGreaterThanOrEqual(4_900);
   expect(performance.now() - start).toBeLessThan(8_000);
+});
+
+test("a timed-out engine is dead before the deny returns", async () => {
+  const pidFile = join(area, "engine.pid");
+  const script = `import { writeFileSync } from "node:fs";
+    writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);`;
+  const start = performance.now();
+  const out = await supervise(data, version, ["-e", script], raw);
+  expect(out.exit).toBe(2);
+  expect(out.stdout + out.stderr).toContain("the engine timed out");
+  expect(performance.now() - start).toBeGreaterThanOrEqual(4_900);
+  expect(performance.now() - start).toBeLessThan(8_000);
+  const pid = Number(readFileSync(pidFile, "utf8"));
+  expect(() => process.kill(pid, 0)).toThrow();
 });
 
 test("actual resolution timeout does not blame a completed individual rule", async () => {
