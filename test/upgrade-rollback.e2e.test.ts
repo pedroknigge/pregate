@@ -107,6 +107,7 @@ test("a pinned project is upgraded and rolled back with the same rules and the s
   const approval = p.git("rev-parse", "HEAD").stdout.trim();
   expect(approval).not.toBe(contract);
   expect(p.git("diff", "--name-only", contract, approval).stdout.trim().split("\n").every((path) => path.startsWith(".pregate/"))).toBe(true);
+  const recoveryStarted = performance.now();
   const reverted = p.git("revert", "--no-edit", approval);
   expect(reverted.code, reverted.text).toBe(0);
   // The committed contract is the first one, object for object. The working copy is compared
@@ -114,7 +115,11 @@ test("a pinned project is upgraded and rolled back with the same rules and the s
   for (const file of [LOCK, ".pregate/preset.json"]) expect(p.git("rev-parse", `HEAD:${file}`).stdout, file).toBe(p.git("rev-parse", `${contract}:${file}`).stdout);
   expect(p.lock().replaceAll("\r\n", "\n")).toBe(first.replaceAll("\r\n", "\n"));
   const restored = p.verdict(OLD);
-  expect(restored.code, restored.text).toBe(2);
+  const recoveryMs = Math.round(performance.now() - recoveryStarted);
+  const recovery = `git revert --no-edit ${approval} exit ${reverted.code}; restored exit ${restored.code}; recovery ${recoveryMs} ms`;
+  console.log(recovery);
+  expect(restored.code, recovery).toBe(2);
+  expect(recoveryMs).toBeGreaterThan(0);
   expect(restored.rules).toEqual(before.rules);
   expect(p.cli(OLD, "check", "--all").code).toBe(0);
 });

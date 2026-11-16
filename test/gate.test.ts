@@ -413,6 +413,21 @@ test("Claude Code SubagentStart payloads decode as the subagent's session start 
     hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "PREGATE is active" }, systemMessage: "for the human" });
 });
 
+test("a Grok session past the event cap still denies the edit", async () => {
+  const root = repo("event-cap");
+  const s: Session = { id: "grok-cap", harness: "grok", agentId: null, turnId: null, interactive: false };
+  await onSessionStart({ kind: "session-start", session: s, cwd: root });
+  const day = join(state.sessionDir(state.key(s)), "events", "2026-11-16");
+  mkdirSync(day, { recursive: true });
+  for (let i = 0; i < state.EVENT_FILE_CAP + 1; i++) writeFileSync(join(day, `e-${String(i).padStart(5, "0")}.json`), "{}");
+  const listing = state.eventListing(state.sessionDir(state.key(s)));
+  expect(listing.omitted).toBeGreaterThan(0);
+  expect(listing.files).toHaveLength(state.EVENT_FILE_CAP);
+  const denied = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const broken = ;\n" }, s)]);
+  expect(denied.verdict).toBe("deny");
+  expect(denied.cause).toBe("syntax");
+});
+
 function change(root: string, rel: string, edit: Edit, s = session(), from: string | null = null): ProposedChange {
   return { session: s, callId: "one-call", tool: "Write", path: join(root, rel), edit, from };
 }

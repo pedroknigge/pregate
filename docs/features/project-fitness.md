@@ -301,7 +301,7 @@ passing fitness evidence. See the actual admission controls.
 Receipts live in PREGATE's local state, under `fitness/`, partitioned by project,
 contract hash and verifier. They are not read from project fixtures or repros.
 Successful evidence has no source output attached. Failed/incomplete execution
-can retain the first 4096 bytes of each output channel for diagnosis. Review this
+can retain the first 4096 bytes of each output channel for diagnosis. Credential-shaped text in that window is replaced before the receipt is stored. Review this
 local data before sharing it; issue submission remains separately approved.
 Existing session storage cleanup does not prune fitness receipts.
 
@@ -313,7 +313,7 @@ immediate verifier and makes execution incomplete. Exactly 16 MiB on stdout and
 16 MiB on stderr together remain valid. Output is captured in bounded runtime
 buffers rather than temporary files; the buffer can exceed its limit by the read
 that detects overflow. Only the first 4096 bytes of each channel can enter a
-failure receipt. This is not a whole-engine memory quota. At the configured timeout, the engine forcibly terminates
+failure receipt, after credential-shaped text in that window is replaced. This is not a whole-engine memory quota. At the configured timeout, the engine forcibly terminates
 the immediate verifier process, including one that ignores SIGTERM, and rejects
 its evidence. Input hashing and contract validation occur outside that subprocess
 timeout. It is not a deadline for the whole fitness command or a sandbox for

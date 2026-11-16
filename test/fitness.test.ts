@@ -342,6 +342,24 @@ setTimeout(() => { writeFileSync("child-finished", "by itself"); process.exit(0)
   expect(existsSync(join(root, "child-finished"))).toBe(false);
 }, 15000);
 
+test.each(["source", "compiled"] as const)("%s fitness failure receipt redacts credential text", (kind) => {
+  const token = `ghp_${"a".repeat(36)}`;
+  const { run } = verifierProject(kind, "redact", `const token = ${JSON.stringify(token)};
+console.log("stdout " + token);
+console.error("stderr " + token);
+process.exit(1);
+`, 5000);
+  const result = run("fitness", "run", "--all");
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(1);
+  const status = run("fitness", "status", "--json");
+  expect(status.status).toBe(1);
+  const requirement = JSON.parse(status.stdout).requirements[0];
+  expect(requirement.diagnostics).toContain("stdout (first 4096 bytes):");
+  expect(requirement.diagnostics).toContain("[redacted]");
+  expect(requirement.diagnostics.includes(token)).toBe(false);
+});
+
 test.each(["source", "compiled"] as const)("%s fitness output budget admits exactly 16 MiB independently on both channels", (kind) => {
   const { run } = verifierProject(kind, "output-exact", `import { writeSync } from "node:fs";
 const bytes = Buffer.alloc(16 * 1024 * 1024, 65);

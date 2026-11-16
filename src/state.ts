@@ -96,28 +96,63 @@ export function eventName(e: CallEvent): string {
   return `${[H(e.turn), e.agentId === null ? "-" : H(e.agentId), file, e.verdict, e.form === null ? 0 : 1, call].join("~")}.json`;
 }
 
+// A Grok session has no turn id, so every recorded call lists this history. The returned list
+// stays at this cap. Older files stay on disk and are counted, not loaded.
+export const EVENT_FILE_CAP = 4096;
+
 // New histories are date-partitioned before any event content is read. Flat histories remain
 // readable for compatibility, but their timestamps require reading the old event content.
 export function eventFiles(folder: string, since = 0): string[] {
-  const dir = join(folder, "events");
-  const floor = new Date(since).toISOString().slice(0, 10);
-  return datedEventFiles(dir, floor, new Map<string, string>());
+  return eventListing(folder, since).files;
 }
 
-function datedEventFiles(dir: string, floor: string, found: Map<string, string>): string[] {
+export function eventListing(folder: string, since = 0): { files: string[]; omitted: number } {
+  const dir = join(folder, "events");
+  const floor = new Date(since).toISOString().slice(0, 10);
+  return datedEventFiles(dir, floor);
+}
+
+function datedEventFiles(dir: string, floor: string): { files: string[]; omitted: number } {
   try {
     const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    const found = new Map<string, string>();
     for (const e of entries) if (e.isFile() && e.name.endsWith(".json")) found.set(e.name, join(dir, e.name));
     for (const e of entries) if (e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name) && e.name >= floor) {
       for (const file of readdirSync(join(dir, e.name), { withFileTypes: true })) {
         if (file.isFile() && file.name.endsWith(".json")) found.set(file.name, join(dir, e.name, file.name));
       }
     }
-    return [...found.values()];
+    if (found.size <= EVENT_FILE_CAP) return { files: [...found.values()], omitted: 0 };
+    const byDay = new Map<string, string[]>();
+    for (const path of found.values()) {
+      const day = /(?:^|[/\\])(\d{4}-\d{2}-\d{2})(?:[/\\])/.exec(path)?.[1] ?? "";
+      const list = byDay.get(day) ?? [];
+      list.push(path);
+      byDay.set(day, list);
+    }
+    const kept: string[] = [];
+    for (const day of [...byDay.keys()].sort((a, b) => b.localeCompare(a))) {
+      const paths = byDay.get(day)!;
+      const room = EVENT_FILE_CAP - kept.length;
+      if (paths.length <= room) kept.push(...paths);
+      else {
+        kept.push(...newestPaths(paths, room));
+        break;
+      }
+    }
+    return { files: kept, omitted: found.size - kept.length };
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return { files: [], omitted: 0 };
     throw e;
   }
+}
+
+function newestPaths(paths: string[], room: number): string[] {
+  return paths
+    .map((path) => ({ path, mtime: statSync(path).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime || (a.path < b.path ? 1 : a.path > b.path ? -1 : 0))
+    .slice(0, room)
+    .map((item) => item.path);
 }
 
 function eventNames(sid: string): string[] {
@@ -272,29 +307,34 @@ function revision(root: string): { head: string | null; prefix: string } | Cause
 
 // rel → current text (null: absent) of every file under root that differs from HEAD or is
 // untracked, among those `keep` accepts. Porcelain paths are relative to the repository top.
-function dirtyTexts(root: string, prefix: string, keep: (rel: string) => boolean): Record<string, string | null> {
+function dirtyTexts(root: string, prefix: string, keep: (rel: string) => boolean): Record<string, string | null> | "state-io" {
   const status = git(root, ["status", "--porcelain", "-z", "--untracked-files=all", "--", "."]);
   if (status === null) {
     const texts: Record<string, string | null> = {};
     const skip = new Set([".git", ".pregate", "node_modules", ".claude", ".cursor", ".codex", ".grok", ".gemini", "dist", "build"]);
-    const walk = (rel: string): void => {
+    const walk = (rel: string): "state-io" | undefined => {
+      let entries;
       try {
-        for (const entry of readdirSync(rel === "" ? root : `${root}/${rel}`, { withFileTypes: true })) {
-          if (skip.has(entry.name)) continue;
-          const p = rel === "" ? entry.name : `${rel}/${entry.name}`;
-          if (entry.isDirectory()) walk(p);
-          else if (entry.isFile() && keep(p)) {
+        entries = readdirSync(rel === "" ? root : `${root}/${rel}`, { withFileTypes: true });
+      } catch {
+        return "state-io"; // fail-closed: an unreadable directory does not publish a partial snapshot
+      }
+      for (const entry of entries) {
+        if (skip.has(entry.name)) continue;
+        const p = rel === "" ? entry.name : `${rel}/${entry.name}`;
+        if (entry.isDirectory()) {
+          const failed = walk(p);
+          if (failed !== undefined) return failed;
+        } else if (entry.isFile() && keep(p)) {
+          try {
             texts[p] = readFileSync(`${root}/${p}`, "utf8");
+          } catch {
+            return "state-io"; // fail-closed: an unreadable file does not publish a partial snapshot
           }
         }
-      } catch {
-        // Without git this is best effort: an unreadable folder or file ends that folder's walk,
-        // keeping what it already read, and the rest of the tree is still walked.
-        return;
       }
     };
-    walk("");
-    return texts;
+    return walk("") ?? texts;
   }
   const texts: Record<string, string | null> = {};
   const fields = status.split("\0");
@@ -325,6 +365,7 @@ export function ensureSnapshot(sid: string, root: string, start: ((rel: string) 
   // records no tips, so its Stop treats no moved-HEAD file as arrived.
   const tips = rev.head === null || start === null ? undefined : refTips(root);
   const texts = start === null ? {} : dirtyTexts(root, rev.prefix, start);
+  if (typeof texts === "string") return texts;
   const dir = sessionDir(sid);
   const made = io(() => withStateWrite(dir, () => {
     const dirty = Object.fromEntries(Object.entries(texts).map(([rel, text]) => [rel, text === null ? null : blob(dir, text)]));
