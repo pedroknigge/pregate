@@ -63,6 +63,7 @@
         "src/react-index-key.ts",
         "src/credential-literal.ts",
         "src/typescript-version.ts",
+        "src/typescript-facts.ts",
         "src/python-legacy.ts",
         "src/sarif.ts",
         "src/inline-sinks.ts"
@@ -172,7 +173,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "c0898c286eb33e3316e899b6eee2330db628f1532b7139e32360edffdd9e5fd8",
+  "presetHash": "6ac0e4b649d2bd847ceb45f6a94326d0289871d129f8c29bec8a927f1fb4d7d5",
   "ratchet": "no-new",
   "rules": [
     {
@@ -249,6 +250,7 @@
           "src/react-index-key.ts",
           "src/credential-literal.ts",
           "src/typescript-version.ts",
+          "src/typescript-facts.ts",
           "src/python-legacy.ts",
           "src/sarif.ts",
           "src/inline-sinks.ts"
@@ -378,6 +380,7 @@
           "src/react-index-key.ts",
           "src/credential-literal.ts",
           "src/typescript-version.ts",
+          "src/typescript-facts.ts",
           "src/python-legacy.ts",
           "src/sarif.ts",
           "src/inline-sinks.ts"
@@ -910,6 +913,7 @@
           "src/react-index-key.ts",
           "src/credential-literal.ts",
           "src/typescript-version.ts",
+          "src/typescript-facts.ts",
           "src/python-legacy.ts",
           "src/sarif.ts",
           "src/inline-sinks.ts"
@@ -5545,6 +5549,7 @@
           "src/react-index-key.ts",
           "src/credential-literal.ts",
           "src/typescript-version.ts",
+          "src/typescript-facts.ts",
           "src/python-legacy.ts",
           "src/sarif.ts",
           "src/inline-sinks.ts",
@@ -5698,5 +5703,5 @@
     ]
   },
   "sourceDirs": [],
-  "sourcesHash": "c6ac9ffe5a577eab35ec4e45f99b1c93885af8a15967322b2dd79292777779bc"
+  "sourcesHash": "c12732c0588c9a08538afec1fe2688816f00fd1ae3d528414e77bcb2eb9193d4"
 }

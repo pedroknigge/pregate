@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/style/prefer-const",
+  "version": "1.0.0",
+  "area": "style",
+  "cardinality": "singleton",
+  "dimension": "style.prefer-const",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "typescript-fact",
+    "fact": "prefer-const"
+  },
+  "feedback": {
+    "message": "{symbol} is a let that this file never reassigns. Declare it with const."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

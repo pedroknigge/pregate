@@ -17,6 +17,7 @@ import { credentialLiterals } from "./credential-literal.ts";
 import { gatedSeverity } from "./typescript-version.ts";
 import { dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
+import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
 import { versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
 import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
@@ -30,7 +31,7 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
 const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness", "adr-touch"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
@@ -67,6 +68,13 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
         const g = grammarOf(rel);
         const form = p && g && matched(r, impl.patterns[g === "tsx" ? "typescript" : g] ?? [], p, host, report);
         if (form) return form;
+      } else if (impl.primitive === "typescript-fact") {
+        if (impl.fact === "tsconfig") {
+          if (text !== null) for (const hit of tsconfigFindings(rel, text, host.read)) {
+            const found = report(r, hit.line, MODULE);
+            if (hit.warn) found.severity = "warn";
+          }
+        } else if (p) for (const node of typescriptFactNodes(impl.fact, p)) report(r, node.startPosition.row + 1, symbolOf(node));
       } else if (impl.primitive === "diff") {
         if (impl.count === "import-cycles") {
           const cycles = text === null || grammarOf(rel) === null ? { size: 0, sites: [] } : importCycles(lock, r, rel, text, host);

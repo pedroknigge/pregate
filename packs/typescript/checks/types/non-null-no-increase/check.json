@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/types/non-null-no-increase",
+  "version": "1.0.0",
+  "area": "types",
+  "cardinality": "singleton",
+  "dimension": "types.non-null-count",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "diff",
+    "op": "no-increase",
+    "count": {
+      "pattern": {
+        "id": "non-null",
+        "rule": {
+          "kind": "non_null_expression"
+        }
+      }
+    }
+  },
+  "feedback": {
+    "message": "This file now has {measured} non-null assertions; it had {limit}. Narrow the new value instead of adding !."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

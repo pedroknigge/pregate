@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/types/readonly-array",
+  "version": "1.0.0",
+  "area": "types",
+  "cardinality": "singleton",
+  "dimension": "types.readonly-array",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "typescript-fact",
+    "fact": "readonly-array"
+  },
+  "feedback": {
+    "message": "{symbol} exports a mutable array. Type the parameter or property as readonly T[] or ReadonlyArray<T> so the callee cannot sort or push the caller's array."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

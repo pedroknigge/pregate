@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-48 optional packs; 1111 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1123 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 582 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 509 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 521 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 20 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -77,7 +77,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [redis](../packs/redis/REFERENCE.md) | library | 1.2.1 | 11 | `redis/client` (complete), `redis/keys` (complete) |
 | [rust](../packs/rust/REFERENCE.md) | language | 1.2.0 | 9 | `rust/architecture` (complete), `rust/quality` (complete) |
 | [security-audit](../packs/security-audit/REFERENCE.md) | practice | 1.0.1 | 18 | `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview) |
-| [senior](../packs/senior/REFERENCE.md) | practice | 1.2.0 | 12 | `senior/fowler` (complete), `senior/style` (complete) |
+| [senior](../packs/senior/REFERENCE.md) | practice | 1.3.0 | 13 | `senior/fowler` (complete), `senior/style` (complete) |
 | [solana](../packs/solana/REFERENCE.md) | library | 1.2.0 | 12 | `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete) |
 | [supabase](../packs/supabase/REFERENCE.md) | library | 1.2.1 | 10 | `supabase/client` (complete), `supabase/storage` (complete) |
 | [svelte](../packs/svelte/REFERENCE.md) | library | 1.2.0 | 13 | `svelte/runes` (complete), `svelte/stores` (complete) |
@@ -86,7 +86,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [tanstack-query](../packs/tanstack-query/REFERENCE.md) | library | 1.0.0 | 2 | `tanstack-query/client` (complete), `tanstack-query/keys` (complete) |
 | [testing](../packs/testing/REFERENCE.md) | practice | 1.2.2 | 4 | `testing/tdd` (complete) |
 | [trpc](../packs/trpc/REFERENCE.md) | library | 1.2.1 | 12 | `trpc/client` (complete), `trpc/router` (complete) |
-| [typescript](../packs/typescript/REFERENCE.md) | language | 1.3.0 | 26 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |
+| [typescript](../packs/typescript/REFERENCE.md) | language | 1.4.0 | 37 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/checked` (complete), `typescript/compiler` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |
 | [vercel](../packs/vercel/REFERENCE.md) | library | 1.0.0 | 15 | `vercel/configuration` (preview), `vercel/cron` (preview), `vercel/environment` (preview), `vercel/functions` (preview), `vercel/protection` (preview), `vercel/recovery` (preview) |
 | [vibe-proof](../packs/vibe-proof/REFERENCE.md) | practice | 1.1.0 | 17 | `vibe-proof/hygiene` (complete), `vibe-proof/secrets` (complete), `vibe-proof/transport` (complete) |
 | [vue](../packs/vue/REFERENCE.md) | library | 1.2.1 | 11 | `vue/reactivity` (complete), `vue/sfc` (complete) |

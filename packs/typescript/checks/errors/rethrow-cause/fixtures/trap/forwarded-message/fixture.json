@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 5
+      }
+    ]
+  },
+  "trap": {
+    "family": "cause-not-message",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "Putting the caught value in the message does not set the cause option. The chain still drops the original error."
+  }
+}

@@ -1,0 +1,5 @@
+type User = { id: string };
+export function load(text: string): User {
+  const raw = JSON.parse(text);
+  return raw as User;
+}

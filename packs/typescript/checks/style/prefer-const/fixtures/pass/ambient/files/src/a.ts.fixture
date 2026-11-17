@@ -1,0 +1,2 @@
+declare let ambient: number;
+export const value = 1;

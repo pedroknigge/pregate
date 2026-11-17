@@ -179,7 +179,7 @@ pregate/
 │  ├─ drizzle-query.ts                 316
 │  ├─ embedded.ts                      23
 │  ├─ enforcement.ts                   19
-│  ├─ evaluate.ts                      297
+│  ├─ evaluate.ts                      305
 │  ├─ feedback-command.ts              142
 │  ├─ feedback.ts                      73
 │  ├─ fitness-candidates.ts            76
@@ -187,7 +187,7 @@ pregate/
 │  ├─ fitness-plan.ts                  103
 │  ├─ fitness.ts                       40
 │  ├─ fixture-replay.ts                24
-│  ├─ fixtures.ts                      241
+│  ├─ fixtures.ts                      246
 │  ├─ gate.ts                          426
 │  ├─ git-changes.ts                   260
 │  ├─ git.ts                           164
@@ -212,7 +212,7 @@ pregate/
 │  ├─ issue-submission.ts              65
 │  ├─ issue.ts                         62
 │  ├─ language-facts.ts                159
-│  ├─ languages.ts                     48
+│  ├─ languages.ts                     53
 │  ├─ library-assets.ts                16
 │  ├─ library.ts                       41
 │  ├─ lock-cache.ts                    171
@@ -253,7 +253,7 @@ pregate/
 │  ├─ release-verify.ts                97
 │  ├─ report-command.ts                67
 │  ├─ report.ts                        176
-│  ├─ resolve.ts                       270
+│  ├─ resolve.ts                       313
 │  ├─ rules-add-command.ts             557
 │  ├─ rules-draft-command.ts           280
 │  ├─ rust-facts.ts                    133
@@ -272,7 +272,8 @@ pregate/
 │  ├─ storage.ts                       102
 │  ├─ supervisor.ts                    160
 │  ├─ ts.ts                            549
-│  ├─ types.ts                         322
+│  ├─ types.ts                         323
+│  ├─ typescript-facts.ts              482
 │  ├─ typescript-version.ts            80
 │  ├─ versions.ts                      4
 │  ├─ wasm.d.ts                        5

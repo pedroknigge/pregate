@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/integrity/directive-reason",
+  "version": "1.0.0",
+  "area": "integrity",
+  "cardinality": "singleton",
+  "dimension": "integrity.directive-reason",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "directive-without-reason",
+          "rule": {
+            "kind": "comment",
+            "regex": "(?:@ts-expect-error|@ts-ignore)\\s*(?:\\*/\\s*)?$"
+          }
+        }
+      ]
+    }
+  },
+  "feedback": {
+    "message": "{symbol} suppresses the compiler without a reason. Write the reason after @ts-expect-error or @ts-ignore."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

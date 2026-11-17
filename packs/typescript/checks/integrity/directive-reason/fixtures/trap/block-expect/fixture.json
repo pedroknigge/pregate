@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "block-directive-reason",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "A block comment suppresses the next line the same way a line comment does, and it still needs a reason."
+  }
+}

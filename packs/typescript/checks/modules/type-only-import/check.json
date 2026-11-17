@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/modules/type-only-import",
+  "version": "1.0.0",
+  "area": "modules",
+  "cardinality": "singleton",
+  "dimension": "modules.type-only-import",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "typescript-fact",
+    "fact": "type-only-import"
+  },
+  "feedback": {
+    "message": "{symbol} is a value import whose uses in this file are only types. Write import type, or inline type on the specifier. verbatimModuleSyntax is the compiler half of this rule."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

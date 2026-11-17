@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/types/parsed-boundary",
+  "version": "1.0.0",
+  "area": "types",
+  "cardinality": "singleton",
+  "dimension": "types.parsed-boundary",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "typescript-fact",
+    "fact": "boundary-parse"
+  },
+  "feedback": {
+    "message": "{symbol} uses a JSON.parse or .json() result as a typed value before a parser. Pass it through parse, safeParse, validate, or decode first."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

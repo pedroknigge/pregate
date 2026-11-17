@@ -1,0 +1,2 @@
+// @ts-expect-error the fixture type is wrong
+export const value = 1;
