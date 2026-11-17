@@ -1,0 +1,6 @@
+interface A { n: number }
+interface B extends A { n: number }
+interface C extends B { n: number }
+interface D extends C { n: number }
+interface E extends D { n: number }
+export class View {}

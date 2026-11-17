@@ -323,6 +323,80 @@ function specOf(arg: Node | null): { spec: string; literal: boolean } {
   return literal && arg ? { spec: arg.text.slice(1, -1), literal } : { spec: arg?.text ?? "", literal: false };
 }
 
+// Non-blank, non-comment lines, or statements when they are packed onto fewer lines.
+// A comment-only file measures 0. Python, Go and Rust have no file.lines implementation.
+export function fileMeasure(p: Parsed): number {
+  if (["python", "go", "rust"].includes(grammarOf(p.rel)!)) return 0;
+  const code = codeLinePrefix(p).at(-1) ?? 0;
+  return Math.max(code, statementCount(p));
+}
+
+function statementCount(p: Parsed): number {
+  const forHeaderIds = new Set(descendants(p.root, ["for_statement"]).flatMap((f) => {
+    const bodyId = f.childForFieldName("body")?.id;
+    return f.namedChildren.filter((c) => c.id !== bodyId).map((c) => c.id);
+  }));
+  return descendants(p.root, STATEMENT_KINDS).filter((s) => !forHeaderIds.has(s.id)).length;
+}
+
+// Distinct public names. Overloads share a name. `export *` is one name per source module.
+// Type exports count: they are part of the module's public surface.
+export function publicExports(p: Parsed): { count: number; line: number } {
+  if (["python", "go", "rust"].includes(grammarOf(p.rel)!)) return { count: 0, line: 1 };
+  const names = new Set<string>();
+  let line = 1;
+  for (const stmt of descendants(p.root, ["export_statement"])) {
+    const found = exportNames(stmt);
+    if (!found.length) continue;
+    if (names.size === 0) line = lineOf(stmt);
+    for (const name of found) names.add(name);
+  }
+  return { count: names.size, line };
+}
+
+function exportNames(stmt: Node): string[] {
+  if (stmt.children.some((c) => c.type === "default")) return ["default"];
+  if (stmt.children.some((c) => c.type === "*")) return [`*${stmt.childForFieldName("source")?.text ?? "*"}`];
+  const clause = stmt.namedChildren.find((c) => c.type === "export_clause");
+  if (clause) return clause.namedChildren.filter((c) => c.type === "export_specifier").map(exportedName);
+  const decl = stmt.namedChildren.find((c) => c.type !== "string");
+  if (!decl) return [];
+  if (decl.type === "lexical_declaration" || decl.type === "variable_declaration") {
+    return members(decl).flatMap((d) => {
+      const name = d.childForFieldName("name");
+      return name?.type === "identifier" ? [name.text] : [];
+    });
+  }
+  const name = decl.childForFieldName("name");
+  return name ? [name.text] : [];
+}
+
+function exportedName(spec: Node): string {
+  const ids = spec.namedChildren.filter((c) => c.type === "identifier");
+  return ids.at(-1)?.text ?? spec.text;
+}
+
+// Value edges that can form a load cycle. `import type`, `export type`, a specifier list that is
+// entirely `type`, and dynamic `import()` are not edges: the first three are erased, and dynamic
+// import is the usual way to break a cycle.
+export function cycleImports(p: Parsed): { spec: string; line: number }[] {
+  if (["python", "go", "rust"].includes(grammarOf(p.rel)!)) return [];
+  return imports(p).flatMap((edge) => {
+    if (!edge.literal || edge.kind === "type" || edge.kind === "dynamic" || typeOnlyEdge(p, edge)) return [];
+    return [{ spec: edge.spec, line: edge.line }];
+  });
+}
+
+function typeOnlyEdge(p: Parsed, edge: Import): boolean {
+  if (edge.kind !== "static" && edge.kind !== "reexport") return false;
+  const kinds = edge.kind === "reexport" ? ["export_statement"] : ["import_statement"];
+  const stmt = descendants(p.root, kinds).find((n) => lineOf(n) === edge.line && n.childForFieldName("source")?.text.slice(1, -1) === edge.spec);
+  if (!stmt) return false;
+  if (stmt.children.some((c) => c.type === "type")) return true;
+  const specs = descendants(stmt, [edge.kind === "reexport" ? "export_specifier" : "import_specifier"]);
+  return specs.length > 0 && specs.every((s) => s.children.some((c) => c.type === "type"));
+}
+
 const NAMED_SCOPES = new Set([
   "class_declaration", "abstract_class_declaration", "class", "function_declaration",
   "generator_function_declaration", "function_expression", "generator_function", "method_definition",

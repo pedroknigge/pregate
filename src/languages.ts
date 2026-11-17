@@ -22,7 +22,7 @@ export function commentKinds(rel: string): string[] {
 }
 
 export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): RuleLanguage[] {
-  if (r.impl.kind === "primitive" && r.impl.primitive === "fitness") return [];
+  if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path")) return [];
   if (r.languages) return r.languages;
   if (r.impl.kind === "pattern") return Object.keys(r.impl.patterns) as RuleLanguage[];
   if (r.impl.primitive === "placement" || (r.impl.primitive === "diff" && r.impl.count === "markers")) return ["typescript", "python", "go", "rust"];
@@ -30,7 +30,7 @@ export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): Ru
 }
 
 export function languageApplies(r: { impl: Impl; languages?: RuleLanguage[] }, rel: string): boolean {
-  if (r.impl.kind === "primitive" && r.impl.primitive === "fitness") return true;
+  if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path")) return true;
   if (!r.languages && r.impl.kind === "primitive" && (r.impl.primitive === "placement" || (r.impl.primitive === "diff" && r.impl.count === "markers"))) return true;
   const g = grammarOf(rel);
   return g !== null && ruleLanguages(r).includes(g === "tsx" ? "typescript" : g);

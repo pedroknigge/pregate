@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "architecture/structure",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "ARCH-CYCLE-001",
+      "check": "architecture/dependencies/import-cycle",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "Clean Architecture (R. C. Martin, 2017) and Agile Software Development (R. C. Martin, 2002)",
+        "locator": "Acyclic Dependencies Principle",
+        "paraphrase": "The dependency graph of components has no cycles. A cycle means the components cannot be tested, released, or understood apart."
+      },
+      "why": "A new import cycle forces a reader to load every module in the loop before any one of them makes sense, and a change in one module can break the others in an order the typechecker will not explain.",
+      "fixHint": "Break the cycle with a one-way import. Move the shared type to a third module, or keep the back edge as a dynamic import() that loads only after both modules have initialized.",
+      "avoid": "import type and a specifier list that is entirely type are erased and are not a cycle. require() and export from are value edges. An existing cycle may stay; this rule denies only a cycle this edit creates or enlarges.",
+      "examples": {
+        "pass": "pass/one-way",
+        "fail": "fail/new-cycle"
+      }
+    },
+    {
+      "id": "ARCH-FILE-001",
+      "check": "architecture/modules/file-loc",
+      "defaults": {
+        "max": 400
+      },
+      "severity": "deny",
+      "source": {
+        "work": "Clean Architecture (R. C. Martin, 2017)",
+        "locator": "Single Responsibility Principle, the module as the unit of change",
+        "paraphrase": "A module should have one reason to change. A file that keeps growing is standing in for several modules."
+      },
+      "why": "A file past this size is the usual stand-in for a module that does several jobs. Callers cannot tell which part they depend on, and a change for one job risks the others.",
+      "fixHint": "Move a cohesive group of declarations into a new module and import it one way. Leave the file at or below the ceiling.",
+      "avoid": "Packing many statements onto one line does not shrink the count. Comments and blank lines do not raise it. A file already over the ceiling may be edited as long as the count does not grow.",
+      "examples": {
+        "pass": "pass/small",
+        "fail": "fail/over-ceiling"
+      }
+    },
+    {
+      "id": "ARCH-EXPORT-001",
+      "check": "architecture/modules/public-exports",
+      "defaults": {
+        "max": 20
+      },
+      "severity": "deny",
+      "source": {
+        "work": "Clean Architecture (R. C. Martin, 2017)",
+        "locator": "Single Responsibility Principle, the published surface of a module",
+        "paraphrase": "The public surface of a module should be small enough that a caller can know which names are the contract."
+      },
+      "why": "A long export list is a second stand-in for a module with several jobs: every name is a promise to callers, including types.",
+      "fixHint": "Group the names into smaller modules, or stop exporting names that only this file uses.",
+      "avoid": "One export { a, b, c } clause still counts each name. Overloads of one function count once. A surface already over the ceiling may stay if this edit does not add a name.",
+      "examples": {
+        "pass": "pass/few",
+        "fail": "fail/too-many"
+      }
+    },
+    {
+      "id": "ARCH-HERIT-001",
+      "check": "architecture/modules/heritage-depth",
+      "defaults": {
+        "max": 3
+      },
+      "severity": "warn",
+      "source": {
+        "work": "A Metrics Suite for Object Oriented Design (S. R. Chidamber and C. F. Kemerer, 1994) and Design Patterns (E. Gamma, R. Helm, R. Johnson, J. Vlissides, 1994)",
+        "locator": "Depth of Inheritance Tree; favor object composition over class inheritance",
+        "paraphrase": "A deep class hierarchy is harder to reason about than a shallow one. Composition is the usual replacement once the chain is no longer a small specialization."
+      },
+      "why": "Each extends hop adds behavior the reader has to find in another class. Past a short chain, a change in the base is a change in every descendant, and the descendant's own job is no longer visible in its file.",
+      "fixHint": "Replace a hop with a field that holds the collaborator, or stop the chain at the ceiling. This warning does not block the edit.",
+      "avoid": "interface extends is not a class hop. extends React.Component, a mixin() call, and an unresolved name count as one hop and stop. implements is not counted.",
+      "examples": {
+        "pass": "pass/shallow",
+        "fail": "fail/four-hops"
+      }
+    }
+  ]
+}

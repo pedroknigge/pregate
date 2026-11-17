@@ -362,8 +362,10 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   const before = snapshotReader(sid, snap);
   // Only this root's exact admitted contract pair is exempt from source rules. lockOf/verify
   // above still reject tampering; other files under .pregate keep their placement checks.
+  let listed: readonly string[] | undefined;
+  const list = () => listed ??= workspacePaths(root);
   const reviews = files.filter((f) => f.rel !== PRESET && f.rel !== LOCK)
-    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before) }));
+    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before, list) }));
   const changedFiles = new Set(files.map((f) => f.rel));
   if (needsDependencyReview(loaded.lock, "stop", changedFiles)) {
     checkpoint("dependency-review");

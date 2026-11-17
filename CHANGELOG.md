@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Architecture pack 1.4.0 adds the opt-in methodology `architecture/structure`. `ARCH-CYCLE-001` denies an edit that creates or enlarges a TypeScript or JavaScript import cycle and leaves an existing cycle alone. `ARCH-FILE-001` and `ARCH-EXPORT-001` cap file length (default 400 code lines) and public exports (default 20), and an existing excess may stay if the edit does not raise it. `ARCH-HERIT-001` warns when a class `extends` chain is deeper than 3. The methodology is not added to the existing presets. A project that never ran `pregate enable` is unchanged, and an enabled project does not start enforcing these rules until the methodology is selected.
+- The engine metric vocabulary adds `file.lines`, `file.publicExports`, and `heritage.depth`. A metric may set `ratchet: "no-increase"`, which grandfathers an existing excess even when the preset ratchet is `strict`. `diff` accepts `count: "import-cycles"`. `forbidden-path` reports a reviewed path that matches `params.globs`, with no Node pack rule bound to it yet.
+
 ### Changed
 
 - Antigravity 1.5.7 made Auto the default agent mode where that mode is available, including `agy -p`, and Default where it is not. Auto is not always-proceed and not Turbo: an interactive session whose saved `agentMode` is `auto`, `accept-edits`, `plan`, or `""` still receives `force_ask`, and `strict` still asks. A `--settings` overlay that sets neither `toolPermission` nor `permissionPreset` leaves that decision to the saved file. On agy 1.5.9, `--mode=auto` reported the `enable-auto-permission-preset` rollout off and continued in Default. In that session a hook `deny` still blocked a contract write, including under `--dangerously-skip-permissions`, and headless `-p` did not apply `pregate approve`. A checkout that was never enabled, and one disabled with `pregate disable`, still got an empty hook reply.

@@ -4,6 +4,10 @@ These Node topics are not decidable as data-only singleton patterns yet. They
 stay here as candidates and MUST NOT become warn-level checks without a
 decidable shape plus fixtures.
 
+The engine primitive `forbidden-path` can name a committed `.env`, `*.pem`, or
+private key. Binding it is still a candidate: the globs and the `exclude` for
+samples such as `.env.example` are not a Node rule yet.
+
 - unhandledRejection coverage — needs cross-file handler proof, not one call site. Status: candidate.
 - stream backpressure — needs data-flow (write return + drain handling), not one call. Status: candidate.
 - cluster sizing — needs deploy topology (CPU count, hosting), not syntax. Status: candidate.
