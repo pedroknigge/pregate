@@ -105,7 +105,10 @@ function packOnce(i: Isolated): string {
   const quoted = (p: string) => p.replaceAll("'", "''");
   const pack = WINDOWS
     ? [ps!, "-NoProfile", "-Command", [
+      "$ErrorActionPreference = 'Stop'",
+      // FileSystem does not publish ZipArchiveMode. Load it first so Compression can resolve, then load Compression.
       "Add-Type -AssemblyName System.IO.Compression.FileSystem",
+      "Add-Type -AssemblyName System.IO.Compression",
       `$dest = '${quoted(archivePath)}'; $src = '${quoted(inner)}'`,
       "if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Force }",
       "$zip = [System.IO.Compression.ZipFile]::Open($dest, [System.IO.Compression.ZipArchiveMode]::Create)",
