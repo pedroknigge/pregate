@@ -419,29 +419,28 @@ function darwinAgyCommand(): string | null {
 function windowsAgyCommand(): string | null {
   // EncodedCommand is UTF-16LE. A raw -Command script is reparsed by Windows and exits
   // before it can report that no agy ancestor exists, which drops the prompt.
-  // One snapshot of id, parent and name. CommandLine is read only for an agy process.
+  // Each step asks for one ancestor. A full process-table snapshot exceeds the deadline
+  // on a busy host and is then treated as unreadable, which drops the prompt.
+  // CommandLine is read only for an agy process.
   const script = `
 $ProgressPreference='SilentlyContinue'
 $OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
 $ErrorActionPreference='Stop'
-$rows = @(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,Name)
-$byId = @{}
-foreach ($row in $rows) { $byId[[int]$row.ProcessId] = $row }
 $procId = ${process.ppid}
-$found = $null
 for ($i = 0; $i -lt ${WALK} -and $procId -gt 1; $i++) {
-  $proc = $byId[$procId]
+  $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -Property ProcessId,ParentProcessId,Name
   if ($null -eq $proc) { exit 0 }
   $name = [IO.Path]::GetFileName([string]$proc.Name)
-  if ($name -match '^(agy|antigravity)(\\.exe)?$') { $found = $procId; break }
+  if ($name -match '^(agy|antigravity)(\\.exe)?$') {
+    $cmd = Get-CimInstance Win32_Process -Filter "ProcessId=$procId" -Property CommandLine
+    if ([string]::IsNullOrEmpty([string]$cmd.CommandLine)) { Write-Output 'UNREADABLE'; exit 0 }
+    Write-Output $cmd.CommandLine
+    exit 0
+  }
   $next = [int]$proc.ParentProcessId
   if ($next -eq $procId) { exit 0 }
   $procId = $next
 }
-if ($null -eq $found) { exit 0 }
-$cmd = Get-CimInstance Win32_Process -Filter "ProcessId=$found" -Property CommandLine
-if ([string]::IsNullOrEmpty([string]$cmd.CommandLine)) { Write-Output 'UNREADABLE'; exit 0 }
-Write-Output $cmd.CommandLine
 exit 0
 `;
   const encoded = Buffer.from("$env:PSModulePath=$PSHOME+'\\Modules;'+$env:PSModulePath; " + script, "utf16le").toString("base64");

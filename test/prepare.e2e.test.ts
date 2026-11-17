@@ -87,8 +87,9 @@ function put(path: string, text: string, mode = 0o644): void {
   writeFileSync(path, text, { mode });
 }
 
-// The archive is the same for every test: the compiled engine, packed the way a release packs it.
-// It is packed once and copied into each test's own release folder; the product only reads it.
+// The archive is the same for every test: the compiled engine at the archive root, in a zip on
+// Windows and a tar.gz elsewhere. It is packed once and copied into each test's own release
+// folder; the product only reads it.
 let packedArchive: string | undefined;
 function packOnce(i: Isolated): string {
   if (packedArchive !== undefined) return packedArchive;
@@ -99,8 +100,17 @@ function packOnce(i: Isolated): string {
   const archivePath = join(dir, ASSET);
   const ps = WINDOWS ? Bun.which("powershell.exe") : null;
   if (WINDOWS && ps === null) throw new Error("powershell.exe is required to build the prepare E2E archive on Windows");
+  // Optimal Compress-Archive of the compiled engine exceeds this deadline on a busy runner.
+  // Fastest is still a zip with the engine at the archive root, which Expand-Archive reads.
+  const quoted = (p: string) => p.replaceAll("'", "''");
   const pack = WINDOWS
-    ? [ps!, "-NoProfile", "-Command", `Compress-Archive -Path '${inner.replaceAll("'", "''")}' -DestinationPath '${archivePath.replaceAll("'", "''")}' -Force`]
+    ? [ps!, "-NoProfile", "-Command", [
+      "Add-Type -AssemblyName System.IO.Compression.FileSystem",
+      `$dest = '${quoted(archivePath)}'; $src = '${quoted(inner)}'`,
+      "if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Force }",
+      "$zip = [System.IO.Compression.ZipFile]::Open($dest, [System.IO.Compression.ZipArchiveMode]::Create)",
+      "try { [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $src, 'pregate.exe', [System.IO.Compression.CompressionLevel]::Fastest) } finally { $zip.Dispose() }",
+    ].join("; ")]
     : ["tar", "-czf", archivePath, "-C", join(dir, "x"), "pregate"];
   const packed = Bun.spawnSync(pack, { cwd: i.root, env: i.env, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 60_000 });
   if (packed.exitCode !== 0) throw new Error(`release archive failed: ${packed.stderr.toString()}`);
