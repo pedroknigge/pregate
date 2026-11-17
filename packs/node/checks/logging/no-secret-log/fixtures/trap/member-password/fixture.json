@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/log.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "member-secret",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "A property named password is still the credential, including under a receiver."
+  }
+}

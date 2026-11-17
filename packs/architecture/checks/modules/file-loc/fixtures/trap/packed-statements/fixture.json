@@ -1,0 +1,23 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 400
+  },
+  "target": "src/packed.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1,
+        "measured": 401
+      }
+    ]
+  },
+  "trap": {
+    "family": "line-compression",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "401 statements on one line are still 401 lines of code. A comment-only file is not."
+  }
+}

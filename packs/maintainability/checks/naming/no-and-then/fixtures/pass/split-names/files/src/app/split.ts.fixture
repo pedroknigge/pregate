@@ -1,0 +1,2 @@
+export function save(): number { return 1; }
+export function notify(): number { return 1; }

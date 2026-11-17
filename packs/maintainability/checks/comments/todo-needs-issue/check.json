@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/comments/todo-needs-issue",
+  "version": "1.0.0",
+  "area": "comments",
+  "cardinality": "singleton",
+  "dimension": "comments.todo-issue",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "todo-issue",
+          "rule": {
+            "kind": "comment",
+            "regex": "(?i)\\b(TODO|FIXME)\\b",
+            "not": { "regex": "#\\d+|\\b[A-Z][A-Z0-9]+-\\d+\\b|(?:issues|pull)/\\d+" }
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} is a TODO or FIXME without an issue reference (#123, ABC-123, or issues/123). An owner in parentheses is a separate check."
+  }
+}

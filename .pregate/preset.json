@@ -12,7 +12,7 @@
     {
       "ns": "architecture",
       "kind": "library",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
     {
       "ns": "clean-code",
@@ -58,6 +58,8 @@
         "src/reconstruct.ts",
         "src/paths.ts",
         "src/ts.ts",
+        "src/import-cycles.ts",
+        "src/heritage.ts",
         "src/languages.ts",
         "src/language-facts.ts",
         "src/rust-facts.ts",
@@ -71,6 +73,7 @@
         "src/package-version.ts",
         "src/next-config.ts",
         "src/ratchet.ts",
+        "src/proxy-checks.ts",
         "src/decide.ts",
         "src/message.ts",
         "src/shell.ts",
@@ -180,6 +183,7 @@
         "src/embedded.ts",
         "src/rules-add-command.ts",
         "src/git-changes.ts",
+        "src/proxy-diff.ts",
         "src/loosening.ts",
         "src/arkgate-import.ts",
         "src/arkgate-command.ts",

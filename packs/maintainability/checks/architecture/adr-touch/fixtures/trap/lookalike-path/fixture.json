@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": [
+      "**/layers.json",
+      "**/boundaries.json",
+      "**/architecture.json"
+    ],
+    "adr": [
+      "docs/adr/**"
+    ]
+  },
+  "target": "config/layers.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "context": {
+    "changed": [
+      "config/layers.json",
+      "docs/adr.md",
+      "docs/adr-old/0001.md"
+    ]
+  },
+  "trap": {
+    "family": "adr-path-lookalike",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "docs/adr.md and docs/adr-old are not under docs/adr/."
+  }
+}

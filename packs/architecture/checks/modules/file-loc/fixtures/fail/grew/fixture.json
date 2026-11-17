@@ -1,0 +1,17 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 400
+  },
+  "target": "src/wide.ts",
+  "before": "before/",
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1,
+        "measured": 402
+      }
+    ]
+  }
+}

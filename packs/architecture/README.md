@@ -2,6 +2,8 @@
 
 Optional policies for declared dependency graphs and architecture boundaries. This pack owns layer direction, prohibited packages in core layers, and the use-case API constraint. It also checks path segments and declaration shapes: a domain file that names an adapter, a query that writes, a slice that reaches into a sibling's internals, a port module that grows an implementation, an anti-corruption module that re-exports a foreign type, and a repository that returns the raw row.
 
+`architecture/structure` is the opt-in home for structural ceilings that sit on the same surface: import cycles on the module graph, file size and public export count as a single-responsibility proxy, and class inheritance depth. It is not part of the hexagonal, clean-architecture, or functional-core presets. A project that already enabled Pregate does not start denying these until someone adds the methodology. File size and export count live here, rather than in maintainability, because this pack already owns the dependency graph (`layer-edge`) and the class API surface (`class.publicMethods`). Maintainability owns naming, nesting, empty interfaces, clock and null checks, deprecation, and migrations.
+
 `architecture/functional-core-imperative-shell` combines `FCIS-DEP-001` (permitted local dependency edges), `FCIS-IO-001` (prohibited I/O imports) and `FCIS-IO-002` (ambient clock, randomness and environment). Declare core, shell and any narrow data/port boundaries in `layers`; the graph check follows literal imports, type imports, path aliases and re-export chains. It does not infer ownership or prove the purity of arbitrary collaborators. This optional pattern pack is separate from the language-independent builtin core.
 
 ## User control
@@ -37,6 +39,10 @@ Ready-made combinations live in `packs/presets/`.
 | `LAYER-CLOSE-001` | An import, re-export, or dynamic import from presentation code into persistence. | In strict closed layers, presentation calls business or application logic, never persistence or the database directly. | deny |
 | `LAYER-TX-001` | Calling $transaction, beginTransaction, commit, or rollback directly from presentation code. | Transaction demarcation belongs in the application or service layer, not in HTTP controllers or UI presentation. | deny |
 | `ARCH-EFF-002` | Calling `crypto.randomUUID()`, `crypto.getRandomValues()`, or `performance.now()` (including `globalThis.*` / `window.*`) inside `domain/`, `entities/`, or `use-cases/`. | Direct Web Crypto randomness and high-resolution timer reads make domain and use-case logic non-deterministic; inject an ID generator or clock port instead. | deny |
+| `ARCH-CYCLE-001` | An edit that creates or enlarges an import cycle among TypeScript or JavaScript modules. | A cycle makes the modules load and change as one. `import type`, a type-only specifier list, and dynamic `import()` are not edges. An existing cycle may stay. | deny |
+| `ARCH-FILE-001` | A file whose code lines, or whose statement count when statements are packed onto fewer lines, exceed the ceiling (default 400). | The file is standing in for several modules. Comments and blank lines do not count. A file already over the ceiling may be edited if the count does not grow. | deny |
+| `ARCH-EXPORT-001` | A file that publishes more names than the ceiling (default 20), including types and each name in one `export { ... }` clause. | The public surface is too large to be one contract. A surface already over the ceiling may stay if this edit adds no name. | deny |
+| `ARCH-HERIT-001` | A class whose `extends` chain is deeper than the ceiling (default 3). | Each hop hides behavior in another class. This is a warning. `interface extends`, a framework base such as `React.Component`, and `implements` do not deepen the chain. | warn |
 
 ## Methodologies
 
@@ -48,6 +54,7 @@ Ready-made combinations live in `packs/presets/`.
 - `architecture/anti-corruption` — ACL-REEXPORT-001
 - `architecture/repository` — REPO-ROW-001
 - `architecture/layered` — LAYER-CLOSE-001, LAYER-TX-001
+- `architecture/structure` — ARCH-CYCLE-001, ARCH-FILE-001, ARCH-EXPORT-001, ARCH-HERIT-001
 
 Architectural invariants that are not decidable by the current engine are in [`BACKLOG.md`](BACKLOG.md).
 
@@ -57,9 +64,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **pattern**. Version: `1.3.0`. 21 distinct check IDs.
+Category: **pattern**. Version: `1.4.0`. 25 distinct check IDs.
 
-Methodologies: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/vertical-slice` (complete).
+Methodologies: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/structure` (complete), `architecture/vertical-slice` (complete).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

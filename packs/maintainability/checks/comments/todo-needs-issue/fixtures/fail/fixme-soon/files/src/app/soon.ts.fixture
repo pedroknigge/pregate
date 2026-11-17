@@ -1,0 +1,2 @@
+// FIXME: soon
+export const ready = 1;

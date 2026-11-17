@@ -1,0 +1,15 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": "before/",
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2,
+        "measured": 3
+      }
+    ]
+  }
+}

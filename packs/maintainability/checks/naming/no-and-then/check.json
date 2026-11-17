@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/naming/no-and-then",
+  "version": "1.0.0",
+  "area": "naming",
+  "cardinality": "singleton",
+  "dimension": "naming.and-then",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "and-then-name",
+          "ignores": ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx", "**/__tests__/**"],
+          "rule": {
+            "any": [
+              {
+                "kind": "function_declaration",
+                "has": { "field": "name", "regex": "(?:^|[^A-Z])(?:And|Then)(?:[A-Z]|$)" }
+              },
+              {
+                "kind": "generator_function_declaration",
+                "has": { "field": "name", "regex": "(?:^|[^A-Z])(?:And|Then)(?:[A-Z]|$)" }
+              },
+              {
+                "kind": "method_definition",
+                "has": { "field": "name", "regex": "(?:^|[^A-Z])(?:And|Then)(?:[A-Z]|$)" }
+              },
+              {
+                "kind": "function_expression",
+                "has": { "field": "name", "regex": "(?:^|[^A-Z])(?:And|Then)(?:[A-Z]|$)" }
+              },
+              {
+                "kind": "variable_declarator",
+                "all": [
+                  { "has": { "field": "name", "regex": "(?:^|[^A-Z])(?:And|Then)(?:[A-Z]|$)" } },
+                  {
+                    "any": [
+                      { "has": { "field": "value", "kind": "arrow_function" } },
+                      { "has": { "field": "value", "kind": "function_expression" } },
+                      { "has": { "field": "value", "kind": "generator_function" } }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} joins two actions with And or Then. Split it so the function has one job."
+  }
+}

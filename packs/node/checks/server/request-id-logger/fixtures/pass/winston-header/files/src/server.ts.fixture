@@ -1,0 +1,7 @@
+import winston from "winston";
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+const log = winston.createLogger();
+log.info({ header: "x-request-id" });

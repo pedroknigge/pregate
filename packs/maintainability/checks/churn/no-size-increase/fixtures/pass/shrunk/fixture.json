@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "threshold": 8
+  },
+  "context": {
+    "commits": 9
+  },
+  "target": "src/hot.ts",
+  "before": "before/",
+  "expect": {
+    "verdict": "pass"
+  }
+}

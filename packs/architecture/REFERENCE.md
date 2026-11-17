@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.3.0`. Category: **pattern**.
+Version: `1.4.0`. Category: **pattern**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -801,6 +801,153 @@ Source metadata:
   "work": "Patterns of Enterprise Application Architecture (M. Fowler, 2002)",
   "locator": "Repository",
   "paraphrase": "A repository looks like a collection of domain objects. Callers do not see the query rows the infrastructure used to load them."
+}
+```
+
+## architecture/structure
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### architecture/ARCH-CYCLE-001
+
+Check: [`architecture/dependencies/import-cycle@1.0.0`](checks/dependencies/import-cycle/check.json). Default severity: **deny**.
+
+Implementation: `diff`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `deps.cycles`. Minimum severity: `none`.
+
+A new import cycle forces a reader to load every module in the loop before any one of them makes sense, and a change in one module can break the others in an order the typechecker will not explain.
+
+Default parameters: `{}`.
+
+**Repair:** Break the cycle with a one-way import. Move the shared type to a third module, or keep the back edge as a dynamic import() that loads only after both modules have initialized.
+
+**Scope and limits:** import type and a specifier list that is entirely type are erased and are not a cycle. require() and export from are value edges. An existing cycle may stay; this rule denies only a cycle this edit creates or enlarges.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Architecture (R. C. Martin, 2017) and Agile Software Development (R. C. Martin, 2002)",
+  "locator": "Acyclic Dependencies Principle",
+  "paraphrase": "The dependency graph of components has no cycles. A cycle means the components cannot be tested, released, or understood apart."
+}
+```
+
+### architecture/ARCH-FILE-001
+
+Check: [`architecture/modules/file-loc@1.0.0`](checks/modules/file-loc/check.json). Default severity: **deny**.
+
+Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `module.lines`. Minimum severity: `none`.
+
+A file past this size is the usual stand-in for a module that does several jobs. Callers cannot tell which part they depend on, and a change for one job risks the others.
+
+Default parameters: `{"max":400}`.
+
+**Repair:** Move a cohesive group of declarations into a new module and import it one way. Leave the file at or below the ceiling.
+
+**Scope and limits:** Packing many statements onto one line does not shrink the count. Comments and blank lines do not raise it. A file already over the ceiling may be edited as long as the count does not grow.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "max": {
+    "type": "integer",
+    "minimum": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Architecture (R. C. Martin, 2017)",
+  "locator": "Single Responsibility Principle, the module as the unit of change",
+  "paraphrase": "A module should have one reason to change. A file that keeps growing is standing in for several modules."
+}
+```
+
+### architecture/ARCH-EXPORT-001
+
+Check: [`architecture/modules/public-exports@1.0.0`](checks/modules/public-exports/check.json). Default severity: **deny**.
+
+Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `module.exports`. Minimum severity: `none`.
+
+A long export list is a second stand-in for a module with several jobs: every name is a promise to callers, including types.
+
+Default parameters: `{"max":20}`.
+
+**Repair:** Group the names into smaller modules, or stop exporting names that only this file uses.
+
+**Scope and limits:** One export { a, b, c } clause still counts each name. Overloads of one function count once. A surface already over the ceiling may stay if this edit does not add a name.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "max": {
+    "type": "integer",
+    "minimum": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Architecture (R. C. Martin, 2017)",
+  "locator": "Single Responsibility Principle, the published surface of a module",
+  "paraphrase": "The public surface of a module should be small enough that a caller can know which names are the contract."
+}
+```
+
+### architecture/ARCH-HERIT-001
+
+Check: [`architecture/modules/heritage-depth@1.0.0`](checks/modules/heritage-depth/check.json). Default severity: **warn**.
+
+Implementation: `metric`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `module.heritage-depth`. Minimum severity: `none`.
+
+Each extends hop adds behavior the reader has to find in another class. Past a short chain, a change in the base is a change in every descendant, and the descendant's own job is no longer visible in its file.
+
+Default parameters: `{"max":3}`.
+
+**Repair:** Replace a hop with a field that holds the collaborator, or stop the chain at the ceiling. This warning does not block the edit.
+
+**Scope and limits:** interface extends is not a class hop. extends React.Component, a mixin() call, and an unresolved name count as one hop and stop. implements is not counted.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "max": {
+    "type": "integer",
+    "minimum": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "A Metrics Suite for Object Oriented Design (S. R. Chidamber and C. F. Kemerer, 1994) and Design Patterns (E. Gamma, R. Helm, R. Johnson, J. Vlissides, 1994)",
+  "locator": "Depth of Inheritance Tree; favor object composition over class inheritance",
+  "paraphrase": "A deep class hierarchy is harder to reason about than a shallow one. Composition is the usual replacement once the chain is no longer a small specialization."
 }
 ```
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": [
+      "**/layers.json",
+      "**/boundaries.json",
+      "**/architecture.json"
+    ],
+    "adr": [
+      "docs/adr/**"
+    ]
+  },
+  "target": "boundaries.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "context": {
+    "changed": [
+      "boundaries.json",
+      "docs/notes/adr.md"
+    ]
+  }
+}

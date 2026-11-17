@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/require-health-routes",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.health-routes",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "require-health-routes",
+          "rule": {
+            "kind": "program",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "regex": "createServer|\\.listen\\s*\\("
+                }
+              },
+              {
+                "any": [
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "string",
+                            "regex": "^[\"']/health[\"']$"
+                          },
+                          {
+                            "kind": "template_string",
+                            "regex": "^`/health`$"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "string",
+                            "regex": "^[\"']/ready[\"']$"
+                          },
+                          {
+                            "kind": "template_string",
+                            "regex": "^`/ready`$"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} listens without both /health and /ready. Register those two paths."
+  }
+}

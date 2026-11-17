@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/c.ts",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}
