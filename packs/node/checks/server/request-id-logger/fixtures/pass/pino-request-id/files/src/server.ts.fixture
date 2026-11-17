@@ -1,0 +1,9 @@
+import pino from "pino";
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+const log = pino();
+function onRequest(requestId: string) {
+  log.info({ requestId });
+}

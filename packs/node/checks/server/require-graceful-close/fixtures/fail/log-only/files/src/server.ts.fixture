@@ -1,0 +1,6 @@
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+process.on("SIGTERM", () => { console.error("stop"); });
+process.on("SIGINT", () => { console.error("stop"); });

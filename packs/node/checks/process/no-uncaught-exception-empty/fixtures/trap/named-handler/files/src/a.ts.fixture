@@ -1,0 +1,2 @@
+function crash(error: unknown): void { throw error; }
+process.on("uncaughtException", crash);

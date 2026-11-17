@@ -1,1 +1,65 @@
-{"$schema":"../../../../../schema/check.v1.json","area":"process","cardinality":"singleton","dimension":"node.no-uncaught-exception-empty","feedback":{"message":"{symbol} registers an empty uncaughtException handler. Log the error and exit instead of swallowing the crash."},"id":"node/process/no-uncaught-exception-empty","impl":{"kind":"pattern","patterns":{"typescript":[{"id":"uncaught-exception-empty","rule":{"any":[{"regex":"\\.on\\s*\\(\\s*[\"']uncaughtException[\"']\\s*,\\s*\\(\\s*\\)\\s*=>\\s*\\{\\s*\\}"},{"regex":"\\.on\\s*\\(\\s*[\"']uncaughtException[\"']\\s*,\\s*function\\s*\\(\\s*\\)\\s*\\{\\s*\\}"}],"kind":"call_expression"}}]}},"minSeverity":null,"params":{},"phase":["pre","stop","commit","ci"],"version":"1.0.0"}
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/process/no-uncaught-exception-empty",
+  "version": "1.1.0",
+  "area": "process",
+  "cardinality": "singleton",
+  "dimension": "node.no-uncaught-exception-empty",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "uncaught-exception-empty",
+          "rule": {
+            "kind": "call_expression",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "regex": "\\.(on|once|addListener)$"
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "has": {
+                    "kind": "string",
+                    "regex": "^[\"'](uncaughtException|unhandledRejection)[\"']$"
+                  }
+                }
+              },
+              {
+                "not": {
+                  "has": {
+                    "stopBy": "end",
+                    "any": [
+                      {
+                        "kind": "call_expression",
+                        "regex": "process\\.exit\\s*\\("
+                      },
+                      {
+                        "kind": "throw_statement"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} handles uncaughtException or unhandledRejection without process.exit or rethrow. Exit or rethrow so the process does not resume."
+  }
+}
