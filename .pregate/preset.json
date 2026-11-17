@@ -58,6 +58,8 @@
         "src/reconstruct.ts",
         "src/paths.ts",
         "src/ts.ts",
+        "src/import-cycles.ts",
+        "src/heritage.ts",
         "src/languages.ts",
         "src/language-facts.ts",
         "src/rust-facts.ts",

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { enable } from "../src/consent.ts";
 import { engineAt } from "./compiled-engine.ts";
+import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { removeTree } from "./remove-tree.ts";
 
@@ -43,13 +44,16 @@ afterAll(() => removeTree(TMP));
 
 let states = 0;
 function envOf(): Env {
-  return {
-    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: `${HOME}/.local/bin:/usr/bin:/bin`, HOME, TMPDIR: join(TMP, "tmp"),
+  // Keep git and sh. A unix-only PATH hides Git for Windows, and the hook command is `sh -c`.
+  const env: Env = {
+    CI: "1", PREGATE_UNATTENDED_APPROVAL: "1", PATH: pathWithoutHarnesses([join(HOME, ".local/bin")]), HOME, TMPDIR: join(TMP, "tmp"),
     CODEX_HOME: join(HOME, ".codex"), GROK_HOME: join(HOME, ".grok"),
     XDG_DATA_HOME: DATA, XDG_STATE_HOME: join(TMP, "state", String(++states)),
     GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@example.com",
     GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@example.com",
   };
+  if (process.platform === "win32" && process.env.SystemRoot) env.SystemRoot = process.env.SystemRoot;
+  return env;
 }
 
 function run(cmd: string[], cwd: string, env: Env, stdin = ""): Out {
