@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/supply/install-scripts",
+  "version": "1.0.0",
+  "area": "supply",
+  "cardinality": "singleton",
+  "dimension": "node.install-scripts",
+  "minSeverity": "deny",
+  "params": {
+    "verifier": {
+      "type": "string",
+      "pattern": "\\S"
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "fitness",
+    "requirement": "NODE-SCRIPTS-001"
+  },
+  "phase": [
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "NODE-SCRIPTS-001 requires current passing project verification: {symbol}."
+  }
+}

@@ -1,0 +1,2 @@
+const raw = JSON.parse(process.env.CONFIG);
+export const port = process.env.PORT;

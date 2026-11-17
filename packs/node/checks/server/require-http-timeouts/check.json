@@ -1,0 +1,136 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/require-http-timeouts",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.http-timeouts",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "require-http-timeouts",
+          "rule": {
+            "kind": "program",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "regex": "createServer|\\.listen\\s*\\("
+                }
+              },
+              {
+                "any": [
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "property_identifier",
+                            "regex": "^(headersTimeout)$"
+                          },
+                          {
+                            "kind": "identifier",
+                            "regex": "^(headersTimeout)$"
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^(headersTimeout)$"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "property_identifier",
+                            "regex": "^(requestTimeout)$"
+                          },
+                          {
+                            "kind": "identifier",
+                            "regex": "^(requestTimeout)$"
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^(requestTimeout)$"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "property_identifier",
+                            "regex": "^(keepAliveTimeout)$"
+                          },
+                          {
+                            "kind": "identifier",
+                            "regex": "^(keepAliveTimeout)$"
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^(keepAliveTimeout)$"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "property_identifier",
+                            "regex": "^(limit|maxBodySize|bodyLimit)$"
+                          },
+                          {
+                            "kind": "identifier",
+                            "regex": "^(limit|maxBodySize|bodyLimit)$"
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^(limit|maxBodySize|bodyLimit)$"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} listens without headersTimeout, requestTimeout, keepAliveTimeout, and a body limit. Set all four on the server."
+  }
+}
