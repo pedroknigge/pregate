@@ -1,0 +1,6 @@
+import pino from "pino";
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+pino().info("up");

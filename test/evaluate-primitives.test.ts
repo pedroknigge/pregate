@@ -44,6 +44,7 @@ test("analyze does not throw for a primitive in the closed vocabulary", () => {
     { kind: "primitive", primitive: "required-import" },
     { kind: "primitive", primitive: "adr-touch" },
     { kind: "primitive", primitive: "churn-ratchet", op: "no-increase" },
+    { kind: "primitive", primitive: "forbidden-path" },
   ];
   for (const impl of known) {
     lock.rules[0]!.impl = impl;

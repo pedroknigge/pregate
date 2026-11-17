@@ -1,0 +1,11 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 400
+  },
+  "target": "src/notes.ts",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

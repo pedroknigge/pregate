@@ -1,0 +1,23 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 20
+  },
+  "target": "src/api.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 22,
+        "measured": 21
+      }
+    ]
+  },
+  "trap": {
+    "family": "export-clause",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "One export clause with 21 names is 21 public names. Overloads of one name stay one name."
+  }
+}

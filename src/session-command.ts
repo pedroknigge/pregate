@@ -367,8 +367,10 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   const changedFiles = new Set(files.map((f) => f.rel));
   const diffPaths = usesPrimitive(loaded.lock, "adr-touch") ? [...changedFiles] : undefined;
   const commits = usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(root) : undefined;
+  let listed: readonly string[] | undefined;
+  const list = () => listed ??= workspacePaths(root);
   const reviews = files.filter((f) => f.rel !== PRESET && f.rel !== LOCK)
-    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before, { changed: diffPaths, commits }) }));
+    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before, { changed: diffPaths, commits, list }) }));
   if (needsDependencyReview(loaded.lock, "stop", changedFiles)) {
     checkpoint("dependency-review");
     reviews.push(...importReviewProgress(dependencyRules(loaded.lock, "stop").map(rule => rule.id), () =>

@@ -862,7 +862,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 
 - `agent-practices@1.0.0` — practice: `agent-practices/behavior-testing` (preview), `agent-practices/domain-ownership` (preview), `agent-practices/launch-safety` (preview), `agent-practices/security-review` (preview)
 - `angular@1.2.0` — library: `angular/components` (complete), `angular/rxjs` (complete)
-- `architecture@1.3.0` — pattern: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/vertical-slice` (complete)
+- `architecture@1.4.0` — pattern: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/structure` (complete), `architecture/vertical-slice` (complete)
 - `astro@1.0.0` — library: `astro/config` (complete), `astro/content` (complete), `astro/routing` (complete)
 - `authjs@1.2.1` — library: `authjs/config` (complete), `authjs/session` (complete)
 - `clean-code@1.2.0` — practice: `clean-code/clean-code` (complete)
@@ -884,7 +884,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `nestjs@1.2.0` — library: `nestjs/controllers` (complete), `nestjs/providers` (complete)
 - `next-website@1.0.0` — library: `next-website/readiness` (preview)
 - `nextjs@1.4.1` — library: `nextjs/rendering` (complete), `nextjs/routing` (complete)
-- `node@1.3.0` — library: `node/internals` (complete), `node/runtime` (complete), `node/security` (complete)
+- `node@1.4.0` — library: `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete)
 - `nuxt@1.2.0` — library: `nuxt/data` (complete), `nuxt/server` (complete)
 - `postgres@1.2.0` — library: `postgres/client` (complete), `postgres/safety` (complete)
 - `prisma@1.3.0` — library: `prisma/client` (complete), `prisma/writes` (complete)

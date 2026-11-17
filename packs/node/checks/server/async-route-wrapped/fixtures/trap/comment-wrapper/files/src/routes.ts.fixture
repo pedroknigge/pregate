@@ -1,0 +1,2 @@
+// asyncHandler
+app.delete("/users", async (req, res) => { await remove(req); });

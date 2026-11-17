@@ -25,7 +25,7 @@ export function testFixture(tree: Files, now: Clock): { valid: boolean; ok: bool
     if (typeof fixture === "string") invalid.push(fixture);
     if (invalid.length) return { valid: false, ok: false, lines: invalid };
     const grammar = grammarOf((fixture as Fixture).target);
-    const placementGuard = check.impl.kind === "primitive" && ["placement", "fitness", "adr-touch"].includes(check.impl.primitive);
+    const placementGuard = check.impl.kind === "primitive" && ["placement", "fitness", "adr-touch", "forbidden-path"].includes(check.impl.primitive);
     if (!placementGuard && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== (fixture as Fixture).language || !languageApplies(check, (fixture as Fixture).target))) {
       return { valid: false, ok: false, lines: ["Fixture language, target extension and check coverage must agree."] };
     }
@@ -191,7 +191,7 @@ function outcome(check: Check, c: Case, now: Clock): Violation[] | Form {
   const after = code(c.tree, "files/");
   const before = fixture.before === null ? {} : code(c.tree, "before/");
   const grammar = grammarOf(fixture.target);
-  const placementGuard = check.impl.kind === "primitive" && (check.impl.primitive === "placement" || check.impl.primitive === "adr-touch");
+  const placementGuard = check.impl.kind === "primitive" && ["placement", "adr-touch", "forbidden-path"].includes(check.impl.primitive);
   if (!placementGuard && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== fixture.language || !languageApplies(check, fixture.target))) throw new Error("Fixture language, target extension and check coverage must agree.");
   const { fitness: _fitness, changed: listed, commits, ...rest } = fixture.context ?? {};
   const lock = fixtureLock(check, fixture.params, rest);
@@ -201,8 +201,10 @@ function outcome(check: Check, c: Case, now: Clock): Violation[] | Form {
   const commitsOf = commits === undefined ? undefined : () => commits;
   const changed = listed ?? [fixture.target];
   return withTrees(trees, (): Violation[] | Form => {
-    const a = analyze(lock, phase, fixture.target, fixtureState(c, after[fixture.target] ?? null, trees), { read: reader(after), now, commits: commitsOf });
-    const b = was === null ? null : analyze(lock, phase, fixture.target, fixtureState(c, was, trees), { read: reader({ ...after, ...before }), now, commits: commitsOf });
+    const afterPaths = Object.keys(after);
+    const beforePaths = [...new Set([...afterPaths, ...Object.keys(before)])];
+    const a = analyze(lock, phase, fixture.target, fixtureState(c, after[fixture.target] ?? null, trees), { read: reader(after), now, commits: commitsOf, list: () => afterPaths });
+    const b = was === null ? null : analyze(lock, phase, fixture.target, fixtureState(c, was, trees), { read: reader({ ...after, ...before }), now, commits: commitsOf, list: () => beforePaths });
     if ("cause" in a) return a;
     if (b !== null && "cause" in b) return b;
     return canonical([...placement(lock, phase, fixture.target, was === null, was), ...introduced(lock, fixture.target, b, a), ...adrTouch(lock, phase, fixture.target, changed)]);

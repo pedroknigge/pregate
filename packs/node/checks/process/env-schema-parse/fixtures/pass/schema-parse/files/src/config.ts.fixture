@@ -1,0 +1,3 @@
+const env = schema.parse(process.env);
+export const port = env.PORT;
+const fallback = process.env.PORT;

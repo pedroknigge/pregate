@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/supply/require-node-pin",
+  "version": "1.0.0",
+  "area": "supply",
+  "cardinality": "singleton",
+  "dimension": "node.require-node-pin",
+  "minSeverity": "deny",
+  "params": {
+    "verifier": {
+      "type": "string",
+      "pattern": "\\S"
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "fitness",
+    "requirement": "NODE-PIN-001"
+  },
+  "phase": [
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "NODE-PIN-001 requires current passing project verification: {symbol}."
+  }
+}

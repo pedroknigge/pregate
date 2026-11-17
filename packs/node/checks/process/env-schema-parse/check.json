@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/process/env-schema-parse",
+  "version": "1.0.0",
+  "area": "process",
+  "cardinality": "singleton",
+  "dimension": "node.env-schema-parse",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "env-schema-parse",
+          "rule": {
+            "any": [
+              {
+                "kind": "member_expression",
+                "regex": "^process\\.env\\??\\.[A-Za-z_$]"
+              },
+              {
+                "kind": "subscript_expression",
+                "regex": "^process\\.env\\??\\["
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "program",
+              "not": {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "all": [
+                    {
+                      "has": {
+                        "field": "function",
+                        "regex": "\\.(parse|safeParse|safeParseAsync)$|^(parse|safeParse|cleanEnv)$"
+                      }
+                    },
+                    {
+                      "has": {
+                        "field": "arguments",
+                        "has": {
+                          "kind": "member_expression",
+                          "regex": "^process\\.env$"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} reads process.env outside a file that parses process.env. Parse the environment once at startup and pass the value down."
+  }
+}

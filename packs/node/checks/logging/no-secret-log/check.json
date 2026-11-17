@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/logging/no-secret-log",
+  "version": "1.0.0",
+  "area": "logging",
+  "cardinality": "singleton",
+  "dimension": "node.no-secret-log",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "no-secret-log",
+          "rule": {
+            "kind": "call_expression",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "regex": "(^|\\.)(logger|log)\\.(trace|debug|info|warn|error|fatal)$|^console\\.(log|info|warn|error|debug)$"
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "has": {
+                    "stopBy": "end",
+                    "any": [
+                      {
+                        "kind": "identifier",
+                        "regex": "^(password|passwd|secret|token|apiKey|apiSecret|accessToken|refreshToken|idToken|authToken|sessionToken|privateKey|authorization)$"
+                      },
+                      {
+                        "kind": "property_identifier",
+                        "regex": "^(password|passwd|secret|token|apiKey|apiSecret|accessToken|refreshToken|idToken|authToken|sessionToken|privateKey|authorization)$"
+                      },
+                      {
+                        "kind": "shorthand_property_identifier",
+                        "regex": "^(password|passwd|secret|token|apiKey|apiSecret|accessToken|refreshToken|idToken|authToken|sessionToken|privateKey|authorization)$"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} logs a password, secret, token, or other credential name. Log an id or a redacted field."
+  }
+}

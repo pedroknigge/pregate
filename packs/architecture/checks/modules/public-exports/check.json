@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "architecture/modules/public-exports",
+  "version": "1.0.0",
+  "area": "modules",
+  "cardinality": "singleton",
+  "dimension": "module.exports",
+  "minSeverity": null,
+  "params": {
+    "max": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "metric",
+    "metric": "file.publicExports",
+    "ratchet": "no-increase"
+  },
+  "languages": [
+    "typescript"
+  ],
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} exports {measured} public names (limit {limit})."
+  }
+}

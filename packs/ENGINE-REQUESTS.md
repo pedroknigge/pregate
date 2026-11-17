@@ -51,12 +51,17 @@ The pattern engine matches nodes. The only way to say a file lacks a form is `ki
 
 ## 5. Counts beyond the four metrics
 
-**Open.** No admitted rule here needs another count: `senior/SR-WIDE-001` explicitly
-measures public methods. Imports, fields and statements each need precise counting
-semantics (including type-only imports, aliases and accessors) and real traps
-before a new metric is justified. Keep these candidates in the pack backlogs.
+**Partly implemented.** `file.lines` and `file.publicExports` are metrics, and
+`architecture/structure` binds both with a ceiling and `ratchet: "no-increase"`.
+`heritage.depth` is the class-`extends` metric, bound there as `warn`.
+`file.lines` is max(non-blank non-comment lines, statements), so packing
+statements onto one line does not lower it. `file.publicExports` counts distinct
+public names, including types and each name in one export clause. Overloads of
+one function count once. A destructured `export const { a, b } = value` is still
+one name. Imports per file, statements per block, and public fields that are not
+methods remain open and stay in the pack backlogs until they have the same traps.
 
-`metric` is `fn.lines`, `fn.params`, `class.publicMethods`, or `control.nesting`. A threshold on anything else (imports per file, statements per block, public fields that are not methods) cannot be expressed without a new primitive. `senior/SR-WIDE-001` uses `class.publicMethods` for that reason.
+`senior/SR-WIDE-001` still uses `class.publicMethods`.
 
 ## 6. Security-audit gaps outside source grammars
 
@@ -64,7 +69,7 @@ before a new metric is justified. Keep these candidates in the pack backlogs.
 
 - **Python pattern metavariables.** A Python `pattern` cannot hold `$NAME` because `$` does not parse in the Python grammar (ast-grep substitutes an expando character). Without it a rule cannot require that a compared name is the one assigned from `os.environ` in the same function; `security-audit` SA-COMPARE-001 falls back to naming.
 - **YAML grammar.** GitHub Actions risks are exact forms in YAML: a `pull_request_target` trigger that checks out the pull request head, `${{ github.event.* }}` interpolated into a `run:` script, a `uses:` reference not pinned to a commit SHA, and `permissions: write-all`. Pattern grammars are TypeScript, Python, Go and Rust only.
-- **Forbidden path present.** A committed `.env`, `*.pem` or private key file is a fact about the tree, not about a node. A primitive that reports a matching path (with reviewed `exclude` for samples such as `.env.example`) would cover it.
+- **Forbidden path present.** Implemented as the language-independent primitive `forbidden-path` (`params.globs`, plus the implicit `exclude`). It reports the reviewed path when that path matches and the file is present. It does not scan the repository on an unrelated edit. `check --all` opens matching paths because they are not source files. The Node pack has not bound it; a committed `.env` or key file remains a candidate there until that pack names the globs and the samples its `exclude` must spare.
 - **One-hop alias taint.** Request sinks (redirect, path, SSRF) usually receive a local variable assigned from `req.query`, `req.params` or `req.body` one statement earlier. Matching only the direct expression misses that form; matching every variable flags internal calls. A bounded "assigned from X in the same function" matcher would make these rules precise enough to admit.
 - **Go and Rust strings in `credential-literal`.** `src/credential-literal.ts` inspects `string`, `template_string` and `comment` nodes. Go literals are `interpreted_string_literal` and `raw_string_literal`; Rust literals are `string_literal`. Credentials in Go and Rust strings are therefore only found in comments.
 

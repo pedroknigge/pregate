@@ -159,7 +159,8 @@
           "properties": {
             "kind": { "const": "primitive" },
             "primitive": { "const": "metric" },
-            "metric": { "enum": ["fn.lines", "fn.params", "class.publicMethods", "control.nesting"] }
+            "metric": { "enum": ["fn.lines", "fn.params", "class.publicMethods", "control.nesting", "file.lines", "file.publicExports", "heritage.depth"] },
+            "ratchet": { "const": "no-increase" }
           },
           "required": ["kind", "primitive", "metric"],
           "additionalProperties": false
@@ -200,6 +201,7 @@
             "count": {
               "oneOf": [
                 { "const": "markers" },
+                { "const": "import-cycles" },
                 {
                   "type": "object",
                   "properties": {
@@ -238,6 +240,15 @@
             }
           },
           "required": ["kind", "primitive", "op", "count"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "forbidden-path" }
+          },
+          "required": ["kind", "primitive"],
           "additionalProperties": false
         },
         {

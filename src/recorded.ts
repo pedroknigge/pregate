@@ -45,7 +45,7 @@ export function unifyRoot(records: Recorded[], root: string): Recorded[] {
   });
 }
 export type CheckMode = { kind: "stdin"; path: string; text: string } | { kind: "staged" } | { kind: "base"; sha: string } | { kind: "tree" };
-export interface JudgeContext { beforeRead?: BaselineRead; importsOf?: ImportMemo; changed?: readonly string[]; commits?: (rel: string) => number | null }
+export interface JudgeContext { beforeRead?: BaselineRead; importsOf?: ImportMemo; changed?: readonly string[]; commits?: (rel: string) => number | null; list?: () => readonly string[] }
 export type JudgedFile = Omit<FileState, "before"> & { before: string | null | BaselineRead };
 export interface Review { violations: Violation[]; form: Form | null; astHash: string | null; before?: string | null }
 interface Planned { c: ProposedChange; abs: string; disk: string | null; current: string | null; r: ReturnType<typeof apply> }
@@ -108,14 +108,14 @@ export function review(lock: Lock, phase: Phase, f: FileState, read: Read, befor
 // "after" is parsed once for both; the "before" runs only the rules the ratchet compares.
 export function judge(lock: Lock, phase: Phase, f: JudgedFile, read: Read, context: JudgeContext = {}): Review {
   const beforeRead: BaselineRead = context.beforeRead ?? read;
-  const { importsOf } = context;
+  const { importsOf, list } = context;
   checkpoint("parse");
   const parsed = f.after === null || grammarOf(f.rel) === null ? null : parse(f.rel, f.after);
   if (parsed !== null) importsOf?.remember(parsed);
   const line = parsed === null ? null : syntaxLine(parsed, f.base);
   checkpoint("rules");
   const dependencies = new Set<string>();
-  const after = line === null ? analyze(lock, phase, f.rel, parsed ?? f.after, { read: (rel) => { dependencies.add(rel); return read(rel); }, now: clock, hash: false, importsOf, commits: context.commits, ...evaluationProgress() }) : null;
+  const after = line === null ? analyze(lock, phase, f.rel, parsed ?? f.after, { read: (rel) => { dependencies.add(rel); return read(rel); }, now: clock, hash: false, importsOf, list, commits: context.commits, ...evaluationProgress() }) : null;
   const deferred = typeof f.before === "function";
   const primed = deferred || f.before !== null ? beforeRead.prime?.([...(deferred ? [f.rel] : []), ...dependencies]) : undefined;
   if (primed !== undefined) return { ...CLEAN, form: form(primed) };
@@ -125,7 +125,7 @@ export function judge(lock: Lock, phase: Phase, f: JudgedFile, read: Read, conte
   if ("cause" in after) return { ...CLEAN, form: after };
   const baseline = beforeText === null ? null : grammarOf(f.rel) === null ? normalize(beforeText) : parse(f.rel, normalize(beforeText));
   if (baseline !== null && typeof baseline !== "string") importsOf?.remember(baseline);
-  const before = baseline === null ? null : analyze(comparedLock(lock, after), phase, f.rel, baseline, { read: beforeRead, now: clock, hash: false, importsOf, commits: context.commits, ...evaluationProgress() });
+  const before = baseline === null ? null : analyze(comparedLock(lock, after), phase, f.rel, baseline, { read: beforeRead, now: clock, hash: false, importsOf, list, commits: context.commits, ...evaluationProgress() });
   // A "before" that cannot be analyzed counts as absent: all of `after` is new (strict), which the
   // agent can still clear, unlike a deny over text it cannot change.
   const base: Analysis | null = before === null || "cause" in before ? null : before;
@@ -144,6 +144,19 @@ function syntaxLine(after: Parsed, base: string | null): number | null {
 }
 
 // ── check: pre-check, pre-commit and CI (§4.5) ────────────────────────────────────
+
+// A forbidden path is not source, so the ordinary tree walk never opens it. When a rule names one,
+// `check --all` judges that path too. A diff check already sees it when the change includes it.
+function withForbidden(root: string, lock: Lock, files: FileState[]): FileState[] {
+  const rules = lock.rules.filter((rule) => rule.impl.kind === "primitive" && rule.impl.primitive === "forbidden-path");
+  if (!rules.length) return files;
+  const have = new Set(files.map((file) => file.rel));
+  const extra = workspacePaths(root, (rel) => !have.has(rel) && rules.some((rule) => {
+    const globs = Array.isArray(rule.params.globs) ? rule.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
+    return globs.some((glob) => matches(glob, rel));
+  }));
+  return [...files, ...extra.map((rel) => ({ rel, base: null, before: null, after: textOf(readText(join(root, rel))) }))];
+}
 
 // Same evaluation and the same `blocking` as the hook, without state or counters.
 export async function check(root: string, m: CheckMode, format: "agent" | "sarif" = "agent"): Promise<{ code: 0 | 1; text: string }> {
@@ -165,8 +178,11 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   const diff = !wantsAdr || m.kind === "tree" ? undefined : m.kind === "stdin" ? worktreePaths(root) : files.map((f) => f.rel);
   const diffPaths = diff === undefined || diff === null ? undefined : [...new Set([...diff, ...files.map((f) => f.rel)])];
   const commits = usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(root) : undefined;
-  const reviews = files.filter((f) => m.kind === "stdin" || (f.rel !== PRESET && f.rel !== LOCK))
-    .map((f) => ({ rel: f.rel, ...review(loaded.lock, phase, f, read, before, { changed: diffPaths, commits }) }));
+  const judged = m.kind === "tree" ? withForbidden(root, loaded.lock, files) : files;
+  let listed: readonly string[] | undefined;
+  const list = () => listed ??= workspacePaths(root);
+  const reviews = judged.filter((f) => m.kind === "stdin" || (f.rel !== PRESET && f.rel !== LOCK))
+    .map((f) => ({ rel: f.rel, ...review(loaded.lock, phase, f, read, before, { changed: diffPaths, commits, list }) }));
   const changedFiles = new Set(files.map((f) => f.rel));
   const needsDependencies = m.kind !== "tree" && needsDependencyReview(loaded.lock, phase, changedFiles);
   const paths = m.kind === "staged" ? changed(root, ["ls-files", "-z", "--", "."]) ?? [] : [];
@@ -455,9 +471,11 @@ async function edit(call: Rooted, lockState: Loaded | Cause, f: Omit<Planned, "c
   const before = snapshotReader(sid, snap);
   await grammars();
   const memo = needsDependencyReview(loaded.lock, "pre", new Set([call.rel])) ? importsOf : undefined;
-  const listed = usesPrimitive(loaded.lock, "adr-touch") ? worktreePaths(call.root) : undefined;
-  const j = judge(loaded.lock, "pre", { rel: call.rel, base: f.current, before, after: f.r.after }, read, { beforeRead: before, importsOf: memo,
-    changed: listed === undefined || listed === null ? undefined : [...new Set([...listed, call.rel])],
+  const touched = usesPrimitive(loaded.lock, "adr-touch") ? worktreePaths(call.root) : undefined;
+  let listed: readonly string[] | undefined;
+  const list = () => listed ??= workspacePaths(call.root);
+  const j = judge(loaded.lock, "pre", { rel: call.rel, base: f.current, before, after: f.r.after }, read, { beforeRead: before, importsOf: memo, list,
+    changed: touched === undefined || touched === null ? undefined : [...new Set([...touched, call.rel])],
     commits: usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(call.root) : undefined });
   return settle(call, { ...known, introduced: [...placed, ...j.violations], form: j.form, astHash: j.astHash, after: f.r.after, before: j.before ?? null });
 }

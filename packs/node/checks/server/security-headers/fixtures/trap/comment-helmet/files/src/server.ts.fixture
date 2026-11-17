@@ -1,0 +1,6 @@
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+// app.use(helmet());
+// "strict-transport-security"
