@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": [
+      "**/domain/**"
+    ],
+    "exclude": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+      "**/__tests__/**",
+      "**/*.d.ts",
+      "**/index.ts",
+      "**/index.tsx"
+    ]
+  },
+  "target": "src/domain/orders/place.ts",
+  "before": null,
+  "trap": {
+    "family": "plural-test-suffix",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "place.tests.ts is not a sibling test name."
+  },
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  }
+}

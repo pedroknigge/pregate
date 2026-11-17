@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-LOCK-001"
+  },
+  "context": {
+    "fitness": {
+      "contractHash": "reviewed-contract-v1",
+      "inputHash": "current-code-tree",
+      "command": [
+        "fixture-verifier"
+      ],
+      "receipt": null
+    }
+  },
+  "target": ".pregate/preset.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  }
+}

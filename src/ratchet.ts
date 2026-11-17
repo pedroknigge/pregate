@@ -19,17 +19,39 @@ export function introduced(lock: Lock, rel: string, before: Analysis | null, aft
     const line = r.impl.op === "no-increase" ? added[0]?.line ?? 1 : 1;
     return [{ rule: r.id, path: rel, line, symbol: "<module>", measured: now, limit: was, atSessionStart: null, severity: r.severity }];
   });
+  const churn = lock.rules.flatMap((r): Violation[] => {
+    if (r.impl.kind !== "primitive" || r.impl.primitive !== "churn-ratchet") return [];
+    const now = after.sizes?.[r.id];
+    const was = before?.sizes?.[r.id];
+    const threshold = r.params.threshold;
+    const commits = after.commits;
+    if (!now || !was || typeof threshold !== "number" || commits === null || commits === undefined || !(commits > threshold)) return [];
+    const fileUp = now.file > was.file;
+    const fnUp = now.fn > was.fn;
+    if (!fileUp && !fnUp) return [];
+    return [{ rule: r.id, path: rel, line: fileUp ? 1 : now.fnLine, symbol: "<module>", measured: fileUp ? now.file : now.fn, limit: fileUp ? was.file : was.fn, atSessionStart: null, severity: r.severity }];
+  });
   const baselines = before === null ? new Map<Violation, Violation>() : metricBaselines(lock, before, after);
   const metric = (v: Violation) => lock.rules.some((r) => r.id === v.rule && r.impl.kind === "primitive" && r.impl.primitive === "metric");
-  const kept = before === null || lock.ratchet === "strict" ? after.violations : [
-    ...noNew(before, after, after.violations.filter((v) => !metric(v))),
-    ...after.violations.filter((v) => metric(v) && (baselines.get(v) === undefined || v.measured! > baselines.get(v)!.measured!)),
-  ];
-  return canonical([...kept.map((v) => ({ ...v, atSessionStart: baselines.get(v)?.measured ?? startValue(before, v) })), ...diffs]);
+  const grew = (v: Violation) => baselines.get(v) === undefined || v.measured! > baselines.get(v)!.measured!;
+  // A metric that carries its own no-increase ratchet grandfathers an existing excess even when the
+  // preset ratchet is strict. A new file (no before) still reports the excess.
+  const kept = before === null ? after.violations : lock.ratchet === "strict"
+    ? after.violations.filter((v) => !noIncreaseMetric(lock, v) || grew(v))
+    : [
+      ...noNew(before, after, after.violations.filter((v) => !metric(v))),
+      ...after.violations.filter((v) => metric(v) && grew(v)),
+    ];
+  return canonical([...kept.map((v) => ({ ...v, atSessionStart: baselines.get(v)?.measured ?? startValue(before, v) })), ...diffs, ...churn]);
 }
 
 // Reserve the same symbol first, then a body that moved with a rename, move or extraction. A copy
 // cannot borrow a body that is still present under its old symbol.
+function noIncreaseMetric(lock: Lock, v: Violation): boolean {
+  const rule = lock.rules.find((r) => r.id === v.rule);
+  return rule?.impl.kind === "primitive" && rule.impl.primitive === "metric" && rule.impl.ratchet === "no-increase";
+}
+
 function metricBaselines(lock: Lock, before: Analysis, after: Analysis): Map<Violation, Violation> {
   const ids = new Set(lock.rules.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "metric").map((r) => r.id));
   const old = before.violations.filter((v) => ids.has(v.rule)).sort((a, b) => b.measured! - a.measured!);
@@ -60,7 +82,7 @@ function bodyMoved(before: Analysis, after: Analysis, symbol: string): boolean {
 // form, which callers read. The other rules cannot change the result, so they need not run twice.
 export function comparedLock(lock: Lock, after: Analysis): Lock {
   const violated = new Set(after.violations.map((v) => v.rule));
-  return { ...lock, rules: lock.rules.filter((r) => violated.has(r.id) || isImportRule(r) || (r.impl.kind === "primitive" && r.impl.primitive === "diff")) };
+  return { ...lock, rules: lock.rules.filter((r) => violated.has(r.id) || isImportRule(r) || (r.impl.kind === "primitive" && (r.impl.primitive === "diff" || r.impl.primitive === "churn-ratchet"))) };
 }
 
 // no-new: on a symbol the "before" had, a rule whose count in the file grew reports the symbols whose

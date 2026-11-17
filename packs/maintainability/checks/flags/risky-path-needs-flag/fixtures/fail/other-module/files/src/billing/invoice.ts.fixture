@@ -1,0 +1,2 @@
+import { total } from "./money";
+export const invoice = total;

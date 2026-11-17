@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/supply/locked-ci-install",
+  "version": "1.0.0",
+  "area": "supply",
+  "cardinality": "singleton",
+  "dimension": "node.locked-ci-install",
+  "minSeverity": "deny",
+  "params": {
+    "verifier": {
+      "type": "string",
+      "pattern": "\\S"
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "fitness",
+    "requirement": "NODE-LOCK-001"
+  },
+  "phase": [
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "NODE-LOCK-001 requires current passing project verification: {symbol}."
+  }
+}

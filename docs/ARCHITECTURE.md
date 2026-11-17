@@ -179,7 +179,7 @@ pregate/
 │  ├─ drizzle-query.ts                 316
 │  ├─ embedded.ts                      23
 │  ├─ enforcement.ts                   19
-│  ├─ evaluate.ts                      297
+│  ├─ evaluate.ts                      305
 │  ├─ feedback-command.ts              142
 │  ├─ feedback.ts                      73
 │  ├─ fitness-candidates.ts            76
@@ -187,7 +187,7 @@ pregate/
 │  ├─ fitness-plan.ts                  103
 │  ├─ fitness.ts                       40
 │  ├─ fixture-replay.ts                24
-│  ├─ fixtures.ts                      241
+│  ├─ fixtures.ts                      246
 │  ├─ gate.ts                          426
 │  ├─ git-changes.ts                   260
 │  ├─ git.ts                           164
@@ -212,7 +212,7 @@ pregate/
 │  ├─ issue-submission.ts              65
 │  ├─ issue.ts                         62
 │  ├─ language-facts.ts                159
-│  ├─ languages.ts                     48
+│  ├─ languages.ts                     53
 │  ├─ library-assets.ts                16
 │  ├─ library.ts                       41
 │  ├─ lock-cache.ts                    171
@@ -253,7 +253,7 @@ pregate/
 │  ├─ release-verify.ts                97
 │  ├─ report-command.ts                67
 │  ├─ report.ts                        176
-│  ├─ resolve.ts                       270
+│  ├─ resolve.ts                       313
 │  ├─ rules-add-command.ts             557
 │  ├─ rules-draft-command.ts           280
 │  ├─ rust-facts.ts                    133
@@ -272,7 +272,8 @@ pregate/
 │  ├─ storage.ts                       102
 │  ├─ supervisor.ts                    160
 │  ├─ ts.ts                            549
-│  ├─ types.ts                         322
+│  ├─ types.ts                         323
+│  ├─ typescript-facts.ts              482
 │  ├─ typescript-version.ts            80
 │  ├─ versions.ts                      4
 │  ├─ wasm.d.ts                        5
@@ -401,11 +402,12 @@ export interface PatternConfig {   // "x-*" keys are ignored (notes); any other 
 export type Placement = "new-in-exclude" | "edit-generated-or-excluded" | "no-language-pack-in-layer";
 export type Impl =
   | { kind: "pattern"; patterns: { typescript: PatternConfig[] } }
-  | { kind: "primitive"; primitive: "metric"; metric: "fn.lines" | "fn.params" | "class.publicMethods" }
+  | { kind: "primitive"; primitive: "metric"; metric: "fn.lines" | "fn.params" | "class.publicMethods" | "control.nesting" | "file.lines" | "file.publicExports" | "heritage.depth"; ratchet?: "no-increase" }
   | { kind: "primitive"; primitive: "banned-import" }                       // params.packages
   | { kind: "primitive"; primitive: "layer-edge" }                          // lock.layers
   | { kind: "primitive"; primitive: "diff"; op: "no-decrease" | "no-increase";
-      count: "markers" | { pattern: PatternConfig } }                       // params.markers by substring, or AST count
+      count: "markers" | "import-cycles" | { pattern: PatternConfig } }     // substring, cyclic import component, or AST count
+  | { kind: "primitive"; primitive: "forbidden-path" }                     // params.globs; the reviewed path is present
   | { kind: "primitive"; primitive: "placement"; cases: Placement[] };
 
 // ── On-disk formats (validated by schema/*.json; the engine reads these fields) ─────────
@@ -735,11 +737,12 @@ Cold start of the compiled binary plus a parse of 2,000 lines:
 | Type | What it covers | Where |
 |---|---|---|
 | `pattern` | ast-grep rules:<br>· `pattern` with `$X`, `$$$X`, `$_`;<br>· `kind`;<br>· `regex`: a leading `(?i)`/`(?s)` becomes a flag and `.` excludes only `\n`, as in Rust; lookaround, backreferences, `{` that is not a counted repetition, nested classes, and escapes with another meaning in JS are errors, for parity with Rust's linear regex (residue: `\w\d\s\b` are ASCII in JS);<br>· `has`/`inside`/`follows`/`precedes` with `field` and `stopBy`;<br>· `all`/`any`/`not`, `nthChild`, `matches` + `utils`, `constraints`; `compile` copies `files`/`ignores` into `params.paths`/`exclude`.<br>Metavariables are shared throughout `all`, in order. Comments are `comment` nodes | `match.ts` |
-| `metric` | `fn.lines` = max(lines without blanks or comments, statements), which closes the line-compression trap.<br>`fn.params` counts the members of an inline or destructured object type, which closes `opts: {a;b;c;d}`.<br>`class.publicMethods` | `ts.ts` (facts) + `evaluate.ts` |
+| `metric` | `fn.lines` = max(lines without blanks or comments, statements), which closes the line-compression trap.<br>`fn.params` counts the members of an inline or destructured object type, which closes `opts: {a;b;c;d}`.<br>`class.publicMethods`<br>`control.nesting`<br>`file.lines` = the same line-or-statement measure over the whole file.<br>`file.publicExports` = distinct public names, including types, `default`, and each name in one `export { ... }` clause. `export *` is one name per source module. Overloads share a name.<br>`heritage.depth` = class `extends` hops that stay inside project TypeScript. A qualified name (`React.Component`), a call (`mixin()`), an unresolved name, or a default import counts as 1 and stops. `interface extends` and `implements` are not hops.<br>A metric may set `ratchet: "no-increase"`. That excess is reported only when the file is new or the measured value grew, including when the preset ratchet is `strict`. | `ts.ts` (facts) + `evaluate.ts` + `heritage.ts` |
 | `banned-import` | `params.packages`, with `fs` ≡ `node:fs`, subpaths `pkg/x`, `import type`, literal `import()` and `require`, and `export … from` (following re-exports); it compares the package name even if an alias resolves it to a local file | `evaluate.ts` + `resolve.ts` |
 | `layer-edge` | The file's layer (most specific glob; a tie follows declaration order) against the resolved destination's layer **by path**, even if the file does not exist. It follows re-exports up to 3 hops and 32 files; beyond that, `too-deep`. `external` is only a node builtin or a valid npm name; `#x`, `~/x`, or `@/x` without a resolving alias are `unresolved`, as is **[Δ wave 2]** a specifier with `?`, `\`, or `#` outside the first character, a `.`/`..` segment in a bare specifier (also after expanding an alias), and a package that imports itself by name; a barrel with a parse error counts as `too-deep`. A file in a restricted layer that imports a module with a syntax error then receives `unresolvable-import`. In a layer with `mayImport ≠ ["*"]`, `unresolved`, `too-deep`, or an invalid tsconfig ⇒ `unresolvable-import` | Same |
-| `diff` | `no-decrease` / `no-increase` over a count: `count: "markers"` (substrings of `params.markers` in the text) or `count: {pattern}` | `evaluate.ts` (count) + `ratchet.ts` |
+| `diff` | `no-decrease` / `no-increase` over a count: `count: "markers"` (substrings of `params.markers` in the text), `count: "import-cycles"`, or `count: {pattern}`. `import-cycles` is the size of the strongly connected component of literal value imports that contains the reviewed file, or 0 when that file is not in a cycle. `import type`, a specifier list that is entirely `type`, and dynamic `import()` are not edges. `require()` and `export … from` are. A cycle in some other file does not raise this file's count. The project file list is read only when this count is active. | `evaluate.ts` + `import-cycles.ts` + `ratchet.ts` |
 | `placement` | Change type, `scope`, generated markers, layers, and languages with a pack, without parsing | `evaluate.placement` |
+| `forbidden-path` | The reviewed path matches one of `params.globs` and the file is present. Line 1, symbol `<module>`. It does not scan the rest of the repository during an edit. `exclude` still applies, so a binding can spare `.env.example`. No grammar is required, so a path such as `.env` is legal. `check --all` also opens matching paths, because the ordinary source walk does not. A diff check reports one when the change includes it. The Node pack has not bound this primitive. | `evaluate.ts` |
 
 **Macro `@generatedMarkers`** in `params.markers` **[Δ O14]**: `compile` replaces it with `preset.generatedMarkers` and `fixtureLock` with `context.generatedMarkers`; `evaluate` never sees it.
 

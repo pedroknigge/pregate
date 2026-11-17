@@ -277,6 +277,9 @@ function checkErrors(check: Check, id: string, area: string): string[] {
   if (check.impl.kind === "pattern" && check.languages && !equal([...check.languages].sort(), Object.keys(check.impl.patterns).sort())) out.push("languages must match the pattern implementations");
   if (check.impl.kind === "primitive" && check.impl.primitive === "metric" && check.impl.metric === "class.publicMethods" && check.languages?.includes("go")) out.push("Go has no class.publicMethods implementation; use function or nesting metrics");
   if (check.impl.kind === "primitive" && check.impl.primitive === "metric" && check.impl.metric === "class.publicMethods" && check.languages?.includes("rust")) out.push("Rust has no class.publicMethods implementation; use function or nesting metrics");
+  if (check.impl.kind === "primitive" && check.impl.primitive === "metric" && ["file.lines", "file.publicExports", "heritage.depth"].includes(check.impl.metric) && check.languages?.some((language) => language !== "typescript")) {
+    out.push(`${check.impl.metric} is implemented for TypeScript and JavaScript only`);
+  }
   if (configs.some((c) => !equal(c.files, configs[0]!.files) || !equal(c.ignores, configs[0]!.ignores))) {
     out.push("its patterns declare different files or ignores; split them into separate checks");
   }
@@ -518,14 +521,14 @@ function shape(check: Check, alias: Alias | null): Pick<LockRule, "check" | "imp
 
 export function patternsOf(impl: Impl): PatternConfig[] {
   if (impl.kind === "pattern") return Object.values(impl.patterns).flat();
-  return impl.primitive === "diff" && impl.count !== "markers" ? [impl.count.pattern] : [];
+  return impl.primitive === "diff" && typeof impl.count === "object" ? [impl.count.pattern] : [];
 }
 
 // files/ignores live in params once normalized; the lock keeps one source of truth for paths.
 function stripped(impl: Impl): Impl {
   const bare = ({ files: _f, ignores: _i, ...rest }: PatternConfig): PatternConfig => rest;
   if (impl.kind === "pattern") return { ...impl, patterns: Object.fromEntries(Object.entries(impl.patterns).map(([lang, configs]) => [lang, configs.map(bare)])) };
-  if (impl.primitive === "diff" && impl.count !== "markers") return { ...impl, count: { pattern: bare(impl.count.pattern) } };
+  if (impl.primitive === "diff" && typeof impl.count === "object") return { ...impl, count: { pattern: bare(impl.count.pattern) } };
   return impl;
 }
 

@@ -36,10 +36,16 @@ test("analyze does not throw for a primitive in the closed vocabulary", () => {
     { kind: "primitive", primitive: "react-index-key" },
     { kind: "primitive", primitive: "credential-literal" },
     { kind: "primitive", primitive: "python-legacy" },
+    { kind: "primitive", primitive: "typescript-fact", fact: "prefer-const" },
     { kind: "primitive", primitive: "layer-edge" },
     { kind: "primitive", primitive: "banned-import" },
     { kind: "primitive", primitive: "placement", cases: [] },
     { kind: "primitive", primitive: "fitness", requirement: "build" },
+    { kind: "primitive", primitive: "sibling-test" },
+    { kind: "primitive", primitive: "required-import" },
+    { kind: "primitive", primitive: "adr-touch" },
+    { kind: "primitive", primitive: "churn-ratchet", op: "no-increase" },
+    { kind: "primitive", primitive: "forbidden-path" },
   ];
   for (const impl of known) {
     lock.rules[0]!.impl = impl;

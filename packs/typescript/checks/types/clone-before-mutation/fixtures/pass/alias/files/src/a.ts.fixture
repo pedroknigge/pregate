@@ -1,0 +1,5 @@
+export function order(items: string[]): string[] {
+  const alias = items;
+  alias.sort();
+  return items;
+}

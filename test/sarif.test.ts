@@ -21,7 +21,7 @@ test("sarifReport, audit --sarif and check --format sarif emit valid SARIF 2.1.0
       sources: [
         { ns: "core", kind: "builtin", version: VERSIONS.core },
         { ns: "clean-code", kind: "library", version: "1.2.0" },
-        { ns: "typescript", kind: "library", version: "1.3.0" },
+        { ns: "typescript", kind: "library", version: "1.4.0" },
       ],
       methodologies: ["core/pregate-integrity", "clean-code/clean-code", "typescript/anti-evasion"],
       scope: { include: ["src/**"], exclude: [] },

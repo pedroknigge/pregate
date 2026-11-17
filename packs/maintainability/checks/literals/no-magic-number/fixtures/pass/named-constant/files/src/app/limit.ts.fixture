@@ -1,0 +1,4 @@
+const limit = 42;
+export function take(items: string[]): string[] {
+  return items.slice(0, 1).concat(items.slice(-1));
+}

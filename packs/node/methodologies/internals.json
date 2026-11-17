@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "node/internals",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -21,11 +21,11 @@
       "check": "node/process/no-uncaught-exception-empty",
       "defaults": {},
       "severity": "deny",
-      "source": { "work": "Node.js documentation, process events", "locator": "uncaughtException", "paraphrase": "An uncaughtException listener must perform emergency handling; an empty callback suppresses the default failure path." },
-      "why": "An empty listener keeps a process alive in an undefined state after an uncaught exception.",
-      "fixHint": "Report the failure and terminate cleanly, or omit the listener and let the runtime exit.",
-      "avoid": "Changing quote style or using an empty function callback does not handle the error.",
-      "examples": { "pass": "pass/log-error", "fail": "fail/empty-arrow" }
+      "source": { "work": "Node.js documentation, uncaughtException and unhandledRejection", "locator": "warning: using these events incorrectly can cause an infinite loop or a process that resumes after a crash", "paraphrase": "A handler for uncaughtException or unhandledRejection exits with process.exit or rethrows. Logging and returning leaves the process running after an unknown failure. An empty callback is the same resume." },
+      "why": "The process keeps taking work after its state is unknown. The next request sees that state.",
+      "fixHint": "Rethrow from the handler, or call process.exit. Rethrow also satisfies NODE-EXIT-001. Setting process.exitCode and returning does not. Omitting the listener lets the runtime exit.",
+      "avoid": "Fidelity: proxy, same-call. A named listener such as process.on(\"uncaughtException\", crash) is reported, because the body is another statement. shutdown() is not process.exit. NODE-EXIT-001 still reports process.exit outside this choice. This is the only id for that requirement.",
+      "examples": { "pass": "pass/rethrow", "fail": "fail/empty-arrow" }
     },
     {
       "id": "NODE-TLS-001",

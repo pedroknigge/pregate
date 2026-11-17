@@ -1,0 +1,5 @@
+type User = { id: string };
+export async function load(res: { json(): Promise<unknown> }): Promise<User> {
+  const user: User = await res.json();
+  return user;
+}

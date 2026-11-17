@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/edge-security-headers",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.edge-headers",
+  "minSeverity": "deny",
+  "params": {
+    "verifier": {
+      "type": "string",
+      "pattern": "\\S"
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "fitness",
+    "requirement": "NODE-EDGE-001"
+  },
+  "phase": [
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "NODE-EDGE-001 requires current passing project verification: {symbol}."
+  }
+}

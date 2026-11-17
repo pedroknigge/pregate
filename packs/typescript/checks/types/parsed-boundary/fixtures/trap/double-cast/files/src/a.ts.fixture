@@ -1,0 +1,4 @@
+type User = { id: string };
+export function load(text: string): User {
+  return JSON.parse(text) as unknown as User;
+}

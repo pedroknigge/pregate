@@ -1,0 +1,89 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/async-route-wrapped",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.async-route-wrapped",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "async-route-wrapped",
+          "rule": {
+            "kind": "call_expression",
+            "all": [
+              {
+                "has": {
+                  "field": "function",
+                  "regex": "(\\.(get|post|put|patch|delete|all)|createServer)$"
+                }
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "has": {
+                    "stopBy": "end",
+                    "any": [
+                      {
+                        "kind": "arrow_function",
+                        "regex": "^async\\b",
+                        "not": {
+                          "has": {
+                            "stopBy": "end",
+                            "kind": "try_statement"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "function_expression",
+                        "regex": "^async\\b",
+                        "not": {
+                          "has": {
+                            "stopBy": "end",
+                            "kind": "try_statement"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "has": {
+                    "stopBy": "end",
+                    "kind": "call_expression",
+                    "has": {
+                      "field": "function",
+                      "regex": "^(asyncHandler|catchAsync|wrap)$"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} passes an async route handler that is not wrapped and has no try. Wrap it or catch inside the handler."
+  }
+}

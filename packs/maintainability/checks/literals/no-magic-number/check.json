@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/literals/no-magic-number",
+  "version": "1.0.0",
+  "area": "literals",
+  "cardinality": "singleton",
+  "dimension": "literals.magic-number",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "magic-number",
+          "ignores": ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx", "**/__tests__/**", "**/*.d.ts"],
+          "rule": {
+            "kind": "number",
+            "not": {
+              "any": [
+                { "regex": "^(?:0|1|2|100|[1-5][0-9]{2})$" },
+                { "inside": { "kind": "variable_declarator", "stopBy": "neighbor" } },
+                { "inside": { "kind": "enum_assignment", "stopBy": "neighbor" } }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} is a numeric literal outside the allowlist (0, 1, -1, 2, 100, and HTTP 100-599). Name it, or use an allowed literal."
+  }
+}

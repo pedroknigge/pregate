@@ -1,0 +1,6 @@
+type User = { id: string };
+export function load(text: string, schema: { parse(value: unknown): User }): User {
+  let raw = JSON.parse(text);
+  raw = schema.parse(raw);
+  return raw as User;
+}

@@ -1,0 +1,4 @@
+export function load(text: string): unknown {
+  const raw: unknown = JSON.parse(text);
+  return raw;
+}

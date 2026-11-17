@@ -1,0 +1,5 @@
+type User = { id: string };
+export function load(text: string, schema: { parse(value: unknown): User }): User {
+  const raw = JSON.parse(text);
+  return schema.parse(raw);
+}

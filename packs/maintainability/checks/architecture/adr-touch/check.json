@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/architecture/adr-touch",
+  "version": "1.0.0",
+  "area": "architecture",
+  "cardinality": "singleton",
+  "dimension": "architecture.adr-touch",
+  "minSeverity": null,
+  "params": {
+    "adr": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "\\S" },
+      "minItems": 1
+    }
+  },
+  "impl": { "kind": "primitive", "primitive": "adr-touch" },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{path} is an architecture file, and this diff has no change under the ADR directory."
+  }
+}

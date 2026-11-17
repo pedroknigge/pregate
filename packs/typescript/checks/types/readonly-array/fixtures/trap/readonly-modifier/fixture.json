@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "readonly-property-mutable-array",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "readonly on the property stops reassignment of the field. The array itself is still string[], so a caller can sort it."
+  }
+}

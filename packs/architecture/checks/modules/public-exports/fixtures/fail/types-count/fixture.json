@@ -1,0 +1,17 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 20
+  },
+  "target": "src/api.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1,
+        "measured": 21
+      }
+    ]
+  }
+}

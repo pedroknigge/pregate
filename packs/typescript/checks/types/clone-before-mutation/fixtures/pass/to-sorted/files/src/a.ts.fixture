@@ -1,0 +1,4 @@
+export function order(items: string[]): string[] {
+  items.slice().sort();
+  return items.toSorted();
+}

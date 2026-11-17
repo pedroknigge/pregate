@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "senior/fowler",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -17,10 +17,28 @@
       },
       "why": "A boolean flag hides two operations behind one name. The call site reads notify(user, true) and the reader has to open the function to know what true means.",
       "fixHint": "Split into two named operations, or pass a union such as \"email\" | \"none\".",
-      "avoid": "Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule.",
+      "avoid": "Making the flag optional, or giving it a default, keeps the flag. A boolean property is not a parameter. Two or more boolean fields on one exported type are SR-FLAG-002 in this family, and that rule does not match a parameter.",
       "examples": {
         "pass": "pass/mode-union",
         "fail": "fail/required-flag"
+      }
+    },
+    {
+      "id": "SR-FLAG-002",
+      "check": "senior/api/no-boolean-fields",
+      "defaults": {},
+      "severity": "warn",
+      "source": {
+        "work": "Refactoring (M. Fowler, 1999)",
+        "locator": "flag argument",
+        "paraphrase": "A set of booleans that select behavior hides a mode. A discriminant names the mode."
+      },
+      "why": "Fidelity: low. This is a count of boolean properties, not proof of a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. A boolean parameter is SR-FLAG-001 in this same family, and that rule does not match a property.",
+      "fixHint": "Replace the pair of booleans with a union such as { kind: \"on\" } | { kind: \"off\" }. Leave a single boolean alone.",
+      "avoid": "Optional boolean properties count. boolean[] does not. A local interface does not. A union type alias does not. A boolean parameter is SR-FLAG-001, not this rule, even when a function takes several booleans. The two rules do not match the same syntax, so a file reports at most one of them for a given shape.",
+      "examples": {
+        "pass": "pass/one-flag",
+        "fail": "fail/two-flags"
       }
     },
     {

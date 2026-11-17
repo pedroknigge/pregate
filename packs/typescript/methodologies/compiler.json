@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../schema/methodology.v1.json",
+  "id": "typescript/compiler",
+  "version": "1.0.0",
+  "status": "complete",
+  "conflicts": [],
+  "invariants": [
+    {
+      "id": "TS-CFG-001",
+      "check": "typescript/config/compiler-options",
+      "defaults": {},
+      "severity": "deny",
+      "source": {
+        "work": "TypeScript handbook, compiler options",
+        "locator": "strict and module resolution",
+        "paraphrase": "strict turns on the null, any, function, bind, property, this, catch, and always-strict checks together. The rest of the contract is the flags and the module settings a current compiler expects."
+      },
+      "why": "A project that compiles with strict off, an old target, or a classic module resolution accepts programs the rest of this pack assumes the compiler already rejected. One merged tsconfig finding covers that contract. skipLibCheck and exactOptionalPropertyTypes are advice: a finding for either is a warning and does not deny the edit.",
+      "fixHint": "Set strict, noUncheckedIndexedAccess, noImplicitOverride, noImplicitReturns, noFallthroughCasesInSwitch, forceConsistentCasingInFileNames, and verbatimModuleSyntax to true. Set target to ES2022 or newer. Set moduleResolution to bundler, node16, or nodenext, and pair node16 or nodenext with the same module kind. A solution file that only has references is skipped.",
+      "avoid": "strict: true is one finding when it is missing or false, not eight findings for the flags it implies. An explicit false on one of those eight is its own finding. A value inherited from an extended config counts, and the child wins. An extends that names a package which is not installed is not proof an option is off. A missing or cyclic local extends is one finding. skipLibCheck and exactOptionalPropertyTypes never deny. tsc --noEmit and eslint are not this check: bind both to core/CORE-INV-056, the static-analysis merge gate. This pack does not declare a second fitness command.",
+      "examples": {
+        "pass": "pass/complete",
+        "fail": "fail/strict-false"
+      }
+    }
+  ]
+}

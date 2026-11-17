@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/app/inner.ts",
+  "before": null,
+  "trap": {
+    "family": "inner-function-name",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "The binding is innocent; the function expression name still joins two actions."
+  },
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  }
+}

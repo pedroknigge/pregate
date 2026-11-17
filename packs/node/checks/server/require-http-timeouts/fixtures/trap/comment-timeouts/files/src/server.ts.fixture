@@ -1,0 +1,8 @@
+import { createServer } from "node:http";
+
+const server = createServer();
+server.listen(3000);
+// server.headersTimeout = 1;
+// server.requestTimeout = 1;
+// server.keepAliveTimeout = 1;
+// const limit = 1;

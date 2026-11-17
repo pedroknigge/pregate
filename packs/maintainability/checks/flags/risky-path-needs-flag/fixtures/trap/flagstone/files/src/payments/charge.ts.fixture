@@ -1,0 +1,2 @@
+import { stone } from "./flagstone";
+export const charge = stone;

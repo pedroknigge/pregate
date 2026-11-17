@@ -30,13 +30,13 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-48 optional packs; 1087 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1123 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
-| Project fitness obligations | 577 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 493 | Precise applicability, valid alternatives and passing/failing/trap controls |
-| Metrics | 17 | A measured project budget; a threshold is not a universal invariant |
+| Project fitness obligations | 582 | Reviewed current project assertions; unbound means UNVERIFIED |
+| Static pattern, import and change checks | 521 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Metrics | 20 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
 
@@ -44,7 +44,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | --- | --- | --- | ---: | --- |
 | [agent-practices](../packs/agent-practices/REFERENCE.md) | practice | 1.0.0 | 22 | `agent-practices/behavior-testing` (preview), `agent-practices/domain-ownership` (preview), `agent-practices/launch-safety` (preview), `agent-practices/security-review` (preview) |
 | [angular](../packs/angular/REFERENCE.md) | library | 1.2.0 | 11 | `angular/components` (complete), `angular/rxjs` (complete) |
-| [architecture](../packs/architecture/REFERENCE.md) | pattern | 1.3.0 | 21 | `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/vertical-slice` (complete) |
+| [architecture](../packs/architecture/REFERENCE.md) | pattern | 1.4.0 | 25 | `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/structure` (complete), `architecture/vertical-slice` (complete) |
 | [astro](../packs/astro/REFERENCE.md) | library | 1.0.0 | 7 | `astro/config` (complete), `astro/content` (complete), `astro/routing` (complete) |
 | [authjs](../packs/authjs/REFERENCE.md) | library | 1.2.1 | 12 | `authjs/config` (complete), `authjs/session` (complete) |
 | [clean-code](../packs/clean-code/REFERENCE.md) | practice | 1.2.0 | 5 | `clean-code/clean-code` (complete) |
@@ -59,14 +59,14 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [go](../packs/go/REFERENCE.md) | language | 1.2.0 | 10 | `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete) |
 | [hono](../packs/hono/REFERENCE.md) | library | 1.0.0 | 4 | `hono/middleware` (complete), `hono/routing` (complete) |
 | [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.2 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
-| [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.2.1 | 209 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete) |
+| [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.3.0 | 216 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (preview) |
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |
 | [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.2.1 | 10 | `mongodb/models` (complete), `mongodb/queries` (complete) |
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
 | [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.2.0 | 11 | `nestjs/controllers` (complete), `nestjs/providers` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |
 | [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.4.1 | 21 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
-| [node](../packs/node/REFERENCE.md) | library | 1.3.0 | 19 | `node/internals` (complete), `node/runtime` (complete), `node/security` (complete) |
+| [node](../packs/node/REFERENCE.md) | library | 1.4.0 | 32 | `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete) |
 | [nuxt](../packs/nuxt/REFERENCE.md) | library | 1.2.0 | 12 | `nuxt/data` (complete), `nuxt/server` (complete) |
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |
 | [prisma](../packs/prisma/REFERENCE.md) | library | 1.3.0 | 14 | `prisma/client` (complete), `prisma/writes` (complete) |
@@ -77,7 +77,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [redis](../packs/redis/REFERENCE.md) | library | 1.2.1 | 11 | `redis/client` (complete), `redis/keys` (complete) |
 | [rust](../packs/rust/REFERENCE.md) | language | 1.2.0 | 9 | `rust/architecture` (complete), `rust/quality` (complete) |
 | [security-audit](../packs/security-audit/REFERENCE.md) | practice | 1.0.1 | 18 | `security-audit/client-and-agents` (preview), `security-audit/obvious-sinks` (preview) |
-| [senior](../packs/senior/REFERENCE.md) | practice | 1.2.0 | 12 | `senior/fowler` (complete), `senior/style` (complete) |
+| [senior](../packs/senior/REFERENCE.md) | practice | 1.3.0 | 13 | `senior/fowler` (complete), `senior/style` (complete) |
 | [solana](../packs/solana/REFERENCE.md) | library | 1.2.0 | 12 | `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete) |
 | [supabase](../packs/supabase/REFERENCE.md) | library | 1.2.1 | 10 | `supabase/client` (complete), `supabase/storage` (complete) |
 | [svelte](../packs/svelte/REFERENCE.md) | library | 1.2.0 | 13 | `svelte/runes` (complete), `svelte/stores` (complete) |
@@ -86,7 +86,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [tanstack-query](../packs/tanstack-query/REFERENCE.md) | library | 1.0.0 | 2 | `tanstack-query/client` (complete), `tanstack-query/keys` (complete) |
 | [testing](../packs/testing/REFERENCE.md) | practice | 1.2.2 | 4 | `testing/tdd` (complete) |
 | [trpc](../packs/trpc/REFERENCE.md) | library | 1.2.1 | 12 | `trpc/client` (complete), `trpc/router` (complete) |
-| [typescript](../packs/typescript/REFERENCE.md) | language | 1.3.0 | 26 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |
+| [typescript](../packs/typescript/REFERENCE.md) | language | 1.4.0 | 37 | `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/checked` (complete), `typescript/compiler` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete) |
 | [vercel](../packs/vercel/REFERENCE.md) | library | 1.0.0 | 15 | `vercel/configuration` (preview), `vercel/cron` (preview), `vercel/environment` (preview), `vercel/functions` (preview), `vercel/protection` (preview), `vercel/recovery` (preview) |
 | [vibe-proof](../packs/vibe-proof/REFERENCE.md) | practice | 1.1.0 | 17 | `vibe-proof/hygiene` (complete), `vibe-proof/secrets` (complete), `vibe-proof/transport` (complete) |
 | [vue](../packs/vue/REFERENCE.md) | library | 1.2.1 | 11 | `vue/reactivity` (complete), `vue/sfc` (complete) |

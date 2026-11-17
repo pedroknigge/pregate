@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "architecture/modules/file-loc",
+  "version": "1.0.0",
+  "area": "modules",
+  "cardinality": "singleton",
+  "dimension": "module.lines",
+  "minSeverity": null,
+  "params": {
+    "max": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "metric",
+    "metric": "file.lines",
+    "ratchet": "no-increase"
+  },
+  "languages": [
+    "typescript"
+  ],
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} has {measured} lines of code (limit {limit})."
+  }
+}

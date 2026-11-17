@@ -1,0 +1,1 @@
+app.post("/users", async (req, res) => { try { await load(req); } catch (error) { next(error); } });

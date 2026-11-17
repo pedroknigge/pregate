@@ -1,0 +1,3 @@
+export function coded(): number {
+  return (42);
+}

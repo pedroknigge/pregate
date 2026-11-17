@@ -1,0 +1,21 @@
+{
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1,
+        "measured": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "require",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "A CommonJS require() both ways is a load cycle. import type and import() are not, and must not be the reason this passes."
+  }
+}

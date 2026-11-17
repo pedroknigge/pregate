@@ -1,0 +1,1 @@
+export function place(): number { return 1; }

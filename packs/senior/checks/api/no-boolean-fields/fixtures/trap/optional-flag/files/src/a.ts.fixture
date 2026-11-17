@@ -1,0 +1,4 @@
+export interface Flags {
+  on: boolean;
+  off?: boolean;
+}

@@ -1,0 +1,4 @@
+export function place(): number {
+  const left = 1;
+  return left + 2;
+}

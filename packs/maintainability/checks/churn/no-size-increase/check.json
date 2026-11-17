@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/churn/no-size-increase",
+  "version": "1.0.0",
+  "area": "churn",
+  "cardinality": "singleton",
+  "dimension": "churn.size",
+  "minSeverity": null,
+  "params": {
+    "threshold": { "type": "integer", "minimum": 1 }
+  },
+  "impl": { "kind": "primitive", "primitive": "churn-ratchet", "op": "no-increase" },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{symbol} grew from {limit} to {measured}. This file is above the churn threshold ({threshold}), so its non-blank size and its longest function must not increase."
+  }
+}

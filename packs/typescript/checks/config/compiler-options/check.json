@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/config/compiler-options",
+  "version": "1.0.0",
+  "area": "config",
+  "cardinality": "singleton",
+  "dimension": "config.compiler",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "typescript-fact",
+    "fact": "tsconfig"
+  },
+  "feedback": {
+    "message": "tsconfig leaves {symbol} without the strict compiler contract. Set strict, the listed flags, target ES2022 or newer, and moduleResolution bundler, node16, or nodenext."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

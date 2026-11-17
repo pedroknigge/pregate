@@ -1,0 +1,11 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 20
+  },
+  "target": "src/api.ts",
+  "before": "before/",
+  "expect": {
+    "verdict": "pass"
+  }
+}

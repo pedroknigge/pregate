@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-SCRIPTS-001"
+  },
+  "context": {
+    "fitness": {
+      "contractHash": "reviewed-contract-v2",
+      "inputHash": "current-code-tree",
+      "command": [
+        "fixture-verifier"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "contractHash": "reviewed-contract-v2",
+        "inputHash": "current-code-tree",
+        "verifier": "NODE-SCRIPTS-001",
+        "command": [
+          "fixture-verifier"
+        ],
+        "exitCode": 0,
+        "completed": true,
+        "recordedAt": "2026-11-16T00:00:00.000Z"
+      }
+    }
+  },
+  "target": ".pregate/preset.json",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

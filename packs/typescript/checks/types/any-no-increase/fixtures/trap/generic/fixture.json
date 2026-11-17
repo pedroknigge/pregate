@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1,
+        "measured": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "any-in-generic",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "Array<any> is an explicit any. A comment or a string that says any is not."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": [
+      "**/payments/**",
+      "**/billing/**",
+      "**/checkout/**"
+    ],
+    "exclude": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+      "**/__tests__/**"
+    ],
+    "specifiers": [
+      "flags",
+      "feature-flags",
+      "featureFlags"
+    ]
+  },
+  "target": "src/billing/invoice.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  }
+}

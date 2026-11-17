@@ -36,10 +36,43 @@ Ready-made combinations live in `packs/presets/`.
 | `TS-RET-001` | An exported TypeScript function or arrow without a return type annotation. | Optional written public-return policy; JS/MJS files cannot receive TypeScript annotations and are excluded. | deny |
 | `TS-AWAIT-001` | An async function or arrow that never awaits. | A needless async hides whether the function suspends; callers await a value that was already there. | deny |
 | `TS-STAR-001` | `export *` (including `export * as ns`) re-exports. | A star barrel silently widens whenever the source module gains an export, including collisions across barrels. | deny |
+| `TS-CFG-001` | A tsconfig whose merged options omit the strict contract: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `forceConsistentCasingInFileNames`, `verbatimModuleSyntax`, `target` of ES2022 or newer, and `moduleResolution` of `bundler`, `node16`, or `nodenext`. | One rule. `strict: true` covers its eight flags. `skipLibCheck` and `exactOptionalPropertyTypes` warn and do not deny. | deny |
+| `TS-IMPORT-001` | A value import whose uses in this file are only types. | Same-file proxy for `import type`. `verbatimModuleSyntax` is the compiler half, on TS-CFG-001. | warn |
+| `TS-CONST-001` | A `let` this file never reassigns. | `const` is the binding that matches the use. `push` is not a reassignment. | deny |
+| `TS-INAME-001` | An interface named `I` plus a capital letter. | Spelling. `Input`, `Image`, and `I18n` do not match. | warn |
+| `TS-PARSE-001` | A `JSON.parse` or `.json()` result used with a type before a parser. | Same-function state. A parser call clears the binding. | warn |
+| `TS-ROARR-001` | An exported array parameter or property that is not `readonly T[]` or `ReadonlyArray<T>`. | The callee can otherwise sort or push the caller's array. | deny |
+| `TS-SORT-001` | `.sort()` or `.reverse()` on a parameter. | Copy with `[...items].sort()` or `toSorted`. | deny |
+| `TS-CAUSE-001` | A `throw` inside `catch` with no `{ cause }`. | The original error stays on the chain. | deny |
+| `TS-DIRECTIVE-001` | `@ts-expect-error` or `@ts-ignore` with no reason in the comment. | The suppression has to say why. | deny |
+| `TS-ANY-002` | A file whose explicit `any` count increased. | Diff ratchet. Separate from the non-null count. | deny |
+| `TS-BANG-002` | A file whose non-null assertion count increased. | Diff ratchet. `value!!` counts twice. | deny |
+
+## Static analysis
+
+`tsc --noEmit` and eslint are the static-analysis merge gate. They belong to `core/CORE-INV-056` (`core/invariants/static-analysis-merge-gate`). Bind that requirement with one project command that runs both. This pack does not declare a second fitness check for them. Packs never supply executable fitness commands.
+
+## Fidelity
+
+These checks say what they can see. The methodology `avoid` text is the limit.
+
+- `TS-CFG-001` is a mechanical merge of `extends`. A package that is not installed is not proof an option is off. A references-only solution file is skipped. `skipLibCheck` and `exactOptionalPropertyTypes` are warnings.
+- `TS-IMPORT-001` is a same-file proxy. A use in another file is invisible. An unused import is not reported. A namespace import is not classified.
+- `TS-CONST-001` is same-file. An assignment in another file is invisible. A shadowed inner `let` is its own binding.
+- `TS-INAME-001` is spelling. `ID` matches. `I18n` does not.
+- Boolean parameters and boolean property bags are one family, `senior/SR-FLAG-001` and `senior/SR-FLAG-002`. This pack does not declare a second copy.
+- `TS-PARSE-001` follows bindings in source order. Either branch of an `if` can keep the taint. A method named `json` that is not `Response.json` is still tainted, so a typed use of it is a false positive. `as unknown as User` is a typed use.
+- `TS-ROARR-001` looks at the outermost array. `readonly tags: string[]` still fails. A class method and `export { load }` are not seen.
+- `TS-SORT-001` requires the receiver to be the parameter. `const alias = items; alias.sort()` is not seen.
+- `TS-CAUSE-001` requires a direct `{ cause }` on the thrown call. A cause nested inside another call does not count.
+- `TS-DIRECTIVE-001` checks that the comment has a reason. It does not judge the reason. `@ts-nocheck` is not this rule. A reasoned `@ts-ignore` still fails `TS-IGNORE-001` when that rule is on.
+- `TS-ANY-002` and `TS-BANG-002` count syntax nodes. Comments and strings do not count. The two counts cannot cancel each other.
 
 ## Methodologies
 
 - `typescript/strict-types` — TS-ANY-001, TS-SWITCH-001, TS-BANG-001, TS-ENUM-001, TS-BOOL-001, TS-EXPORT-ANY-001, TS-READONLY-001, TS-NS-001, TS-MODKW-001, TS-WRAPPER-001
+- `typescript/compiler` — TS-CFG-001. Opt in. Existing presets that enable `strict-types` do not gain this rule.
+- `typescript/checked` — TS-IMPORT-001, TS-CONST-001, TS-INAME-001, TS-PARSE-001, TS-ROARR-001, TS-SORT-001, TS-CAUSE-001, TS-DIRECTIVE-001, TS-ANY-002, TS-BANG-002. Opt in.
 - `typescript/async-results` — TS-FLOAT-001, TS-THROW-001
 - `typescript/named-exports` — TS-DEFAULT-001
 - `typescript/framework-entries` — TS-ENTRY-001
@@ -66,9 +99,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **language**. Version: `1.3.0`. 26 distinct check IDs.
+Category: **language**. Version: `1.4.0`. 37 distinct check IDs.
 
-Methodologies: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete).
+Methodologies: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/checked` (complete), `typescript/compiler` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

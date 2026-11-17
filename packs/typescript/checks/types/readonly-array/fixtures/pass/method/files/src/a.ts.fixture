@@ -1,0 +1,5 @@
+export class Rows {
+  load(ids: string[]): string[] {
+    return ids;
+  }
+}

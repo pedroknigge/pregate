@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "architecture/dependencies/import-cycle",
+  "version": "1.0.0",
+  "area": "dependencies",
+  "cardinality": "singleton",
+  "dimension": "deps.cycles",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "diff",
+    "op": "no-increase",
+    "count": "import-cycles"
+  },
+  "languages": [
+    "typescript"
+  ],
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "This edit adds an import cycle ({measured} modules, was {limit})."
+  }
+}

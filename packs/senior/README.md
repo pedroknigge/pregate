@@ -19,6 +19,7 @@ Ready-made combinations live in `packs/presets/`.
 | ID | Forbids | Why | Default severity |
 | --- | --- | --- | --- |
 | `SR-FLAG-001` | A parameter whose type is boolean. | A boolean flag hides two operations behind one name. The call site reads notify(user, true) and the reader has to open the function to know what true means. | deny |
+| `SR-FLAG-002` | Two or more boolean properties on one exported interface or object type. | Low-fidelity count of a hidden mode. A union is already a discriminant. A boolean parameter stays `SR-FLAG-001`. | warn |
 | `SR-CHAIN-001` | A member chain of three hops, including hops that pass through a call (a.b().c().d). | The caller is navigating someone else's structure. When that structure changes, every chain breaks, which is the feature-envy smell in a form the tree can see. | deny |
 | `SR-EMPTY-001` | A function, method, or arrow whose body has no statement. A comment does not count. Constructors are exempt. | An empty body is a stub that looks finished. Callers compile against a function that does not do the thing its name says. | deny |
 | `SR-NEST-001` | A conditional expression whose branch is another conditional expression. | A nested ternary packs two decisions into one expression. The reader cannot see which branch matches which condition without counting question marks. | deny |
@@ -33,8 +34,13 @@ Ready-made combinations live in `packs/presets/`.
 
 ## Methodologies
 
-- `senior/fowler` — SR-FLAG-001, SR-CHAIN-001, SR-EMPTY-001, SR-NEST-001, SR-WIDE-001
+- `senior/fowler` — SR-FLAG-001, SR-FLAG-002, SR-CHAIN-001, SR-EMPTY-001, SR-NEST-001, SR-WIDE-001
 - `senior/style` — SR-VAR-001, SR-EQ-001, SR-DEAD-001, SR-WITH-001, SR-BRACE-001, SR-NATIVE-001, SR-MUT-001
+
+## Fidelity
+
+- `SR-FLAG-001` matches a boolean parameter, including an optional one and one with a default. A boolean property is not a parameter.
+- `SR-FLAG-002` is a low-fidelity count. It does not prove a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. A local type is skipped. Optional boolean properties count. `boolean[]` does not. A boolean parameter is `SR-FLAG-001` and is not this rule, so one shape fires one rule.
 
 Non-decidable practices from the same sources are in `BACKLOG.md`.
 
@@ -44,7 +50,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **practice**. Version: `1.2.0`. 12 distinct check IDs.
+Category: **practice**. Version: `1.3.0`. 13 distinct check IDs.
 
 Methodologies: `senior/fowler` (complete), `senior/style` (complete).
 

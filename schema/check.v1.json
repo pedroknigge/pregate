@@ -159,7 +159,8 @@
           "properties": {
             "kind": { "const": "primitive" },
             "primitive": { "const": "metric" },
-            "metric": { "enum": ["fn.lines", "fn.params", "class.publicMethods", "control.nesting"] }
+            "metric": { "enum": ["fn.lines", "fn.params", "class.publicMethods", "control.nesting", "file.lines", "file.publicExports", "heritage.depth"] },
+            "ratchet": { "const": "no-increase" }
           },
           "required": ["kind", "primitive", "metric"],
           "additionalProperties": false
@@ -171,6 +172,16 @@
             "primitive": { "enum": ["drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"] }
           },
           "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "typescript-fact" },
+            "fact": { "enum": ["tsconfig", "prefer-const", "type-only-import", "boundary-parse", "parameter-sort", "readonly-array", "rethrow-cause", "interface-prefix", "boolean-mode"] }
+          },
+          "required": ["kind", "primitive", "fact"],
           "additionalProperties": false
         },
         {
@@ -200,6 +211,7 @@
             "count": {
               "oneOf": [
                 { "const": "markers" },
+                { "const": "import-cycles" },
                 {
                   "type": "object",
                   "properties": {
@@ -244,6 +256,15 @@
           "type": "object",
           "properties": {
             "kind": { "const": "primitive" },
+            "primitive": { "const": "forbidden-path" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
             "primitive": { "const": "placement" },
             "cases": {
               "type": "array",
@@ -251,6 +272,43 @@
             }
           },
           "required": ["kind", "primitive", "cases"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "sibling-test" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "required-import" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "adr-touch" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "churn-ratchet" },
+            "op": { "const": "no-increase" }
+          },
+          "required": ["kind", "primitive", "op"],
           "additionalProperties": false
         }
       ]

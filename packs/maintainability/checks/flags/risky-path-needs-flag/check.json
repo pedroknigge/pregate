@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/flags/risky-path-needs-flag",
+  "version": "1.0.0",
+  "area": "flags",
+  "cardinality": "singleton",
+  "dimension": "flags.risky-import",
+  "minSeverity": null,
+  "params": {
+    "specifiers": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "\\S" },
+      "minItems": 1
+    }
+  },
+  "impl": { "kind": "primitive", "primitive": "required-import" },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{path} is on a risky path and does not import a feature-flag module."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "language": "typescript",
+  "params": {
+    "max": 3
+  },
+  "target": "src/e.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2,
+        "measured": 4
+      }
+    ]
+  },
+  "trap": {
+    "family": "cross-file-extends",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "A class chain split across files still counts hops. extends React.Component and an interface that extends interfaces do not."
+  }
+}

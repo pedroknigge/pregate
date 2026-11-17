@@ -1,0 +1,108 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/require-graceful-close",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.graceful-close",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "require-graceful-close",
+          "rule": {
+            "kind": "program",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "regex": "createServer|\\.listen\\s*\\("
+                }
+              },
+              {
+                "any": [
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "call_expression",
+                            "all": [
+                              {
+                                "has": {
+                                  "stopBy": "end",
+                                  "kind": "string",
+                                  "regex": "^[\"']SIGTERM[\"']$"
+                                }
+                              },
+                              {
+                                "has": {
+                                  "stopBy": "end",
+                                  "kind": "call_expression",
+                                  "regex": "\\.close\\s*\\("
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "call_expression",
+                            "all": [
+                              {
+                                "has": {
+                                  "stopBy": "end",
+                                  "kind": "string",
+                                  "regex": "^[\"']SIGINT[\"']$"
+                                }
+                              },
+                              {
+                                "has": {
+                                  "stopBy": "end",
+                                  "kind": "call_expression",
+                                  "regex": "\\.close\\s*\\("
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} listens without a SIGTERM and SIGINT handler that calls close. Register both and close the server from each."
+  }
+}

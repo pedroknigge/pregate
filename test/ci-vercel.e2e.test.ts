@@ -147,7 +147,7 @@ if (!WINDOWS) test("the Vercel build recipe fails the build on deny and passes w
     name: "vercel-build", version: "1.0.0", engine: VERSIONS.engine,
     sources: [
       { ns: "core", kind: "builtin", version: VERSIONS.core },
-      { ns: "typescript", kind: "library", version: "1.3.0" },
+      { ns: "typescript", kind: "library", version: "1.4.0" },
     ],
     methodologies: ["core/pregate-integrity", "typescript/discipline"],
     scope: { include: ["src/**"] }, enforcement: "enforce", ratchet: { mode: "no-new" },

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "tsconfig.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 4
+      }
+    ]
+  },
+  "trap": {
+    "family": "strict-subflag",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "strict: true does not keep a subflag that the same config sets back to false. noImplicitAny: false is its own finding, and the other seven subflags stay quiet."
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "node/server/security-headers",
+  "version": "1.0.0",
+  "area": "server",
+  "cardinality": "singleton",
+  "dimension": "node.security-headers",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "security-headers",
+          "rule": {
+            "kind": "program",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "kind": "call_expression",
+                  "regex": "createServer|\\.listen\\s*\\("
+                }
+              },
+              {
+                "any": [
+                  {
+                    "not": {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "call_expression",
+                            "has": {
+                              "field": "function",
+                              "regex": "^helmet$|\\.helmet$"
+                            }
+                          },
+                          {
+                            "kind": "string",
+                            "regex": "(?i)^[\"'](content-security-policy|x-frame-options|strict-transport-security|x-content-type-options)[\"']$"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ignores": [
+            "**/*.test.ts",
+            "**/*.spec.ts",
+            "**/*.test.tsx",
+            "**/*.spec.tsx",
+            "**/__tests__/**"
+          ]
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} listens without helmet or a security header. Call helmet, set the headers, or bind NODE-EDGE-001 for the edge."
+  }
+}
