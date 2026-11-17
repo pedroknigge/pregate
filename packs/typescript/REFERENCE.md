@@ -281,42 +281,6 @@ Source metadata:
 }
 ```
 
-### typescript/TS-MODE-001
-
-Check: [`typescript/types/no-boolean-mode@1.0.0`](checks/types/no-boolean-mode/check.json). Default severity: **warn**.
-
-Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
-
-Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.boolean-mode`. Minimum severity: `none`.
-
-Fidelity: low. This is a count of boolean properties, not proof of a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. Boolean parameters stay on senior/SR-FLAG-001.
-
-Default parameters: `{}`.
-
-**Repair:** Replace the pair of booleans with a union such as { kind: "on" } | { kind: "off" }. Leave a single boolean alone.
-
-**Scope and limits:** Optional boolean properties count. boolean[] does not. A local interface does not. A union type alias does not. Parameters are not this rule, even when a function takes several booleans.
-
-**Interactions when active together:**
-
-- Duplicates `senior/SR-FLAG-001`: Both look for a boolean that selects behavior. SR-FLAG-001 matches boolean parameters. TS-MODE-001 matches two or more boolean properties on one exported type. Settle: Keep both. They do not match the same syntax. Turn TS-MODE-001 off only when the project does not want a count of boolean fields.
-
-Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
-
-```json
-{}
-```
-
-Source metadata:
-
-```json
-{
-  "work": "Refactoring (M. Fowler, 1999)",
-  "locator": "flag argument",
-  "paraphrase": "A set of booleans that select behavior hides a mode. A discriminant names the mode."
-}
-```
-
 ### typescript/TS-PARSE-001
 
 Check: [`typescript/types/parsed-boundary@1.0.0`](checks/types/parsed-boundary/check.json). Default severity: **warn**.

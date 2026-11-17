@@ -37,7 +37,7 @@ const REASONED = "// @ts-expect-error the fixture type is wrong\nexport const va
 const ONE_ANY = "export const value: any = 1;\n";
 const ONE_BANG = "export const value = present!;\n";
 const CHECKED = [
-  "TS-IMPORT-001", "TS-CONST-001", "TS-INAME-001", "TS-MODE-001", "TS-PARSE-001",
+  "TS-IMPORT-001", "TS-CONST-001", "TS-INAME-001", "TS-PARSE-001",
   "TS-ROARR-001", "TS-SORT-001", "TS-CAUSE-001", "TS-DIRECTIVE-001", "TS-ANY-002", "TS-BANG-002",
 ].join(",");
 
@@ -139,11 +139,17 @@ test("the hook allows and denies the new TypeScript rules only after they are en
   expect(tested.code, tested.text + tested.error).toBe(0);
   expect(tested.text).toContain("ok   typescript/config/compiler-options pass/complete ->");
   expect(tested.text).toContain("ok   typescript/types/parsed-boundary trap/double-cast ->");
+  const senior = p.run(["rules", "test", "--library", "senior"]);
+  expect(senior.code, senior.text + senior.error).toBe(0);
+  expect(senior.text).toContain("ok   senior/api/no-boolean-fields pass/parameters ->");
+  expect(senior.text).toContain("ok   senior/api/no-boolean-fields trap/optional-flag ->");
+  expect(senior.text).toContain("ok   senior/api/no-boolean-flag pass/two-fields ->");
 
   p.git("init", "-q");
   p.approve(["init", "--preview", "--preset", "integrity-only"]);
   p.approve(["pack", "enable", "typescript/compiler", "--only", "TS-CFG-001", "--preview"]);
   p.approve(["pack", "enable", "typescript/checked", "--only", CHECKED, "--preview"]);
+  p.approve(["pack", "enable", "senior/fowler", "--only", "SR-FLAG-001,SR-FLAG-002", "--preview"]);
   p.put(".pregate/requests/enforce.json", JSON.stringify({
     why: "Exercise the new TypeScript rules under enforcement.",
     patch: [{ op: "add", path: "/enforcement", value: "enforce" }],
@@ -195,22 +201,24 @@ test("the hook allows and denies the new TypeScript rules only after they are en
 
   const warns: [string, string, string][] = [
     ["src/prefix.ts", "export interface IUser {\n  id: string;\n}\n", "typescript/TS-INAME-001"],
-    ["src/flags.ts", "export interface Mode {\n  on: boolean;\n  off: boolean;\n}\n", "typescript/TS-MODE-001"],
+    ["src/flags.ts", "export interface Mode {\n  on: boolean;\n  off: boolean;\n}\n", "senior/SR-FLAG-002"],
     ["src/parse.ts", "type User = { id: string };\nexport function load(text: string): User {\n  const raw = JSON.parse(text);\n  return raw as User;\n}\n", "typescript/TS-PARSE-001"],
     ["src/import.ts", "import { User } from \"./user\";\ntype Alias = User;\n", "typescript/TS-IMPORT-001"],
   ];
   for (const [path, content, rule] of warns) {
-    warned(p.hook(sid, path, content), rule);
+    const result = p.hook(sid, path, content);
+    warned(result, rule);
+    if (rule === "senior/SR-FLAG-002") expect(result.text).not.toContain("senior/SR-FLAG-001");
     const checked = p.run(["check", "--stdin", "--path", path], content);
     expect(checked.code, checked.text + checked.error).toBe(0);
     expect(checked.text).toContain("PREGATE WARN");
     expect(checked.text).toContain(rule);
+    if (rule === "senior/SR-FLAG-002") expect(checked.text).not.toContain("senior/SR-FLAG-001");
   }
 
   const guards: [string, string, string][] = [
     ["src/i18n.ts", "export interface I18n {\n  locale: string;\n}\n", "typescript/TS-INAME-001"],
-    ["src/kind.ts", "export type Kind =\n  | { kind: \"on\"; enabled: boolean }\n  | { kind: \"off\"; enabled: boolean };\n", "typescript/TS-MODE-001"],
-    ["src/params.ts", "export function save(draft: boolean, notify: boolean): void {\n  return;\n}\n", "typescript/TS-MODE-001"],
+    ["src/kind.ts", "export type Kind =\n  | { kind: \"on\"; enabled: boolean }\n  | { kind: \"off\"; enabled: boolean };\n", "senior/SR-FLAG-002"],
     ["src/label.ts", "export function label(config: { json(): string }): string {\n  const text = config.json();\n  return text;\n}\n", "typescript/TS-PARSE-001"],
   ];
   for (const [path, content, rule] of guards) {
@@ -219,4 +227,13 @@ test("the hook allows and denies the new TypeScript rules only after they are en
     expect(checked.code, checked.text + checked.error).toBe(0);
     expect(checked.text).not.toContain(rule);
   }
+
+  const params = "export function save(draft: boolean, notify: boolean): void {\n  return;\n}\n";
+  const paramHook = p.hook(sid, "src/params.ts", params);
+  denied(paramHook, "senior/SR-FLAG-001");
+  expect(paramHook.text).not.toContain("senior/SR-FLAG-002");
+  const paramCheck = p.run(["check", "--stdin", "--path", "src/params.ts"], params);
+  expect(paramCheck.code, paramCheck.text + paramCheck.error).toBe(1);
+  expect(paramCheck.text).toContain("senior/SR-FLAG-001");
+  expect(paramCheck.text).not.toContain("senior/SR-FLAG-002");
 });

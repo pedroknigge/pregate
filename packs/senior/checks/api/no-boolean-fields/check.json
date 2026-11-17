@@ -1,10 +1,10 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
-  "id": "typescript/types/no-boolean-mode",
+  "id": "senior/api/no-boolean-fields",
   "version": "1.0.0",
-  "area": "types",
+  "area": "api",
   "cardinality": "singleton",
-  "dimension": "types.boolean-mode",
+  "dimension": "api.boolean-fields",
   "minSeverity": null,
   "params": {},
   "impl": {
@@ -13,7 +13,7 @@
     "fact": "boolean-mode"
   },
   "feedback": {
-    "message": "{symbol} carries two or more boolean properties. A discriminated union names the mode; boolean parameters stay on senior/SR-FLAG-001."
+    "message": "{symbol} carries two or more boolean properties. A discriminated union names the mode. A boolean parameter is SR-FLAG-001."
   },
   "phase": [
     "pre",

@@ -60,32 +60,6 @@
       }
     },
     {
-      "id": "TS-MODE-001",
-      "relations": [
-        {
-          "with": "senior/SR-FLAG-001",
-          "kind": "duplicates",
-          "why": "Both look for a boolean that selects behavior. SR-FLAG-001 matches boolean parameters. TS-MODE-001 matches two or more boolean properties on one exported type.",
-          "settle": "Keep both. They do not match the same syntax. Turn TS-MODE-001 off only when the project does not want a count of boolean fields."
-        }
-      ],
-      "check": "typescript/types/no-boolean-mode",
-      "defaults": {},
-      "severity": "warn",
-      "source": {
-        "work": "Refactoring (M. Fowler, 1999)",
-        "locator": "flag argument",
-        "paraphrase": "A set of booleans that select behavior hides a mode. A discriminant names the mode."
-      },
-      "why": "Fidelity: low. This is a count of boolean properties, not proof of a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. Boolean parameters stay on senior/SR-FLAG-001.",
-      "fixHint": "Replace the pair of booleans with a union such as { kind: \"on\" } | { kind: \"off\" }. Leave a single boolean alone.",
-      "avoid": "Optional boolean properties count. boolean[] does not. A local interface does not. A union type alias does not. Parameters are not this rule, even when a function takes several booleans.",
-      "examples": {
-        "pass": "pass/one-flag",
-        "fail": "fail/two-flags"
-      }
-    },
-    {
       "id": "TS-PARSE-001",
       "check": "typescript/types/parsed-boundary",
       "defaults": {},

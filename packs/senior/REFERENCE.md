@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **practice**.
+Version: `1.3.0`. Category: **practice**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -24,11 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Split into two named operations, or pass a union such as "email" | "none".
 
-**Scope and limits:** Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule. typescript/TS-MODE-001 is the separate proxy for several boolean fields on one exported type.
-
-**Interactions when active together:**
-
-- Duplicates `typescript/TS-MODE-001`: Both reject a boolean that stands in for a mode. SR-FLAG-001 matches a boolean parameter. TS-MODE-001 matches two or more boolean fields on one exported type. They do not match the same syntax. Settle: Keep both. A boolean parameter and a boolean property bag are different shapes.
+**Scope and limits:** Making the flag optional, or giving it a default, keeps the flag. A boolean property is not a parameter. Two or more boolean fields on one exported type are SR-FLAG-002 in this family, and that rule does not match a parameter.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -43,6 +39,38 @@ Source metadata:
   "work": "Refactoring (M. Fowler, 1999)",
   "locator": "flag argument",
   "paraphrase": "A boolean argument that selects behavior is a flag. Replace it with two operations whose names say which behavior they run."
+}
+```
+
+### senior/SR-FLAG-002
+
+Check: [`senior/api/no-boolean-fields@1.0.0`](checks/api/no-boolean-fields/check.json). Default severity: **warn**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `api.boolean-fields`. Minimum severity: `none`.
+
+Fidelity: low. This is a count of boolean properties, not proof of a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. A boolean parameter is SR-FLAG-001 in this same family, and that rule does not match a property.
+
+Default parameters: `{}`.
+
+**Repair:** Replace the pair of booleans with a union such as { kind: "on" } | { kind: "off" }. Leave a single boolean alone.
+
+**Scope and limits:** Optional boolean properties count. boolean[] does not. A local interface does not. A union type alias does not. A boolean parameter is SR-FLAG-001, not this rule, even when a function takes several booleans. The two rules do not match the same syntax, so a file reports at most one of them for a given shape.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Refactoring (M. Fowler, 1999)",
+  "locator": "flag argument",
+  "paraphrase": "A set of booleans that select behavior hides a mode. A discriminant names the mode."
 }
 ```
 
