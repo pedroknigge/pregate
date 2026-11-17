@@ -1,0 +1,4 @@
+export function label(config: { json(): string }): string {
+  const text = config.json();
+  return text;
+}

@@ -1,0 +1,5 @@
+interface Local {
+  on: boolean;
+  off: boolean;
+}
+export const ready = true;

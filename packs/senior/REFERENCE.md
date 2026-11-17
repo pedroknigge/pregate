@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## senior/fowler
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **complete**.
 
 ### senior/SR-FLAG-001
 
@@ -24,7 +24,11 @@ Default parameters: `{}`.
 
 **Repair:** Split into two named operations, or pass a union such as "email" | "none".
 
-**Scope and limits:** Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule.
+**Scope and limits:** Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule. typescript/TS-MODE-001 is the separate proxy for several boolean fields on one exported type.
+
+**Interactions when active together:**
+
+- Duplicates `typescript/TS-MODE-001`: Both reject a boolean that stands in for a mode. SR-FLAG-001 matches a boolean parameter. TS-MODE-001 matches two or more boolean fields on one exported type. They do not match the same syntax. Settle: Keep both. A boolean parameter and a boolean property bag are different shapes.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

@@ -1,0 +1,5 @@
+let value = 1;
+value = 2;
+function inner(): void {
+  let value = 3;
+}

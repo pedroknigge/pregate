@@ -29,8 +29,13 @@ export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): Ru
   return ["typescript"];
 }
 
+const STATIC_PRIMITIVES = ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact"];
+
 export function languageApplies(r: { impl: Impl; languages?: RuleLanguage[] }, rel: string): boolean {
   if (r.impl.kind === "primitive" && r.impl.primitive === "fitness") return true;
+  if (r.impl.kind === "primitive" && r.impl.primitive === "typescript-fact" && r.impl.fact === "tsconfig") {
+    return /(^|\/)tsconfig[^/]*\.json$/.test(rel) && !rel.split("/").includes("node_modules");
+  }
   if (!r.languages && r.impl.kind === "primitive" && (r.impl.primitive === "placement" || (r.impl.primitive === "diff" && r.impl.count === "markers"))) return true;
   const g = grammarOf(rel);
   return g !== null && ruleLanguages(r).includes(g === "tsx" ? "typescript" : g);
@@ -38,7 +43,7 @@ export function languageApplies(r: { impl: Impl; languages?: RuleLanguage[] }, r
 
 export function staticRulesFor(lock: Lock, rel: string) {
   return lock.rules.filter((r) => !lock.ownedByArkgate.includes(r.id) && languageApplies(r, rel)
-    && (r.impl.kind === "pattern" || ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"].includes(r.impl.primitive))
+    && (r.impl.kind === "pattern" || STATIC_PRIMITIVES.includes(r.impl.primitive))
     && ruleApplies(r, rel));
 }
 

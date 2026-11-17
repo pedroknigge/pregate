@@ -177,6 +177,16 @@
           "type": "object",
           "properties": {
             "kind": { "const": "primitive" },
+            "primitive": { "const": "typescript-fact" },
+            "fact": { "enum": ["tsconfig", "prefer-const", "type-only-import", "boundary-parse", "parameter-sort", "readonly-array", "rethrow-cause", "interface-prefix", "boolean-mode"] }
+          },
+          "required": ["kind", "primitive", "fact"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
             "primitive": { "const": "banned-import" }
           },
           "required": ["kind", "primitive"],

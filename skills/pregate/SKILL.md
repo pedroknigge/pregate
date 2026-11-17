@@ -904,7 +904,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `tanstack-query@1.0.0` — library: `tanstack-query/client` (complete), `tanstack-query/keys` (complete)
 - `testing@1.2.2` — practice: `testing/tdd` (complete)
 - `trpc@1.2.1` — library: `trpc/client` (complete), `trpc/router` (complete)
-- `typescript@1.3.0` — language: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete)
+- `typescript@1.4.0` — language: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/checked` (complete), `typescript/compiler` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete)
 - `vercel@1.0.0` — library: `vercel/configuration` (preview), `vercel/cron` (preview), `vercel/environment` (preview), `vercel/functions` (preview), `vercel/protection` (preview), `vercel/recovery` (preview)
 - `vibe-proof@1.1.0` — practice: `vibe-proof/hygiene` (complete), `vibe-proof/secrets` (complete), `vibe-proof/transport` (complete)
 - `vue@1.2.1` — library: `vue/reactivity` (complete), `vue/sfc` (complete)

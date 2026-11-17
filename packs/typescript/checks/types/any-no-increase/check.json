@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "typescript/types/any-no-increase",
+  "version": "1.0.0",
+  "area": "types",
+  "cardinality": "singleton",
+  "dimension": "types.any-count",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "primitive",
+    "primitive": "diff",
+    "op": "no-increase",
+    "count": {
+      "pattern": {
+        "id": "explicit-any",
+        "rule": {
+          "kind": "predefined_type",
+          "regex": "^any$"
+        }
+      }
+    }
+  },
+  "feedback": {
+    "message": "This file now has {measured} explicit any types; it had {limit}. Replace the new any with a named type or unknown."
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ]
+}

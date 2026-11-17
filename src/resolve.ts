@@ -254,6 +254,49 @@ function dirname(rel: string): string {
   return i < 0 ? "" : rel.slice(0, i);
 }
 
+export interface CompilerOptionsLoad {
+  options: Record<string, unknown>;
+  missing: string[];
+  invalid: boolean;
+  referencesOnly: boolean;
+}
+
+// Merged compilerOptions for one config file. The file's own text wins over `read(file)`, so a
+// hook sees the buffer being written. Child keys win; of several `extends`, the later one wins.
+// An uninstalled package extends is named in `missing` and is not a broken chain.
+export function loadCompilerOptions(read: Read, file: string, ownText?: string | null): CompilerOptionsLoad | null {
+  const text = ownText ?? read(file);
+  if (text === null) return null;
+  const root = jsonc(text);
+  if (!isObject(root)) return { options: {}, missing: [], invalid: true, referencesOnly: false };
+  if (root.compilerOptions === undefined && root.extends === undefined && Array.isArray(root.references)) {
+    return { options: {}, missing: [], invalid: false, referencesOnly: true };
+  }
+  const options: Record<string, unknown> = {};
+  const missing: string[] = [];
+  const extended = (dir: string, spec: string): string | "missing" | null => {
+    const at = extendedConfig(dir, spec, read);
+    if (at !== null || !uninstalledPackage(dir, spec, read)) return at;
+    if (!missing.includes(spec)) missing.push(spec);
+    return "missing";
+  };
+  const visit = (path: string, chain: string[], body: string | null): boolean => {
+    const json = body === null || chain.includes(path) ? null : jsonc(body);
+    if (!isObject(json)) return false;
+    const own = json.compilerOptions === undefined ? {} : json.compilerOptions;
+    if (!isObject(own)) return false;
+    for (const [key, value] of Object.entries(own)) if (!(key in options)) options[key] = value;
+    const parents = json.extends === undefined ? [] : [json.extends].flat();
+    if (!parents.every((parent) => typeof parent === "string")) return false;
+    const dir = dirname(path);
+    return [...parents].reverse().every((parent) => {
+      const resolved = extended(dir, parent as string);
+      return resolved === "missing" || (resolved !== null && visit(resolved, [...chain, path], read(resolved)));
+    });
+  };
+  return { options, missing, invalid: !visit(file, [], text), referencesOnly: false };
+}
+
 function outside(rel: string): boolean {
   return rel === ".." || rel.startsWith("../");
 }

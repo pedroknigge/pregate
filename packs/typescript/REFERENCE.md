@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.3.0`. Category: **language**.
+Version: `1.4.0`. Category: **language**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -178,6 +178,402 @@ Source metadata:
   "work": "Functional error handling, typed results",
   "locator": "return a result instead of throwing across a boundary",
   "paraphrase": "Expected failures are values. Reserve throw for defects. An exported function lists its failures in its return type."
+}
+```
+
+## typescript/checked
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### typescript/TS-IMPORT-001
+
+Check: [`typescript/modules/type-only-import@1.0.0`](checks/modules/type-only-import/check.json). Default severity: **warn**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `modules.type-only-import`. Minimum severity: `none`.
+
+Fidelity: same-file proxy. A value import whose uses in this file are only type positions is reported. The compiler half is verbatimModuleSyntax on TS-CFG-001. This check warns because it cannot see another file.
+
+Default parameters: `{}`.
+
+**Repair:** Write import type, or import { type Name }. Turn on verbatimModuleSyntax in tsconfig so the compiler checks the same choice across files.
+
+**Scope and limits:** An unused import is not reported. A namespace import is not classified. typeof Name is a value use. A use in another file is invisible. import type and an inline type specifier already match this rule.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, modules",
+  "locator": "import type and verbatimModuleSyntax",
+  "paraphrase": "A binding used only as a type should be imported as a type, so the emit does not keep a value import the program never calls."
+}
+```
+
+### typescript/TS-CONST-001
+
+Check: [`typescript/style/prefer-const@1.0.0`](checks/style/prefer-const/check.json). Default severity: **deny**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `style.prefer-const`. Minimum severity: `none`.
+
+Fidelity: same-file. A let with no assignment, update, or destructuring assignment in this file should be const. Mutation such as push is not a reassignment, so the binding is still const. var and parameter mutation belong to senior, not this rule.
+
+Default parameters: `{}`.
+
+**Repair:** Change the let to const. If the binding is assigned later in this file, keep let.
+
+**Scope and limits:** A for-loop i++ is a reassignment. An inner let is a different binding from an outer one with the same name. An assignment in another file, including to an export, is invisible. declare let is skipped. push, index writes, and property writes do not count as reassignment.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "ESLint, prefer-const",
+  "locator": "let that is never reassigned",
+  "paraphrase": "If a binding is never assigned again, const says so. let promises a later assignment that does not exist."
+}
+```
+
+### typescript/TS-INAME-001
+
+Check: [`typescript/types/no-i-prefix@1.0.0`](checks/types/no-i-prefix/check.json). Default severity: **warn**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.interface-prefix`. Minimum severity: `none`.
+
+Fidelity: spelling. An interface whose name matches I followed by a capital letter is reported, exported or not. This warns because ID and similar abbreviations are the same spelling and the rule cannot tell them apart.
+
+Default parameters: `{}`.
+
+**Repair:** Drop the I. User stays User. Keep names such as Input, Image, and I18n; they do not match.
+
+**Scope and limits:** I18n does not match because the character after I is a digit. Input, Image, and Id do not match. The rule does not look at type aliases or classes.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, do's and don'ts",
+  "locator": "do not prefix interfaces with I",
+  "paraphrase": "An I prefix names the declaration kind. The interface should be named for the concept."
+}
+```
+
+### typescript/TS-MODE-001
+
+Check: [`typescript/types/no-boolean-mode@1.0.0`](checks/types/no-boolean-mode/check.json). Default severity: **warn**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.boolean-mode`. Minimum severity: `none`.
+
+Fidelity: low. This is a count of boolean properties, not proof of a hidden mode. Two or more boolean fields on one directly exported interface, or on one object type alias, are reported. A union is already a discriminant and is skipped. Boolean parameters stay on senior/SR-FLAG-001.
+
+Default parameters: `{}`.
+
+**Repair:** Replace the pair of booleans with a union such as { kind: "on" } | { kind: "off" }. Leave a single boolean alone.
+
+**Scope and limits:** Optional boolean properties count. boolean[] does not. A local interface does not. A union type alias does not. Parameters are not this rule, even when a function takes several booleans.
+
+**Interactions when active together:**
+
+- Duplicates `senior/SR-FLAG-001`: Both look for a boolean that selects behavior. SR-FLAG-001 matches boolean parameters. TS-MODE-001 matches two or more boolean properties on one exported type. Settle: Keep both. They do not match the same syntax. Turn TS-MODE-001 off only when the project does not want a count of boolean fields.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Refactoring (M. Fowler, 1999)",
+  "locator": "flag argument",
+  "paraphrase": "A set of booleans that select behavior hides a mode. A discriminant names the mode."
+}
+```
+
+### typescript/TS-PARSE-001
+
+Check: [`typescript/types/parsed-boundary@1.0.0`](checks/types/parsed-boundary/check.json). Default severity: **warn**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.parsed-boundary`. Minimum severity: `none`.
+
+Fidelity: state, same function. JSON.parse and any call named json start tainted. A later parse, safeParse, validate, decode, parseAsync, or safeParseAsync clears the binding. as T, other than as unknown alone, and a type annotation other than unknown are typed uses. An if keeps the taint when either branch leaves it tainted. This warns because a method named json is not always Response.json.
+
+Default parameters: `{}`.
+
+**Repair:** Pass the value through a parser before the annotation or the cast. as unknown is not a parser. schema.parse and schema.safeParse clear the binding.
+
+**Scope and limits:** The check follows bindings and aliases in source order in this file only. A method named json that does not read a response is still tainted, so a typed use of it is a false positive. An untyped return is not a finding. as unknown as User is a finding on the outer cast. A parser named something else is not recognized.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Parse, don't validate (A. King, 2019)",
+  "locator": "parse at the boundary",
+  "paraphrase": "A value that crossed a text boundary is unknown until a parser returns a typed value. A cast only claims the type."
+}
+```
+
+### typescript/TS-ROARR-001
+
+Check: [`typescript/types/readonly-array@1.0.0`](checks/types/readonly-array/check.json). Default severity: **deny**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.readonly-array`. Minimum severity: `none`.
+
+The outermost array of a directly exported function or arrow parameter, and of a property on a directly exported interface or type alias, must be readonly T[] or ReadonlyArray<T>. The same applies to an array property inside the type of such a parameter. TS-READONLY-001 is a different, opt-in rule about every public property.
+
+Default parameters: `{}`.
+
+**Repair:** Write readonly string[] or ReadonlyArray<string>. Copy before sorting. A readonly modifier on the property does not make the array readonly.
+
+**Scope and limits:** Nested arrays inside an outer ReadonlyArray are not walked. Class methods are not included. A function that is only re-exported by export { load } is not seen. A local function is not included.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, readonly arrays",
+  "locator": "readonly T[] and ReadonlyArray",
+  "paraphrase": "A function that takes an array it only reads should say so. A mutable array type allows sort, reverse, and push on the caller's value."
+}
+```
+
+### typescript/TS-SORT-001
+
+Check: [`typescript/types/clone-before-mutation@1.0.0`](checks/types/clone-before-mutation/check.json). Default severity: **deny**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.clone-before-mutation`. Minimum severity: `none`.
+
+A direct sort or reverse on an identifier that resolves to a parameter mutates the caller. [...items].sort(), items.slice().sort(), and toSorted or toReversed do not. The receiver has to be that identifier, parentheses included.
+
+Default parameters: `{}`.
+
+**Repair:** Copy first: return [...items].sort() or return items.toSorted(). toReversed is the copy for reverse.
+
+**Scope and limits:** const alias = items; alias.sort() is not seen, because the receiver is not the parameter identifier. items[0] and a method call other than sort or reverse are not this rule. A local array is not a parameter.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, array methods",
+  "locator": "sort, reverse, toSorted, toReversed",
+  "paraphrase": "sort and reverse mutate the array they are called on. A parameter is the caller's array unless the function copies it first."
+}
+```
+
+### typescript/TS-CAUSE-001
+
+Check: [`typescript/errors/rethrow-cause@1.0.0`](checks/errors/rethrow-cause/check.json). Default severity: **deny**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `errors.rethrow-cause`. Minimum severity: `none`.
+
+Every throw inside a catch must pass an object property named cause, either as a pair or as a shorthand. Empty catch stays clean-code CC-ER-002. A throw that is not inside catch is not this rule, and TS-THROW-001 still owns throws on an exported boundary.
+
+Default parameters: `{}`.
+
+**Repair:** throw new Error("failed", { cause: error }) or throw new Error("failed", { cause }).
+
+**Scope and limits:** The cause property has to be a direct argument object of the thrown call, or the thrown object itself. A cause nested inside another call is not accepted. Putting the caught value in the message does not count.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "ECMAScript 2022, Error cause",
+  "locator": "Error options cause",
+  "paraphrase": "A thrown error can carry the error that caused it. A rethrow that drops the caught value drops the stack."
+}
+```
+
+### typescript/TS-DIRECTIVE-001
+
+Check: [`typescript/integrity/directive-reason@1.0.0`](checks/integrity/directive-reason/check.json). Default severity: **deny**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `integrity.directive-reason`. Minimum severity: `none`.
+
+A comment that is only @ts-expect-error or @ts-ignore has no reason. TS-IGNORE-001 still forbids @ts-ignore outright. core EVA-SUP-001 ratchets new suppressions. This rule is the missing reason, including on @ts-expect-error, which the ignore ban allows.
+
+Default parameters: `{}`.
+
+**Repair:** Write the reason on the same comment: // @ts-expect-error the generated type is wrong.
+
+**Scope and limits:** @ts-nocheck is not this rule. A reason is any non-space text after the directive. A reasoned @ts-ignore still fails TS-IGNORE-001 when that rule is on. The reason is not checked for truth.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, ts-expect-error",
+  "locator": "suppress a line with a reason",
+  "paraphrase": "@ts-expect-error and @ts-ignore hide a compiler diagnostic. The comment has to say why the line is exempt."
+}
+```
+
+### typescript/TS-ANY-002
+
+Check: [`typescript/types/any-no-increase@1.0.0`](checks/types/any-no-increase/check.json). Default severity: **deny**.
+
+Implementation: `diff`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.any-count`. Minimum severity: `none`.
+
+Diff ratchet, no-increase. The count is syntax nodes of the any type. Existing any stays. A new any, including Array<any>, denies. TS-ANY-001 remains the opt-in ban and stays off. Comments and strings do not count. This count is separate from the non-null count so the two cannot cancel.
+
+Default parameters: `{}`.
+
+**Repair:** Name the type, or use unknown and narrow it. Do not add any to pay for removing a non-null assertion.
+
+**Scope and limits:** The finding is the file's new total, reported on line 1. A comment that says any, or the string "any", is not a type. pregate-allow-any does not lower this count.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Effective TypeScript (D. Vanderkam)",
+  "locator": "item on any versus unknown",
+  "paraphrase": "any disables the checker for everything it touches. A file should not gain more of them."
+}
+```
+
+### typescript/TS-BANG-002
+
+Check: [`typescript/types/non-null-no-increase@1.0.0`](checks/types/non-null-no-increase/check.json). Default severity: **deny**.
+
+Implementation: `diff`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `types.non-null-count`. Minimum severity: `none`.
+
+Diff ratchet, no-increase. The count is non-null syntax nodes. Existing assertions stay. A new one denies. TS-BANG-001 remains the opt-in ban and stays off. value!! counts twice. This count is separate from the any count.
+
+Default parameters: `{}`.
+
+**Repair:** Narrow with a conditional, or change the type so the value is present. Do not add ! to pay for removing an any.
+
+**Scope and limits:** The finding is the file's new total, reported on line 1. !== is a comparison, not this operator. A comment that contains ! is not an assertion.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Effective TypeScript (D. Vanderkam)",
+  "locator": "non-null assertions",
+  "paraphrase": "A postfix ! tells the checker a value is present. The file should not gain more of those claims."
+}
+```
+
+## typescript/compiler
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### typescript/TS-CFG-001
+
+Check: [`typescript/config/compiler-options@1.0.0`](checks/config/compiler-options/check.json). Default severity: **deny**.
+
+Implementation: `typescript-fact`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `config.compiler`. Minimum severity: `none`.
+
+A project that compiles with strict off, an old target, or a classic module resolution accepts programs the rest of this pack assumes the compiler already rejected. One merged tsconfig finding covers that contract. skipLibCheck and exactOptionalPropertyTypes are advice: a finding for either is a warning and does not deny the edit.
+
+Default parameters: `{}`.
+
+**Repair:** Set strict, noUncheckedIndexedAccess, noImplicitOverride, noImplicitReturns, noFallthroughCasesInSwitch, forceConsistentCasingInFileNames, and verbatimModuleSyntax to true. Set target to ES2022 or newer. Set moduleResolution to bundler, node16, or nodenext, and pair node16 or nodenext with the same module kind. A solution file that only has references is skipped.
+
+**Scope and limits:** strict: true is one finding when it is missing or false, not eight findings for the flags it implies. An explicit false on one of those eight is its own finding. A value inherited from an extended config counts, and the child wins. An extends that names a package which is not installed is not proof an option is off. A missing or cyclic local extends is one finding. skipLibCheck and exactOptionalPropertyTypes never deny. tsc --noEmit and eslint are not this check: bind both to core/CORE-INV-056, the static-analysis merge gate. This pack does not declare a second fitness command.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "TypeScript handbook, compiler options",
+  "locator": "strict and module resolution",
+  "paraphrase": "strict turns on the null, any, function, bind, property, this, catch, and always-strict checks together. The rest of the contract is the flags and the module settings a current compiler expects."
 }
 ```
 

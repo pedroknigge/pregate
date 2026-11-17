@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "optional-boolean-property",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "An optional boolean is still a mode flag. boolean[] is not, and a union of objects is already a discriminant."
+  }
+}

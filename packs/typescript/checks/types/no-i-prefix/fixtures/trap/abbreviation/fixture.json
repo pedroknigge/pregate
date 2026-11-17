@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "i-prefix-abbreviation",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "ID is I followed by a capital letter. The spelling rule does not know that ID is an abbreviation."
+  }
+}

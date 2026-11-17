@@ -24,8 +24,7 @@ export function testFixture(tree: Files, now: Clock): { valid: boolean; ok: bool
     if (typeof fixture === "string") invalid.push(fixture);
     if (invalid.length) return { valid: false, ok: false, lines: invalid };
     const grammar = grammarOf((fixture as Fixture).target);
-    const placementGuard = check.impl.kind === "primitive" && ["placement", "fitness"].includes(check.impl.primitive);
-    if (!placementGuard && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== (fixture as Fixture).language || !languageApplies(check, (fixture as Fixture).target))) {
+    if (!skipsGrammar(check) && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== (fixture as Fixture).language || !languageApplies(check, (fixture as Fixture).target))) {
       return { valid: false, ok: false, lines: ["Fixture language, target extension and check coverage must agree."] };
     }
     const problems = grammarErrors(check);
@@ -190,8 +189,7 @@ function outcome(check: Check, c: Case, now: Clock): Violation[] | Form {
   const after = code(c.tree, "files/");
   const before = fixture.before === null ? {} : code(c.tree, "before/");
   const grammar = grammarOf(fixture.target);
-  const placementGuard = check.impl.kind === "primitive" && check.impl.primitive === "placement";
-  if (!placementGuard && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== fixture.language || !languageApplies(check, fixture.target))) throw new Error("Fixture language, target extension and check coverage must agree.");
+  if (!skipsGrammar(check) && (grammar === null || (grammar === "tsx" ? "typescript" : grammar) !== fixture.language || !languageApplies(check, fixture.target))) throw new Error("Fixture language, target extension and check coverage must agree.");
   const lock = fixtureLock(check, fixture.params, fixture.context);
   const phase = check.phase[0]!;
   const was = before[fixture.target] ?? null;
@@ -208,6 +206,13 @@ function outcome(check: Check, c: Case, now: Clock): Violation[] | Form {
 function withTrees<T>(trees: Parsed[], use: () => T): T {
   try { return use(); }
   finally { for (const p of trees) p.root.tree.delete(); }
+}
+
+// Placement, fitness, and tsconfig facts have no source grammar. A tsconfig fixture still
+// names language typescript because that is the fixture schema's closed list.
+function skipsGrammar(check: Check): boolean {
+  return check.impl.kind === "primitive" && (check.impl.primitive === "placement" || check.impl.primitive === "fitness"
+    || (check.impl.primitive === "typescript-fact" && check.impl.fact === "tsconfig"));
 }
 
 function fixtureState(c: Case, text: string | null, trees: Parsed[]): Parsed | string | null {

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/a.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "default-type-import",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "A default import used only as a type is still a value import. import type User is the form that matches the use."
+  }
+}

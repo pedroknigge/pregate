@@ -1,12 +1,20 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "senior/fowler",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "status": "complete",
   "conflicts": [],
   "invariants": [
     {
       "id": "SR-FLAG-001",
+      "relations": [
+        {
+          "with": "typescript/TS-MODE-001",
+          "kind": "duplicates",
+          "why": "Both reject a boolean that stands in for a mode. SR-FLAG-001 matches a boolean parameter. TS-MODE-001 matches two or more boolean fields on one exported type. They do not match the same syntax.",
+          "settle": "Keep both. A boolean parameter and a boolean property bag are different shapes."
+        }
+      ],
       "check": "senior/api/no-boolean-flag",
       "defaults": {},
       "severity": "deny",
@@ -17,7 +25,7 @@
       },
       "why": "A boolean flag hides two operations behind one name. The call site reads notify(user, true) and the reader has to open the function to know what true means.",
       "fixHint": "Split into two named operations, or pass a union such as \"email\" | \"none\".",
-      "avoid": "Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule.",
+      "avoid": "Making the flag optional, or giving it a default, keeps the flag. A boolean property on a type is not a parameter and is not this rule. typescript/TS-MODE-001 is the separate proxy for several boolean fields on one exported type.",
       "examples": {
         "pass": "pass/mode-union",
         "fail": "fail/required-flag"

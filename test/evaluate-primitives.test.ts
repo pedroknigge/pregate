@@ -36,6 +36,7 @@ test("analyze does not throw for a primitive in the closed vocabulary", () => {
     { kind: "primitive", primitive: "react-index-key" },
     { kind: "primitive", primitive: "credential-literal" },
     { kind: "primitive", primitive: "python-legacy" },
+    { kind: "primitive", primitive: "typescript-fact", fact: "prefer-const" },
     { kind: "primitive", primitive: "layer-edge" },
     { kind: "primitive", primitive: "banned-import" },
     { kind: "primitive", primitive: "placement", cases: [] },
