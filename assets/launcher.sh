@@ -54,10 +54,63 @@ consented() {
   return 1
 }
 
+# One consent line. ce_kind is "proposal" or "consent". Assignments stay in the caller.
+ce_take() {
+  case $ce_kind in
+    proposal)
+      case $1 in *"\"root\":\"$ce_d\""*) ce_proposal=1 ;; esac
+      return ;;
+  esac
+  case $1 in
+    *"\"root\":\"$ce_d\""*)
+      case $1 in *'"disabled":true'*) ce_root_off=1 ;; esac
+      case $1 in *"\"common\":\"$ce_g\""*) ce_root_on=1 ;; esac
+      ;;
+  esac
+  case $1 in
+    *"\"repo\":\"$ce_g\""*)
+      case $1 in *'"disabled":true'*) ce_project_off=1 ;; *) ce_repo_on=1 ;; esac
+      ;;
+  esac
+}
+
+# A handful of records is read in the shell: that is the timed hook, and it starts no process.
+# A long directory (the e2e suite enables a repo per test) is one grep. Opening each file from
+# dash costs more than the supervision budget.
+ce_scan() {
+  [ -d "$1" ] || return 0
+  ce_kind=$2
+  ce_n=0
+  for ce_record in "$1"/*.json; do
+    [ -f "$ce_record" ] || return 0
+    ce_n=$((ce_n + 1))
+    [ "$ce_n" -gt 4 ] && break
+  done
+  if [ "$ce_n" -gt 4 ]; then
+    # Command substitution drops the last line when it has no newline. Put one back, or a
+    # disable record that sorts last is ignored and a crash there blocks.
+    ce_blob=$(grep -h . "$1"/*.json 2>/dev/null) || ce_blob=
+    ce_blob="$ce_blob
+"
+    while IFS= read -r ce_line; do
+      [ -n "$ce_line" ] || continue
+      ce_take "$ce_line"
+    done <<CE_SCAN_END
+$ce_blob
+CE_SCAN_END
+    return 0
+  fi
+  for ce_record in "$1"/*.json; do
+    [ -f "$ce_record" ] || continue
+    IFS= read -r ce_line < "$ce_record" || continue
+    ce_take "$ce_line"
+  done
+}
+
 # 0 = enforced, 1 = not enforced, 2 = unsure (the caller uses consented, which starts git).
 # A real directory `.git` whose path needs no JSON escaping is answered in the shell: no git,
-# grep, or sed. That is the timed hook. A worktree, a parent walk, a quoted path, and an
-# unknown git stay with consented(). A settled "no" does not.
+# grep, or sed, while the directory stays small. That is the timed hook. A worktree, a parent
+# walk, a quoted path, and an unknown git stay with consented(). A settled "no" does not.
 checkout_enforced() {
   if [ "$1" = "$PWD" ] && [ -d "$PWD/.git" ] && [ ! -L "$PWD" ] && [ ! -L "$PWD/.git" ]; then
     ce_d=$PWD
@@ -72,29 +125,8 @@ checkout_enforced() {
   # zsh aborts a script when a glob matches nothing. An absent proposals directory is that case.
   [ -n "${ZSH_VERSION:-}" ] && setopt local_options null_glob
   ce_root_off=; ce_project_off=; ce_root_on=; ce_repo_on=; ce_proposal=
-  for ce_dir in "$data/consent" "$data/proposals"; do
-    [ -d "$ce_dir" ] || continue
-    for ce_record in "$ce_dir"/*.json; do
-      [ -f "$ce_record" ] || continue
-      IFS= read -r ce_line < "$ce_record" || continue
-      case $ce_dir in
-        "$data/proposals")
-          case $ce_line in *"\"root\":\"$ce_d\""*) ce_proposal=1 ;; esac
-          continue ;;
-      esac
-      case $ce_line in
-        *"\"root\":\"$ce_d\""*)
-          case $ce_line in *'"disabled":true'*) ce_root_off=1 ;; esac
-          case $ce_line in *"\"common\":\"$ce_g\""*) ce_root_on=1 ;; esac
-          ;;
-      esac
-      case $ce_line in
-        *"\"repo\":\"$ce_g\""*)
-          case $ce_line in *'"disabled":true'*) ce_project_off=1 ;; *) ce_repo_on=1 ;; esac
-          ;;
-      esac
-    done
-  done
+  ce_scan "$data/consent" consent
+  ce_scan "$data/proposals" proposal
   if [ -n "$ce_project_off" ] || [ -n "$ce_root_off" ]; then return 1; fi
   if [ -n "$ce_root_on" ] || [ -n "$ce_repo_on" ] || [ -n "$ce_proposal" ]; then return 0; fi
   return 2
