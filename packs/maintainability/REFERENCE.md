@@ -7725,7 +7725,7 @@ Source metadata:
 
 ## maintainability/proxies
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### maintainability/MAINT-MAGIC-001
 

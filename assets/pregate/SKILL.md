@@ -877,7 +877,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `go@1.2.0` — language: `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete)
 - `hono@1.0.0` — library: `hono/middleware` (complete), `hono/routing` (complete)
 - `javascript@1.2.2` — language: `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete)
-- `maintainability@1.3.0` — practice: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (complete)
+- `maintainability@1.3.0` — practice: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (preview)
 - `mattpocock@1.1.1` — practice: `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview)
 - `mongodb@1.2.1` — library: `mongodb/models` (complete), `mongodb/queries` (complete)
 - `musk@1.0.1` — process: `musk/algorithm` (complete)

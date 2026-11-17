@@ -14,7 +14,7 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 - When two methodologies disagree on one dimension, pick a side in `resolve`.
 - `enforcement: "shadow"` sets the preset default. An override's `enforcement` selects `shadow` or `enforce` for one alias or check. Integrity always enforces. See [preset examples](../presets/README.md).
 
-Ready-made preset: `packs/presets/human-maintainability.json`.
+Ready-made preset: `packs/presets/human-maintainability.json`. It selects `maintainability/maintainability` and stays at version 1.0.0. `maintainability/proxies` is preview, so `pack add` does not select it, and the preset does not include it. `MAINT-TEST-001` and `MAINT-ADR-001` deny. A project already on `human-maintainability` does not gain those denials when the pack updates. Enable the proxies with `pregate pack enable maintainability/proxies`.
 
 ## Rules
 
@@ -62,7 +62,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **practice**. Version: `1.3.0`. 216 distinct check IDs.
 
-Methodologies: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (complete).
+Methodologies: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

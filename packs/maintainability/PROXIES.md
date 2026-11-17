@@ -2,7 +2,7 @@
 
 One hundred maintainability judgments, each bound to a rule that can fire or to no honest proxy. This is a map, not a second catalog: the label only identifies the binding. Item 25 and item 60 are the only rows without a proxy.
 
-FH-01 through FH-100 and SE-01 through SE-100 stay project-evidence obligations in their own methodologies. This map does not copy them. A row names the rule that decides the judgment, or says there is no honest proxy. The seven proxies added in pack 1.3.0 are MAINT-MAGIC-001, MAINT-TEST-001, MAINT-ADR-001, MAINT-TODO-001, MAINT-FLAG-001, MAINT-CHURN-001, and MAINT-AND-001.
+FH-01 through FH-100 and SE-01 through SE-100 stay project-evidence obligations in their own methodologies. This map does not copy them. A row names the rule that decides the judgment, or says there is no honest proxy. The seven proxies added in pack 1.3.0 are MAINT-MAGIC-001, MAINT-TEST-001, MAINT-ADR-001, MAINT-TODO-001, MAINT-FLAG-001, MAINT-CHURN-001, and MAINT-AND-001. They live in `maintainability/proxies`, which is not selected by `human-maintainability`. Enable that methodology with `pregate pack enable maintainability/proxies`.
 
 God-module file length, export counts, and import cycles are not in this pack. A separate architecture change owns those metrics.
 

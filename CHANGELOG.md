@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Maintainability pack 1.3.0 adds `maintainability/proxies`: numeric-literal allowlist (`MAINT-MAGIC-001`, warn), domain sibling or mirrored tests (`MAINT-TEST-001`), an ADR path in the same diff as a configured architecture file (`MAINT-ADR-001`), an issue reference on TODO and FIXME (`MAINT-TODO-001`, beside the owner check), a feature-flag import on configured risky paths (`MAINT-FLAG-001`, warn), a churn-gated size ratchet (`MAINT-CHURN-001`, warn), and `And`/`Then` function names (`MAINT-AND-001`, warn). The coverage map is `packs/maintainability/PROXIES.md`. These rules run only where `pregate enable` has turned the project on. God-module size and import cycles stay with the architecture pack.
+- Maintainability pack 1.3.0 adds `maintainability/proxies`: numeric-literal allowlist (`MAINT-MAGIC-001`, warn), domain sibling or mirrored tests (`MAINT-TEST-001`), an ADR path in the same diff as a configured architecture file (`MAINT-ADR-001`), an issue reference on TODO and FIXME (`MAINT-TODO-001`, beside the owner check), a feature-flag import on configured risky paths (`MAINT-FLAG-001`, warn), a churn-gated size ratchet (`MAINT-CHURN-001`, warn), and `And`/`Then` function names (`MAINT-AND-001`, warn). The coverage map is `packs/maintainability/PROXIES.md`. The methodology is not part of `human-maintainability` (that preset stays 1.0.0). Enable it with `pregate pack enable maintainability/proxies`. These rules run only where `pregate enable` has turned the project on. God-module size and import cycles stay with the architecture pack.
 
 ### Changed
 

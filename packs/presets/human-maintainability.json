@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/preset.v1.json",
   "name": "human-maintainability",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "engine": "0.0.11",
   "sources": [
     {
@@ -29,7 +29,6 @@
     "clean-code/clean-code",
     "core/pregate-integrity",
     "maintainability/maintainability",
-    "maintainability/proxies",
     "typescript/anti-evasion"
   ],
   "enforcement": "enforce"

@@ -59,7 +59,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [go](../packs/go/REFERENCE.md) | language | 1.2.0 | 10 | `go/architecture` (complete), `go/effects` (complete), `go/quality` (complete) |
 | [hono](../packs/hono/REFERENCE.md) | library | 1.0.0 | 4 | `hono/middleware` (complete), `hono/routing` (complete) |
 | [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.2 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
-| [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.3.0 | 216 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (complete) |
+| [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.3.0 | 216 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (preview) |
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |
 | [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.2.1 | 10 | `mongodb/models` (complete), `mongodb/queries` (complete) |
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
@@ -107,7 +107,7 @@ The current core has 2 methodologies and 68 distinct check IDs: 64 language-inde
 | [framework-app](../packs/presets/framework-app.json) | manual | enforce | `core/pregate-integrity`, `typescript/strict-types`, `typescript/named-exports`, `typescript/framework-entries`, `typescript/anti-evasion` |
 | [go-starter](../packs/presets/go-starter.json) | yes | shadow | `go/quality` |
 | [hexagonal-backend](../packs/presets/hexagonal-backend.json) | manual | enforce | `architecture/clean-architecture`, `ddd/ddd-tactical`, `clean-code/clean-code`, `testing/tdd`, `core/pregate-integrity`, `architecture/hexagonal`, `architecture/cqrs`, `architecture/vertical-slice`, `architecture/modular-monolith`, `architecture/dependency-rule`, `architecture/anti-corruption`, `architecture/repository`, `architecture/layered`, `typescript/strict-types`, `typescript/async-results`, `typescript/named-exports`, `typescript/anti-evasion` |
-| [human-maintainability](../packs/presets/human-maintainability.json) | manual | enforce | `clean-code/clean-code`, `core/pregate-integrity`, `maintainability/maintainability`, `maintainability/proxies`, `typescript/anti-evasion` |
+| [human-maintainability](../packs/presets/human-maintainability.json) | manual | enforce | `clean-code/clean-code`, `core/pregate-integrity`, `maintainability/maintainability`, `typescript/anti-evasion` |
 | [mixed-starter](../packs/presets/mixed-starter.json) | yes | shadow | `clean-code/clean-code`, `python/quality`, `go/quality`, `rust/quality`, `typescript/anti-evasion` |
 | [musk-algorithm](../packs/presets/musk-algorithm.json) | manual | enforce | `clean-code/clean-code`, `core/pregate-integrity`, `musk/algorithm`, `typescript/anti-evasion` |
 | [nextjs-fullstack](../packs/presets/nextjs-fullstack.json) | manual | shadow | `core/pregate-integrity`, `typescript/strict-types`, `typescript/async-results`, `typescript/discipline`, `typescript/named-exports`, `typescript/framework-entries`, `nextjs/routing`, `nextjs/rendering`, `prisma/client`, `prisma/writes`, `authjs/config`, `authjs/session`, `typescript/anti-evasion` |
