@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 // these bytes, and the launcher e2e runs them as they are under sh, dash, bash and `zsh -c`.
 //
 // With the launcher present, every variant execs it. Without it, `pre` denies when a preset sits at
-// or above one of the candidate directories; `stop` and `session-start` exit 0. agy runs hooks from
+// or above one of the candidate directories and that checkout is not disabled; `stop` and
+// `session-start` exit 0. A worktree or project disable record is not enforced. agy runs hooks from
 // its plugin folder and sets no project variable, so its only candidate is workspacePaths[0] from
 // the payload, and a payload that names workspacePaths but yields no path denies. `${d%/*}` walks up
 // without forking `dirname`, and only an absolute path enters the loop: a relative one never ends.

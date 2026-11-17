@@ -37,7 +37,10 @@ consented() {
     records=$(grep -hF "\"root\":\"$r\"," "$data/consent/"*.json 2>/dev/null)
     # An unavailable Git identity cannot make a consenting root fail open when the engine fails.
     if [ -n "$records" ]; then
+      # A worktree disable, and a project disable, are not enforced. The project record can sit
+      # beside an older worktree enable record; disable wins, so a crash here must not block.
       printf '%s' "$records" | grep -qF '"disabled":true' && return 1
+      grep -hF "\"repo\":\"$g\"" "$data/consent/"*.json 2>/dev/null | grep -qF '"disabled":true' && return 1
       { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0
     fi
     # Repository consent covers every worktree top of that repository.
@@ -49,6 +52,107 @@ consented() {
     d=${d%/*}
   done
   return 1
+}
+
+# One consent line. ce_kind is "proposal" or "consent". Assignments stay in the caller.
+ce_take() {
+  case $ce_kind in
+    proposal)
+      case $1 in *"\"root\":\"$ce_d\""*) ce_proposal=1 ;; esac
+      return ;;
+  esac
+  case $1 in
+    *"\"root\":\"$ce_d\""*)
+      case $1 in *'"disabled":true'*) ce_root_off=1 ;; esac
+      case $1 in *"\"common\":\"$ce_g\""*) ce_root_on=1 ;; esac
+      ;;
+  esac
+  case $1 in
+    *"\"repo\":\"$ce_g\""*)
+      case $1 in *'"disabled":true'*) ce_project_off=1 ;; *) ce_repo_on=1 ;; esac
+      ;;
+  esac
+}
+
+# A handful of records is read in the shell: that is the timed hook, and it starts no process.
+# A long directory (the e2e suite enables a repo per test) is one awk, except under bash, whose
+# own reads of those files are cheaper than a process. Opening each file from dash, or walking
+# the lines in bash, costs more than the supervision budget.
+ce_scan() {
+  [ -d "$1" ] || return 0
+  ce_kind=$2
+  ce_n=0
+  for ce_record in "$1"/*.json; do
+    [ -f "$ce_record" ] || return 0
+    ce_n=$((ce_n + 1))
+    [ "$ce_n" -gt 4 ] && break
+  done
+  if [ "$ce_n" -gt 4 ] && [ -z "${BASH_VERSION:-}" ]; then
+    # One process, and the last line counts even without a newline. A disable record that
+    # sorts last must still win, or a crash there blocks.
+    ce_flags=$(awk -v d="$ce_d" -v g="$ce_g" -v kind="$ce_kind" '
+      {
+        line = $0
+        if (index(line, "\"root\":\"" d "\"")) {
+          if (kind == "proposal") prop = 1
+          else {
+            if (index(line, "\"disabled\":true")) roff = 1
+            if (index(line, "\"common\":\"" g "\"")) ron = 1
+          }
+        }
+        if (kind != "proposal" && index(line, "\"repo\":\"" g "\"")) {
+          if (index(line, "\"disabled\":true")) poff = 1
+          else pon = 1
+        }
+      }
+      END { printf "%d %d %d %d %d\n", roff+0, poff+0, ron+0, pon+0, prop+0 }
+    ' "$1"/*.json) || return 0
+    ce_roff=${ce_flags%% *}
+    ce_rest=${ce_flags#* }
+    ce_poff=${ce_rest%% *}
+    ce_rest=${ce_rest#* }
+    ce_ron=${ce_rest%% *}
+    ce_rest=${ce_rest#* }
+    ce_pon=${ce_rest%% *}
+    ce_prop=${ce_rest#* }
+    ce_prop=${ce_prop%% *}
+    [ "$ce_roff" = 1 ] && ce_root_off=1
+    [ "$ce_poff" = 1 ] && ce_project_off=1
+    [ "$ce_ron" = 1 ] && ce_root_on=1
+    [ "$ce_pon" = 1 ] && ce_repo_on=1
+    [ "$ce_prop" = 1 ] && ce_proposal=1
+    return 0
+  fi
+  for ce_record in "$1"/*.json; do
+    [ -f "$ce_record" ] || continue
+    IFS= read -r ce_line < "$ce_record" || continue
+    ce_take "$ce_line"
+  done
+}
+
+# 0 = enforced, 1 = not enforced, 2 = unsure (the caller uses consented, which starts git).
+# A real directory `.git` whose path needs no JSON escaping is answered in the shell: no git,
+# grep, or sed, while the directory stays small. That is the timed hook. A worktree, a parent
+# walk, a quoted path, and an unknown git stay with consented(). A settled "no" does not.
+checkout_enforced() {
+  if [ "$1" = "$PWD" ] && [ -d "$PWD/.git" ] && [ ! -L "$PWD" ] && [ ! -L "$PWD/.git" ]; then
+    ce_d=$PWD
+    ce_g=$PWD/.git
+  else
+    ce_d=$(cd "$1" 2>/dev/null && pwd -P) || return 2
+    [ -d "$ce_d/.git" ] && [ ! -L "$ce_d/.git" ] || return 2
+    ce_g=$(cd "$ce_d/.git" 2>/dev/null && pwd -P) || return 2
+  fi
+  case $ce_d in *\\*|*\"*) return 2 ;; esac
+  case $ce_g in *\\*|*\"*) return 2 ;; esac
+  # zsh aborts a script when a glob matches nothing. An absent proposals directory is that case.
+  [ -n "${ZSH_VERSION:-}" ] && setopt local_options null_glob
+  ce_root_off=; ce_project_off=; ce_root_on=; ce_repo_on=; ce_proposal=
+  ce_scan "$data/consent" consent
+  ce_scan "$data/proposals" proposal
+  if [ -n "$ce_project_off" ] || [ -n "$ce_root_off" ]; then return 1; fi
+  if [ -n "$ce_root_on" ] || [ -n "$ce_repo_on" ] || [ -n "$ce_proposal" ]; then return 0; fi
+  return 2
 }
 
 # An empty engine would run as an empty script: exit 0, which allows in four harnesses and passes a
@@ -321,6 +425,42 @@ if [ "$event" = auto ]; then
   SessionStart) event=session-start; arm 10 ;;
   *) event=pre ;;
   esac
+fi
+
+# Pre decides enforcement before the engine exists. A directory that was never enabled, and a
+# checkout that was disabled, exits 0 with empty stdout even when the engine is missing, exits
+# non-zero, or would hang. Grok Build >= 1.0.71 treats a crashed or timed-out hook as a deny, so
+# the engine must not start there. A candidate the payload names still runs the engine: a session
+# that started outside an enforced root can edit a file inside it. A probe that fails, before any
+# candidate was enforced, exits 0.
+# A bare call is a person or a script (`hook auto`). Registered hooks name the event.
+if [ "$event" = pre ] && [ -z "$bare" ]; then
+  enforced=
+  for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
+    [ -n "$candidate" ] || continue
+    # The directory `.git` case is the timed hook. It must not pay for a git process.
+    # 1 is a settled no (disabled, or no record). Only 2 may start git.
+    # A bare call would abort a shell with errexit when the answer is not 0.
+    ce_state=0
+    checkout_enforced "$candidate" || ce_state=$?
+    if [ "$ce_state" -eq 0 ]; then enforced=1; break; fi
+    if [ "$ce_state" -eq 2 ] && consented "$candidate"; then enforced=1; break; fi
+  done
+  if [ -z "$enforced" ]; then
+    if [ ! -f "$tmp/in" ]; then
+      cat <&3 >"$tmp/in" 3<&- 4>&- || exit 0
+      exec 3<"$tmp/in" || exit 0
+    fi
+    : >"$tmp/candidates" || exit 0
+    sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p' "$tmp/in" >>"$tmp/candidates" 2>/dev/null
+    grep -oE '"(cwd|workspaceRoot|workspace_root|file_path|filePath|TargetFile|Path|Cwd)"[[:space:]]*:[[:space:]]*"[^"\\]*"' "$tmp/in" 2>/dev/null \
+      | sed -n 's/.*"\([^"\\]*\)"$/\1/p' >>"$tmp/candidates"
+    while IFS= read -r candidate; do
+      [ -n "$candidate" ] || continue
+      consented "$candidate" && enforced=1 && break
+    done <"$tmp/candidates"
+  fi
+  [ -n "$enforced" ] || exit 0
 fi
 
 installed "$version" || fail_closed "engine $version is not installed; reinstall PREGATE" "engine $version is not installed" "Reinstall PREGATE."

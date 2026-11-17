@@ -49,7 +49,7 @@ export function sharedClaudeMatcher(): string {
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
-const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
+const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && printf '%s' "$records" | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && grep -hF "\"repo\":\"$g\"" @CONSENT@/*.json 2>/dev/null | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
 const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { ${MISSING}; }; done; exit 0`;
 // agy runs hooks from the plugin folder and sets no project variable: the payload names the root.
 const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); consented "$d" && { ${MISSING}; }; exit 0`;
@@ -278,6 +278,19 @@ export function exact(group: unknown, t: Target, data: string): boolean {
   return Object.values(ours(t, data)).some((o) => Bun.deepEquals(o, group, true));
 }
 
+// The shared PreToolUse group setup writes, with failClosed on its command handler. A registration
+// that drifted off that field is not exact, so doctor can name it until setup runs again.
+export function sharedPreFailClosed(text: string | null, data: string): boolean {
+  const hooks = parse(text ?? "")?.hooks;
+  const list = isObject(hooks) ? hooks.PreToolUse : null;
+  if (!Array.isArray(list)) return false;
+  return list.some((group) => {
+    if (!exact(group, "shared", data)) return false;
+    const handlers = isObject(group) && Array.isArray(group.hooks) ? group.hooks : [];
+    return handlers.some((handler) => isObject(handler) && handler.failClosed === true);
+  });
+}
+
 // The agy plugin: relative path → bytes.
 export const AGY_PLUGIN = "pregate-global";
 export const AGY_PROJECT_HOOK = "pregate-project";
@@ -416,7 +429,15 @@ function ours(t: Target, data: string): Record<string, object> {
   if (t === "project-cursor") {
     return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t], failClosed: true }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   }
-  const pre = { matcher: MATCHER[t], hooks: [run("pre", 120)] };
+  const preHook = run("pre", 120);
+  // Grok Build >= 1.0.71 denies a PreToolUse hook that crashes or times out when the handler sets
+  // failClosed (xAI changelog, measured on 1.0.77 from this shared file and from ~/.grok/hooks).
+  // 1.0.70 ignores the unknown key. Stop and SessionStart do not get it: Grok ignores it there.
+  // Project Claude hooks stay without it. Those files are committed, and Claude Code runs them.
+  // An allow stays empty stdout. On 1.0.77 that still lets the tool run, including a checkout
+  // where pregate enable was never run. Cursor's import of this field is still recorded as forced
+  // off and was not re-measured. The timeout stays 120.
+  const pre = { matcher: MATCHER[t], hooks: [t === "shared" ? { ...preHook, failClosed: true } : preHook] };
   if (t === "agy" || t === "project-agy") {
     return { PreToolUse: pre, PostInvocation: run("post-invocation", 15), Stop: run("stop", 60), SessionStart: run("session-start", 15) };
   }
