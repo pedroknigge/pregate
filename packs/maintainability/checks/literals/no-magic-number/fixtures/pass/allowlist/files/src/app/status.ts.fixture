@@ -1,0 +1,4 @@
+export function status(code: number, items: string[]): string | undefined {
+  if (code === 404 || code === 100 || code === 201) return items.at(-1);
+  return items.slice(0, 2)[1];
+}

@@ -20,6 +20,8 @@ import { adviseText, denyText, formText, syntaxAdvisory, unresolvedAdvisory, war
 import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { checkpoint, importReviewProgress } from "./progress.ts";
+import { adrTouch, usesPrimitive } from "./proxy-checks.ts";
+import { commitCounts, worktreePaths } from "./proxy-diff.ts";
 import { comparedLock, introduced } from "./ratchet.ts";
 import { apply, normalize, window } from "./reconstruct.ts";
 import type { Recorded } from "./report.ts";
@@ -43,7 +45,7 @@ export function unifyRoot(records: Recorded[], root: string): Recorded[] {
   });
 }
 export type CheckMode = { kind: "stdin"; path: string; text: string } | { kind: "staged" } | { kind: "base"; sha: string } | { kind: "tree" };
-export interface JudgeContext { beforeRead?: BaselineRead; importsOf?: ImportMemo }
+export interface JudgeContext { beforeRead?: BaselineRead; importsOf?: ImportMemo; changed?: readonly string[]; commits?: (rel: string) => number | null }
 export type JudgedFile = Omit<FileState, "before"> & { before: string | null | BaselineRead };
 export interface Review { violations: Violation[]; form: Form | null; astHash: string | null; before?: string | null }
 interface Planned { c: ProposedChange; abs: string; disk: string | null; current: string | null; r: ReturnType<typeof apply> }
@@ -94,11 +96,11 @@ export function findingContent(finding: Finding, hash: string): string {
 // ── Evaluation of one file (Pre, Stop, check) ───────────────────────────────────────────
 
 // Placement (no parse) and, in scope, the ratcheted rules. An unchanged file introduces nothing.
-export function review(lock: Lock, phase: Phase, f: FileState, read: Read, beforeRead: Read = read): Review {
+export function review(lock: Lock, phase: Phase, f: FileState, read: Read, beforeRead: Read = read, extra: Omit<JudgeContext, "beforeRead"> = {}): Review {
   if (f.after !== null && f.before !== null && normalize(f.before) === f.after) return CLEAN;
   const placed = f.after === null ? [] : placement(lock, phase, f.rel, f.base === null, f.base);
   if (!inScope(lock, f.rel)) return { ...CLEAN, violations: placed };
-  const j = judge(lock, phase, f, read, { beforeRead });
+  const j = judge(lock, phase, f, read, { beforeRead, ...extra });
   return { ...j, violations: [...placed, ...j.violations] };
 }
 
@@ -113,7 +115,7 @@ export function judge(lock: Lock, phase: Phase, f: JudgedFile, read: Read, conte
   const line = parsed === null ? null : syntaxLine(parsed, f.base);
   checkpoint("rules");
   const dependencies = new Set<string>();
-  const after = line === null ? analyze(lock, phase, f.rel, parsed ?? f.after, { read: (rel) => { dependencies.add(rel); return read(rel); }, now: clock, hash: false, importsOf, ...evaluationProgress() }) : null;
+  const after = line === null ? analyze(lock, phase, f.rel, parsed ?? f.after, { read: (rel) => { dependencies.add(rel); return read(rel); }, now: clock, hash: false, importsOf, commits: context.commits, ...evaluationProgress() }) : null;
   const deferred = typeof f.before === "function";
   const primed = deferred || f.before !== null ? beforeRead.prime?.([...(deferred ? [f.rel] : []), ...dependencies]) : undefined;
   if (primed !== undefined) return { ...CLEAN, form: form(primed) };
@@ -123,11 +125,11 @@ export function judge(lock: Lock, phase: Phase, f: JudgedFile, read: Read, conte
   if ("cause" in after) return { ...CLEAN, form: after };
   const baseline = beforeText === null ? null : grammarOf(f.rel) === null ? normalize(beforeText) : parse(f.rel, normalize(beforeText));
   if (baseline !== null && typeof baseline !== "string") importsOf?.remember(baseline);
-  const before = baseline === null ? null : analyze(comparedLock(lock, after), phase, f.rel, baseline, { read: beforeRead, now: clock, hash: false, importsOf, ...evaluationProgress() });
+  const before = baseline === null ? null : analyze(comparedLock(lock, after), phase, f.rel, baseline, { read: beforeRead, now: clock, hash: false, importsOf, commits: context.commits, ...evaluationProgress() });
   // A "before" that cannot be analyzed counts as absent: all of `after` is new (strict), which the
   // agent can still clear, unlike a deny over text it cannot change.
   const base: Analysis | null = before === null || "cause" in before ? null : before;
-  const violations = introduced(lock, f.rel, base, after);
+  const violations = [...introduced(lock, f.rel, base, after), ...adrTouch(lock, phase, f.rel, context.changed)];
   return { violations, form: null, astHash: parsed !== null && violations.length > 0 ? astHash(parsed) : null, before: beforeText };
 }
 
@@ -159,8 +161,12 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   const before = m.kind === "tree" ? () => null : revisionReader(root, revision);
   // Non-stdin contract bytes were already compared with the compiler's complete output.
   // They are policy data, not source containing the suppression strings that policy defines.
+  const wantsAdr = usesPrimitive(loaded.lock, "adr-touch");
+  const diff = !wantsAdr || m.kind === "tree" ? undefined : m.kind === "stdin" ? worktreePaths(root) : files.map((f) => f.rel);
+  const diffPaths = diff === undefined || diff === null ? undefined : [...new Set([...diff, ...files.map((f) => f.rel)])];
+  const commits = usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(root) : undefined;
   const reviews = files.filter((f) => m.kind === "stdin" || (f.rel !== PRESET && f.rel !== LOCK))
-    .map((f) => ({ rel: f.rel, ...review(loaded.lock, phase, f, read, before) }));
+    .map((f) => ({ rel: f.rel, ...review(loaded.lock, phase, f, read, before, { changed: diffPaths, commits }) }));
   const changedFiles = new Set(files.map((f) => f.rel));
   const needsDependencies = m.kind !== "tree" && needsDependencyReview(loaded.lock, phase, changedFiles);
   const paths = m.kind === "staged" ? changed(root, ["ls-files", "-z", "--", "."]) ?? [] : [];
@@ -449,7 +455,10 @@ async function edit(call: Rooted, lockState: Loaded | Cause, f: Omit<Planned, "c
   const before = snapshotReader(sid, snap);
   await grammars();
   const memo = needsDependencyReview(loaded.lock, "pre", new Set([call.rel])) ? importsOf : undefined;
-  const j = judge(loaded.lock, "pre", { rel: call.rel, base: f.current, before, after: f.r.after }, read, { beforeRead: before, importsOf: memo });
+  const listed = usesPrimitive(loaded.lock, "adr-touch") ? worktreePaths(call.root) : undefined;
+  const j = judge(loaded.lock, "pre", { rel: call.rel, base: f.current, before, after: f.r.after }, read, { beforeRead: before, importsOf: memo,
+    changed: listed === undefined || listed === null ? undefined : [...new Set([...listed, call.rel])],
+    commits: usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(call.root) : undefined });
   return settle(call, { ...known, introduced: [...placed, ...j.violations], form: j.form, astHash: j.astHash, after: f.r.after, before: j.before ?? null });
 }
 

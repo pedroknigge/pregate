@@ -252,6 +252,43 @@
           },
           "required": ["kind", "primitive", "cases"],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "sibling-test" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "required-import" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "adr-touch" }
+          },
+          "required": ["kind", "primitive"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "primitive" },
+            "primitive": { "const": "churn-ratchet" },
+            "op": { "const": "no-increase" }
+          },
+          "required": ["kind", "primitive", "op"],
+          "additionalProperties": false
         }
       ]
     },

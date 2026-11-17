@@ -17,6 +17,8 @@ export interface Host {
   read: Read; now: Clock; hash?: boolean; importsOf?: ImportsOf;
   ruleProgress?: <T>(rule: string, run: () => T) => T;
   resolutionProgress?: <T>(run: () => T) => T;
+  // Commits that touch this path. null: Git could not answer, so a churn gate stays quiet.
+  commits?: (rel: string) => number | null;
 } // baselines need findings, not a whole-tree hash
 
 // ── Causes of a deny that is not a rule violation (closed list) ─────────────────
@@ -161,7 +163,11 @@ export type Impl =
   | { kind: "primitive"; primitive: "fitness"; requirement: string }       // approved project verification, independent of source grammar
   | { kind: "primitive"; primitive: "diff"; op: "no-decrease" | "no-increase";
       count: "markers" | { pattern: PatternConfig } }                       // params.markers by substring, or AST count
-  | { kind: "primitive"; primitive: "placement"; cases: Placement[] };
+  | { kind: "primitive"; primitive: "placement"; cases: Placement[] }
+  | { kind: "primitive"; primitive: "sibling-test" }                       // a sibling or mirrored test file exists
+  | { kind: "primitive"; primitive: "required-import" }                    // params.specifiers on the file's own imports
+  | { kind: "primitive"; primitive: "adr-touch" }                          // params.adr paths in the same diff
+  | { kind: "primitive"; primitive: "churn-ratchet"; op: "no-increase" };  // params.threshold commits, then size
 
 // ── Disk formats (validated by schema/*.json; the engine reads these fields) ────
 export interface Check {
@@ -195,6 +201,8 @@ export interface Fixture {
   language: RuleLanguage; params: Record<string, unknown>;
   context?: { layers?: Record<string, Layer>; scope?: { include?: string[]; exclude?: string[] };
               generatedMarkers?: string[];
+              changed?: string[];
+              commits?: number;
               fitness?: { command: string[]; receipt: FitnessReceipt | null; contractHash: string; inputHash: string } };
   target: string; before: string | null;       // "before/" for diff and ratchet
   expect: { verdict: "pass" | "fail"; violations?: { line: number; measured?: number }[] };
@@ -283,6 +291,8 @@ export interface Analysis {        // one file in one state
   symbols: string[]; violations: Violation[];
   symbolBodies: Record<string, string>; // symbol → body hash with the declared name outside it
   counts: Record<string, number>;  // diff rules: rule → count
+  sizes?: Record<string, { file: number; fn: number; fnLine: number }>; // churn rules: non-blank lines and longest function
+  commits?: number | null;         // commits that touch this path, when a churn rule ran
   markerSites?: Record<string, { line: number; key: string }[]>;
   astHash: string | null;          // tree without comments or trivia (no-progress detection)
 }

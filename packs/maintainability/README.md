@@ -29,10 +29,20 @@ Ready-made preset: `packs/presets/human-maintainability.json`.
 | `MAINT-IMPL-001` | A class (or const bound to a class) whose name ends in `Impl` or `Implementation`. | FH-19: A name says what the class is or is built on, not that it implements something. | warn |
 | `MAINT-DEPR-001` | A JSDoc `@deprecated` tag with no text, inline link or following `@see`. | FH-73: A deprecated surface announces its replacement and removal condition where callers see it. | warn |
 | `MAINT-MIGR-001` | A TS/JS module under `migrations/` that defines `up` but no `down`. | FH-38: A migration is reversible, or its `down` throws and states the recovery path. | warn |
+| `MAINT-MAGIC-001` | A numeric literal outside 0, 1, -1, 2, 100, and HTTP 100-599, unless it is the direct value of a named binding. | A bare number hides its unit. Naming it is the repair. Warn. | warn |
+| `MAINT-TEST-001` | A file under `**/domain/**` with no sibling or mirrored test. | The next reader needs a test next to the domain file. New files only, under the no-new ratchet. | deny |
+| `MAINT-ADR-001` | An edit to a configured architecture file (`layers.json`, `boundaries.json`, `architecture.json`) whose diff has no change under `docs/adr/**`. | The decision record moves in the same diff as the map. | deny |
+| `MAINT-TODO-001` | A TODO or FIXME comment with no issue id (`#123`, `ABC-123`, or `issues/123`). | The owner check is separate and is not repeated here. Warn. | warn |
+| `MAINT-FLAG-001` | A file under the configured risky globs that does not import a feature-flag module. | Defaults cover payments, billing, and checkout. Override both globs and module names. Warn. | warn |
+| `MAINT-CHURN-001` | Non-blank lines or the longest function grew in a file whose Git history is above `threshold` (default 8). | Hot files stop growing. Missing history stays quiet. Warn. | warn |
+| `MAINT-AND-001` | A function or method name containing the camel-case words `And` or `Then`. | The name says the function has two jobs. Warn. | warn |
+
+The judgment coverage map, including the two items with no honest proxy, is [PROXIES.md](PROXIES.md).
 
 ## Methodologies
 
 - `maintainability/maintainability` — MAINT-NEST-001, MAINT-BOOL-001, MAINT-NAME-001, MAINT-EMPTY-001, MAINT-NULL-001, MAINT-CLOCK-001, MAINT-IMPL-001, MAINT-DEPR-001, MAINT-MIGR-001
+- `maintainability/proxies` — MAINT-MAGIC-001, MAINT-TEST-001, MAINT-ADR-001, MAINT-TODO-001, MAINT-FLAG-001, MAINT-CHURN-001, MAINT-AND-001
 - `maintainability/future-humans` — 100 project-evidence obligations, `FH-01`–`FH-100`.
 - `maintainability/engineering` — 100 project-evidence obligations, `SE-01`–`SE-100`.
 
@@ -50,9 +60,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **practice**. Version: `1.2.1`. 209 distinct check IDs.
+Category: **practice**. Version: `1.3.0`. 216 distinct check IDs.
 
-Methodologies: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete).
+Methodologies: `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (complete).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

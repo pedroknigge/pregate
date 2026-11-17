@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.1`. Category: **practice**.
+Version: `1.3.0`. Category: **practice**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -7720,5 +7720,256 @@ Source metadata:
   "work": "One Hundred Invariants for Code Maintainable by Future Humans",
   "locator": "FH-38",
   "paraphrase": "A database migration is reversible or explicitly marked irreversible, with the recovery path written down before it runs."
+}
+```
+
+## maintainability/proxies
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### maintainability/MAINT-MAGIC-001
+
+Check: [`maintainability/literals/no-magic-number@1.0.0`](checks/literals/no-magic-number/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `literals.magic-number`. Minimum severity: `none`.
+
+A bare number forces the next reader to guess the unit and the reason. Naming it, or sticking to an obvious literal, keeps the expression readable.
+
+Default parameters: `{}`.
+
+**Repair:** Bind the number to a named constant, or use 0, 1, -1, 2, 100, or an HTTP status from 100 to 599.
+
+**Scope and limits:** The number 1 under a unary minus is the literal -1 and is allowed. A number that is the direct value of a const, let, var, or enum member is the named constant and is allowed; a number inside a larger expression is not. 256 is inside the HTTP range and is allowed. Floats, ports, timeouts, and bit masks outside the list warn. Test files are ignored. This is a literal allowlist, not a judgment that the number is meaningful.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Code (R. Martin, 2008)",
+  "locator": "Chapter 17, Smells and Heuristics, G25 Magic Numbers",
+  "paraphrase": "A raw number in an expression is a named constant, or one of a few obvious literals."
+}
+```
+
+### maintainability/MAINT-TEST-001
+
+Check: [`maintainability/tests/domain-sibling-test@1.0.0`](checks/tests/domain-sibling-test/check.json). Default severity: **deny**.
+
+Implementation: `sibling-test`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `tests.domain-sibling`. Minimum severity: `none`.
+
+A domain file with no nearby test leaves the next change without a place to show the behavior still holds.
+
+Default parameters: `{"paths":["**/domain/**"],"exclude":["**/*.test.ts","**/*.spec.ts","**/*.test.tsx","**/*.spec.tsx","**/__tests__/**","**/*.d.ts","**/index.ts","**/index.tsx"]}`.
+
+**Repair:** Add place.test.ts or place.spec.ts beside the file, under __tests__, or under test/ or tests/ with a src/ prefix mirrored.
+
+**Scope and limits:** A test for a different file does not count. place.tests.ts does not count. index.ts and declaration files are excluded because they are barrels, not behavior; a barrel that holds logic is not checked. Under the no-new ratchet, a file that already lacked a test is not newly denied. A new domain file is.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Code (R. Martin, 2008)",
+  "locator": "Chapter 9, Unit Tests",
+  "paraphrase": "Domain behavior has a test the next reader can find next to the code."
+}
+```
+
+### maintainability/MAINT-ADR-001
+
+Check: [`maintainability/architecture/adr-touch@1.0.0`](checks/architecture/adr-touch/check.json). Default severity: **deny**.
+
+Implementation: `adr-touch`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `architecture.adr-touch`. Minimum severity: `none`.
+
+An architecture file that moves without an ADR change leaves the decision that justified the map out of the same diff.
+
+Default parameters: `{"paths":["**/layers.json","**/boundaries.json","**/architecture.json"],"adr":["docs/adr/**"]}`.
+
+**Repair:** Change a file under docs/adr in the same diff, or point adr at the directory this project uses. Override paths for the layer map and boundary files this project actually edits.
+
+**Scope and limits:** The check looks at path names in the diff, not at whether the ADR text discusses the edit. docs/adr.md and docs/adr-old/ do not match docs/adr/**. A whole-tree audit has no diff, so the check stays quiet. When Git cannot list the working tree, the check stays quiet rather than denying every architecture edit.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "adr": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "minItems": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Building Evolutionary Architectures (Ford, Parsons, Kua, 2017)",
+  "locator": "Chapter 1, Architecture decisions",
+  "paraphrase": "A change to an architecture decision record's subject is accompanied by a change to the record."
+}
+```
+
+### maintainability/MAINT-TODO-001
+
+Check: [`maintainability/comments/todo-needs-issue@1.0.0`](checks/comments/todo-needs-issue/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `comments.todo-issue`. Minimum severity: `none`.
+
+A TODO with only an owner, or with no reference at all, has no ticket the next reader can open.
+
+Default parameters: `{}`.
+
+**Repair:** Cite #123, a KEY-123 issue id, or a path containing issues/123 or pull/123.
+
+**Scope and limits:** This check does not require an owner. vibe-proof/VP-TODO-001 requires an owner and does not require an issue. A comment can fail one and pass the other. HACK and XXX are left to that owner check. The word issue without an id does not count. The check does not ask the tracker whether the issue exists.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Code (R. Martin, 2008)",
+  "locator": "Chapter 4, Comments, TODO Comments",
+  "paraphrase": "A TODO or FIXME cites the issue that tracks it."
+}
+```
+
+### maintainability/MAINT-FLAG-001
+
+Check: [`maintainability/flags/risky-path-needs-flag@1.0.0`](checks/flags/risky-path-needs-flag/check.json). Default severity: **warn**.
+
+Implementation: `required-import`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `flags.risky-import`. Minimum severity: `none`.
+
+A payments, billing, or checkout module with no flag import can only change by editing the path that is already live.
+
+Default parameters: `{"paths":["**/payments/**","**/billing/**","**/checkout/**"],"exclude":["**/*.test.ts","**/*.spec.ts","**/*.test.tsx","**/*.spec.tsx","**/__tests__/**"],"specifiers":["flags","feature-flags","featureFlags"]}`.
+
+**Repair:** Import the project's flag module, or override paths and specifiers to the risky globs and the module name this project uses.
+
+**Scope and limits:** A file outside the configured globs is not checked. flagstone does not count as flags. A type-only import of the flag module counts. A dynamic import whose specifier is not a string does not. The check does not know whether the flag wraps the risky call.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "specifiers": {
+    "type": "array",
+    "items": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "minItems": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Building Evolutionary Architectures (Ford, Parsons, Kua, 2017)",
+  "locator": "Chapter 3, Fitness functions and incremental change",
+  "paraphrase": "Risky behavior is reached through a feature flag the change can turn off."
+}
+```
+
+### maintainability/MAINT-CHURN-001
+
+Check: [`maintainability/churn/no-size-increase@1.0.0`](checks/churn/no-size-increase/check.json). Default severity: **warn**.
+
+Implementation: `churn-ratchet`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `churn.size`. Minimum severity: `none`.
+
+A hot file that keeps gaining lines or a longer function becomes the place every later change has to understand.
+
+Default parameters: `{"threshold":8}`.
+
+**Repair:** Move the new behavior to another file, or shrink this file in the same edit. Raise threshold only with a reviewed override.
+
+**Scope and limits:** The gate is git rev-list --count HEAD for this path, and it fires only when that count is above threshold. A missing Git answer or a file with no history stays quiet. Non-blank lines and the longest function are the size measures; cyclomatic complexity is not. A new file is not an increase. Blank lines do not count.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "threshold": {
+    "type": "integer",
+    "minimum": 1
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Building Evolutionary Architectures (Ford, Parsons, Kua, 2017)",
+  "locator": "Chapter 6, Hot spots",
+  "paraphrase": "A file that already changes often does not also grow."
+}
+```
+
+### maintainability/MAINT-AND-001
+
+Check: [`maintainability/naming/no-and-then@1.0.0`](checks/naming/no-and-then/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `naming.and-then`. Minimum severity: `none`.
+
+And and Then in a function name are a readable sign the function has two jobs.
+
+Default parameters: `{}`.
+
+**Repair:** Split the function so each name is one action.
+
+**Scope and limits:** The match is the camel-case words And and Then, not the letters inside handle, random, standard, Candidate, or Android. A const whose value is not a function is not a function name. Test files are ignored. The name can still hide two jobs without those words.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Clean Code (R. Martin, 2008)",
+  "locator": "Chapter 3, Functions, Do One Thing",
+  "paraphrase": "A function name that says And or Then is doing two things."
 }
 ```

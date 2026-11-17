@@ -90,7 +90,7 @@ from this list does not disable the defaults. Use reviewed per-rule `off` overri
 | `observe-only.json` | typescript | `"enforcement": "shadow"` observes optional rules; core defaults still enforce. |
 | `solana-hackathon.json` | solana, typescript | Literal legacy-import denials and seven RPC/transaction/key-custody syntax warnings with documented flow limits. It selects no clean-code methodology. |
 | `musk-algorithm.json` | musk | Elon Musk's 5-step engineering algorithm: owned suppressions, deletion of pass-through catches, guard clause simplification, non-blocking I/O acceleration, and automated test protection. |
-| `human-maintainability.json` | maintainability | Future human maintainability & software engineering invariants: control-flow nesting depth <= 2, positive boolean naming, domain naming on exported declarations, and empty interface elimination. |
+| `human-maintainability.json` | maintainability | Future human maintainability and software engineering invariants, plus the judgment proxies: nesting depth, boolean and domain names, empty interfaces, magic numbers, domain sibling tests, ADR touch, TODO issue ids, feature-flag imports, churn-gated size, and And/Then names. |
 | `react-spa.json` | typescript, react, tailwind | React single-page app: strict types plus export discipline, hooks/components rules, and scannable Tailwind classes. |
 | `nextjs-fullstack.json` | typescript, nextjs, prisma, authjs | Next.js App Router fullstack: routing/rendering rules, Prisma client safety, and Auth.js config/session contracts. Entry files keep their default-export exclusion. |
 | `node-api.json` | typescript, node, express, postgres | Node API: runtime discipline, Express middleware/request contracts, and pg client safety. |
