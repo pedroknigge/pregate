@@ -299,7 +299,7 @@ Default parameters: `{"verifier":"NODE-ENVFILE-001"}`.
 
 **Repair:** Bind NODE-ENVFILE-001 to a reviewed assertion that fails when .env is not ignored or .env.example is absent, and that fails when the example contains a live secret. Run pregate fitness run NODE-ENVFILE-001.
 
-**Scope and limits:** Fidelity: evidence. The forbidden-path primitive requested in packs/ENGINE-REQUESTS.md section 6 is not in the engine. Until it lands, a committed .env is not a syntax finding. This obligation is the stand-in and names that dependency.
+**Scope and limits:** Fidelity: evidence. The forbidden-path primitive in packs/ENGINE-REQUESTS.md section 6 has landed. This pack has not bound it, so a committed .env is not a Node syntax finding. This obligation is the stand-in.
 
 Check-specific parameter schema (project fitness cannot be narrowed with per-file `paths`, `exclude` or `within`):
 

@@ -21,15 +21,25 @@ export function introduced(lock: Lock, rel: string, before: Analysis | null, aft
   });
   const baselines = before === null ? new Map<Violation, Violation>() : metricBaselines(lock, before, after);
   const metric = (v: Violation) => lock.rules.some((r) => r.id === v.rule && r.impl.kind === "primitive" && r.impl.primitive === "metric");
-  const kept = before === null || lock.ratchet === "strict" ? after.violations : [
-    ...noNew(before, after, after.violations.filter((v) => !metric(v))),
-    ...after.violations.filter((v) => metric(v) && (baselines.get(v) === undefined || v.measured! > baselines.get(v)!.measured!)),
-  ];
+  const grew = (v: Violation) => baselines.get(v) === undefined || v.measured! > baselines.get(v)!.measured!;
+  // A metric that carries its own no-increase ratchet grandfathers an existing excess even when the
+  // preset ratchet is strict. A new file (no before) still reports the excess.
+  const kept = before === null ? after.violations : lock.ratchet === "strict"
+    ? after.violations.filter((v) => !noIncreaseMetric(lock, v) || grew(v))
+    : [
+      ...noNew(before, after, after.violations.filter((v) => !metric(v))),
+      ...after.violations.filter((v) => metric(v) && grew(v)),
+    ];
   return canonical([...kept.map((v) => ({ ...v, atSessionStart: baselines.get(v)?.measured ?? startValue(before, v) })), ...diffs]);
 }
 
 // Reserve the same symbol first, then a body that moved with a rename, move or extraction. A copy
 // cannot borrow a body that is still present under its old symbol.
+function noIncreaseMetric(lock: Lock, v: Violation): boolean {
+  const rule = lock.rules.find((r) => r.id === v.rule);
+  return rule?.impl.kind === "primitive" && rule.impl.primitive === "metric" && rule.impl.ratchet === "no-increase";
+}
+
 function metricBaselines(lock: Lock, before: Analysis, after: Analysis): Map<Violation, Violation> {
   const ids = new Set(lock.rules.filter((r) => r.impl.kind === "primitive" && r.impl.primitive === "metric").map((r) => r.id));
   const old = before.violations.filter((v) => ids.has(v.rule)).sort((a, b) => b.measured! - a.measured!);

@@ -39,7 +39,7 @@
       },
       "why": "A committed .env puts secrets in history. A missing example leaves the next checkout guessing names.",
       "fixHint": "Bind NODE-ENVFILE-001 to a reviewed assertion that fails when .env is not ignored or .env.example is absent, and that fails when the example contains a live secret. Run pregate fitness run NODE-ENVFILE-001.",
-      "avoid": "Fidelity: evidence. The forbidden-path primitive requested in packs/ENGINE-REQUESTS.md section 6 is not in the engine. Until it lands, a committed .env is not a syntax finding. This obligation is the stand-in and names that dependency.",
+      "avoid": "Fidelity: evidence. The forbidden-path primitive in packs/ENGINE-REQUESTS.md section 6 has landed. This pack has not bound it, so a committed .env is not a Node syntax finding. This obligation is the stand-in.",
       "examples": {
         "pass": "pass/current-inputs",
         "fail": "fail/no-evidence"

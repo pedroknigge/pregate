@@ -53,7 +53,7 @@ proxy, or a helper whose name is not the one listed.
 | ID | Condition | Fidelity | Severity |
 |----|-----------|----------|----------|
 | `NODE-LOCK-001` | Committed lockfile and CI `npm ci`, `pnpm install --frozen-lockfile`, or `yarn install --immutable`. Binds core `CORE-INV-050`. Not a shell gate. | evidence | deny |
-| `NODE-ENVFILE-001` | `.env` listed in `.gitignore` and `.env.example` present. Fitness until the forbidden-path primitive lands. | evidence | deny |
+| `NODE-ENVFILE-001` | `.env` listed in `.gitignore` and `.env.example` present. Fitness. `forbidden-path` has landed; this pack has not bound it. | evidence | deny |
 | `NODE-PIN-001` | A Node.js pin the pack can already read (`.nvmrc`, `.node-version`, `.tool-versions`, `engines.node`, `volta.node`). The assertion checks that the major is an LTS line. | evidence | deny |
 | `NODE-SCRIPTS-001` | CI install uses `--ignore-scripts`, or install lifecycle scripts are on a reviewed allowlist. | evidence | deny |
 | `NODE-EDGE-001` | Security headers are set at the edge when the process does not set them. | evidence | deny |

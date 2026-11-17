@@ -2,5 +2,5 @@
   "$schema": "../../schema/source.v1.json",
   "ns": "architecture",
   "category": "pattern",
-  "version": "1.3.0"
+  "version": "1.4.0"
 }

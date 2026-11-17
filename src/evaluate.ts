@@ -4,7 +4,9 @@ import { compilePattern, type Compiled, findAll } from "./match.ts";
 import { declaredNodeMajor } from "./node-target.ts";
 import { inScope, layerOf, matches, REQUESTS, ruleApplies as applies } from "./paths.ts";
 import { type Edge, loadTsPaths, reexportTargets, resolve } from "./resolve.ts";
-import { astHash, classes, functions, grammarOf, imports, nestings, type Node, type Parsed, parse, suggestFunctionSplit, suggestNestingFix, symbolBodies, symbolOf, symbols } from "./ts.ts";
+import { heritageDepths } from "./heritage.ts";
+import { importCycles } from "./import-cycles.ts";
+import { astHash, classes, fileMeasure, functions, grammarOf, imports, nestings, type Node, type Parsed, parse, publicExports, suggestFunctionSplit, suggestNestingFix, symbolBodies, symbolOf, symbols } from "./ts.ts";
 import type { Analysis, Form, Grammar, Host, Impl, Lock, LockRule, PatternConfig, Phase, Placement, Read, Severity, Violation } from "./types.ts";
 import { languageApplies } from "./languages.ts";
 import { markerLocations } from "./markers.ts";
@@ -27,7 +29,7 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "forbidden-path", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
 const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
@@ -64,11 +66,20 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
         const form = p && g && matched(r, impl.patterns[g === "tsx" ? "typescript" : g] ?? [], p, host, report);
         if (form) return form;
       } else if (impl.primitive === "diff") {
-        const sites = impl.count === "markers" && text !== null ? markerLocations(rel, text, r.params.markers as string[], p, lock.generatedMarkers) : [];
-        const n = impl.count === "markers" ? sites.length : count(impl.count, p, host);
-        if (typeof n !== "number") return n;
-        counts[r.id] = n;
-        if (impl.count === "markers" && text !== null) markerSites[r.id] = sites;
+        if (impl.count === "import-cycles") {
+          const cycles = text === null || grammarOf(rel) === null ? { size: 0, sites: [] } : importCycles(lock, r, rel, text, host);
+          counts[r.id] = cycles.size;
+          markerSites[r.id] = cycles.sites;
+        } else {
+          const sites = impl.count === "markers" && text !== null ? markerLocations(rel, text, r.params.markers as string[], p, lock.generatedMarkers) : [];
+          const n = impl.count === "markers" ? sites.length : count(impl.count, p, host);
+          if (typeof n !== "number") return n;
+          counts[r.id] = n;
+          if (impl.count === "markers" && text !== null) markerSites[r.id] = sites;
+        }
+      } else if (impl.primitive === "forbidden-path") {
+        const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
+        if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
       } else if (p) measureRule(r, p, host, measurements);
       return null;
     });
@@ -94,6 +105,11 @@ function measureRule(rule: LockRule, parsed: Parsed, host: Host, measurements: M
   if (impl.primitive === "metric") {
     if (impl.metric === "control.nesting") metric(rule, nestings(parsed), report, (line) => suggestNestingFix(parsed, line));
     else if (impl.metric === "class.publicMethods") metric(rule, classes(parsed).map(c => ({ ...c, measured: c.publicMethods, own: null })), report);
+    else if (impl.metric === "file.lines") metric(rule, [{ symbol: MODULE, line: 1, measured: fileMeasure(parsed), own: null }], report);
+    else if (impl.metric === "file.publicExports") {
+      const found = publicExports(parsed);
+      metric(rule, [{ symbol: MODULE, line: found.line, measured: found.count, own: null }], report);
+    } else if (impl.metric === "heritage.depth") metric(rule, heritageDepths(parsed, host.read), report);
     else metric(rule, owned(measurements.functions ??= functions(parsed)).map(f => ({ ...f, measured: impl.metric === "fn.lines" ? f.lines : f.params })), report, impl.metric === "fn.lines" ? (line, max) => suggestFunctionSplit(parsed, line, max) : undefined);
     return;
   }
@@ -184,7 +200,7 @@ function matched(r: LockRule, configs: PatternConfig[], p: Parsed, host: Host, r
 }
 
 // Pattern counts use the same matcher as ordinary pattern rules; marker counts share their sites.
-function count(what: Exclude<Extract<Impl, { primitive: "diff" }>["count"], "markers">, p: Parsed | null, host: Host): number | Form {
+function count(what: Extract<Extract<Impl, { primitive: "diff" }>["count"], { pattern: PatternConfig }>, p: Parsed | null, host: Host): number | Form {
   if (p && !current(what.pattern, p.rel, host.read)) return 0;
   if (p && what.pattern.when !== undefined && (what.pattern.when.cacheComponents === "on") !== cacheComponentsEnabled(host.read)) return 0;
   const hits = p ? findAll(p, pattern(what.pattern, grammarOf(p.rel)!), host.now) : [];

@@ -15,6 +15,7 @@ export type Reconstruction = "exact" | "tool-will-fail" | "unknown";
 export type Clock = () => number;                               // monotonic ms; the shell injects it (O27)
 export interface Host {
   read: Read; now: Clock; hash?: boolean; importsOf?: ImportsOf;
+  list?: () => readonly string[]; // project paths for a graph primitive; absent: the file under review only
   ruleProgress?: <T>(rule: string, run: () => T) => T;
   resolutionProgress?: <T>(run: () => T) => T;
 } // baselines need findings, not a whole-tree hash
@@ -150,7 +151,7 @@ export interface PatternConfig {   // "x-*" keys are ignored (notes); any other 
 export type Placement = "new-in-exclude" | "edit-generated-or-excluded" | "no-language-pack-in-layer";
 export type Impl =
   | { kind: "pattern"; patterns: Partial<Record<RuleLanguage, PatternConfig[]>> }
-  | { kind: "primitive"; primitive: "metric"; metric: "fn.lines" | "fn.params" | "class.publicMethods" | "control.nesting" }
+  | { kind: "primitive"; primitive: "metric"; metric: "fn.lines" | "fn.params" | "class.publicMethods" | "control.nesting" | "file.lines" | "file.publicExports" | "heritage.depth"; ratchet?: "no-increase" }
   | { kind: "primitive"; primitive: "banned-import" }                       // params.packages
   | { kind: "primitive"; primitive: "drizzle-bounded-select" }             // source-proven result cardinality
   | { kind: "primitive"; primitive: "interval-cleanup" }                  // matching local/typed handle cleanup reads
@@ -160,7 +161,8 @@ export type Impl =
   | { kind: "primitive"; primitive: "layer-edge" }                          // lock.layers
   | { kind: "primitive"; primitive: "fitness"; requirement: string }       // approved project verification, independent of source grammar
   | { kind: "primitive"; primitive: "diff"; op: "no-decrease" | "no-increase";
-      count: "markers" | { pattern: PatternConfig } }                       // params.markers by substring, or AST count
+      count: "markers" | "import-cycles" | { pattern: PatternConfig } }   // params.markers by substring, AST count, or cyclic import component
+  | { kind: "primitive"; primitive: "forbidden-path" }                     // params.globs; a matching path is present
   | { kind: "primitive"; primitive: "placement"; cases: Placement[] };
 
 // ── Disk formats (validated by schema/*.json; the engine reads these fields) ────

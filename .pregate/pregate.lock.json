@@ -16,6 +16,8 @@
         "src/reconstruct.ts",
         "src/paths.ts",
         "src/ts.ts",
+        "src/import-cycles.ts",
+        "src/heritage.ts",
         "src/languages.ts",
         "src/language-facts.ts",
         "src/rust-facts.ts",
@@ -168,7 +170,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "8f709c2094d622a0326aff1447747cc522e612a94c10c14dfede09e3ed020568",
+  "presetHash": "ef454eaf76954ea87a2e25c5fc6df03416e3d8fdf9c1c5b428935a268d9bba69",
   "ratchet": "no-new",
   "rules": [
     {
@@ -198,6 +200,8 @@
           "src/reconstruct.ts",
           "src/paths.ts",
           "src/ts.ts",
+          "src/import-cycles.ts",
+          "src/heritage.ts",
           "src/languages.ts",
           "src/language-facts.ts",
           "src/rust-facts.ts",
@@ -324,6 +328,8 @@
           "src/reconstruct.ts",
           "src/paths.ts",
           "src/ts.ts",
+          "src/import-cycles.ts",
+          "src/heritage.ts",
           "src/languages.ts",
           "src/language-facts.ts",
           "src/rust-facts.ts",
@@ -853,6 +859,8 @@
           "src/reconstruct.ts",
           "src/paths.ts",
           "src/ts.ts",
+          "src/import-cycles.ts",
+          "src/heritage.ts",
           "src/languages.ts",
           "src/language-facts.ts",
           "src/rust-facts.ts",
@@ -5485,6 +5493,8 @@
           "src/reconstruct.ts",
           "src/paths.ts",
           "src/ts.ts",
+          "src/import-cycles.ts",
+          "src/heritage.ts",
           "src/languages.ts",
           "src/language-facts.ts",
           "src/rust-facts.ts",
@@ -5681,5 +5691,5 @@
     ]
   },
   "sourceDirs": [],
-  "sourcesHash": "0e5518e273307faddbef7b310039cd35c1cd3ee36a71ff1fac85c3085d2a2688"
+  "sourcesHash": "c6ac9ffe5a577eab35ec4e45f99b1c93885af8a15967322b2dd79292777779bc"
 }
