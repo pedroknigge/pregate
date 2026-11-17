@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-11-17
+
+Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).
+
 ### Added
 
 - Architecture pack 1.4.0 adds the opt-in methodology `architecture/structure`. `ARCH-CYCLE-001` denies an edit that creates or enlarges a TypeScript or JavaScript import cycle and leaves an existing cycle alone. `ARCH-FILE-001` and `ARCH-EXPORT-001` cap file length (default 400 code lines) and public exports (default 20), and an existing excess may stay if the edit does not raise it. `ARCH-HERIT-001` warns when a class `extends` chain is deeper than 3. The methodology is not added to the existing presets. A project that never ran `pregate enable` is unchanged, and an enabled project does not start enforcing these rules until the methodology is selected.
@@ -21,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The shared PreToolUse hook sets `failClosed: true`, so Grok Build 1.0.71 and newer denies the tool when that hook crashes or times out inside a directory `pregate enable` covers (#45). The Unix and Windows launchers decide that before either starts the engine. A directory that was never enabled, and a checkout that was disabled, exits 0 with empty stdout when the engine is missing, crashes, or would hang, including when another project on the machine is enabled. The pre hook does not print the disabled notice; `pregate status` still names the scope. An enforced checkout whose `.git` is a directory is recognized without starting git, so the timed hook does not pay for that process. A worktree disable and a project disable are not enforced. Grok 1.0.70 ignores the unknown field and keeps its fail-open crash. An allow stays empty stdout and exit 0. On Grok 1.0.77 that allow still lets the tool run. Stop, SessionStart, and project Claude hooks do not set the field. For the 0.0.12 release.
+- The shared PreToolUse hook sets `failClosed: true`, so Grok Build 1.0.71 and newer denies the tool when that hook crashes or times out inside a directory `pregate enable` covers (#45). The Unix and Windows launchers decide that before either starts the engine. A directory that was never enabled, and a checkout that was disabled, exits 0 with empty stdout when the engine is missing, crashes, or would hang, including when another project on the machine is enabled. The pre hook does not print the disabled notice; `pregate status` still names the scope. An enforced checkout whose `.git` is a directory is recognized without starting git, so the timed hook does not pay for that process. A worktree disable and a project disable are not enforced. Grok 1.0.70 ignores the unknown field and keeps its fail-open crash. An allow stays empty stdout and exit 0. On Grok 1.0.77 that allow still lets the tool run. Stop, SessionStart, and project Claude hooks do not set the field.
 
 ## [0.0.11] - 2026-11-16
 
