@@ -1,0 +1,5 @@
+export function place(): number {
+  return 1;
+}
+
+export const note = true;

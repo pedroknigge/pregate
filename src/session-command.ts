@@ -22,6 +22,8 @@ import { beforeTexts, H, sessionDir, sha256, snapshot } from "./state.ts";
 import { lockPrune } from "./state-lease.ts";
 import { approvedLocally, loosening } from "./loosening.ts";
 import { contractState } from "./status.ts";
+import { usesPrimitive } from "./proxy-checks.ts";
+import { commitCounts } from "./proxy-diff.ts";
 import { accepted, arrivedWithHead, owned, reader, snapshotReader, stopFiles, workspacePaths } from "./workspace.ts";
 import type { CallEvent, Decision, DecideInput, Form, HookEvent, Lock, Session, Snapshot, Violation } from "./types.ts";
 
@@ -362,11 +364,13 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   const before = snapshotReader(sid, snap);
   // Only this root's exact admitted contract pair is exempt from source rules. lockOf/verify
   // above still reject tampering; other files under .pregate keep their placement checks.
+  const changedFiles = new Set(files.map((f) => f.rel));
+  const diffPaths = usesPrimitive(loaded.lock, "adr-touch") ? [...changedFiles] : undefined;
+  const commits = usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(root) : undefined;
   let listed: readonly string[] | undefined;
   const list = () => listed ??= workspacePaths(root);
   const reviews = files.filter((f) => f.rel !== PRESET && f.rel !== LOCK)
-    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before, list) }));
-  const changedFiles = new Set(files.map((f) => f.rel));
+    .map((f) => ({ rel: f.rel, ...review(loaded.lock, "stop", f, read, before, { changed: diffPaths, commits, list }) }));
   if (needsDependencyReview(loaded.lock, "stop", changedFiles)) {
     checkpoint("dependency-review");
     reviews.push(...importReviewProgress(dependencyRules(loaded.lock, "stop").map(rule => rule.id), () =>

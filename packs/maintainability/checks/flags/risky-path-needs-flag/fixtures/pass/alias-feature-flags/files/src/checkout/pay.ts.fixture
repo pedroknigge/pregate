@@ -1,0 +1,2 @@
+import { on } from "@/feature-flags";
+export const pay = on;

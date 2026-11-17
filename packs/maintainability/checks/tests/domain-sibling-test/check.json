@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "maintainability/tests/domain-sibling-test",
+  "version": "1.0.0",
+  "area": "tests",
+  "cardinality": "singleton",
+  "dimension": "tests.domain-sibling",
+  "minSeverity": null,
+  "params": {},
+  "impl": { "kind": "primitive", "primitive": "sibling-test" },
+  "phase": ["pre", "stop", "commit", "ci"],
+  "feedback": {
+    "message": "{path} has no sibling or mirrored test. Add base.test.ts beside it, under __tests__, or under test/ or tests/ with the src/ prefix mirrored."
+  }
+}

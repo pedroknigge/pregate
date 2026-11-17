@@ -1,0 +1,5 @@
+export function handle(): number { return 1; }
+export function Candidate(): number { return 1; }
+export const random = (): number => 1;
+export function standard(): number { return 1; }
+export function AndroidSync(): number { return 1; }

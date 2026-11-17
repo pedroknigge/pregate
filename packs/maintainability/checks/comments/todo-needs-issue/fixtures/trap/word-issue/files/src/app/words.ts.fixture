@@ -1,0 +1,2 @@
+// TODO: issue twelve
+export const ready = 1;

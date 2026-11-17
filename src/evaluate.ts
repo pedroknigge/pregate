@@ -19,6 +19,7 @@ import { dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
 import { versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
+import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
 
 const MODULE = "<module>";
 const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missing or invalid, so a bare import may be an alias of any path. Fix the tsconfig, or import by a relative path.";
@@ -29,9 +30,9 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "forbidden-path", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
-const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness"]);
+const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness", "adr-touch"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
 
 // state null: the file does not exist in this state; only the diff rules have something to count
@@ -49,6 +50,7 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   const text = typeof state === "string" ? state : state?.text ?? null;
   const found: Violation[] = [];
   const counts: Record<string, number> = {};
+  const sizes: NonNullable<Analysis["sizes"]> = {};
   const markerSites: NonNullable<Analysis["markerSites"]> = {};
   const report = (r: LockRule, line: number, symbol: string, measured: number | null = null, limit: number | null = null): Violation => {
     const v: Violation = { rule: r.id, path: rel, line, symbol, measured, limit, atSessionStart: null, severity: gated.get(r.id) ?? r.severity };
@@ -77,6 +79,16 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
           counts[r.id] = n;
           if (impl.count === "markers" && text !== null) markerSites[r.id] = sites;
         }
+      } else if (impl.primitive === "churn-ratchet") {
+        if (text !== null) {
+          const fn = p ? longestFunction(p) : { lines: 0, line: 1 };
+          sizes[r.id] = { file: nonBlankLines(text), fn: fn.lines, fnLine: fn.line };
+        }
+      } else if (impl.primitive === "sibling-test") {
+        if (!hasSiblingTest(rel, host.read)) report(r, 1, MODULE);
+      } else if (impl.primitive === "required-import") {
+        const specifiers = r.params.specifiers;
+        if (p && Array.isArray(specifiers) && specifiers.every((item) => typeof item === "string") && !importsFeatureFlag(p, specifiers)) report(r, 1, MODULE);
       } else if (impl.primitive === "forbidden-path") {
         const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
         if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
@@ -91,7 +103,9 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
   const named = rules.some((r) => r.impl.kind === "pattern" || (r.impl.kind === "primitive" && NODE_PRIMITIVES.includes(r.impl.primitive)));
   // Body hashes only when the ratchet has a violation to follow across a rename, move or extraction:
   // a "before" with none frees nothing, and an "after" with none claims nothing.
-  return { symbols: p ? (named ? symbols(p) : [MODULE]) : [], violations: found, counts, markerSites,
+  const watchesChurn = rules.some((rule) => rule.impl.kind === "primitive" && rule.impl.primitive === "churn-ratchet");
+  return { symbols: p ? (named ? symbols(p) : [MODULE]) : [], violations: found, counts, sizes, markerSites,
+    ...(watchesChurn ? { commits: host.commits?.(rel) ?? null } : {}),
     symbolBodies: p?.root && found.length > 0 ? symbolBodies(p) : {}, astHash: p && host.hash !== false ? astHash(p) : null };
 }
 

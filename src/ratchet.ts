@@ -19,6 +19,18 @@ export function introduced(lock: Lock, rel: string, before: Analysis | null, aft
     const line = r.impl.op === "no-increase" ? added[0]?.line ?? 1 : 1;
     return [{ rule: r.id, path: rel, line, symbol: "<module>", measured: now, limit: was, atSessionStart: null, severity: r.severity }];
   });
+  const churn = lock.rules.flatMap((r): Violation[] => {
+    if (r.impl.kind !== "primitive" || r.impl.primitive !== "churn-ratchet") return [];
+    const now = after.sizes?.[r.id];
+    const was = before?.sizes?.[r.id];
+    const threshold = r.params.threshold;
+    const commits = after.commits;
+    if (!now || !was || typeof threshold !== "number" || commits === null || commits === undefined || !(commits > threshold)) return [];
+    const fileUp = now.file > was.file;
+    const fnUp = now.fn > was.fn;
+    if (!fileUp && !fnUp) return [];
+    return [{ rule: r.id, path: rel, line: fileUp ? 1 : now.fnLine, symbol: "<module>", measured: fileUp ? now.file : now.fn, limit: fileUp ? was.file : was.fn, atSessionStart: null, severity: r.severity }];
+  });
   const baselines = before === null ? new Map<Violation, Violation>() : metricBaselines(lock, before, after);
   const metric = (v: Violation) => lock.rules.some((r) => r.id === v.rule && r.impl.kind === "primitive" && r.impl.primitive === "metric");
   const grew = (v: Violation) => baselines.get(v) === undefined || v.measured! > baselines.get(v)!.measured!;
@@ -30,7 +42,7 @@ export function introduced(lock: Lock, rel: string, before: Analysis | null, aft
       ...noNew(before, after, after.violations.filter((v) => !metric(v))),
       ...after.violations.filter((v) => metric(v) && grew(v)),
     ];
-  return canonical([...kept.map((v) => ({ ...v, atSessionStart: baselines.get(v)?.measured ?? startValue(before, v) })), ...diffs]);
+  return canonical([...kept.map((v) => ({ ...v, atSessionStart: baselines.get(v)?.measured ?? startValue(before, v) })), ...diffs, ...churn]);
 }
 
 // Reserve the same symbol first, then a body that moved with a rename, move or extraction. A copy
@@ -70,7 +82,7 @@ function bodyMoved(before: Analysis, after: Analysis, symbol: string): boolean {
 // form, which callers read. The other rules cannot change the result, so they need not run twice.
 export function comparedLock(lock: Lock, after: Analysis): Lock {
   const violated = new Set(after.violations.map((v) => v.rule));
-  return { ...lock, rules: lock.rules.filter((r) => violated.has(r.id) || isImportRule(r) || (r.impl.kind === "primitive" && r.impl.primitive === "diff")) };
+  return { ...lock, rules: lock.rules.filter((r) => violated.has(r.id) || isImportRule(r) || (r.impl.kind === "primitive" && (r.impl.primitive === "diff" || r.impl.primitive === "churn-ratchet"))) };
 }
 
 // no-new: on a symbol the "before" had, a rule whose count in the file grew reports the symbols whose

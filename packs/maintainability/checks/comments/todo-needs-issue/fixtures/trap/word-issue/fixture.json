@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/app/words.ts",
+  "before": null,
+  "trap": {
+    "family": "issue-word-without-id",
+    "origin": "forge",
+    "discovered": "2026-11-16",
+    "note": "The word issue is not an issue reference."
+  },
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  }
+}
