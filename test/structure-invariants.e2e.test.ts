@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
 import { enable } from "../src/consent.ts";
+import { slash } from "../src/paths.ts";
+import { commandScript } from "../src/windows-command.ts";
 import { engineAt } from "./compiled-engine.ts";
 import { pathWithoutHarnesses } from "./host-path.ts";
 import { policyFixture } from "./policy-fixtures.ts";
@@ -20,7 +22,10 @@ const TMP = mkdtempSync(join(tmpdir(), "pregate-structure-"));
 const BIN = join(TMP, "bin/pregate");
 const HOME = join(TMP, "home");
 const DATA = join(TMP, "data");
-const LAUNCHER = join(DATA, "pregate/bin/pregate");
+const WINDOWS = process.platform === "win32";
+// Unix setup registers `…/bin/pregate`. Windows setup registers an encoded PowerShell command
+// whose script names `…/bin/launcher.ps1`.
+const HOOK_MARK = WINDOWS ? `${slash(join(DATA, "pregate"))}/bin/launcher.ps1` : join(DATA, "pregate/bin/pregate");
 
 type Env = Record<string, string>;
 interface Out { code: number; stdout: string; stderr: string }
@@ -181,9 +186,11 @@ function hook(s: Session, event: "PreToolUse" | "SessionStart", fields: object):
     hooks: Record<string, { hooks: { command: string }[] }[]>;
   };
   const name = event === "SessionStart" ? "SessionStart" : "PreToolUse";
-  const ours = settings.hooks[name]!.flatMap((g) => g.hooks).find((h) => h.command.includes(LAUNCHER));
+  const ours = settings.hooks[name]!.flatMap((g) => g.hooks).find((h) => commandScript(h.command).includes(HOOK_MARK));
   if (ours === undefined) throw new Error(`no PREGATE ${name} hook`);
-  return run(["sh", "-c", ours.command], s.project, s.env, body);
+  // cmd.exe keeps the engine's exit 2. `powershell -Command` would collapse it to 1.
+  const argv = WINDOWS ? ["cmd.exe", "/d", "/c", ours.command] : ["sh", "-c", ours.command];
+  return run(argv, s.project, s.env, body);
 }
 
 function session(r: Repo): Session {
