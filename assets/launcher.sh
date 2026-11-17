@@ -75,8 +75,9 @@ ce_take() {
 }
 
 # A handful of records is read in the shell: that is the timed hook, and it starts no process.
-# A long directory (the e2e suite enables a repo per test) is one grep. Opening each file from
-# dash costs more than the supervision budget.
+# A long directory (the e2e suite enables a repo per test) is one awk, except under bash, whose
+# own reads of those files are cheaper than a process. Opening each file from dash, or walking
+# the lines in bash, costs more than the supervision budget.
 ce_scan() {
   [ -d "$1" ] || return 0
   ce_kind=$2
@@ -86,18 +87,40 @@ ce_scan() {
     ce_n=$((ce_n + 1))
     [ "$ce_n" -gt 4 ] && break
   done
-  if [ "$ce_n" -gt 4 ]; then
-    # Command substitution drops the last line when it has no newline. Put one back, or a
-    # disable record that sorts last is ignored and a crash there blocks.
-    ce_blob=$(grep -h . "$1"/*.json 2>/dev/null) || ce_blob=
-    ce_blob="$ce_blob
-"
-    while IFS= read -r ce_line; do
-      [ -n "$ce_line" ] || continue
-      ce_take "$ce_line"
-    done <<CE_SCAN_END
-$ce_blob
-CE_SCAN_END
+  if [ "$ce_n" -gt 4 ] && [ -z "${BASH_VERSION:-}" ]; then
+    # One process, and the last line counts even without a newline. A disable record that
+    # sorts last must still win, or a crash there blocks.
+    ce_flags=$(awk -v d="$ce_d" -v g="$ce_g" -v kind="$ce_kind" '
+      {
+        line = $0
+        if (index(line, "\"root\":\"" d "\"")) {
+          if (kind == "proposal") prop = 1
+          else {
+            if (index(line, "\"disabled\":true")) roff = 1
+            if (index(line, "\"common\":\"" g "\"")) ron = 1
+          }
+        }
+        if (kind != "proposal" && index(line, "\"repo\":\"" g "\"")) {
+          if (index(line, "\"disabled\":true")) poff = 1
+          else pon = 1
+        }
+      }
+      END { printf "%d %d %d %d %d\n", roff+0, poff+0, ron+0, pon+0, prop+0 }
+    ' "$1"/*.json) || return 0
+    ce_roff=${ce_flags%% *}
+    ce_rest=${ce_flags#* }
+    ce_poff=${ce_rest%% *}
+    ce_rest=${ce_rest#* }
+    ce_ron=${ce_rest%% *}
+    ce_rest=${ce_rest#* }
+    ce_pon=${ce_rest%% *}
+    ce_prop=${ce_rest#* }
+    ce_prop=${ce_prop%% *}
+    [ "$ce_roff" = 1 ] && ce_root_off=1
+    [ "$ce_poff" = 1 ] && ce_project_off=1
+    [ "$ce_ron" = 1 ] && ce_root_on=1
+    [ "$ce_pon" = 1 ] && ce_repo_on=1
+    [ "$ce_prop" = 1 ] && ce_proposal=1
     return 0
   fi
   for ce_record in "$1"/*.json; do
