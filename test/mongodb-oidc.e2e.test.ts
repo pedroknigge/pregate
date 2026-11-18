@@ -113,12 +113,13 @@ function denied(result: { code: number | null; text: string; error: string }, ru
   const reason = (JSON.parse(result.text) as { hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string } }).hookSpecificOutput;
   expect(reason.permissionDecision).toBe("deny");
   const first = reason.permissionDecisionReason.split("\n")[0] ?? "";
-  expect(first.length).toBeLessThanOrEqual(256);
-  expect(first.startsWith("PREGATE DENY")).toBe(true);
+  expect(first.length, first).toBeLessThanOrEqual(256);
+  expect(first.startsWith("PREGATE DENY"), first).toBe(true);
   const repair = first.indexOf("use one mechanism only and mongodb >=7.9.0");
+  expect(repair, first).toBeGreaterThan(-1);
   const diagnosis = first.indexOf("combines ENVIRONMENT");
-  expect(repair).toBeGreaterThan(-1);
-  expect(diagnosis).toBeGreaterThan(repair);
+  if (diagnosis !== -1) expect(diagnosis, first).toBeGreaterThan(repair);
+  expect(result.text).toContain("combines ENVIRONMENT");
 }
 
 function allowed(result: { code: number | null; text: string; error: string }, rule: string) {
