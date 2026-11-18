@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.1`. Category: **library**.
+Version: `1.3.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## mongodb/models
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **complete**.
 
 ### mongodb/MONGO-SCHEMA-001
 
@@ -118,9 +118,9 @@ An index built from a request path runs at request time, blocking or slowing the
 
 Default parameters: `{}`.
 
-**Repair:** Declare the index with schema.index() (Mongoose) or in a migration script that runs outside request handling.
+**Repair:** Declare the index with schema.index() (Mongoose) or in a migration script that runs outside request handling. When a migration does call createIndex, driver 7.9.0 keeps the one-argument form, and command options go in the third argument.
 
-**Scope and limits:** Reaching the collection through db.collection() does not move the build out of code. ensureIndex() is the same call under an older name.
+**Scope and limits:** Reaching the collection through db.collection() does not move the build out of code. ensureIndex() is the same call under an older name. Driver 7.9.0 undeprecates the one-argument createIndex(keys) form that 7.8.0 deprecated by accident (NODE-7968, NODE-6893). The two-argument form that mixes index and command options stays deprecated and will be removed in a future major. Command options belong in the third argument. Driver 7.9.0 also changes dropIndexes so it only swallows NamespaceNotFound and throws every other error (NODE-6517). This rule still denies createIndex, ensureIndex, and createIndexes on a request path.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
@@ -135,6 +135,80 @@ Source metadata:
   "work": "MongoDB Manual (Index builds on populated collections)",
   "locator": "index build cost and foreground behavior",
   "paraphrase": "Building an index scans the collection and competes with traffic. Declare indexes with the schema or a migration, not inline."
+}
+```
+
+### mongodb/MONGO-OIDC-001
+
+Check: [`mongodb/models/no-mixed-oidc-mechanism@1.0.0`](checks/models/no-mixed-oidc-mechanism/check.json). Default severity: **deny**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `mongodb.models.oidc-mechanisms`. Minimum severity: `none`.
+
+A machine ENVIRONMENT and a callback in the same client send the callback's bearer token to a domain the application did not allow.
+
+Default parameters: `{}`.
+
+**Repair:** Use one mechanism only, and upgrade the driver to >=7.9.0. Keep ENVIRONMENT for the machine flow, or keep OIDC_CALLBACK or OIDC_HUMAN_CALLBACK and refuse a connection string whose authMechanismProperties include ENVIRONMENT.
+
+**Scope and limits:** The keys are read on one object inside a MongoClient or MongoClient.connect call, and ENVIRONMENT in a string or template argument of that same call counts. OIDC_HUMAN_CALLBACK is the same combination as OIDC_CALLBACK. A connection string held in a variable is not visible. mongoose.connect is not matched. Two separate clients in one file are not a combination.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "MongoDB Node.js driver release 7.9.0 (CVE-2026-126835)",
+  "locator": "https://github.com/mongodb/node-mongodb-native/releases/tag/v7.9.0",
+  "paraphrase": "Driver versions from 6.7.0 before 7.9.0 leak OIDC bearer tokens to domains outside the allowlist when ENVIRONMENT is combined with OIDC_CALLBACK or OIDC_HUMAN_CALLBACK. From 7.9.0, MongoClient throws on that combination."
+}
+```
+
+### mongodb/MONGO-OIDC-002
+
+Check: [`mongodb/models/no-vulnerable-driver-pin@1.0.0`](checks/models/no-vulnerable-driver-pin/check.json). Default severity: **warn**.
+
+Implementation: `dependency-pin`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `mongodb.models.oidc-driver-pin`. Minimum severity: `none`.
+
+A pin that can still install 6.7.0 up to but not including 7.9.0 keeps the OIDC bearer-token leak even when the call site looks safe.
+
+Default parameters: `{"package":"mongodb","introduced":"6.7.0","fixed":"7.9.0"}`.
+
+**Repair:** Upgrade the mongodb driver to >=7.9.0.
+
+**Scope and limits:** The warning is a pin that can install mongodb >=6.7.0 and <7.9.0, from dependencies, devDependencies, peerDependencies, or optionalDependencies, or a resolved lockfile version in that range. A range entirely below 6.7.0, a pin at >=7.9.0, and an unreadable spec such as *, latest, or a git URL do not warn. mongodb-memory-server and other package names are not this package. The check reads package.json, package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, yarn.lock, and bun.lock.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "package": {
+    "const": "mongodb"
+  },
+  "introduced": {
+    "const": "6.7.0"
+  },
+  "fixed": {
+    "const": "7.9.0"
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "MongoDB Node.js driver release 7.9.0 (CVE-2026-126835)",
+  "locator": "https://github.com/mongodb/node-mongodb-native/releases/tag/v7.9.0",
+  "paraphrase": "Node driver versions from 6.7.0 before 7.9.0 are affected. The fixed release is 7.9.0."
 }
 ```
 

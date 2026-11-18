@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- MongoDB pack 1.3.0 adds `MONGO-OIDC-001` and `MONGO-OIDC-002` to `mongodb/models`. `MONGO-OIDC-001` denies a `MongoClient` or `MongoClient.connect` call that combines `ENVIRONMENT` with `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` (CVE-2026-126835). The message says to use one mechanism only and to upgrade the driver to >=7.9.0. `MONGO-OIDC-002` warns when `package.json` or a lockfile pins `mongodb` at >=6.7.0 and <7.9.0. The official 7.9.0 notes name both callbacks, so the deny rule includes `OIDC_HUMAN_CALLBACK`. Pack docs record the 7.9.0 `dropIndexes` and `createIndex` behavior. These rules run only where `pregate enable` has turned the project on and the methodology is selected. The engine gains the `dependency-pin` primitive for that advisory.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).

@@ -18,6 +18,7 @@ import { type Call, clock, isCause, json, launcher, LOCK, NOTHING, PRESET, PROTE
 import { grammarOf } from "./languages.ts";
 import { adviseText, denyText, formText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
 import { absolutePath, inScope, matches, pathKey, protects, relativePath as relative, REQUESTS } from "./paths.ts";
+import { isDependencyPinFile } from "./package-version.ts";
 import { WINDOWS } from "./platform.ts";
 import { checkpoint, importReviewProgress } from "./progress.ts";
 import { adrTouch, usesPrimitive } from "./proxy-checks.ts";
@@ -147,6 +148,16 @@ function syntaxLine(after: Parsed, base: string | null): number | null {
 
 // A forbidden path is not source, so the ordinary tree walk never opens it. When a rule names one,
 // `check --all` judges that path too. A diff check already sees it when the change includes it.
+// A lockfile is not a grammar, so the ordinary tree walk never opens yarn, pnpm, or bun locks.
+// package.json and package-lock.json are already JSON context files. When a pin rule is on,
+// the other lockfiles are judged too. A project without that rule keeps the previous walk.
+function withDependencyPins(root: string, lock: Lock, files: FileState[]): FileState[] {
+  if (!usesPrimitive(lock, "dependency-pin")) return files;
+  const have = new Set(files.map((file) => file.rel));
+  const extra = workspacePaths(root, (rel) => !have.has(rel) && isDependencyPinFile(rel) && inScope(lock, rel));
+  return [...files, ...extra.map((rel) => ({ rel, base: null, before: null, after: textOf(readText(join(root, rel))) }))];
+}
+
 function withForbidden(root: string, lock: Lock, files: FileState[]): FileState[] {
   const rules = lock.rules.filter((rule) => rule.impl.kind === "primitive" && rule.impl.primitive === "forbidden-path");
   if (!rules.length) return files;
@@ -178,7 +189,7 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   const diff = !wantsAdr || m.kind === "tree" ? undefined : m.kind === "stdin" ? worktreePaths(root) : files.map((f) => f.rel);
   const diffPaths = diff === undefined || diff === null ? undefined : [...new Set([...diff, ...files.map((f) => f.rel)])];
   const commits = usesPrimitive(loaded.lock, "churn-ratchet") ? commitCounts(root) : undefined;
-  const judged = m.kind === "tree" ? withForbidden(root, loaded.lock, files) : files;
+  const judged = m.kind === "tree" ? withDependencyPins(root, loaded.lock, withForbidden(root, loaded.lock, files)) : files;
   let listed: readonly string[] | undefined;
   const list = () => listed ??= workspacePaths(root);
   const reviews = judged.filter((f) => m.kind === "stdin" || (f.rel !== PRESET && f.rel !== LOCK))

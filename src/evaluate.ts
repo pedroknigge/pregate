@@ -18,7 +18,7 @@ import { gatedSeverity } from "./typescript-version.ts";
 import { dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
 import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
-import { versionGateMatches } from "./package-version.ts";
+import { dependencyPinLine, versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
 import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
 
@@ -31,7 +31,7 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", "dependency-pin", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
 const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness", "adr-touch"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
@@ -100,6 +100,14 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
       } else if (impl.primitive === "forbidden-path") {
         const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
         if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
+      } else if (impl.primitive === "dependency-pin") {
+        const name = r.params.package;
+        const introduced = r.params.introduced;
+        const fixed = r.params.fixed;
+        if (text !== null && typeof name === "string" && typeof introduced === "string" && typeof fixed === "string") {
+          const line = dependencyPinLine(rel, text, { package: name, introduced, fixed });
+          if (line !== null) report(r, line, MODULE);
+        }
       } else if (p) measureRule(r, p, host, measurements);
       return null;
     });

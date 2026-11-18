@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/oidc-uri.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 6 }]
+  },
+  "trap": {
+    "family": "uri-environment-with-callback",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "ENVIRONMENT lives only in the connection-string argument and OIDC_HUMAN_CALLBACK lives only in the options. The driver still treats that pair as one client."
+  }
+}

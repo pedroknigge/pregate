@@ -1,0 +1,12 @@
+import { MongoClient } from "mongodb";
+
+const uri = "mongodb://example.com/?authMechanism=MONGODB-OIDC&authMechanismProperties=ENVIRONMENT:azure,TOKEN_RESOURCE:api://x";
+
+export function connect(): MongoClient {
+  return new MongoClient(uri, {
+    authMechanismProperties: {
+      ENVIRONMENT: "azure",
+      TOKEN_RESOURCE: "api://x",
+    },
+  });
+}

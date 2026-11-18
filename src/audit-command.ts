@@ -14,6 +14,8 @@ import { contractState } from "./status.ts";
 import { sha256 } from "./state.ts";
 import { grammarOf } from "./ts.ts";
 import { missingLanguagePolicy, ruleLanguages, staticRulesFor } from "./languages.ts";
+import { isDependencyPinFile } from "./package-version.ts";
+import { usesPrimitive } from "./proxy-checks.ts";
 import { workspacePaths } from "./workspace.ts";
 import { projectFitness } from "./fitness-command.ts";
 import { fileRole, refactorPlan, refactorPlanText } from "./refactor-plan.ts";
@@ -163,10 +165,11 @@ function scan(root: string, lock: NonNullable<ReturnType<typeof contractState>["
   const uncovered: string[] = [], fileCoverage: { path: string; language: string; rules: string[] }[] = [];
   const excluded: { path: string; reason: string }[] = [], hashes: { path: string; hash: string }[] = [];
   const summary = auditSummaryCollector(), run: AuditRun = { lock: selected.lock, reader, cache, uncovered, fileCoverage, hashes };
+  const pins = usesPrimitive(selected.lock, "dependency-pin");
   for (const rel of inventory) {
     const owner = findRoot(dirname(join(root, rel)), () => true);
     if (owner !== root || !inScope(lock, rel)) { excluded.push({ path: rel, reason: owner !== root ? "Nested project has its own contract." : "Outside preset scope." }); continue; }
-    if (grammarOf(rel) === null) {
+    if (grammarOf(rel) === null && !(pins && isDependencyPinFile(rel))) {
       if (/\.(py|go|rs|java|kt|rb|c|cc|cpp|cs|swift|php)$/i.test(rel)) unsupported.push(rel);
       else excluded.push({ path: rel, reason: "No executable source parser for this file." });
       continue;
@@ -210,7 +213,7 @@ function promotionCandidates(lock: Lock, rules: LockRule[], violating: Set<strin
 function auditedFile(file: AuditedFile, run: AuditRun): { findings: AuditFinding[]; errors: AuditError[] } {
   try {
     if (missingLanguagePolicy(run.lock, file.rel)) run.uncovered.push(file.rel);
-    run.fileCoverage.push({ path: file.rel, language: grammarOf(file.rel)!, rules: staticRulesFor(run.lock, file.rel).map((r) => r.id) });
+    run.fileCoverage.push({ path: file.rel, language: grammarOf(file.rel) ?? "manifest", rules: staticRulesFor(run.lock, file.rel).map((r) => r.id) });
     const text = run.reader.read(file.rel);
     if (text === null) return { findings: [], errors: [{ path: file.rel, cause: "state-io", line: null }] };
     file.hash = sha256(text); run.hashes.push({ path: file.rel, hash: file.hash });

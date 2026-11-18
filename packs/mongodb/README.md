@@ -1,6 +1,6 @@
 # mongodb
 
-TypeScript client-side MongoDB driver/mongoose rules. Source version **1.2.1**, for engine **0.0.12**.
+TypeScript client-side MongoDB driver/mongoose rules. Source version **1.3.0**, for engine **0.0.12**.
 The engine parses TS/JS only: this pack enforces client-side usage (queries, ObjectIds,
 connections, sessions, schema options). Everything the engine cannot see — index selection,
 `$jsonSchema` validation, replica-set topology, GridFS chunking, change-stream resume
@@ -29,20 +29,41 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 | `MONGO-CONNECT-001` | `.connect()` without `maxPoolSize`/`serverSelectionTimeoutMS`, in a file that imports `mongoose` or `mongodb`. | Default pool/timeout hangs or overloads under load. | deny |
 | `MONGO-TX-001` | Raw `startTransaction()` instead of `withTransaction()`. | Open transactions hold locks without auto commit/abort/retry. | deny |
 | `MONGO-INDEX-001` | `createIndex`/`ensureIndex`/`createIndexes` calls in app code. | Index builds belong in schemas or migrations, not request paths. | deny |
+| `MONGO-OIDC-001` | `MongoClient` options or a connection string that combine `ENVIRONMENT` with `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK`. | That pair leaks an OIDC bearer token to a domain outside the allowlist on driver versions before 7.9.0. | deny |
+| `MONGO-OIDC-002` | `package.json` or a lockfile pins `mongodb` at >=6.7.0 and <7.9.0. | The pin can still install the OIDC token leak. | warn |
 | `MONGO-DELETEMANY-001` | `deleteMany()` or `deleteMany({})` with an omitted or empty filter document. | An empty filter matches and deletes every document in the collection. | deny |
 
 ## Methodologies
 
-- `mongodb/models` — MONGO-SCHEMA-001, MONGO-CONNECT-001, MONGO-TX-001, MONGO-INDEX-001
+- `mongodb/models` — MONGO-SCHEMA-001, MONGO-CONNECT-001, MONGO-TX-001, MONGO-INDEX-001, MONGO-OIDC-001, MONGO-OIDC-002
 - `mongodb/queries` — MONGO-FIND-001, MONGO-INJECT-001, MONGO-OBJECTID-001, MONGO-AGG-001, MONGO-UPDATE-001, MONGO-DELETEMANY-001
+
+## Driver 7.9.0
+
+These notes follow the [7.9.0 release](https://github.com/mongodb/node-mongodb-native/releases/tag/v7.9.0) and [HISTORY.md](https://github.com/mongodb/node-mongodb-native/blob/master/HISTORY.md). Index builds on a request path stay denied.
+
+`dropIndexes` used to swallow almost every error. As of 7.9.0 (NODE-6517) it only swallows `NamespaceNotFound`. Every other error is thrown.
+
+`createIndex` overloads, after 7.8.0 split index options from command options (NODE-6893) and 7.9.0 corrected the deprecation (NODE-7968):
+
+- `createIndex(keys)` is not deprecated.
+- `createIndex(keys, mixedIndexAndCommandOptions)` stays deprecated and will be removed in a future major.
+- `createIndex(keys, indexOptions, commandOptions)` is the new form and is not deprecated.
+
+`MONGO-INDEX-001` still denies `createIndex`, `ensureIndex`, and `createIndexes` in application code. A migration that must pass command options uses the three-argument form.
+
+The same release stops forcing `autoSelectFamily: true` when the option is unset, so Node's process default applies. `SelectServerOptions` is deprecated. The pack records both as driver behavior.
+
+`MONGO-OIDC-001` denies a visible `ENVIRONMENT` plus `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` on one `MongoClient` or `MongoClient.connect` call. The release names both callbacks. A callback-only call and an environment-only call are each one mechanism. Use one mechanism only, and upgrade the driver to >=7.9.0. A URI kept in a variable is not a visible `ENVIRONMENT`. `MONGO-OIDC-002` warns when a manifest or lockfile pins `mongodb` at >=6.7.0 and <7.9.0, and it recommends >=7.9.0.
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/mongodb` runs **53** real fixtures (at least 2 pass, 2 fail, 1 trap per check).
+`pregate rules test packs/mongodb` runs **66** real fixtures (at least 2 pass, 2 fail, 1 trap per check).
 Every check has a failing trap with exact lines: sort-without-limit, `$expr` equality over
 request input, bracket query-id access, `$function` stages, multi-option `strict: false`,
-empty connect options, aliased sessions, `db.collection()` index builds, and a plain
-update through a Mongoose model's raw `Model.collection`.
+empty connect options, aliased sessions, `db.collection()` index builds, a plain
+update through a Mongoose model's raw `Model.collection`, a connection string that
+carries `ENVIRONMENT` beside a callback, and a nested lockfile pin under a fixed root.
 
 MONGO-INJECT-001 complements `vibe-proof/security/mass-assignment` (which guards
 `insert`/`update`/`create`/`save(req.body)`): that rule owns the write call, this one owns
@@ -56,7 +77,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.1`. 10 distinct check IDs.
+Category: **library**. Version: `1.3.0`. 12 distinct check IDs.
 
 Methodologies: `mongodb/models` (complete), `mongodb/queries` (complete).
 
