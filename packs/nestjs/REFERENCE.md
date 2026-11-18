@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.3.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -375,5 +375,73 @@ Source metadata:
   "work": "NestJS documentation, Guards / Interceptors / Pipes (docs.nestjs.com)",
   "locator": "https://docs.nestjs.com/guards",
   "paraphrase": "Guards, interceptors, pipes, and exception filters are providers managed by the Nest IoC container and must be decorated with @Injectable() (or @Catch() for filters)."
+}
+```
+
+## nestjs/transport
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### nestjs/NEST-LIMIT-001
+
+Check: [`nestjs/transport/no-raised-limit@1.0.0`](checks/transport/no-raised-limit/check.json). Default severity: **deny**. Version gate: **deny** when the nearest `@nestjs/core` declaration is entirely `>=12.5.0`; otherwise the rule does not run. A specifier that can still install an older release, or that cannot be read, does not match.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `nestjs.dos-limit`. Minimum severity: `none`.
+
+Raising or disabling a 12.5 anti-DoS limit lets one client hold a large payload or an unbounded queue.
+
+Default parameters: `{}`.
+
+**Repair:** Keep the default or set a finite value no higher than it. WsAdapter or @WebSocketGateway maxPayload defaults to 1048576 (1024 * 1024; 0 lifts it). WsAdapter or IoAdapter maxConcurrentMessages defaults to 1000 (Infinity lifts it). IoAdapter maxWaitingMessages defaults to 10000 (Infinity lifts it). TCP options: maxConcurrentMessages defaults to 1000 (0 lifts it), maxBufferSize to 16 * 1024 * 1024, and maxSendBufferSize to 134217728 (0 lifts it). WsAdapter maxSendBufferSize has the same 134217728 default. gRPC maxPendingResponses defaults to 1000 (0 disables it). Redis maxWildcardChannelLength defaults to 1024 (0 disables it). RabbitMQ maxMessageSize defaults to 16777216. Fastify limits.jsonFieldsSize defaults to 1048576. Express and Node limits.parts defaults to 1000. https://docs.nestjs.com/websockets/adapter https://docs.nestjs.com/microservices/basics
+
+**Scope and limits:** A limit stored in a variable, a spread, or a numeric separator such as 1_048_577 is not evaluated. 1024*1024 written without spaces is the 1 MiB default and is not flagged; the same product with spaces is also the default. NaN, including Number(process.env.UNSET), now keeps the NestJS default and is not flagged. On WsAdapter and IoAdapter, maxConcurrentMessages: 0 handles no message and is not unlimited; only Infinity lifts that default. On TCP, 0 does lift maxConcurrentMessages because ServerTCP uses maxConcurrentMessages || Infinity. maxWaitingMessages: 0 is not treated as unlimited. maxBufferSize: 0 and limits.jsonFieldsSize: 0 are not flagged, because the 12.5 notes do not say 0 lifts them. A same-named field outside the scoped constructor, decorator, transport options, or limits object is not matched. Kafka parser maxMessageSize is not this rule.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "locator": "https://github.com/nestjs/nest/releases/tag/v12.5.0",
+  "paraphrase": "NestJS 12.5 lowers WebSocket maxPayload to 1048576 bytes and adds concurrency and buffer caps. 0 or Infinity lifts several of those caps. The release notes say 1 MB; the source constant is 1024 * 1024.",
+  "work": "NestJS 12.5.0 release notes and packages/platform-ws, platform-socket.io, and microservices at tag v12.5.0"
+}
+```
+
+### nestjs/NEST-TCP-001
+
+Check: [`nestjs/transport/no-implicit-tcp-host@1.0.0`](checks/transport/no-implicit-tcp-host/check.json). Default severity: **warn**. Version gate: **warn** when the nearest `@nestjs/core` declaration is entirely `>=12.5.0`; otherwise the rule does not run. A specifier that can still install an older release, or that cannot be read, does not match.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `nestjs.tcp-host`. Minimum severity: `none`.
+
+A TCP service that relied on an empty host to accept other hosts now binds to localhost and looks up while remaining unreachable.
+
+Default parameters: `{}`.
+
+**Repair:** Set host to '0.0.0.0' or '::' when other hosts must connect, or to 'localhost' when only this machine should. An empty host (undefined, null, or '') now means localhost on both ServerTCP and ClientTCP. https://github.com/nestjs/nest/releases/tag/v12.5.0 https://docs.nestjs.com/microservices/basics
+
+**Scope and limits:** An absent host key already meant localhost since NestJS 11, so a TCP call that simply omits host is warned only when the same file looks non-local (0.0.0.0, ::, docker, kubernetes, k8s, or container). An explicit host, including 'localhost', '0.0.0.0', '::', or a value that falls back with || or ??, is not warned. A host built from a variable other than process.env or a .get() call is not matched. ClientsModule.register is not this rule. A prerelease specifier such as 12.5.0-rc.1 stays quiet because it is older than 12.5.0.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "locator": "https://github.com/nestjs/nest/commit/4196d3655d",
+  "paraphrase": "The 12.5 release notes say an empty or unset TCP host now listens on localhost. Since v11 a missing host key already used localhost. 12.5 changes a present empty host, including an unset process.env.HOST, from every interface back to localhost.",
+  "work": "NestJS 12.5.0 release notes and packages/microservices/server/server-tcp.ts at tag v12.5.0"
 }
 ```

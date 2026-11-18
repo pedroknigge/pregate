@@ -1,6 +1,6 @@
 # nestjs
 
-Senior NestJS invariants that the syntax tree can decide. The stance of this pack is: controllers handle HTTP and inject providers, they never construct them; route verbs match handler names; status codes are named enum members; guards that take no arguments protect nothing; providers stay singleton; validation pipes whitelist; and named route values carry a pipe. Framework entry files keep their decorators; this pack only bans the hollow forms.
+Senior NestJS invariants that the syntax tree can decide. The stance of this pack is: controllers handle HTTP and inject providers, they never construct them; route verbs match handler names; status codes are named enum members; guards that take no arguments protect nothing; providers stay singleton; validation pipes whitelist; and named route values carry a pipe. On NestJS 12.5 or newer, WebSocket and microservice limits stay at the framework defaults, and a TCP transport that should accept other hosts names its host. Framework entry files keep their decorators; this pack only bans the hollow forms.
 
 ## User control
 
@@ -29,11 +29,14 @@ Ready-made combinations live in `packs/presets/`.
 | `NEST-SYNC-001` | `synchronize: true` inside `TypeOrmModule.forRoot` or `forRootAsync`, outside test files. | Schema sync at startup can drop production columns and their data. | warn |
 | `NEST-PASSTHROUGH-001` | `@Res()` or `@Response()` parameter decorator without `{ passthrough: true }`. | Bare `@Res()` disables Nest interceptors, `@HttpCode()`, and return-value serialization. | deny |
 | `NEST-DECORATOR-001` | A class implementing `CanActivate`, `NestInterceptor`, `PipeTransform`, or `ExceptionFilter` without `@Injectable()` or `@Catch()`. | Without `@Injectable()`, TypeScript omits constructor metadata and Nest DI cannot inject dependencies. | deny |
+| `NEST-LIMIT-001` | A NestJS 12.5 limit raised above its default, or set to the value that lifts it (`maxPayload: 0`, TCP `maxConcurrentMessages: 0`, `Infinity`, and the related caps). | One client can hold a large payload or an unbounded queue. Keep the default or set a bounded value on the adapter, gateway, or transport options. | deny |
+| `NEST-TCP-001` | A TCP transport on NestJS 12.5 or newer whose host is empty, comes from an unset env or config read, or is omitted in a file that looks meant for other hosts. | An empty host now means localhost, so a service that expected other hosts never receives them. Set `host` explicitly. | warn |
 
 ## Methodologies
 
 - `nestjs/controllers` — NEST-CTRL-001, NEST-VERB-001, NEST-CODE-001, NEST-GUARD-001, NEST-PARSE-001, NEST-PASSTHROUGH-001
 - `nestjs/providers` — NEST-INJ-001, NEST-SCOPE-001, NEST-PIPE-001, NEST-SYNC-001, NEST-DECORATOR-001
+- `nestjs/transport` — NEST-LIMIT-001, NEST-TCP-001. Opt-in with `pregate pack enable nestjs/transport`. Not added to existing presets. Runs only where `pregate enable` has turned the project on, and only when `@nestjs/core` is 12.5.0 or newer.
 
 Non-decidable practices from the same sources are in `BACKLOG.md`.
 
@@ -43,9 +46,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 11 distinct check IDs.
+Category: **library**. Version: `1.3.0`. 13 distinct check IDs.
 
-Methodologies: `nestjs/controllers` (complete), `nestjs/providers` (complete).
+Methodologies: `nestjs/controllers` (complete), `nestjs/providers` (complete), `nestjs/transport` (complete).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

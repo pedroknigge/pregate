@@ -1,0 +1,2 @@
+import { Transport } from "@nestjs/microservices";
+export const rmq = { transport: Transport.RMQ, options: { urls: ["amqp://localhost"], queue: "orders", maxMessageSize: 32 * 1024 * 1024 } };

@@ -50,7 +50,7 @@ const DEPENDENCIES: Record<string, [string, string[]]> = {
   svelte: SVELTE,
   "drizzle-orm": ["drizzle", ["drizzle/queries", "drizzle/schema"]],
   "@supabase/supabase-js": ["supabase", ["supabase/client", "supabase/storage"]],
-  "@nestjs/core": ["nestjs", ["nestjs/controllers", "nestjs/providers"]],
+  "@nestjs/core": ["nestjs", ["nestjs/controllers", "nestjs/providers", "nestjs/transport"]],
   express: ["express", ["express/middleware", "express/requests"]],
   hono: ["hono", ["hono/routing", "hono/middleware"]],
   "@trpc/server": ["trpc", ["trpc/router"]],

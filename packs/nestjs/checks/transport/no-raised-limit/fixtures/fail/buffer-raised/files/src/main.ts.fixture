@@ -1,0 +1,2 @@
+import { Transport } from "@nestjs/microservices";
+export const tcp = { transport: Transport.TCP, options: { maxBufferSize: 128 * 1024 * 1024 } };
