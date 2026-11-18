@@ -132,6 +132,7 @@
         "src/packs.ts",
         "src/platform.ts",
         "src/supervisor.ts",
+        "src/uncertainty.ts",
         "src/progress.ts",
         "src/workspace.ts",
         "src/catalog-discovery.ts",
@@ -174,7 +175,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "c2dfdae45dbb147b38b1c624800c54ca64b112e3fa3d89c28755fff9ecb3288c",
+  "presetHash": "dd07c1d27119ea0fc9a3ffcbff84aaad24e88f6e6491a65893d272dd34ec00dd",
   "ratchet": "no-new",
   "rules": [
     {
@@ -5614,6 +5615,7 @@
           "src/packs.ts",
           "src/platform.ts",
           "src/supervisor.ts",
+          "src/uncertainty.ts",
           "src/progress.ts",
           "src/workspace.ts",
           "src/catalog-discovery.ts",

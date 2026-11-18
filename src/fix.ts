@@ -85,6 +85,8 @@ export function causeFix(cause: Cause, rel: string | null, line: number | null, 
       return side(null, "pregate preset compile", "No code path is declared for this cause. Rewrite the rule regex without repeated groups and run pregate preset compile.");
     case "contract-loosened":
       return side(null, "a reviewed request", "No code path is declared for this cause. The human restores the contract or applies a reviewed preview.");
+    case "shell-uncertain":
+      return side(null, "close every quote, substitution, and group", "No code path is declared for this cause. Close every quote, substitution, and group.");
     case "payload-unrecognized":
       return side(null, null, "No deterministic path or replacement is declared for this cause. Report the harness payload to the user.");
   }

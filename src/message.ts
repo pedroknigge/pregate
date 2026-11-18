@@ -3,6 +3,14 @@ import { FIXABLE_BY } from "./types.ts";
 import { enforcementOf } from "./enforcement.ts";
 import type { Cause, DecisionFix, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
 
+// Calls the engine could not classify. A rule violation, a protected path, and a shell write are not in this set.
+export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
+  "payload-unrecognized", "lock-stale", "version-mismatch", "cannot-reconstruct", "shell-uncertain",
+]);
+
+// Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
+export const UNCERTAINTY_OVERRIDE = " Override: set uncertainty to open in .pregate/preset.json; the human runs pregate preset compile.";
+
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
 // write text that comes back as the hook's voice (SPEC §11.1).
@@ -70,6 +78,7 @@ const CAUSE_EN: Record<Cause, string> = {
   "shell-admin": "this command skips git hooks, runs an ungated agent harness, changes PREGATE configuration or builds a command name from a variable, substitution or glob. Do not run it; spell every command name literally.",
   "hook-switch": "this command installs, removes or switches off PREGATE or the hooks of a harness. Do not run it. Do not ask to switch protection off merely to continue a blocked task; propose a reviewed rule adaptation.",
   "approval": "an agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. Setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT does not grant it.",
+  "shell-uncertain": "this command has unfinished shell syntax, so it was not classified. Close every quote, substitution, and group.",
   "payload-unrecognized": "PREGATE could not evaluate this call: the hook payload does not match what this PREGATE version knows of the harness.",
   "lock-stale": "PREGATE could not evaluate this call: its lock is missing, does not match the preset and its sources, or pins an engine older than this one accepts.",
   "version-mismatch": "PREGATE could not evaluate this call: the engine or core version differs from the one the preset pins.",
@@ -177,11 +186,17 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
   const cue = f.cause === "shell-write" && detail !== null && fix.use ? `Use ${fix.use}. `
     : (f.cause === "protected-path" || f.cause === "hook-switch") && fix.where && fix.use ? `Put the change in ${fix.where}. Use ${fix.use}. `
     : "";
-  const headline = `PREGATE DENY ${f.cause}${at}: ${cue}${detail ?? CAUSE_EN[f.cause]}`;
-  const compact = clip(headline, LINE_MAX);
+  const diagnosis = detail ?? CAUSE_EN[f.cause];
+  const strict = UNCERTAINTY_CAUSES.has(f.cause);
+  // payload-unrecognized grows by " (claude-code)" when main labels the harness. Leave that room.
+  const limit = LINE_MAX - (f.cause === "payload-unrecognized" ? " (claude-code)".length : 0);
+  const headline = `PREGATE DENY ${f.cause}${at}: ${cue}${diagnosis}`;
+  // An unclassified deny leads with the concrete repair, then the override, inside Grok's line.
+  const compact = strict ? strictCompact(f.cause, at, fix.text, limit) : clip(headline, LINE_MAX);
   // Grok sees only `compact`. The full text keeps that line, then the unclipped sentence when the
   // cue pushed a required cause phrase past 256 characters.
-  const lead = detail !== null || compact === headline ? (detail !== null ? headline : compact) : `${compact}\n${headline}`;
+  const lead = strict ? compact
+    : detail !== null || compact === headline ? (detail !== null ? headline : compact) : `${compact}\n${headline}`;
   const next = FIXABLE_BY[f.cause] === "human" ? "Only the user can fix this: stop and report it to them (cause and path)."
     : halt ? FORM_HALTED
     : "If you believe this is a false positive, stop and tell the user (cause and path).";
@@ -195,8 +210,27 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "approval"
     ? "\nAn agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. A literal pregate approve with a code, or pregate approve --yes with an optional digest, is the in-harness confirmation. Other commands ask for y on that terminal. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in that environment by the human or by CI, not by the agent."
     : "";
-  const fixLine = help.includes("\nFix: ") || help.includes("Fix: ") ? "" : `\nFix: ${fix.text}`;
-  return { compact, full: `${lead}${help}${fixLine}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}`, fix };
+  const uncertainty = strict
+    ? "\nWhere this project is enabled, an unclassified call is denied. That does not turn protection off."
+    : "";
+  const fixAlready = help.includes("\nFix: ") || help.includes("Fix: ") || compact.includes(fix.text);
+  const fixLine = fixAlready ? "" : `\nFix: ${fix.text}`;
+  const carried = strict ? `${fixLine}\n${diagnosis}` : fixLine;
+  return { compact, full: `${lead}${carried}${help}${uncertainty}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}`, fix };
+}
+
+// The first line of an unclassified deny. The repair and the override stay; a long path yields.
+function strictCompact(cause: string, at: string, fixText: string, limit: number): string {
+  const fixSentence = `Fix: ${oneLine(fixText)}`;
+  const tail = `${fixSentence}${UNCERTAINTY_OVERRIDE}`;
+  const withPath = `PREGATE DENY ${cause}${at}: ${tail}`;
+  if (withPath.length <= limit) return withPath;
+  const head = `PREGATE DENY ${cause}: `;
+  const bare = head + tail;
+  if (bare.length <= limit) return bare;
+  const room = limit - head.length - UNCERTAINTY_OVERRIDE.length;
+  if (room >= "Fix: ".length + 8) return head + clip(fixSentence, room) + UNCERTAINTY_OVERRIDE;
+  return clip(head + tail, limit);
 }
 
 // Advisor mode does not block a grammar failure. The file was not evaluated, so the text must not say it was clean.

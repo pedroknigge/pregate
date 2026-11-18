@@ -49,15 +49,17 @@ export function sharedClaudeMatcher(): string {
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
+// The failure path only. Exact JSON "open" lets this missing-launcher call through; anything else stays denied.
+const OPEN = String.raw`uncertainty_open() { u=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${u#/}" != "$u" ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0; [ -f "$u/.pregate/preset.json" ] && return 1; [ -e "$u/.git" ] && return 1; u=\${u%/*}; done; return 1; }; `;
 const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && printf '%s' "$records" | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && grep -hF "\"repo\":\"$g\"" @CONSENT@/*.json 2>/dev/null | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
-const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { ${MISSING}; }; done; exit 0`;
+const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; done; exit 0`;
 // agy runs hooks from the plugin folder and sets no project variable: the payload names the root.
-const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); consented "$d" && { ${MISSING}; }; exit 0`;
+const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; exit 0`;
 
 // The registered command: frozen across versions (test/fixtures/hook-command.ts).
 export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
   if (windowsData(data)) return windowsHook(data, sub, h);
-  const consent = 'PATH=/usr/bin:/bin:$PATH; ' + CONSENT.replaceAll("\\${", "${").replaceAll("@CONSENT@", quote(`${data}/consent`)).replaceAll("@PROPOSALS@", quote(`${data}/proposals`));
+  const consent = 'PATH=/usr/bin:/bin:$PATH; ' + (OPEN + CONSENT).replaceAll("\\${", "${").replaceAll("@CONSENT@", quote(`${data}/consent`)).replaceAll("@PROPOSALS@", quote(`${data}/proposals`));
   // Grok expands $VAR before invoking the shell, including locals the shell has not set yet.
   // Keep the exec path literal; decode the fallback only if the launcher is unavailable.
   if (h === "claude-code") {
@@ -85,7 +87,9 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
   const args = `hook ${sub} --harness ${h}`;
   const dir = h === "cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR";
   if (!windows) {
-    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    const allow = h === "cursor" ? `printf '%s\\n' '{"permission":"allow"}'; exit 0` : "exit 0";
+    const open = `u="\${${dir}:-.}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && { ${allow}; }; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     // Cursor also runs this Claude command. The marker tells that invocation to stand aside when
     // the project's native .cursor/hooks.json owns the same event. Claude Code itself is unaffected.
     // export: a bare assignment stays in the shell and never reaches the launcher or the engine.
@@ -109,7 +113,8 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
 function projectCodexCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness codex`;
   if (!windows) {
-    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
   const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
@@ -125,7 +130,8 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
 function projectAgyCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness agy`;
   if (!windows) {
-    const missing = sub === "pre" ? `printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
+    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; `
       + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `
       + `while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; if [ -x "$f" ] && [ -s "$f" ] && cd "$d"; then printf '%s' "$p" | "$f" ${args}; exit $?; fi; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
@@ -430,6 +436,12 @@ function ours(t: Target, data: string): Record<string, object> {
     return { preToolUse: { ...run("pre", 120), matcher: MATCHER[t], failClosed: true }, stop: { ...run("stop", 60), loop_limit: null }, sessionStart: run("session-start", 15) };
   }
   const preHook = run("pre", 120);
+  // Claude Code >= 2.1.295 denies a command hook that cannot start, times out, exits outside 0 and 2,
+  // or prints invalid JSON when onFailure is block. Exit 0 with empty stdout is not a failure, so a
+  // directory that was never enabled still allows. Older Claude ignores the unknown key. The field is
+  // not Claude's failClosed spelling and is not set on Stop or SessionStart. Codex, Cursor, and agy
+  // files do not get it: an unknown key can invalidate a strict hooks document.
+  const claudePre = t === "shared" || t === "project" ? { ...preHook, onFailure: "block" } : preHook;
   // Grok Build >= 1.0.71 denies a PreToolUse hook that crashes or times out when the handler sets
   // failClosed (xAI changelog, measured on 1.0.77 from this shared file and from ~/.grok/hooks).
   // 1.0.70 ignores the unknown key. Stop and SessionStart do not get it: Grok ignores it there.
@@ -437,7 +449,7 @@ function ours(t: Target, data: string): Record<string, object> {
   // An allow stays empty stdout. On 1.0.77 that still lets the tool run, including a checkout
   // where pregate enable was never run. Cursor's import of this field is still recorded as forced
   // off and was not re-measured. The timeout stays 120.
-  const pre = { matcher: MATCHER[t], hooks: [t === "shared" ? { ...preHook, failClosed: true } : preHook] };
+  const pre = { matcher: MATCHER[t], hooks: [t === "shared" ? { ...claudePre, failClosed: true } : claudePre] };
   if (t === "agy" || t === "project-agy") {
     return { PreToolUse: pre, PostInvocation: run("post-invocation", 15), Stop: run("stop", 60), SessionStart: run("session-start", 15) };
   }

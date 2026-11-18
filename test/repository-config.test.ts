@@ -69,6 +69,18 @@ test.each(invalid)("repository fail-fast boundary: rejects %s before loading rul
   expect(loaded).toEqual([]);
 });
 
+test("repository fail-fast boundary: uncertainty closed and open are valid and any other value is not", () => {
+  for (const uncertainty of ["closed", "open"]) {
+    const { result, loaded } = inspect(JSON.stringify({ ...preset, uncertainty }));
+    expect("errors" in result).toBe(false);
+    expect(loaded.length).toBeGreaterThan(0);
+  }
+  const bad = inspect(JSON.stringify({ ...preset, uncertainty: "maybe" }));
+  expect("errors" in bad.result).toBe(true);
+  expect(bad.loaded).toEqual([]);
+  expect("errors" in bad.result ? bad.result.errors.join("\n") : "").toContain("preset.json: /uncertainty:");
+});
+
 test("repository fail-fast boundary: malformed JSON cannot load sources or produce a lock", () => {
   expect(inspect("{")).toEqual({ result: { errors: ["preset.json: invalid JSON"] }, loaded: [] });
 });

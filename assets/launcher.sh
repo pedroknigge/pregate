@@ -174,6 +174,7 @@ bare= hint="pregate: no command. Run pregate in a terminal for the guide, or pre
 [ $# -eq 0 ] && bare=1 && set -- hook auto
 [ -n "$bare" ] && [ -t 0 ] && printf '%s\n' "$hint" >&2 && exit 0
 event=$2
+hook_harness=${4:-}
 # SessionStart reaches the engine without consent: its dormant notice is for users with no project yet.
 # Stop does once a session reached a consented root, so it can warn when consent was removed.
 has_consent || [ -n "$bare" ] || [ "$event" = session-start ] || { [ "$event" = stop ] && [ -f "$data/reached" ]; } || exit 0
@@ -191,20 +192,39 @@ exec 3<&0 4>&2 2>/dev/null
 # check (default: the installation). Prints the event's fail-closed output and exits. Pre is the same
 # in the six harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
 # cut at 256 characters).
+# Failure path only. The exact JSON string "open" lets an unclassified crash through.
+uncertainty_open() {
+  u=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  while [ "${u#/}" != "$u" ]; do
+    if [ -f "$u/.pregate/preset.json" ]; then
+      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0
+      return 1
+    fi
+    [ -e "$u/.git" ] && return 1
+    u=${u%/*}
+  done
+  return 1
+}
+
 fail_closed() {
   trap '' USR1 USR2 TERM HUP
-  active=
+  active= active_dir=
   for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
-    consented "$candidate" && active=1 && break
+    consented "$candidate" && active=1 && active_dir=$candidate && break
   done
   if [ -z "$active" ] && [ -f "$tmp/in" ]; then
     candidate=$(sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p' "$tmp/in")
-    consented "$candidate" && active=1
+    consented "$candidate" && active=1 && active_dir=$candidate
   fi
   # An engine redirects only for a root with an approved lock: the call is a project's, also when
   # the session started in a folder above it that has none.
   [ -z "${routed:-}" ] || active=1
   [ -n "$active" ] || exit 0
+  if uncertainty_open "${active_dir:-$PWD}"; then
+    # Cursor native preToolUse treats empty stdout as a failure when failClosed is set.
+    [ "$event" = pre ] && [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
+    exit 0
+  fi
   hint=${3:-"Check the installation (pregate doctor)."}
   case $event in
   stop)

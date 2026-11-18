@@ -49,8 +49,10 @@ export function commandHelp(args: string[]): boolean {
 }
 
 // Shell guard (§4.2): a heuristic over one permissive lexer for POSIX shells and PowerShell. It
-// denies what it can establish (writes, admin commands, other harnesses, protected mentions) and
-// never denies for syntax it does not understand: Stop, pre-commit and CI see the resulting tree.
+// denies what it can establish (writes, admin commands, other harnesses, protected mentions).
+// Syntax the lexer cannot finish (an unclosed quote, substitution, or group) is shell-uncertain.
+// A finished token the heuristic does not classify, such as select or coproc, is not a deny by itself.
+// Stop, pre-commit and CI see the resulting tree.
 
 // `under`: whether an in-scope path can lie at or below `abs`, for a directory written whole.
 // `touched`: whether a path the guard asked about (isProtected, inScope or under) reached a root.
@@ -311,7 +313,163 @@ export function guard(command: string, cwd: string, context: GuardContext & { ma
   const ctx: Ctx = { ...context, held: null, origin: cwd, guideInspection: isolatedGuideInspection(command), configurationInspection: isolatedConfigurationInspection(command),
     vars: new Map(), pendingProtected: new Set(), bound: new Set(), ciSet: false, direct: true };
   const cause = script(command, cwd, ctx) ?? (command.includes("\\") ? script(command.replace(/\\(?=[\w.-])/g, "/"), cwd, ctx) : null);
-  return cause ?? (ctx.held !== null && ctx.touched() ? ctx.held : null);
+  if (cause !== null) return cause;
+  // The lexer finished no stronger cause. An unfinished token was not classified, so it denies.
+  if (syntaxGap(command)) return "shell-uncertain";
+  return ctx.held !== null && ctx.touched() ? ctx.held : null;
+}
+
+// True when a quote, a command substitution, an arithmetic expansion, a [[ test, a { group,
+// or a heredoc is opened and not closed. A finished word the heuristic does not know is not a gap.
+export function syntaxGap(src: string): boolean {
+  return unfinished(src, 0, src.length, "none").open;
+}
+
+function unfinished(src: string, from: number, to: number, stop: "none" | ")" | "}"): { i: number; open: boolean } {
+  let i = from;
+  let quote: "'" | '"' | null = null;
+  let braces = 0;
+  while (i < to) {
+    const c = src[i]!;
+    const next = src[i + 1];
+    if (quote === "'") {
+      if (c === "'") quote = null;
+      i++;
+      continue;
+    }
+    if (c === "\\") { i += next === undefined ? 1 : 2; continue; }
+    if (quote === '"') {
+      if (c === '"') { quote = null; i++; continue; }
+      const sub = substitution(src, i, to);
+      if (sub !== null) {
+        if (sub.open) return sub;
+        i = sub.i;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (c === "#" && (i === from || /[\s;|&]/.test(src[i - 1]!))) {
+      const nl = src.indexOf("\n", i);
+      i = nl < 0 || nl >= to ? to : nl + 1;
+      continue;
+    }
+    if (c === "'" || c === '"') { quote = c; i++; continue; }
+    if (c === "<" && next === "<" && src[i + 2] !== "<") {
+      const heredoc = skipHeredoc(src, i, to);
+      if (heredoc === null) { i += 2; continue; }
+      if (heredoc < 0) return { i, open: true };
+      i = heredoc;
+      continue;
+    }
+    if (groupOpen(src, i)) { braces++; i++; continue; }
+    if (c === "}" && braces > 0) { braces--; i++; continue; }
+    const sub = substitution(src, i, to);
+    if (sub !== null) {
+      if (sub.open) return sub;
+      i = sub.i;
+      continue;
+    }
+    if (src.startsWith("((", i)) {
+      const end = matchClose(src, i + 2, to, "(", ")");
+      if (end < 0 || end + 1 >= to || src[end] !== ")" || src[end + 1] !== ")") return { i, open: true };
+      i = end + 2;
+      continue;
+    }
+    if (src.startsWith("[[", i) && (i + 2 >= to || /\s/.test(src[i + 2]!))) {
+      const end = src.indexOf("]]", i + 2);
+      if (end < 0 || end >= to) return { i, open: true };
+      i = end + 2;
+      continue;
+    }
+    if (stop !== "none" && c === stop && braces === 0) return { i, open: false };
+    i++;
+  }
+  return { i, open: quote !== null || braces !== 0 };
+}
+
+function substitution(src: string, i: number, to: number): { i: number; open: boolean } | null {
+  if (src[i] === "`") {
+    const end = src.indexOf("`", i + 1);
+    if (end < 0 || end >= to) return { i, open: true };
+    return { i: end + 1, open: false };
+  }
+  if (src[i] !== "$") return null;
+  const next = src[i + 1];
+  if (next === "(" && src[i + 2] === "(") {
+    const end = matchClose(src, i + 3, to, "(", ")");
+    if (end < 0 || end + 1 >= to || src[end] !== ")" || src[end + 1] !== ")") return { i, open: true };
+    return { i: end + 2, open: false };
+  }
+  if (next === "(") {
+    const inner = unfinished(src, i + 2, to, ")");
+    if (inner.open || src[inner.i] !== ")") return { i, open: true };
+    return { i: inner.i + 1, open: false };
+  }
+  if (next === "{") {
+    const inner = unfinished(src, i + 2, to, "}");
+    if (inner.open || src[inner.i] !== "}") return { i, open: true };
+    return { i: inner.i + 1, open: false };
+  }
+  return null;
+}
+
+function groupOpen(src: string, i: number): boolean {
+  if (src[i] !== "{") return false;
+  const prev = i === 0 ? " " : src[i - 1]!;
+  const next = src[i + 1];
+  return /[\s;|&(]/.test(prev) && (next === undefined || /\s/.test(next));
+}
+
+function matchClose(src: string, from: number, to: number, open: string, close: string): number {
+  let depth = 1;
+  for (let i = from; i < to; i++) {
+    const c = src[i]!;
+    if (c === "\\") { i++; continue; }
+    if (c === "'" || c === '"') {
+      const end = src.indexOf(c, i + 1);
+      if (end < 0 || end >= to) return -1;
+      i = end;
+      continue;
+    }
+    if (c === open) depth++;
+    else if (c === close && --depth === 0) return i;
+  }
+  return -1;
+}
+
+// The index after a closed heredoc, -1 when the body never ends, null when this << is not one.
+function skipHeredoc(src: string, i: number, to: number): number | null {
+  let j = i + 2;
+  const strip = src.startsWith("<<-", i);
+  if (strip) j++;
+  while (j < to && (src[j] === " " || src[j] === "\t")) j++;
+  let delim = "";
+  if (src[j] === "'" || src[j] === '"') {
+    const q = src[j]!;
+    const end = src.indexOf(q, j + 1);
+    if (end < 0 || end >= to) return -1;
+    delim = src.slice(j + 1, end);
+    j = end + 1;
+  } else if (src[j] === "\\") {
+    j++;
+    while (j < to && /[A-Za-z0-9_]/.test(src[j]!)) delim += src[j++];
+  } else {
+    while (j < to && /[A-Za-z0-9_]/.test(src[j]!)) delim += src[j++];
+  }
+  if (delim === "") return null;
+  const nl = src.indexOf("\n", j);
+  if (nl < 0 || nl >= to) return -1;
+  let at = nl + 1;
+  while (at <= to) {
+    const next = src.indexOf("\n", at);
+    const end = next < 0 || next > to ? to : next;
+    const line = src.slice(at, end);
+    if ((strip ? line.replace(/^\t+/, "") : line) === delim) return end === to ? end : end + 1;
+    if (next < 0 || next >= to) return -1;
+    at = next + 1;
+  }
+  return -1;
 }
 
 // A single literal cat call has no executable filter, expansion, wrapper or output destination.
