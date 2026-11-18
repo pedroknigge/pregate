@@ -431,6 +431,8 @@ function describe(lock: Lock, r: LockRule): string {
     "params:", ...params,
     `why: ${r.text.why}`,
     `fix: ${r.text.fix}`,
+    ...(r.text.where ? [`where: ${r.text.where}`] : []),
+    ...(r.text.use ? [`use: ${r.text.use}`] : []),
     ...(r.text.avoid === null ? [] : [`avoid: ${r.text.avoid}`]),
     `source: ${r.text.source}`,
   ].join("\n");

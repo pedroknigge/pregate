@@ -34,7 +34,9 @@ export function launcherFailure(kind: string, claude: boolean, raw: string, why:
   }
   const text = reason.slice(0, 256) + "\n";
   const deny: Decision = { verdict: "deny", halt: true, cause: null, violations: [], warnings: [], attempt: 0,
-    compact: text, full: reason.slice(0, 4000) + "\n", notice: null, lockHash: null, shadowed: false };
+    compact: text, full: reason.slice(0, 4000) + "\n",
+    fix: { where: null, use: null, deterministic: false, text: "No deterministic path or replacement is declared for this engine failure. Report it to the user." },
+    notice: null, lockHash: null, shadowed: false };
   return HARNESSES[harness].encode("pre-edit", deny, harness === "cursor" && native);
 }
 

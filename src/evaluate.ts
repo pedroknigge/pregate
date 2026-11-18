@@ -172,10 +172,11 @@ export function placement(lock: Lock, phase: Phase, rel: string, created: boolea
   const hit = (r: LockRule, c: Placement): boolean => c === "new-in-exclude" ? created && excluded
     : c === "edit-generated-or-excluded" ? !created && (excluded || generated)
     : unparsed && (r.params.extensions as string[]).includes(ext);
-  return running(lock, phase, rel).flatMap((r) => r.impl.kind === "primitive" && r.impl.primitive === "placement"
-    && r.impl.cases.some((c) => hit(r, c))
-    ? [{ rule: r.id, path: rel, line: 1, symbol: MODULE, measured: null, limit: null, atSessionStart: null, severity: r.severity }]
-    : []);
+  return running(lock, phase, rel).flatMap((r) => {
+    if (r.impl.kind !== "primitive" || r.impl.primitive !== "placement") return [];
+    const placed = r.impl.cases.find((c) => hit(r, c));
+    return placed === undefined ? [] : [{ rule: r.id, path: rel, line: 1, symbol: MODULE, measured: null, limit: null, atSessionStart: null, severity: r.severity, placed }];
+  });
 }
 
 // The rules that run on `rel` in this phase: PREGATE's, not ArkGate's, and whose paths take it in.
@@ -309,7 +310,7 @@ function checkImports(lock: Lock, p: Parsed, rules: LockRule[], host: Host, repo
         const packages = (r.params.packages as string[]).map(normalize);
         // By name even when an alias maps it to a local file: the runtime does not read tsconfig paths.
         if (reached.some((e) => packages.some((pkg) => normalize(e.spec) === pkg || normalize(e.spec).startsWith(pkg + (grammar === "python" ? "." : grammar === "rust" ? "::" : "/"))))) {
-          report(r, i.line, MODULE);
+          report(r, i.line, MODULE).spec = i.spec;
         }
       });
     }

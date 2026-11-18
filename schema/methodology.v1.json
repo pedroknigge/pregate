@@ -45,6 +45,14 @@
           },
           "why": { "type": "string" },
           "fixHint": { "type": "string" },
+          "fix": {
+            "type": "object",
+            "properties": {
+              "where": { "type": "string", "pattern": "\\S" },
+              "use": { "type": "string", "pattern": "\\S" }
+            },
+            "additionalProperties": false
+          },
           "avoid": { "type": "string" },
           "examples": {
             "type": "object",

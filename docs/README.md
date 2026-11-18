@@ -43,12 +43,14 @@ its recorded candidate, not proof that a later candidate passes.
 - [Storage, source retention, cleanup and owner recovery](features/local-storage.md)
 - [Harness, shell and incomplete Stop guarantees](features/harness-and-shell-guarantees.md)
 - [Native candidate verification and publication gates](features/release-verification.md)
+- [Release checklist](releases/CHECKLIST.md) and [release notes template](releases/TEMPLATE.md)
 
 ## Author and contribute
 
 - [Convert library documentation or skills into a rule pack](guides/docs-to-rule-pack.md)
 - [Pack worksheet](guides/rule-pack-worksheet.md) and [executable example](examples/docs-to-pack/README.md)
 - [Architecture and implementation decisions](ARCHITECTURE.md)
+- [Merged pull requests and reverts per week](guides/review-trust.md)
 - [Harness specifications and observed capabilities](MULTI-HARNESS.md)
 - [Specification and design history](SPEC.md)
 - [Roadmap](ROADMAP.md) and [v0.0.1 release notes](releases/0.0.1.md)
@@ -136,6 +138,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [guides/maintenance.md](guides/maintenance.md) | Product/reference |
 | [guides/pregate-skill.md](guides/pregate-skill.md) | Product/reference |
 | [guides/readiness-packs.md](guides/readiness-packs.md) | Product/reference |
+| [guides/review-trust.md](guides/review-trust.md) | Product/reference |
 | [guides/rule-pack-worksheet.md](guides/rule-pack-worksheet.md) | Product/reference |
 | [guides/rule-precision.md](guides/rule-precision.md) | Product/reference |
 | [guides/source-invariants.md](guides/source-invariants.md) | Product/reference |
@@ -157,6 +160,8 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.7.md](releases/0.0.7.md) | Product/reference |
 | [releases/0.0.8.md](releases/0.0.8.md) | Product/reference |
 | [releases/0.0.9.md](releases/0.0.9.md) | Product/reference |
+| [releases/CHECKLIST.md](releases/CHECKLIST.md) | Product/reference |
+| [releases/TEMPLATE.md](releases/TEMPLATE.md) | Product/reference |
 | [research/harness-opencode-live.md](research/harness-opencode-live.md) | Dated research/evidence |
 | [ROADMAP.md](ROADMAP.md) | Product/reference |
 | [SPEC.md](SPEC.md) | Product/reference |

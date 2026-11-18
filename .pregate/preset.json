@@ -76,6 +76,7 @@
         "src/proxy-checks.ts",
         "src/decide.ts",
         "src/message.ts",
+        "src/fix.ts",
         "src/shell.ts",
         "src/schema.ts",
         "src/compile.ts",

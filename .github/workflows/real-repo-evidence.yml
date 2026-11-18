@@ -1,0 +1,43 @@
+# Shallow-clones the pinned public repositories and records what the checkout CLI blocked
+# and allowed. workflow_dispatch runs it on demand. A version tag runs it beside Release.
+# Pull-request CI does not run this file, so a pull request does not clone those repositories.
+# Publication in release.yml does not wait on this job. The release checklist attaches the artifact.
+name: Real repository evidence
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      - name: Isolate runtime homes
+        run: |
+          root=/tmp/pregate-real-repo-evidence
+          mkdir -p "$root"
+          for entry in HOME:home XDG_DATA_HOME:data XDG_STATE_HOME:state XDG_CONFIG_HOME:config TMPDIR:tmp CODEX_HOME:codex GROK_HOME:grok; do
+            path="$root/${entry#*:}"
+            mkdir -p "$path"
+            echo "${entry%%:*}=$path" >> "$GITHUB_ENV"
+          done
+      - name: Git identity for the isolated home
+        run: |
+          git config --global user.email "pregate-verify@example.com"
+          git config --global user.name "Pregate Verify"
+          git config --global commit.gpgsign false
+      - run: bun install --frozen-lockfile
+      - name: Replay pinned repositories
+        run: bun scripts/real-repo-evidence.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: real-repo-evidence
+          if-no-files-found: warn
+          path: evidence/

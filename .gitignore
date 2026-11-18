@@ -1,4 +1,6 @@
 node_modules
+# Real-repository evidence from scripts/real-repo-evidence.ts and the verify-pregate skill.
+evidence/
 .env
 .env.*
 .cache/

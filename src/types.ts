@@ -103,6 +103,17 @@ export interface Violation {       // data only: message.ts renders the text fro
   severity: Severity;
   repair?: string;                 // synthesized AST repair hint (line numbers and structure only)
   edge?: { from: string; to: string | null; spec: string };   // layer-edge: source layer, target layer (null: none), import as written
+  spec?: string;                   // banned-import: the import specifier as written
+  placed?: Placement;              // placement: the case that matched
+}
+// A denial's concrete repair. `where` is the path or layer the code should occupy.
+// `use` is the import, API, or pattern to use instead. Both come from rule data.
+// `deterministic` is true only when both sides are known. `text` is the sentence the agent reads.
+export interface DecisionFix {
+  where: string | null;
+  use: string | null;
+  text: string;
+  deterministic: boolean;
 }
 export interface Decision {
   contractApproval?: boolean;      // native, enforced human permission for the exact validated edit
@@ -114,6 +125,7 @@ export interface Decision {
   warnings: Violation[];           // introduced warn → additionalContext
   attempt: number;                 // attempt n on (agent, file, rule)
   compact: string; full: string;   // ≤ 256 / ≤ 4,000 chars
+  fix: DecisionFix | null;         // concrete where/what, or an explicit non-deterministic hint; null when nothing is blocked
   notice: string | null;           // to the human: systemMessage / stopReason
   lockHash: string | null;
   shadowed: boolean;               // shadow muted a finding/cause, including calls with another blocking rule
@@ -190,6 +202,7 @@ export interface Alias {
   id: string; check: string; defaults: Record<string, unknown>; severity: Severity | "off";
   source: { work: string; locator: string; paraphrase: string };
   why: string; fixHint: string; avoid: string; examples?: { pass: string; fail: string };
+  fix?: { where?: string; use?: string }; // optional concrete path and replacement; empty is rejected
   relations?: RuleRelation[]; versionGate?: VersionGate;
 }
 // `with` names another alias (ns/ALIAS-ID) or, for idiom, a pack namespace whose framework mandates the opposite.
@@ -250,7 +263,7 @@ export interface LockRule {
   enforcement?: Enforcement;       // older locks inherit the preset default
   integrity: boolean;              // builtin core: enforces by default; human-reviewed off is permitted
   origin: Record<string, string>;  // "params.max" → "resolve.fn.size" | "overrides.CC-FN-001" | "alias"
-  text: { message: string; why: string; fix: string; avoid: string | null; source: string };
+  text: { message: string; why: string; fix: string; avoid: string | null; source: string; where?: string; use?: string };
   when?: { dependency: "typescript"; min: string; otherwise?: "warn" };
 }
 export interface Lock {            // lockHash = sha256 of the file bytes (the text is already canonical JSON)

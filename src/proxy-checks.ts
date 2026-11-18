@@ -1,6 +1,7 @@
 // Honest proxies the pattern language cannot decide: a sibling test, a feature-flag
 // import, an ADR path in the same diff, and a size a churn gate compares later.
 // Git listing lives in proxy-diff.ts so this module stays in the core layer.
+import { siblingTestCandidates } from "./fix.ts";
 import { languageApplies } from "./languages.ts";
 import { matches, ruleApplies } from "./paths.ts";
 import { functions, imports, type Parsed } from "./ts.ts";
@@ -11,7 +12,6 @@ export function usesPrimitive(lock: Lock, primitive: string): boolean {
 }
 
 const MODULE = "<module>";
-const CODE_EXT = ["ts", "tsx", "js", "jsx"];
 
 export function nonBlankLines(text: string): number {
   let count = 0;
@@ -25,31 +25,8 @@ export function longestFunction(parsed: Parsed): { lines: number; line: number }
   return best;
 }
 
-// Same directory, `__tests__` beside the file, or `src/` mirrored under `test/`, `tests/`, or `__tests__/`.
 export function hasSiblingTest(rel: string, read: Read): boolean {
-  const parts = rel.split("/");
-  const file = parts.pop() ?? rel;
-  const dot = file.lastIndexOf(".");
-  const base = dot < 0 ? file : file.slice(0, dot);
-  const ext = dot < 0 ? "" : file.slice(dot + 1);
-  const leaves = [...new Set([ext, ...CODE_EXT].filter((item) => item !== ""))].flatMap((item) => [`${base}.test.${item}`, `${base}.spec.${item}`]);
-  const folders = new Set<string>();
-  const add = (folder: string): void => void folders.add(folder);
-  const dir = parts.join("/");
-  add(dir);
-  add(dir === "" ? "__tests__" : `${dir}/__tests__`);
-  const src = parts.indexOf("src");
-  if (src >= 0) for (const root of ["test", "tests", "__tests__"]) {
-    const mirrored = [...parts];
-    mirrored[src] = root;
-    add(mirrored.join("/"));
-  }
-  for (const root of ["test", "tests"]) add(dir === "" ? root : `${root}/${dir}`);
-  for (const folder of folders) for (const leaf of leaves) {
-    const path = folder === "" ? leaf : `${folder}/${leaf}`;
-    if (path !== rel && read(path) !== null) return true;
-  }
-  return false;
+  return siblingTestCandidates(rel).some((path) => read(path) !== null);
 }
 
 export function importsFeatureFlag(parsed: Parsed, specifiers: readonly string[]): boolean {

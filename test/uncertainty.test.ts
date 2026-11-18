@@ -36,6 +36,8 @@ test("a missing preset stays closed and one open preset allows only that tree", 
 test("unclassified deny lines name the override and stay inside the harness line", () => {
   for (const cause of UNCERTAINTY_CAUSES) {
     const text = formText({ cause, line: null }, null);
+    expect(text.compact.startsWith(`PREGATE DENY ${cause}`)).toBe(true);
+    expect(text.compact.indexOf("Fix:")).toBeLessThan(text.compact.indexOf("uncertainty"));
     expect(text.compact).toContain("uncertainty");
     expect(text.compact.length).toBeLessThanOrEqual(cause === "payload-unrecognized" ? 242 : 256);
     expect(text.full).toContain("does not turn protection off");
