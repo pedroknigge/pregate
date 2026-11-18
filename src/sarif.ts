@@ -1,4 +1,5 @@
 import { enforcementOf } from "./enforcement.ts";
+import { ruleFix } from "./fix.ts";
 import { violationMessage } from "./message.ts";
 import type { Lock, LockRule, Violation } from "./types.ts";
 
@@ -31,7 +32,7 @@ export function sarifReport(lock: Lock, violations: Violation[], executionSucces
   const results = violations.map((v) => {
     const rule = byId.get(v.rule);
     const msg = violationMessage(v, lock);
-    const fix = rule ? ` Fix: ${rule.text.fix}` : "";
+    const fix = ` Fix: ${ruleFix(v, lock).text}`;
     return {
       ruleId: v.rule,
       level: sarifLevel(lock, rule, v),

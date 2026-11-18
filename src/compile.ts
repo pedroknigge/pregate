@@ -290,6 +290,7 @@ function manifestErrors(m: Manifest, id: string): string[] {
   const out = m.id === id ? [] : [`id must be ${id}`];
   for (const a of m.invariants) {
     if (a.severity === "deny" && unexplained(a)) out.push(`${a.id}: a deny invariant needs why, fixHint, avoid and examples`);
+    if (a.fix && a.fix.where === undefined && a.fix.use === undefined) out.push(`${a.id}: fix needs where or use`);
     if (id.startsWith("core/") && a.severity === "off") out.push(`${a.id}: a core invariant must be active by default; use a reviewed preset override to disable it`);
   }
   return out;
@@ -515,6 +516,8 @@ function shape(check: Check, alias: Alias | null): Pick<LockRule, "check" | "imp
     text: {
       message: check.feedback.message, why: alias?.why ?? "", fix: alias?.fixHint ?? "", avoid: alias?.avoid || null,
       source: alias ? `${alias.source.work}, ${alias.source.locator}` : "",
+      ...(alias?.fix?.where ? { where: alias.fix.where } : {}),
+      ...(alias?.fix?.use ? { use: alias.fix.use } : {}),
     },
   };
 }

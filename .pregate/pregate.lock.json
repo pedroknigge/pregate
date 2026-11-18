@@ -34,6 +34,7 @@
         "src/proxy-checks.ts",
         "src/decide.ts",
         "src/message.ts",
+        "src/fix.ts",
         "src/shell.ts",
         "src/schema.ts",
         "src/compile.ts",
@@ -173,7 +174,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "ea9a4548fe9e2f43560a53de645bad59ad75f7c611559dda81456845663be796",
+  "presetHash": "c2dfdae45dbb147b38b1c624800c54ca64b112e3fa3d89c28755fff9ecb3288c",
   "ratchet": "no-new",
   "rules": [
     {
@@ -221,6 +222,7 @@
           "src/proxy-checks.ts",
           "src/decide.ts",
           "src/message.ts",
+          "src/fix.ts",
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
@@ -351,6 +353,7 @@
           "src/proxy-checks.ts",
           "src/decide.ts",
           "src/message.ts",
+          "src/fix.ts",
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
@@ -884,6 +887,7 @@
           "src/proxy-checks.ts",
           "src/decide.ts",
           "src/message.ts",
+          "src/fix.ts",
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",
@@ -5520,6 +5524,7 @@
           "src/proxy-checks.ts",
           "src/decide.ts",
           "src/message.ts",
+          "src/fix.ts",
           "src/shell.ts",
           "src/schema.ts",
           "src/compile.ts",

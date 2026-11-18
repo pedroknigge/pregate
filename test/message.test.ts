@@ -304,11 +304,36 @@ describe("message content", () => {
   test("first line: rule, location, measured against limit, minimal fix, and how to read the rest", () => {
     expect(denyText([v(2, 42)], LOCK, 1, "retry", { ...CTX, launcher: "pregate" }).compact).toBe(
       "PREGATE DENY core/CC-FN-002 src/billing/invoice.ts:42 `Invoice.calculateTotals` takes 5 parameters (limit 3). " +
-      "Fix: Group parameters that always travel together into a named domain type, or split the function by re… " +
+      "Fix: No deterministic path or replacement is declared for core/CC-FN-002. Group parameters that always … " +
       "Details: `pregate explain core/CC-FN-002`");
   });
 
   // Grok shows only the first 256 characters of the first line (MULTI-HARNESS MH-16).
+  test("a long launcher leaves the layer path and the replacement on the first line", () => {
+    const edge: LockRule = {
+      ...RULES[1]!, id: "architecture/CA-DEP-001", params: {},
+      impl: { kind: "primitive", primitive: "layer-edge" },
+    };
+    const layered: Lock = {
+      ...LOCK,
+      layers: {
+        core: { paths: ["src/core/**"], mayImport: [], kind: "core" },
+        shell: { paths: ["src/shell/**"], mayImport: ["core"], kind: "adapter" },
+      },
+      rules: [edge],
+    };
+    const found = { ...v(1, 1, "<module>", "src/core/order.ts"), rule: edge.id, edge: { from: "core", to: "shell", spec: "../shell/main" } };
+    const launcher = "/private/tmp/claude-501/pregate-ci/tmp/pregate-concrete-fix-tGlARR/engine/bin/pregate";
+    const text = denyText([found], layered, 1, "retry", { ...CTX, launcher });
+    expect(text.compact.length).toBeLessThanOrEqual(256);
+    expect(text.compact).toContain("src/core/");
+    expect(text.compact).toContain("src/shell/");
+    expect(text.compact).toContain("../shell/main");
+    expect(text.compact).toContain("Details: `pregate explain architecture/CA-DEP-001`");
+    expect(text.full.startsWith(text.compact)).toBe(true);
+    expect(text.full).toContain(`\`${launcher} explain architecture/CA-DEP-001\``);
+  });
+
   test("the first line retains an explain command when the launcher path is long", () => {
     const short = denyText([v(2, 42)], LOCK, 1, "retry", CTX);
     expect(short.compact).toEndWith(`Details: \`${LAUNCHER} explain core/CC-FN-002\``);

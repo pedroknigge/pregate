@@ -11,6 +11,7 @@ import { scriptControlCause } from "./control.ts";
 import { acceptedByEnvironment, approvedLocally, loosening, looseningText } from "./loosening.ts";
 import { canonical, escapedRoot, findRoot, readTree, samePlace } from "./disk.ts";
 import { analyze, placement } from "./evaluate.ts";
+import { causeFix } from "./fix.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { fitnessViolations, projectFitness } from "./fitness-command.ts";
 import { catFileBytesBatch, git } from "./git.ts";
@@ -405,18 +406,24 @@ async function contractEdit(planned: Planned[], overlay: Overlay, startedAt: num
       }
       return files;
     } });
-    if ("errors" in result) return { ...settle(call, PROTECTED), full: `PREGATE: invalid contract change:\n${result.errors.join("\n")}` };
+    if ("errors" in result) {
+      const settled = settle(call, PROTECTED);
+      const fix = settled.fix ?? causeFix("protected-path", ".pregate/preset.json", null, null);
+      const full = `PREGATE: invalid contract change:\n${result.errors.join("\n")}\nFix: ${fix.text}`;
+      return { ...settled, full, compact: `PREGATE: invalid contract change. Fix: ${fix.text}`.slice(0, 256), fix };
+    }
     const before = lockOf(root);
     const diff = contractDiff(isCause(before) ? null : before.lock, result.lock, bundledBetween(readText(join(root, PRESET)), text));
     const writes = targets.map((p) => ({ path: p.abs, before: p.disk, after: p.r.after }));
     if (nativeApproval(c.session)) {
       pendingContract(root, result.text, targets.map((p) => ({ path: p.abs, after: p.r.after })));
       const full = `${diff.warning ? "WARNING: this may weaken protection.\n" : ""}Approve this validated PREGATE contract change?\n${diff.summary.join("\n")}\n${writes.map((w) => sourceDiff(relative(root, w.path), w.before, w.after)).join("\n\n")}`;
-      return { ...told(null), verdict: "ask", contractApproval: true, full, compact: full, notice: full };
+      return { ...told(null), verdict: "ask", contractApproval: true, full, compact: full, notice: full, fix: causeFix("approval", null, null, null) };
     }
     proposeContract({ root, lockText: result.text, baseline: state.sha256((readText(join(root, PRESET)) ?? "") + (readText(join(root, LOCK)) ?? "")), writes });
     const instruction = "PREGATE: review this pending contract inside your harness with `pregate approve --preview`, then follow the displayed human approval route (expires in 24 hours). The agent must not approve it itself.";
-    return { ...settle(call, PROTECTED), full: instruction, compact: instruction, notice: instruction };
+    const fix = causeFix("approval", null, null, null);
+    return { ...settle(call, PROTECTED), full: `${instruction}\nFix: ${fix.text}`, compact: instruction, notice: instruction, fix };
   }
   return null;
 }

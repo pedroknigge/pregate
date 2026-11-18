@@ -46,7 +46,7 @@ function withHeldAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
   const held = s.mutedForm;
   if (i.lock?.enforcement !== "advisor" || s.form !== null || held === null || (held.cause !== "syntax" && held.cause !== "unresolvable-import")) return d;
   const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path) : unresolvedAdvisory(held, i.path);
-  if (d.full === "") return { ...d, compact: warning.compact, full: warning.full };
+  if (d.full === "") return { ...d, compact: warning.compact, full: warning.full, fix: d.fix ?? warning.fix };
   const body = d.verdict === "none" ? `${warning.full}\n\n${d.full}` : `${d.full}\n\n${warning.full}`;
   const full = body.length <= 4000 ? body : body.slice(0, 4000);
   return d.verdict === "none" ? { ...d, compact: warning.compact, full } : { ...d, full };
@@ -117,9 +117,9 @@ function classify(i: DecideInput): Sorted {
 }
 
 function quiet(i: DecideInput, s: Sorted): Decision {
-  const text = i.lock === null ? { compact: "", full: "" }
+  const text = i.lock === null ? { compact: "", full: "", fix: null }
     : s.advised.length > 0 ? adviseText([...s.advised, ...s.warnings], i.lock, i)
-    : s.warnings.length > 0 ? warnText(s.warnings, i.lock) : { compact: "", full: "" };
+    : s.warnings.length > 0 ? warnText(s.warnings, i.lock) : { compact: "", full: "", fix: null };
   return {
     verdict: "none", halt: false, cause: s.mutedForm?.cause ?? null, violations: s.muted,
     warnings: [...s.advised, ...s.warnings], attempt: 0, ...text, notice: null, lockHash: i.lockHash,
