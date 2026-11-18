@@ -1,0 +1,178 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nestjs/transport/no-implicit-tcp-host",
+  "version": "1.0.0",
+  "area": "transport",
+  "cardinality": "singleton",
+  "dimension": "nestjs.tcp-host",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "tcp-empty-host",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?host[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:''|\"\"|``|null|undefined)$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.TCP\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "tcp-env-host",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?host[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:process\\.env(?:\\.\\w+|\\[['\"][^'\"]+['\"]\\])|(?:[A-Za-z_]\\w*\\.)+get\\([^)]*\\))(?:\\s+as\\s+\\w+)?$"
+                }
+              },
+              {
+                "not": {
+                  "has": {
+                    "field": "value",
+                    "regex": "\\|\\||\\?\\?"
+                  }
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.TCP\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "tcp-missing-host-nonlocal",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "call_expression",
+            "regex": "\\b(?:createMicroservice|connectMicroservice)\\s*\\(",
+            "all": [
+              {
+                "has": {
+                  "stopBy": "end",
+                  "regex": "Transport\\.TCP\\b"
+                }
+              },
+              {
+                "not": {
+                  "has": {
+                    "stopBy": "end",
+                    "kind": "pair",
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?host[\"']?$"
+                    }
+                  }
+                }
+              }
+            ],
+            "inside": {
+              "kind": "program",
+              "stopBy": "end",
+              "regex": "(?i)0\\.0\\.0\\.0|docker|kubernetes|\\bk8s\\b|container|['\"]::['\"]"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} needs an explicit host. Set host to '0.0.0.0' or '::', or to 'localhost'. NestJS 12.5 treats an empty TCP host as localhost."
+  }
+}

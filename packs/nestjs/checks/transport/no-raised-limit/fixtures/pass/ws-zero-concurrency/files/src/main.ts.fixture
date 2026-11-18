@@ -1,0 +1,4 @@
+import { WsAdapter } from "@nestjs/platform-ws";
+export function bind(app: object) {
+  app.useWebSocketAdapter(new WsAdapter(app, { maxConcurrentMessages: 0, maxPayload: 512 * 1024 }));
+}

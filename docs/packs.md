@@ -63,7 +63,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |
 | [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.3.0 | 12 | `mongodb/models` (complete), `mongodb/queries` (complete) |
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
-| [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.2.0 | 11 | `nestjs/controllers` (complete), `nestjs/providers` (complete) |
+| [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.3.0 | 13 | `nestjs/controllers` (complete), `nestjs/providers` (complete), `nestjs/transport` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |
 | [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.4.1 | 21 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
 | [node](../packs/node/REFERENCE.md) | library | 1.5.0 | 32 | `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete) |

@@ -1,0 +1,2 @@
+import { Transport } from "@nestjs/microservices";
+export const redis = { transport: Transport.REDIS, options: { host: "localhost", port: 6379, maxWildcardChannelLength: 0 } };

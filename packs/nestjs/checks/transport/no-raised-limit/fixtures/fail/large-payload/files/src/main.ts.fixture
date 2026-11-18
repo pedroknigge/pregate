@@ -1,0 +1,3 @@
+import { WebSocketGateway } from "@nestjs/websockets";
+@WebSocketGateway({ maxPayload: 10 * 1024 * 1024 })
+export class EventsGateway {}

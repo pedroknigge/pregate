@@ -1,0 +1,7 @@
+import { Transport } from "@nestjs/microservices";
+export function bind(app: object) {
+  app.connectMicroservice({
+    transport: Transport.TCP,
+    options: { host: process.env.HOST, port: 3001 },
+  });
+}

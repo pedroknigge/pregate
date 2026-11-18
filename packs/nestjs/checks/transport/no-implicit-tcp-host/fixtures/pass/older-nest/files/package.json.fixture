@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@nestjs/core": "^12.4.2"
+  }
+}

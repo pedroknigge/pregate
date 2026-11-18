@@ -1,0 +1,5 @@
+import { Transport } from "@nestjs/microservices";
+// The service is published from the Dockerfile.
+export function bind(app: object) {
+  app.connectMicroservice({ transport: Transport.TCP, options: { host: "", port: 3001 } });
+}

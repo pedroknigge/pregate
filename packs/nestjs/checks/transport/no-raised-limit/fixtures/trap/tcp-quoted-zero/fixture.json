@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/main.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 3
+      }
+    ]
+  },
+  "trap": {
+    "family": "quoted-concurrency-key",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "A quoted maxConcurrentMessages key on TCP is the same option. 0 becomes Infinity in ServerTCP."
+  }
+}
