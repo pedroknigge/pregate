@@ -128,7 +128,7 @@ describe("merge", () => {
     const sharedPre = obj(merge(null, "shared", DATA)).hooks.PreToolUse[0];
     expect(sharedPre.matcher)
       .toBe("Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Monitor|Delete|apply_patch|edit|bash|write|search_replace|hashline_edit|run_terminal_command");
-    expect(sharedPre.hooks[0]).toMatchObject({ type: "command", timeout: 120, failClosed: true });
+    expect(sharedPre.hooks[0]).toMatchObject({ type: "command", timeout: 120, failClosed: true, onFailure: "block" });
     expect(sharedPre.hooks[0].command).toBe(HOOK_COMMAND["pre claude-code"]);
     const matcher = new RegExp(obj(merge(null, "shared", DATA)).hooks.PreToolUse[0].matcher);
     for (const tool of ["write", "search_replace", "hashline_edit", "run_terminal_command"]) expect(matcher.test(tool)).toBe(true);
@@ -344,7 +344,7 @@ describe("project", () => {
     expect(project.hooks.PreToolUse[0].matcher).toBe(shared.hooks.PreToolUse[0].matcher);
     for (const event of Object.keys(shared.hooks)) expect(project.hooks[event][0].hooks[0].timeout).toBe(shared.hooks[event][0].hooks[0].timeout);
     expect(project.hooks.PreToolUse[0].hooks[0].command).toBe(
-      `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness claude-code; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
+      `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness claude-code; u="\${CLAUDE_PROJECT_DIR:-.}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && { exit 0; }; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
     expect(project.hooks.Stop[0].hooks[0].command).toBe(`export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook stop --harness claude-code; exit 0`);
     for (const command of [...commands(merge(null, "project", DATA)), ...commands(merge(null, "project", WINDOWS_DATA))]) {
       expect(commandScript(command)).not.toContain(DATA);
@@ -389,7 +389,7 @@ describe("project", () => {
     expect(project.hooks.PreToolUse[0].matcher).toBe(global.hooks.PreToolUse[0].matcher);
     for (const event of Object.keys(global.hooks)) expect(project.hooks[event][0].hooks[0].timeout).toBe(global.hooks[event][0].hooks[0].timeout);
     expect(project.hooks.PreToolUse[0].hooks[0].command).toBe(
-      `d=$PWD; while [ -n "$d" ]; do f="$d/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" hook pre --harness codex; [ -e "$d/.git" ] && break; d=\${d%/*}; done; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
+      `d=$PWD; while [ -n "$d" ]; do f="$d/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" hook pre --harness codex; [ -e "$d/.git" ] && break; d=\${d%/*}; done; u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`);
     expect(project.hooks.Stop[0].hooks[0].command).toEndWith(`exec "$f" hook stop --harness codex; [ -e "$d/.git" ] && break; d=\${d%/*}; done; exit 0`);
     for (const command of [...commands(merge(null, "project-codex", DATA)), ...commands(merge(null, "project-codex", WINDOWS_DATA))]) {
       expect(commandScript(command)).not.toContain(DATA);
@@ -427,12 +427,17 @@ describe("project", () => {
     for (const t of ["project", "codex", "project-codex"] as const) {
       const handler = obj(merge(null, t, DATA)).hooks.PreToolUse[0].hooks[0];
       expect(handler.failClosed).toBeUndefined();
+      expect(handler.onFailure).toBe(t === "project" ? "block" : undefined);
       expect(handler.timeout).toBe(120);
+    }
+    for (const event of ["Stop", "SubagentStop", "SessionStart", "SubagentStart"]) {
+      expect(obj(merge(null, "project", DATA)).hooks[event][0].hooks[0].onFailure).toBeUndefined();
     }
     for (const t of ["agy", "project-agy"] as const) {
       const key = t === "agy" ? AGY_PLUGIN : AGY_PROJECT_HOOK;
       const handler = obj(merge(null, t, DATA))[key].PreToolUse[0].hooks[0];
       expect(handler.failClosed).toBeUndefined();
+      expect(handler.onFailure).toBeUndefined();
       expect(handler.timeout).toBe(120);
     }
     const stale = obj(merge(null, "shared", DATA));
@@ -452,7 +457,7 @@ describe("project", () => {
     expect(Object.keys(project.hooks)).toEqual(["preToolUse", "stop", "sessionStart"]);
     expect(project.hooks.preToolUse).toEqual([{
       type: "command", timeout: 120, matcher: "^(Write|Delete|Shell)$|^MCP:", failClosed: true,
-      command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness cursor; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`,
+      command: `f="\${CURSOR_PROJECT_DIR:-.}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook pre --harness cursor; u="\${CURSOR_PROJECT_DIR:-.}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && { printf '%s\\n' '{"permission":"allow"}'; exit 0; }; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; restore .pregate/bin or run pregate project launcher; report it to the user' >&2; exit 2`,
     }]);
     expect(project.hooks.stop[0].failClosed).toBeUndefined();
     expect(projectCursorHookOwned(JSON.stringify(project), "pre")).toBe(true);

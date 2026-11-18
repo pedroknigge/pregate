@@ -573,9 +573,7 @@ const allowed: string[] = [
   "pregate preset show",
   "pregate rules test /tmp/pack",
   "pregate check --staged",
-  // unknown syntax and unclosed quotes never deny by themselves
-  'echo "it\'s fine',
-  "grep 'unterminated src/a.ts",
+  // finished tokens the heuristic does not classify are not a deny by themselves
   "select x in a b; do echo $x; done",
   "coproc cat",
   "function f { :; }",
@@ -686,6 +684,8 @@ const allowed: string[] = [
 ];
 
 const denied: [string, Cause][] = [
+  ['echo "it\'s fine', "shell-uncertain"],
+  ["grep 'unterminated src/a.ts", "shell-uncertain"],
   // writes to paths in scope
   ["echo x > src/a.ts", "shell-write"],
   ["echo x >> src/a.ts", "shell-write"],

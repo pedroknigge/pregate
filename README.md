@@ -106,7 +106,7 @@ The ratchet compares violations by rule and symbol, not arbitrary program meanin
 
 ## What Pregate does not do
 
-Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics and does not deny unknown syntax by itself. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible.
+Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics. Where a project is enabled, syntax it cannot finish (an unclosed quote, substitution, or group) denies. A finished command it does not classify is not a deny by itself. Set `"uncertainty": "open"` in `.pregate/preset.json` and have a human run `pregate preset compile` to let only those unclassified calls through. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible.
 
 The [guarantees](docs/guarantees.md#contract-loosening) put the boundary in CI:
 

@@ -171,6 +171,7 @@
         "src/packs.ts",
         "src/platform.ts",
         "src/supervisor.ts",
+        "src/uncertainty.ts",
         "src/progress.ts",
         "src/workspace.ts",
         "src/catalog-discovery.ts",

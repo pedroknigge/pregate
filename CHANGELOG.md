@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Inside a project where `pregate enable` ran, an unclassified call now denies. That covers a hook payload this version cannot read (bad JSON, an unknown tool, or an ambiguous path), a missing or stale lock, a version pin this engine cannot evaluate, an edit it cannot reconstruct, and shell syntax it cannot finish (an unclosed quote, substitution, or group). The deny names the cause and the override. The shared PreToolUse handler and the project Claude PreToolUse handler set `onFailure` to `block`, so Claude Code 2.1.295 and newer denies a hook that cannot start, times out, or returns invalid output. Older Claude ignores the unknown field. Stop and SessionStart do not set it. Codex, Cursor, and Antigravity hook files do not get it.
+- A preset may set `"uncertainty": "open"`. Omitted means closed, which is the default for a project that has just been enabled, and an existing preset that does not name the key stays closed. `"closed"` is the same. `"open"` lets only those unclassified calls through, including an engine crash or a timeout the launcher handles, after the human runs `pregate preset compile`. It does not turn rule violations, protected paths, or shell writes off. `failMode` stays `"closed"` only.
+- A directory that never ran `pregate enable`, and a checkout that ran `pregate disable`, still allows. A crash, a malformed payload, and unfinished shell syntax do not block there, including when another project on the machine is enabled. Cursor's native preToolUse prints `{"permission":"allow"}` so its `failClosed` field does not treat that allow as a failure.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).

@@ -2,6 +2,14 @@ import { FIXABLE_BY } from "./types.ts";
 import { enforcementOf } from "./enforcement.ts";
 import type { Cause, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
 
+// Calls the engine could not classify. A rule violation, a protected path, and a shell write are not in this set.
+export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
+  "payload-unrecognized", "lock-stale", "version-mismatch", "cannot-reconstruct", "shell-uncertain",
+]);
+
+// Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
+export const UNCERTAINTY_OVERRIDE = " Override: set uncertainty to open in .pregate/preset.json; the human runs pregate preset compile.";
+
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
 // write text that comes back as the hook's voice (SPEC §11.1).
@@ -69,9 +77,10 @@ const CAUSE_EN: Record<Cause, string> = {
   "shell-admin": "this command skips git hooks, runs an ungated agent harness, changes PREGATE configuration or builds a command name from a variable, substitution or glob. Do not run it; spell every command name literally.",
   "hook-switch": "this command installs, removes or switches off PREGATE or the hooks of a harness. Do not run it. Do not ask to switch protection off merely to continue a blocked task; propose a reviewed rule adaptation.",
   "approval": "an agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. Setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT does not grant it.",
-  "payload-unrecognized": "PREGATE could not evaluate this call: the hook payload does not match what this PREGATE version knows of the harness.",
-  "lock-stale": "PREGATE could not evaluate this call: its lock is missing, does not match the preset and its sources, or pins an engine older than this one accepts.",
-  "version-mismatch": "PREGATE could not evaluate this call: the engine or core version differs from the one the preset pins.",
+  "shell-uncertain": "this command has unfinished shell syntax, so it was not classified. Close every quote, substitution, and group.",
+  "payload-unrecognized": "the hook payload is unreadable (bad JSON, an unknown tool, or an ambiguous path). Fix: pregate update.",
+  "lock-stale": "the lock is missing or does not match the preset. Fix: pregate preset diagnose --json, then pregate update --project --preview.",
+  "version-mismatch": "the engine or core version differs from the preset pin. Fix: pregate update --project --preview.",
   "snapshot-missing": "PREGATE could not evaluate this call: the session snapshot is missing.",
   "state-io": "PREGATE could not evaluate this call: its state is busy or unwritable. Run `pregate storage inspect`; the human can review abandoned-owner recovery with `pregate storage recover --preview`, or check permissions and disk space.",
   "git-missing": "PREGATE could not evaluate this call: git is not on PATH.",
@@ -173,8 +182,13 @@ export function alsoInCall(full: string, compacts: string[]): string {
 export function formText(f: Form, rel: string | null, halt = false): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin", "shell-write"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), f.cause === "shell-admin" ? 220 : 2000) : null;
-  const headline = `PREGATE DENY ${f.cause}${at}: ${detail ?? CAUSE_EN[f.cause]}`;
-  const compact = clip(headline, LINE_MAX);
+  const prefix = `PREGATE DENY ${f.cause}${at}: `;
+  const body = detail ?? CAUSE_EN[f.cause];
+  // payload-unrecognized grows by " (claude-code)" when main labels the harness. Leave that room.
+  const limit = LINE_MAX - (f.cause === "payload-unrecognized" ? " (claude-code)".length : 0);
+  const suffix = UNCERTAINTY_CAUSES.has(f.cause) ? UNCERTAINTY_OVERRIDE : "";
+  const headline = prefix + body + suffix;
+  const compact = clip(headline, limit);
   const next = FIXABLE_BY[f.cause] === "human" ? "Only the user can fix this: stop and report it to them (cause and path)."
     : halt ? FORM_HALTED
     : "If you believe this is a false positive, stop and tell the user (cause and path).";
@@ -188,7 +202,10 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "approval"
     ? "\nAn agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. A literal pregate approve with a code, or pregate approve --yes with an optional digest, is the in-harness confirmation. Other commands ask for y on that terminal. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in that environment by the human or by CI, not by the agent."
     : "";
-  return { compact, full: `${detail === null ? compact : headline}${help}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}` };
+  const uncertainty = UNCERTAINTY_CAUSES.has(f.cause)
+    ? "\nWhere this project is enabled, an unclassified call is denied. To let only those through, set uncertainty to open in .pregate/preset.json and have the human run pregate preset compile. That does not turn protection off."
+    : "";
+  return { compact, full: `${detail === null ? compact : headline}${help}${uncertainty}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}` };
 }
 
 // Advisor mode does not block a grammar failure. The file was not evaluated, so the text must not say it was clean.

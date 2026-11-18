@@ -503,7 +503,7 @@ describe("message content", () => {
       [{ reason: "git-missing" }, "install Git"],
       [{ reason: "git-not-repository" }, "git init"],
       [{ reason: "git-error" }, "pregate disable"],
-      [{ reason: "payload-unrecognized" }, "this PREGATE version knows of the harness"],
+      [{ reason: "payload-unrecognized" }, "the hook payload is unreadable"],
       [{ reason: "regex-limit", path: FILE }, "PREGATE cannot evaluate at src/billing/invoice.ts: a rule regex hit its backtracking limit"],
     ];
     for (const [args, part] of rows) expect(notice("halt", args)).toContain(part);

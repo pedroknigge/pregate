@@ -12,10 +12,28 @@ function Fail([string]$why) {
         exit 1
     }
     $active = $false
+    $root = $null
     foreach ($candidate in @($env:CLAUDE_PROJECT_DIR, $env:CURSOR_PROJECT_DIR, $env:GROK_WORKSPACE_ROOT, $PWD.Path)) {
-        if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate '.pregate/pregate.lock.json') -PathType Leaf)) { $active = $true; break }
+        if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate '.pregate/pregate.lock.json') -PathType Leaf)) { $active = $true; $root = $candidate; break }
     }
     if (!$active) { exit 0 }
+    $open = $false
+    if ($root) {
+        $q = $root
+        for ($i = 0; $i -lt 40 -and $q; $i++) {
+            $preset = Join-Path $q '.pregate/preset.json'
+            if (Test-Path -LiteralPath $preset) {
+                if ((Get-Content -LiteralPath $preset -Raw -ErrorAction SilentlyContinue) -match '"uncertainty"\s*:\s*"open"') { $open = $true }
+                break
+            }
+            if (Test-Path -LiteralPath (Join-Path $q '.git')) { break }
+            $q = [IO.Path]::GetDirectoryName($q)
+        }
+    }
+    if ($open) {
+        if ($argv.Count -ge 4 -and $argv[1] -eq 'pre' -and $argv[3] -eq 'cursor') { [Console]::Out.WriteLine('{"permission":"allow"}') }
+        exit 0
+    }
     $line = "PREGATE could not evaluate: $why; report it to the user"
     [Console]::Error.WriteLine($line.Substring(0, [Math]::Min(256, $line.Length)))
     exit 2

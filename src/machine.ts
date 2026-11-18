@@ -570,6 +570,11 @@ export async function doctor(): Promise<Result> {
       ? ok(`Grok PreToolUse sets failClosed (Grok Build >= ${FAIL_CLOSED_SINCE} denies a crashed or timed-out hook; empty stdout and exit 0 still allow).`)
       : warn(`Grok PreToolUse is missing failClosed. On Grok Build >= ${FAIL_CLOSED_SINCE} a crashed or timed-out hook fails open. Run pregate setup.`));
   }
+  if (checked.has("claude-code")) {
+    lines.push(m.claude.some((text) => text !== null && sharedPreFailClosed(text, p.data))
+      ? ok("Claude PreToolUse sets onFailure block (Claude Code >= 2.1.295 denies a hook that cannot start, times out, or returns invalid output; exit 0 still allows).")
+      : warn("Claude PreToolUse is missing onFailure block. On Claude Code >= 2.1.295 a hook that cannot start or times out fails open. Run pregate setup."));
+  }
   const codexBin = machine.get("codex");
   if (codexBin) lines.push(m.codexHooks === null ? fail("Codex has no hooks.json; run pregate setup.") : await trustOf(p, codexBin));
   else if (found.has("codex") && !standalone.has("codex")) lines.push(codexOffPath(p));
