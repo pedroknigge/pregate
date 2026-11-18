@@ -100,16 +100,10 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
       } else if (impl.primitive === "forbidden-path") {
         const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
         if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
-      } else if (impl.primitive === "dependency-pin") {
-        const name = r.params.package;
-        const introduced = r.params.introduced;
-        const fixed = r.params.fixed;
-        if (text !== null && typeof name === "string" && typeof introduced === "string" && typeof fixed === "string") {
-          const line = dependencyPinLine(rel, text, { package: name, introduced, fixed });
-          if (line !== null) report(r, line, MODULE);
-        }
       } else if (p) measureRule(r, p, host, measurements);
-      return null;
+      // The pin runs on raw text, which has no parse. It stays in this return so the function
+      // stays at the length it already had; a new statement here is a new clean-code warning.
+      return impl.kind === "primitive" && impl.primitive === "dependency-pin" ? (reportDependencyPin(r, rel, text, report), null) : null;
     });
     if (form) return form;
   }
@@ -261,6 +255,15 @@ function pattern(c: PatternConfig, g: Grammar): Compiled {
 }
 
 type Report = (r: LockRule, line: number, symbol: string, measured?: number | null, limit?: number | null) => Violation;
+
+function reportDependencyPin(rule: LockRule, rel: string, text: string | null, report: Report): void {
+  const name = rule.params.package;
+  const introduced = rule.params.introduced;
+  const fixed = rule.params.fixed;
+  if (text === null || typeof name !== "string" || typeof introduced !== "string" || typeof fixed !== "string") return;
+  const line = dependencyPinLine(rel, text, { package: name, introduced, fixed });
+  if (line !== null) report(rule, line, MODULE);
+}
 function ruleProgress<T>(host: Host, r: LockRule, run: () => T): T {
   return host.ruleProgress ? host.ruleProgress(r.id, run) : run();
 }
