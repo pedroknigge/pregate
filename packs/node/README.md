@@ -54,7 +54,7 @@ proxy, or a helper whose name is not the one listed.
 |----|-----------|----------|----------|
 | `NODE-LOCK-001` | Committed lockfile and CI `npm ci`, `pnpm install --frozen-lockfile`, or `yarn install --immutable`. Binds core `CORE-INV-050`. Not a shell gate. | evidence | deny |
 | `NODE-ENVFILE-001` | `.env` listed in `.gitignore` and `.env.example` present. Fitness. `forbidden-path` has landed; this pack has not bound it. | evidence | deny |
-| `NODE-PIN-001` | A Node.js pin the pack can already read (`.nvmrc`, `.node-version`, `.tool-versions`, `engines.node`, `volta.node`). The assertion checks that the major is an LTS line. | evidence | deny |
+| `NODE-PIN-001` | Exact Node.js pin below the security patch for its release line (`.nvmrc`, `.node-version`, `.tool-versions`, `engines.node`, `volta.node`, `FROM node:<exact>`, setup-node `node-version`, workflow or `.gitlab-ci.yml` `image`/`container`). The assertion still checks that the major is an LTS line. Ranges stay quiet. | evidence; exact pin warns | deny |
 | `NODE-SCRIPTS-001` | CI install uses `--ignore-scripts`, or install lifecycle scripts are on a reviewed allowlist. | evidence | deny |
 | `NODE-EDGE-001` | Security headers are set at the edge when the process does not set them. | evidence | deny |
 | `NODE-SIGNAL-001` | A file that calls `createServer` or `.listen(` registers SIGTERM and SIGINT handlers that call `.close(`. | proxy, same-file | warn |
@@ -81,7 +81,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.4.0`. 32 distinct check IDs.
+Category: **library**. Version: `1.5.0`. 32 distinct check IDs.
 
 Methodologies: `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete).
 

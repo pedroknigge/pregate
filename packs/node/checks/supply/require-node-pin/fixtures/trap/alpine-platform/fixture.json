@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-PIN-001"
+  },
+  "target": "Dockerfile",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 1
+      }
+    ]
+  },
+  "trap": {
+    "family": "exact-node-pin",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "A platform flag and an alpine suffix still name the exact version."
+  }
+}

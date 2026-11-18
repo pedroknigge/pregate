@@ -27,6 +27,7 @@
         "src/module-resolve.ts",
         "src/evaluate.ts",
         "src/node-target.ts",
+        "src/node-security-pin.ts",
         "src/dependency-since.ts",
         "src/package-version.ts",
         "src/next-config.ts",
@@ -175,7 +176,7 @@
     "name": "pregate",
     "version": "0.1.0"
   },
-  "presetHash": "dd07c1d27119ea0fc9a3ffcbff84aaad24e88f6e6491a65893d272dd34ec00dd",
+  "presetHash": "142819ff2f1ec744642c009e4abcc813dfc855a717a71464b0fae0f8aac47452",
   "ratchet": "no-new",
   "rules": [
     {
@@ -216,6 +217,7 @@
           "src/module-resolve.ts",
           "src/evaluate.ts",
           "src/node-target.ts",
+          "src/node-security-pin.ts",
           "src/dependency-since.ts",
           "src/package-version.ts",
           "src/next-config.ts",
@@ -347,6 +349,7 @@
           "src/module-resolve.ts",
           "src/evaluate.ts",
           "src/node-target.ts",
+          "src/node-security-pin.ts",
           "src/dependency-since.ts",
           "src/package-version.ts",
           "src/next-config.ts",
@@ -881,6 +884,7 @@
           "src/module-resolve.ts",
           "src/evaluate.ts",
           "src/node-target.ts",
+          "src/node-security-pin.ts",
           "src/dependency-since.ts",
           "src/package-version.ts",
           "src/next-config.ts",
@@ -5518,6 +5522,7 @@
           "src/module-resolve.ts",
           "src/evaluate.ts",
           "src/node-target.ts",
+          "src/node-security-pin.ts",
           "src/dependency-since.ts",
           "src/package-version.ts",
           "src/next-config.ts",

@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { matches, relativePath } from "./paths.ts";
-import type { Lock } from "./types.ts";
+import { fitnessRequirement, type Lock } from "./types.ts";
 import type { FitnessCandidate, FitnessCandidates } from "./fitness.ts";
 
 export const FITNESS_CANDIDATES = "pregate.fitness.json";
@@ -37,7 +37,7 @@ export function readFitnessCandidates(root: string, path: string, lock: Lock, pa
   }
   const seen = new Set<string>(), owners = new Set<string>();
   const rules = lock.rules.filter(rule => rule.phases.includes("ci") && !lock.ownedByArkgate.includes(rule.id)
-    && rule.impl.kind === "primitive" && rule.impl.primitive === "fitness");
+    && fitnessRequirement(rule.impl) !== null);
   const assertions = manifest.assertions.map((value, index): FitnessCandidate => {
     const at = `assertions[${index}]`, candidate = object(value, ["id", "command", "inputs", "claims", "negativeControls", "assumptions", "limits", "timeoutMs", "maxAgeMs"], at);
     const id = candidate.id;

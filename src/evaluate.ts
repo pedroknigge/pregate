@@ -21,6 +21,7 @@ import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
 import { dependencyPinLine, versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
 import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
+import { nodePinDetail, staleNodePins } from "./node-security-pin.ts";
 
 const MODULE = "<module>";
 const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missing or invalid, so a bare import may be an alias of any path. Fix the tsconfig, or import by a relative path.";
@@ -28,10 +29,11 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // The closed primitive vocabulary mirrors types.ts `Impl` and schema/check.v1.json. analyze
 // evaluates EVALUATED here; the others have one other home and are skipped on purpose:
 // layer-edge and banned-import in checkImports below, placement in placement(), fitness in the
-// fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
+// fitness gate. node-pin is evaluated here and also carries a fitness requirement.
+// Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", "dependency-pin", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", "dependency-pin", "node-pin", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
 const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness", "adr-touch"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
@@ -100,6 +102,12 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
       } else if (impl.primitive === "forbidden-path") {
         const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
         if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
+      } else if (impl.primitive === "node-pin") {
+        if (text !== null) for (const hit of staleNodePins(rel, text, impl.releases)) {
+          const found = report(r, hit.line, hit.floor);
+          found.severity = "warn";
+          found.detail = nodePinDetail(hit.floor);
+        }
       } else if (p) measureRule(r, p, host, measurements);
       // The pin runs on raw text, which has no parse. It stays in this return so the function
       // stays at the length it already had; a new statement here is a new clean-code warning.

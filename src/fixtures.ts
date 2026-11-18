@@ -181,7 +181,7 @@ function twoOutcomes(check: Check, checkId: string, c: Case, now: Clock): [Viola
 // one-rule lock, ratchet no-new: without a before it is strict (§6.4).
 function outcome(check: Check, c: Case, now: Clock): Violation[] | Form {
   const { fixture } = c;
-  if (check.impl.kind === "primitive" && check.impl.primitive === "fitness") {
+  if (check.impl.kind === "primitive" && (check.impl.primitive === "fitness" || (check.impl.primitive === "node-pin" && fixture.context?.fitness))) {
     const ctx = fixture.context?.fitness, verifier = String(fixture.params.verifier ?? "");
     const result = fitnessResult(verifier, ctx ? { command: ctx.command, inputs: ["**"], verificationHash: "0".repeat(64), timeoutMs: 1000, rationale: "Fixture verification" } : undefined,
       ctx?.receipt ?? null, { contractHash: ctx?.contractHash ?? "", inputHash: ctx?.inputHash ?? "", now: now() });
@@ -219,7 +219,7 @@ function withTrees<T>(trees: Parsed[], use: () => T): T {
 function skipsGrammar(check: Check): boolean {
   return check.impl.kind === "primitive" && (check.impl.primitive === "placement" || check.impl.primitive === "fitness"
     || check.impl.primitive === "adr-touch" || check.impl.primitive === "forbidden-path"
-    || check.impl.primitive === "dependency-pin"
+    || check.impl.primitive === "dependency-pin" || check.impl.primitive === "node-pin"
     || (check.impl.primitive === "typescript-fact" && check.impl.fact === "tsconfig"));
 }
 

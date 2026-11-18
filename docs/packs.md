@@ -34,8 +34,8 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
-| Project fitness obligations | 582 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 523 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Project fitness obligations | 581 | Reviewed current project assertions; unbound means UNVERIFIED |
+| Static pattern, import and change checks | 524 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 20 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -66,7 +66,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.2.0 | 11 | `nestjs/controllers` (complete), `nestjs/providers` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |
 | [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.4.1 | 21 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
-| [node](../packs/node/REFERENCE.md) | library | 1.4.0 | 32 | `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete) |
+| [node](../packs/node/REFERENCE.md) | library | 1.5.0 | 32 | `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete) |
 | [nuxt](../packs/nuxt/REFERENCE.md) | library | 1.2.0 | 12 | `nuxt/data` (complete), `nuxt/server` (complete) |
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |
 | [prisma](../packs/prisma/REFERENCE.md) | library | 1.3.0 | 14 | `prisma/client` (complete), `prisma/writes` (complete) |
