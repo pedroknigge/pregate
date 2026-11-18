@@ -1,3 +1,6 @@
+# Real-repository evidence is .github/workflows/real-repo-evidence.yml. It runs on the same
+# version tags and on workflow_dispatch. This publish job does not wait for it. The release
+# checklist requires that artifact on the GitHub release.
 # The release (MULTI-HARNESS MH-32): a tag v<x>, where x is package.json's version, publishes all
 # archives and installers only after `test` passes and the same packaged candidates pass native
 # bootstrap and product smoke on every target. `publish` needs `test`, then signs each archive and
