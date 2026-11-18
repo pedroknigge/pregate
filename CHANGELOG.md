@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A weekly review-trust report counts commits on `main`, merged pull requests, reverts, and the revert rate for each ISO week. `bun scripts/trust-metrics.ts` reads the checkout with `git log` and, when `GITHUB_TOKEN` is set, the median time from pull-request open to merge. The review-trust workflow runs it on Mondays and on demand, uploads the markdown and JSON, and writes the markdown to the job summary. The workflow token can read the repository and upload the artifact. It does not push or comment. See [Review trust](docs/guides/review-trust.md).
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).
