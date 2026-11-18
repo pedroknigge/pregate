@@ -43,6 +43,7 @@ its recorded candidate, not proof that a later candidate passes.
 - [Storage, source retention, cleanup and owner recovery](features/local-storage.md)
 - [Harness, shell and incomplete Stop guarantees](features/harness-and-shell-guarantees.md)
 - [Native candidate verification and publication gates](features/release-verification.md)
+- [Release checklist](releases/CHECKLIST.md) and [release notes template](releases/TEMPLATE.md)
 
 ## Author and contribute
 
@@ -157,6 +158,8 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.7.md](releases/0.0.7.md) | Product/reference |
 | [releases/0.0.8.md](releases/0.0.8.md) | Product/reference |
 | [releases/0.0.9.md](releases/0.0.9.md) | Product/reference |
+| [releases/CHECKLIST.md](releases/CHECKLIST.md) | Product/reference |
+| [releases/TEMPLATE.md](releases/TEMPLATE.md) | Product/reference |
 | [research/harness-opencode-live.md](research/harness-opencode-live.md) | Dated research/evidence |
 | [ROADMAP.md](ROADMAP.md) | Product/reference |
 | [SPEC.md](SPEC.md) | Product/reference |

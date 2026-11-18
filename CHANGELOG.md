@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A release records what Pregate blocked and allowed on pinned public repositories, not only the test suite. `.cursor/skills/verify-pregate/SKILL.md` builds the CLI from the checkout into an isolated `HOME` and drives `pregate enable`, `pregate doctor`, and `pregate hook pre --harness cursor`. `bun scripts/real-repo-evidence.ts` shallow-clones five pinned commits, enables Pregate only in those clones, replays a fixed set of edits and commands, and writes `evidence/<version>/real-repos.md` and `real-repos.json`. The [real repository evidence](.github/workflows/real-repo-evidence.yml) workflow runs on `workflow_dispatch` and on version tags and uploads that directory. Pull-request CI does not clone those repositories. Release notes are not complete until that report is attached. See the [release checklist](docs/releases/CHECKLIST.md). Enforcement still happens only where `pregate enable` ran. `init` leaves ordinary rules in shadow; the replay's denials are shell, protected-path, and control-text.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).
