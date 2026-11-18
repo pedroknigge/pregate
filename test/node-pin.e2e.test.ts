@@ -174,5 +174,5 @@ test("an enabled project warns on a stale exact pin and stays quiet for a patche
   expect(disabled.code, disabled.text).toBe(0);
   expect(disabled.text).not.toContain("NODE-PIN-001");
 
-  writeFileSync("/tmp/node-pin-e2e.txt", captured.join("\n"));
+  writeFileSync(join(tmpdir(), "node-pin-e2e.txt"), captured.join("\n"));
 }, 120_000);
