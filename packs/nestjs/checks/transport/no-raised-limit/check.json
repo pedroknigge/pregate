@@ -552,6 +552,6 @@
     "ci"
   ],
   "feedback": {
-    "message": "{symbol} raises or disables a NestJS 12.5 anti-DoS limit. Keep the default, or set a finite value no higher than it. Configure maxPayload on WsAdapter or @WebSocketGateway (default 1048576, which is 1024 * 1024; 0 lifts it). Configure maxConcurrentMessages on WsAdapter or IoAdapter (default 1000; Infinity lifts it) and on TCP options (default 1000; 0 lifts it). Configure maxWaitingMessages on IoAdapter (default 10000; Infinity lifts it). Configure maxBufferSize and maxSendBufferSize on TCP options (defaults 16 * 1024 * 1024 and 134217728; 0 lifts maxSendBufferSize) and maxSendBufferSize on WsAdapter. Configure maxPendingResponses on gRPC options (default 1000; 0 disables it), maxWildcardChannelLength on Redis options (default 1024; 0 disables it), and maxMessageSize on RabbitMQ options (default 16777216). Configure limits.jsonFieldsSize (default 1048576) and limits.parts (default 1000) on the platform multipart options."
+    "message": "{symbol} raises a NestJS 12.5 limit. Keep maxPayload at 1048576 on WsAdapter, or set a lower finite value."
   }
 }
