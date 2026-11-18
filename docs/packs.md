@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-48 optional packs; 1123 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1125 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 582 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 521 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 523 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 20 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
@@ -61,7 +61,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [javascript](../packs/javascript/REFERENCE.md) | language | 1.2.2 | 19 | `javascript/esm` (complete), `javascript/legacy` (complete), `javascript/safety` (complete) |
 | [maintainability](../packs/maintainability/REFERENCE.md) | practice | 1.3.0 | 216 | `maintainability/engineering` (preview), `maintainability/future-humans` (preview), `maintainability/maintainability` (complete), `maintainability/proxies` (preview) |
 | [mattpocock](../packs/mattpocock/REFERENCE.md) | practice | 1.1.1 | 7 | `mattpocock/design` (preview), `mattpocock/diagnosis` (preview), `mattpocock/testing` (preview) |
-| [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.2.1 | 10 | `mongodb/models` (complete), `mongodb/queries` (complete) |
+| [mongodb](../packs/mongodb/REFERENCE.md) | library | 1.3.0 | 12 | `mongodb/models` (complete), `mongodb/queries` (complete) |
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
 | [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.2.0 | 11 | `nestjs/controllers` (complete), `nestjs/providers` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |

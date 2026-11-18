@@ -18,7 +18,7 @@ import { gatedSeverity } from "./typescript-version.ts";
 import { dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
 import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
-import { versionGateMatches } from "./package-version.ts";
+import { dependencyPinLine, versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
 import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
 
@@ -31,7 +31,7 @@ const TSCONFIG_INVALID = "tsconfig.json, or a local config it extends, is missin
 // fitness gate. Anything outside the vocabulary is a hand-edited or mistyped lock: fail closed
 // (throw) instead of silently never evaluating the rule.
 const NODE_PRIMITIVES: readonly string[] = ["metric", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy"];
-const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", ...NODE_PRIMITIVES];
+const EVALUATED_PRIMITIVES: readonly string[] = ["diff", "typescript-fact", "sibling-test", "required-import", "churn-ratchet", "forbidden-path", "dependency-pin", ...NODE_PRIMITIVES];
 const IMPORT_PRIMITIVES: readonly string[] = ["layer-edge", "banned-import", "drizzle-bounded-select"];
 const KNOWN_PRIMITIVES: ReadonlySet<string> = new Set([...EVALUATED_PRIMITIVES, "layer-edge", "banned-import", "placement", "fitness", "adr-touch"]);
 const compiled = new WeakMap<PatternConfig, Partial<Record<Grammar, Compiled>>>();
@@ -101,7 +101,9 @@ export function analyze(lock: Lock, phase: Phase, rel: string, state: string | P
         const globs = Array.isArray(r.params.globs) ? r.params.globs.filter((glob): glob is string => typeof glob === "string") : [];
         if (text !== null && globs.some((glob) => matches(glob, rel))) report(r, 1, MODULE);
       } else if (p) measureRule(r, p, host, measurements);
-      return null;
+      // The pin runs on raw text, which has no parse. It stays in this return so the function
+      // stays at the length it already had; a new statement here is a new clean-code warning.
+      return impl.kind === "primitive" && impl.primitive === "dependency-pin" ? (reportDependencyPin(r, rel, text, report), null) : null;
     });
     if (form) return form;
   }
@@ -254,6 +256,15 @@ function pattern(c: PatternConfig, g: Grammar): Compiled {
 }
 
 type Report = (r: LockRule, line: number, symbol: string, measured?: number | null, limit?: number | null) => Violation;
+
+function reportDependencyPin(rule: LockRule, rel: string, text: string | null, report: Report): void {
+  const name = rule.params.package;
+  const introduced = rule.params.introduced;
+  const fixed = rule.params.fixed;
+  if (text === null || typeof name !== "string" || typeof introduced !== "string" || typeof fixed !== "string") return;
+  const line = dependencyPinLine(rel, text, { package: name, introduced, fixed });
+  if (line !== null) report(rule, line, MODULE);
+}
 function ruleProgress<T>(host: Host, r: LockRule, run: () => T): T {
   return host.ruleProgress ? host.ruleProgress(r.id, run) : run();
 }

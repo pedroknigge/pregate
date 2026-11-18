@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": { "package": "mongodb", "introduced": "6.7.0", "fixed": "7.9.0" },
+  "target": "package-lock.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 16 }]
+  },
+  "trap": {
+    "family": "nested-lock-pin",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "The root mongodb pin is 7.9.0 and mongodb-memory-server is a different package at 7.8.0. The nested mongodb 7.8.0 is the vulnerable pin."
+  }
+}

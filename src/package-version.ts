@@ -217,3 +217,184 @@ function lowerClears(interval: Interval, minimum: Semver): boolean {
 function compare(left: Bound, right: Bound): number {
   return left.major - right.major || left.minor - right.minor || left.patch - right.patch;
 }
+
+// A manifest or lockfile that can install `package` in [introduced, fixed). The bounds are
+// exact triples. An unreadable spec is not a pin. Lockfiles contribute resolved versions only.
+const PIN_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock)$/;
+const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
+
+export interface DependencyPin { package: string; introduced: string; fixed: string }
+
+export function isDependencyPinFile(rel: string): boolean {
+  return PIN_FILE.test(rel) && !rel.split("/").includes("node_modules");
+}
+
+// The first line that pins `pin.package` inside the half-open window, or null when the file
+// is not a pin file or every readable spec sits outside the window.
+export function dependencyPinLine(rel: string, text: string, pin: DependencyPin): number | null {
+  if (!isDependencyPinFile(rel)) return null;
+  const introduced = triple(pin.introduced);
+  const fixed = triple(pin.fixed);
+  if (introduced === null || fixed === null || pin.package === "" || compare(introduced, fixed) >= 0) return null;
+  const base = rel.slice(rel.lastIndexOf("/") + 1);
+  return base === "package.json" ? manifestPinLine(text, pin.package, introduced, fixed) : lockPinLine(text, pin.package, introduced, fixed);
+}
+
+function triple(text: string): Bound | null {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(text)) return null;
+  const parsed = numbers(text);
+  return parsed === null ? null : { major: parsed[0], minor: parsed[1], patch: parsed[2], exclusive: false };
+}
+
+function manifestPinLine(text: string, name: string, introduced: Bound, fixed: Bound): number | null {
+  const parsed = json(text);
+  if (!isRecord(parsed)) return null;
+  const specs: string[] = [];
+  for (const field of MANIFEST_FIELDS) {
+    const table = parsed[field];
+    if (!isRecord(table) || typeof table[name] !== "string") continue;
+    specs.push(table[name].trim());
+  }
+  if (!specs.some((spec) => specOverlaps(spec, introduced, fixed))) return null;
+  const key = new RegExp(`"${escapeRegExp(name)}"\\s*:\\s*"([^"]*)"`);
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const match = key.exec(lines[i]!);
+    if (match && specOverlaps(match[1]!, introduced, fixed)) return i + 1;
+  }
+  return 1;
+}
+
+function specOverlaps(spec: string, introduced: Bound, fixed: Bound): boolean {
+  const alternatives = spec.split("||").map((part) => part.trim());
+  if (alternatives.length === 0 || alternatives.some((part) => part === "")) return false;
+  return alternatives.some((part) => {
+    const normalized = normalizeSpec(part);
+    if (normalized === null) return false;
+    const interval = alternativeInterval(normalized);
+    return interval !== null && !entirelyBelow(interval, introduced) && !lowerClears(interval, fixed);
+  });
+}
+
+function entirelyBelow(interval: Interval, floor: Bound): boolean {
+  if (interval.upper === null) return false;
+  const order = compare(interval.upper, floor);
+  return order < 0 || (order === 0 && interval.upper.exclusive);
+}
+
+function lockPinLine(text: string, name: string, introduced: Bound, fixed: Bound): number | null {
+  const parsed = json(text);
+  if (parsed !== undefined) {
+    const found: string[] = [];
+    collectResolved(parsed, name, found);
+    const bad = new Set(found.flatMap((version) => {
+      const core = coreOf(version);
+      return core !== null && exactCore(core, introduced, fixed) ? [core] : [];
+    }));
+    if (bad.size === 0) return null;
+    return lineOfResolved(text, name, bad) ?? 1;
+  }
+  return lineScan(text, name, introduced, fixed);
+}
+
+function collectResolved(node: unknown, name: string, out: string[]): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectResolved(item, name, out);
+    return;
+  }
+  if (!isRecord(node)) return;
+  for (const [key, value] of Object.entries(node)) {
+    const onKey = versionOnKey(key, name);
+    if (onKey === "") {
+      if (isRecord(value) && typeof value.version === "string") out.push(value.version);
+      else if (Array.isArray(value) && typeof value[0] === "string") {
+        const token = versionInToken(value[0], name);
+        if (token) out.push(token);
+      }
+    } else if (onKey !== null) out.push(onKey);
+    collectResolved(value, name, out);
+  }
+}
+
+function versionOnKey(key: string, name: string): string | null {
+  if (key === name || key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`)) return "";
+  return versionInToken(key, name);
+}
+
+function versionInToken(token: string, name: string): string | null {
+  const match = new RegExp(`(?:^|[\\s/'"])${escapeRegExp(name)}@(?:npm:)?(\\d+\\.\\d+\\.\\d+)(?![\\d.])`).exec(token);
+  return match ? match[1]! : null;
+}
+
+function coreOf(version: string): string | null {
+  const parsed = numbers(version.trim());
+  return parsed === null ? null : `${parsed[0]}.${parsed[1]}.${parsed[2]}`;
+}
+
+function exactCore(core: string, introduced: Bound, fixed: Bound): boolean {
+  const parsed = numbers(core);
+  if (parsed === null) return false;
+  const at = { major: parsed[0], minor: parsed[1], patch: parsed[2], exclusive: false };
+  return compare(at, introduced) >= 0 && compare(at, fixed) < 0;
+}
+
+function lineOfResolved(text: string, name: string, bad: Set<string>): number | null {
+  const lines = text.split("\n");
+  const keyRe = new RegExp(`"(?:[^"\\n]*/)?(?:node_modules/)?${escapeRegExp(name)}"\\s*:`);
+  const tokenRe = new RegExp(`${escapeRegExp(name)}@(?:npm:)?(\\d+\\.\\d+\\.\\d+)(?![\\d.])`);
+  for (let i = 0; i < lines.length; i++) {
+    if (!keyRe.test(lines[i]!)) continue;
+    const end = blockEnd(lines, i);
+    for (let j = i; j < end; j++) {
+      const token = tokenRe.exec(lines[j]!);
+      if (token && bad.has(token[1]!)) return j + 1;
+      const ver = /"version"\s*:\s*"([^"]+)"/.exec(lines[j]!);
+      const core = ver ? coreOf(ver[1]!) : null;
+      if (core !== null && bad.has(core)) return j + 1;
+    }
+  }
+  return null;
+}
+
+function blockEnd(lines: string[], start: number): number {
+  const indent = leading(lines[start]!);
+  for (let j = start + 1; j < lines.length; j++) {
+    if (leading(lines[j]!) === indent && /"[^"]+"\s*:/.test(lines[j]!)) return j;
+  }
+  return Math.min(lines.length, start + 8);
+}
+
+function lineScan(text: string, name: string, introduced: Bound, fixed: Bound): number | null {
+  const lines = text.split("\n");
+  const escaped = escapeRegExp(name);
+  const direct = new RegExp(`(?:^|[\\s/'"])${escaped}@(?:npm:)?(\\d+\\.\\d+\\.\\d+)(?![\\d.])`);
+  const slash = new RegExp(`(?:^|[\\s'"])/${escaped}/(\\d+\\.\\d+\\.\\d+)(?![\\d.])`);
+  for (let i = 0; i < lines.length; i++) {
+    const match = direct.exec(lines[i]!) ?? slash.exec(lines[i]!);
+    if (match && exactCore(match[1]!, introduced, fixed)) return i + 1;
+  }
+  const header = new RegExp(`(?:^|\\s)${escaped}(?:@[^\\s]*)?:\\s*$`);
+  for (let i = 0; i < lines.length; i++) {
+    if (!header.test(lines[i]!)) continue;
+    const indent = leading(lines[i]!);
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j]!.trim() === "") continue;
+      if (leading(lines[j]!) <= indent) break;
+      const ver = /(?:^|\s)version:?\s+"?(\d+\.\d+\.\d+)/.exec(lines[j]!);
+      if (ver && exactCore(ver[1]!, introduced, fixed)) return j + 1;
+    }
+  }
+  return null;
+}
+
+function leading(line: string): number {
+  return /^\s*/.exec(line)![0].length;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}

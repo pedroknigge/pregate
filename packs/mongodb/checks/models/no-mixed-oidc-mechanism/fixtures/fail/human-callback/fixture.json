@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/oidc-human.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 9 }]
+  }
+}

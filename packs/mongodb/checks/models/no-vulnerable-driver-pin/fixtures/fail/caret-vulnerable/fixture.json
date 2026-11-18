@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": { "package": "mongodb", "introduced": "6.7.0", "fixed": "7.9.0" },
+  "target": "package.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 4 }]
+  }
+}

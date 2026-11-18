@@ -214,11 +214,12 @@ function withTrees<T>(trees: Parsed[], use: () => T): T {
   finally { for (const p of trees) p.root.tree.delete(); }
 }
 
-// Placement, fitness, adr-touch, forbidden-path, and tsconfig facts have no source grammar.
-// A tsconfig fixture still names language typescript because that is the fixture schema's closed list.
+// Placement, fitness, adr-touch, forbidden-path, dependency pins, and tsconfig facts have no source grammar.
+// A tsconfig or package.json fixture still names language typescript because that is the fixture schema's closed list.
 function skipsGrammar(check: Check): boolean {
   return check.impl.kind === "primitive" && (check.impl.primitive === "placement" || check.impl.primitive === "fitness"
     || check.impl.primitive === "adr-touch" || check.impl.primitive === "forbidden-path"
+    || check.impl.primitive === "dependency-pin"
     || (check.impl.primitive === "typescript-fact" && check.impl.fact === "tsconfig"));
 }
 
