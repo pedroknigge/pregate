@@ -47,6 +47,40 @@ test("a timed-out engine is dead before the deny returns", async () => {
   expect(() => process.kill(pid, 0)).toThrow();
 });
 
+// Windows CI run 44400647892 denied a clean `git switch` with "last engine checkpoint: admission".
+// The child had reached admission, and the rest of the classification was killed because startup
+// had already used the 5 s. A child that spends most of that window before admission, then finishes
+// inside 5 s of the checkpoint, is an allow. A child that hangs after admission is still killed 5 s later.
+test("time before admission does not consume the pre budget", async () => {
+  const script = `import { checkpoint } from ${source};
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 600);
+    checkpoint("admission");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 4600);`;
+  const start = performance.now();
+  const out = await supervise(data, version, ["-e", script], raw);
+  const elapsed = performance.now() - start;
+  expect(out.exit).toBe(0);
+  expect(out.stdout + out.stderr).not.toContain("timed out");
+  expect(elapsed).toBeGreaterThan(5_000);
+  expect(elapsed).toBeLessThan(12_000);
+});
+
+test("a hang after admission is still cut 5 s after that checkpoint", async () => {
+  const mark = join(area, "admitted-at");
+  const script = `import { writeFileSync } from "node:fs";
+    import { checkpoint } from ${source};
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 600);
+    checkpoint("admission");
+    writeFileSync(${JSON.stringify(mark)}, String(Date.now()));
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);`;
+  const out = await supervise(data, version, ["-e", script], raw);
+  expect(out.exit).toBe(2);
+  expect(out.stdout + out.stderr).toContain("the engine timed out; last engine checkpoint: admission");
+  const waited = Date.now() - Number(readFileSync(mark, "utf8"));
+  expect(waited).toBeGreaterThanOrEqual(4_900);
+  expect(waited).toBeLessThan(8_000);
+});
+
 test("actual resolution timeout does not blame a completed individual rule", async () => {
   const script = `import { checkpoint, ruleEvaluationProgress, sharedResolutionProgress } from ${source};
     checkpoint("dependency-review");
