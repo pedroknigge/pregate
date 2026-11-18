@@ -247,7 +247,7 @@ test("contract validation rejects invalid schema and a pack without real fixture
 
 test("agy rejects contract permission requests without trusted parent context", () => {
   const d: Decision = { verdict: "ask", contractApproval: true, halt: false, cause: null, violations: [], warnings: [], attempt: 0,
-    compact: "Approve?", full: "WARNING: weaker coverage. Approve?", notice: null, lockHash: null, shadowed: false };
+    compact: "Approve?", full: "WARNING: weaker coverage. Approve?", fix: null, notice: null, lockHash: null, shadowed: false };
   expect(JSON.parse(encode("pre-edit", d).stdout).decision).toBe("deny");
   expect(JSON.parse(encode("pre-command", d).stdout).decision).toBe("deny");
   expect(JSON.parse(encode("pre-edit", { ...d, contractApproval: false }).stdout).decision).toBe("deny");

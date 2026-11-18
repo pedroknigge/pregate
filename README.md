@@ -16,7 +16,7 @@ The agent proposes a file in `src/domain` that imports the database adapter. Bef
 1) architecture/CA-DEP-001 → architecture/dependencies/layer-direction@1.0.0 · src/domain/order.ts:1
    the module imports code from a layer this layer may not depend on. Layer `domain` imports layer `infra` via `../infra/db.ts`.
    Why: An inner layer that imports an outer one cannot be tested, reused or kept stable without dragging the details along.
-   Fix: Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
+   Fix: Put the code in domain (src/domain/); implement the outer side under infra (src/infra/). Use a module under src/domain/ instead of ../infra/db.ts. Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
    Avoid: Barrels and re-exports that tunnel the same edge, type-only imports, require calls and path aliases that point at the same outer module.
 ```
 

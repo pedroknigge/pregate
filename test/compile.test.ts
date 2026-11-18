@@ -379,6 +379,8 @@ describe("listChecks", () => {
     ["manifest ID", edit(M, (d) => ({ ...d, id: "core/clean" })), `${M}: id must be core/clean-code`],
     ["deny without examples", edit(M, (d) => ({ ...d, invariants: [{ ...alias("CC-FN-002", "core/complexity/fn-max-params", {}), examples: undefined }] })),
       `${M}: CC-FN-002: a deny invariant needs why, fixHint, avoid and examples`],
+    ["empty fix", edit(M, (d) => ({ ...d, invariants: [{ ...alias("CC-FN-002", "core/complexity/fn-max-params", {}), fix: {} }] })),
+      `${M}: CC-FN-002: fix needs where or use`],
     ["unknown check in its namespace", edit(M, (d) => ({ ...d, invariants: [alias("CC-FN-002", "core/complexity/nope", {})] })),
       "core/clean-code: CC-FN-002 uses unknown check core/complexity/nope"],
     ["alias twice in the namespace", edit(M, (d) => ({ ...d, invariants: [alias("TDD-FOCUS-001", "core/testing/no-focused-tests", {})] })),

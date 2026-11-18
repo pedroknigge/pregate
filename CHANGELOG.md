@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A block or deny names the concrete repair: where the code should go, and what to use instead. The path comes from the layer map, the scope, or a path the rule already names. The replacement comes from the pack `fix.use` field or from a parameter the check already requires, such as a required import or an ADR glob. A methodology may set optional `fix.where` and `fix.use`. An empty `fix` object is rejected. When a rule does not declare one side, the message says that side is not declared and keeps the existing hint. It does not invent a path or an API.
+
+### Changed
+
+- That repair is part of the decision and is rendered in the Claude Code, Cursor, Codex, Grok, Antigravity, and OpenCode hook text, and in `pregate check`. A shell write names the target file and `Write`, `Edit`, or `apply_patch`. A protected path and an invalid contract edit name `.pregate/requests/<name>.json` and `pregate preset apply <request.json> --preview`. An enabled project is still the only place a hook blocks.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).

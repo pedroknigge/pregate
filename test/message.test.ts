@@ -304,7 +304,7 @@ describe("message content", () => {
   test("first line: rule, location, measured against limit, minimal fix, and how to read the rest", () => {
     expect(denyText([v(2, 42)], LOCK, 1, "retry", { ...CTX, launcher: "pregate" }).compact).toBe(
       "PREGATE DENY core/CC-FN-002 src/billing/invoice.ts:42 `Invoice.calculateTotals` takes 5 parameters (limit 3). " +
-      "Fix: Group parameters that always travel together into a named domain type, or split the function by re… " +
+      "Fix: No deterministic path or replacement is declared for core/CC-FN-002. Group parameters that always … " +
       "Details: `pregate explain core/CC-FN-002`");
   });
 

@@ -166,7 +166,7 @@ export function dormantNotice(cwd: string): string | null {
 
 export function told(notice: string | null, full = ""): Decision {
   return {
-    verdict: "none", halt: false, cause: null, violations: [], warnings: [], attempt: 0, compact: "", full, notice,
+    verdict: "none", halt: false, cause: null, violations: [], warnings: [], attempt: 0, compact: "", full, fix: null, notice,
     lockHash: null, shadowed: false,
   };
 }

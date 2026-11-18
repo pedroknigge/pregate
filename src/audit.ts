@@ -1,5 +1,6 @@
 import { analyze, isImportRule } from "./evaluate.ts";
 import { enforcementOf } from "./enforcement.ts";
+import { ruleFix } from "./fix.ts";
 import { violationMessage } from "./message.ts";
 import { canonical } from "./ratchet.ts";
 import { errorIn, parse, type Parsed } from "./ts.ts";
@@ -40,7 +41,7 @@ function auditParsed(lock: Lock, rel: string, parsed: Parsed, host: Host): { fin
       if ("cause" in result) errors.push({ ...result, path: rel });
       else for (const v of canonical(result.violations)) {
         const rule = lock.rules.find((r) => r.id === v.rule)!;
-        findings.push({ ...v, check: rule.check, enforcement: enforcementOf(lock, rule), message: violationMessage(v, lock), fix: rule.text.fix });
+        findings.push({ ...v, check: rule.check, enforcement: enforcementOf(lock, rule), message: violationMessage(v, lock), fix: ruleFix(v, lock).text });
       }
     }
     return { findings, errors };

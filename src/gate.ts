@@ -16,6 +16,7 @@ import { gitChanges } from "./git-changes.ts";
 import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
+import { causeFix, unknownFix } from "./fix.ts";
 import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand, Session } from "./types.ts";
 
 // The imperative shell around the pure core (ARCHITECTURE §4): one function per hook event, plus
@@ -76,7 +77,7 @@ export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs?:
 export function onPostInvocation(e: Extract<HookEvent, { kind: "post-invocation" }>): Decision {
   if (e.session.harness !== "agy") return told(null);
   const { halt, warnings } = state.drainPostInvocation(state.key(e.session));
-  if (halt !== null) return { ...told(halt), verdict: "deny", halt: true };
+  if (halt !== null) return { ...told(halt), verdict: "deny", halt: true, fix: unknownFix("No deterministic path or replacement is declared for this halt. Follow the reason in this message and tell the user.") };
   return warnings.length > 0 ? told(null, warnings.join("\n\n")) : told(null);
 }
 
@@ -148,7 +149,7 @@ function approvalCommandAsk(c: ProposedCommand, decision: Decision): Decision {
     summary,
   ].join("\n");
   const notice = lead.slice(0, 1500);
-  return { ...decision, verdict: "ask", notice, compact: notice.slice(0, 256), full: `${notice}\n\n${detail}`.slice(0, 4000) };
+  return { ...decision, verdict: "ask", notice, compact: notice.slice(0, 256), full: `${notice}\n\n${detail}`.slice(0, 4000), fix: causeFix("approval", null, null, null) };
 }
 
 function evaluatePreCommand(c: ProposedCommand): Decision {
@@ -232,7 +233,8 @@ function administrativeApproval(root: string | null, c: ProposedCommand): Decisi
   const known = [/^issue submit [0-9a-f]{64} --yes$/, /^feedback apply [0-9a-f]{64} --yes$/, /^storage apply [0-9a-f]{64} --yes$/].some((re) => re.test(command));
   if (!known || root === null) return null;
   const text = `PREGATE: Ask the user to approve. Do not run the approval command yourself. Show the complete preview and ask the user to run ${c.command} in a separate terminal. The agent must not run the approval command.`;
-  return { ...told(null), verdict: "deny", full: text, compact: text, notice: text };
+  const fix = causeFix("approval", null, null, null);
+  return { ...told(null), verdict: "deny", full: `${text}\nFix: ${fix.text}`, compact: text, notice: text, fix };
 }
 
 // What the guard asks about a path, answered on its canonical form by the root that holds it: a
