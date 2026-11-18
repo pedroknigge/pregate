@@ -69,6 +69,7 @@
         "src/module-resolve.ts",
         "src/evaluate.ts",
         "src/node-target.ts",
+        "src/node-security-pin.ts",
         "src/dependency-since.ts",
         "src/package-version.ts",
         "src/next-config.ts",

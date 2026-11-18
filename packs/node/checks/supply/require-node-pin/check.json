@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "node/supply/require-node-pin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "area": "supply",
   "cardinality": "singleton",
   "dimension": "node.require-node-pin",
@@ -14,10 +14,53 @@
   },
   "impl": {
     "kind": "primitive",
-    "primitive": "fitness",
-    "requirement": "NODE-PIN-001"
+    "primitive": "node-pin",
+    "requirement": "NODE-PIN-001",
+    "releases": {
+      "source": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases",
+      "date": "2026-11-11",
+      "lines": [
+        {
+          "major": 22,
+          "version": "22.23.5",
+          "high": [
+            "CVE-2026-123864",
+            "CVE-2026-123865",
+            "CVE-2026-123866",
+            "CVE-2026-123872"
+          ]
+        },
+        {
+          "major": 24,
+          "version": "24.22.3",
+          "high": [
+            "CVE-2026-123863",
+            "CVE-2026-123864",
+            "CVE-2026-123865",
+            "CVE-2026-123866",
+            "CVE-2026-123872",
+            "CVE-2026-123874",
+            "CVE-2026-126051"
+          ]
+        },
+        {
+          "major": 26,
+          "version": "26.13.1",
+          "high": [
+            "CVE-2026-123863",
+            "CVE-2026-123864",
+            "CVE-2026-123865",
+            "CVE-2026-123866",
+            "CVE-2026-123872",
+            "CVE-2026-123874",
+            "CVE-2026-126051"
+          ]
+        }
+      ]
+    }
   },
   "phase": [
+    "pre",
     "stop",
     "commit",
     "ci"

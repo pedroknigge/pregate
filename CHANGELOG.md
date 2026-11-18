@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The node pack is 1.5.0. `NODE-PIN-001` (`node/supply/require-node-pin` 1.1.0) warns when an exact Node.js pin is below the patched release for its line. The floors are data on the check, from the Node.js security releases of 2026-11-11 (https://nodejs.org/en/blog/vulnerability/november-2026-security-releases): 22.23.5, 24.22.3, and 26.13.1. Pins are read from `.nvmrc`, `.node-version`, `.tool-versions`, `engines.node`, `volta.node`, `Dockerfile` `FROM node:<exact>`, an exact `actions/setup-node` `node-version` (including `action.yml`), and a workflow or `.gitlab-ci.yml` `image` or `container` tag of `node:<exact>`. A range, a major-only pin, `lts/*`, a floating tag, a prerelease tag, or a release line absent from that table stays quiet. The reviewed LTS assertion still denies on stop, commit, and CI when its binding fails. The warning runs only where `pregate enable` is in effect. A later patch updates the table.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).

@@ -101,6 +101,7 @@ export interface Violation {       // data only: message.ts renders the text fro
   measured: number | null; limit: number | null; atSessionStart: number | null;
   severity: Severity;
   repair?: string;                 // synthesized AST repair hint (line numbers and structure only)
+  detail?: string;                 // engine-authored sentence; message.ts accepts one strict pattern
   edge?: { from: string; to: string | null; spec: string };   // layer-edge: source layer, target layer (null: none), import as written
 }
 export interface Decision {
@@ -151,6 +152,13 @@ export interface PatternConfig {   // "x-*" keys are ignored (notes); any other 
 }
 
 export type Placement = "new-in-exclude" | "edit-generated-or-excluded" | "no-language-pack-in-layer";
+export interface NodeReleaseLine { major: number; version: string; high: string[] }
+export interface NodeReleases { source: string; date: string; lines: NodeReleaseLine[] }
+export function fitnessRequirement(impl: Impl): string | null {
+  if (impl.kind !== "primitive") return null;
+  if (impl.primitive === "fitness" || impl.primitive === "node-pin") return impl.requirement;
+  return null;
+}
 export type Impl =
   | { kind: "pattern"; patterns: Partial<Record<RuleLanguage, PatternConfig[]>> }
   | { kind: "primitive"; primitive: "metric"; metric: "fn.lines" | "fn.params" | "class.publicMethods" | "control.nesting" | "file.lines" | "file.publicExports" | "heritage.depth"; ratchet?: "no-increase" }
@@ -163,6 +171,7 @@ export type Impl =
   | { kind: "primitive"; primitive: "typescript-fact"; fact: "tsconfig" | "prefer-const" | "type-only-import" | "boundary-parse" | "parameter-sort" | "readonly-array" | "rethrow-cause" | "interface-prefix" | "boolean-mode" }
   | { kind: "primitive"; primitive: "layer-edge" }                          // lock.layers
   | { kind: "primitive"; primitive: "fitness"; requirement: string }       // approved project verification, independent of source grammar
+  | { kind: "primitive"; primitive: "node-pin"; requirement: string; releases: NodeReleases } // exact pin below the patched release for its line; also a fitness requirement
   | { kind: "primitive"; primitive: "diff"; op: "no-decrease" | "no-increase";
       count: "markers" | "import-cycles" | { pattern: PatternConfig } }   // params.markers by substring, AST count, or cyclic import component
   | { kind: "primitive"; primitive: "forbidden-path" }                     // params.globs; a matching path is present
