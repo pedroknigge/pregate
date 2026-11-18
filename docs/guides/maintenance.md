@@ -4,7 +4,7 @@ This page says who releases Pregate, how to build it and check a release yoursel
 
 ## Who maintains it
 
-- Releases are cut by the owner of [`pedroknigge/pregate`](https://github.com/pedroknigge/pregate). A release is a tag `v<version>` on `main`; the [release workflow](../../.github/workflows/release.yml) builds, signs and publishes it. No other person or organization publishes Pregate.
+- Releases are cut by the owner of [`pedroknigge/pregate`](https://github.com/pedroknigge/pregate). A release is a tag `v<version>` on `main`; the [release workflow](../../.github/workflows/release.yml) builds, signs and publishes it. No other person or organization publishes Pregate. The [release checklist](../releases/CHECKLIST.md) attaches the real-repository report. The publish job does not upload it.
 - [`SECURITY.md`](../../SECURITY.md) is the support statement: the `0.0.x` line is supported, and a private vulnerability report is acknowledged within 48 hours. This page adds no other response time.
 - A fix lands on `main` and ships in the next release. No older release has been patched after a newer one was published, and there is no long-term-support branch.
 - A published release is not replaced or re-tagged. A defective release is followed by a new one. Until then, a project stays on its pinned engine or goes back to the previous one with the rollback below.
