@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-PIN-001"
+  },
+  "target": "package.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 3
+      }
+    ]
+  },
+  "trap": {
+    "family": "exact-node-pin",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "An engines equals prefix is still one exact pin."
+  }
+}

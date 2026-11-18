@@ -41,6 +41,10 @@ test("analyze does not throw for a primitive in the closed vocabulary", () => {
     { kind: "primitive", primitive: "banned-import" },
     { kind: "primitive", primitive: "placement", cases: [] },
     { kind: "primitive", primitive: "fitness", requirement: "build" },
+    { kind: "primitive", primitive: "node-pin", requirement: "NODE-PIN-001", releases: {
+      source: "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases", date: "2026-11-11",
+      lines: [{ major: 22, version: "22.23.5", high: ["CVE-2026-123864"] }],
+    } },
     { kind: "primitive", primitive: "sibling-test" },
     { kind: "primitive", primitive: "required-import" },
     { kind: "primitive", primitive: "adr-touch" },

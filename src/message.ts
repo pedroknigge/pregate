@@ -1,6 +1,6 @@
-import { FIXABLE_BY } from "./types.ts";
+import { NODE_PIN_DETAIL } from "./node-security-pin.ts";
 import { enforcementOf } from "./enforcement.ts";
-import type { Cause, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
+import { FIXABLE_BY, type Cause, type Form, type Lock, type LockRelation, type LockRule, type Severity, type Violation } from "./types.ts";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
@@ -462,6 +462,7 @@ function edgeText(v: Violation): string {
 }
 
 function template(v: Violation, r: LockRule | undefined): string {
+  if (v.detail !== undefined && NODE_PIN_DETAIL.test(v.detail)) return v.detail;
   return oneLine(r?.text.message ?? "").replace(/\{(\w+)\}/g, (_all, key: string) => {
     if (key === "symbol") return v.symbol === "<module>" ? "the module" : name(v.symbol);
     if (key === "path") return name(v.path);

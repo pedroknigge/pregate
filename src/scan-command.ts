@@ -334,7 +334,7 @@ export function recommendationOverrides(items: Recommendation[], preset?: Preset
     for (const method of catalog.methodologies.filter(method => item.methodologies.includes(method.id))) {
       for (const alias of method.invariants) {
         const check = catalog.checks.find(check => check.id === alias.check)!;
-        if (check.impl.kind === "primitive" && check.impl.primitive === "fitness") continue;
+        if (check.impl.kind === "primitive" && (check.impl.primitive === "fitness" || check.impl.primitive === "node-pin")) continue;
         const id = [alias.id, alias.check, `${item.ns}/${alias.id}`].find(id => Object.hasOwn(preset?.overrides ?? {}, id)) ?? `${item.ns}/${alias.id}`;
         const existing = preset?.overrides?.[id];
         const before = typeof existing === "string" ? { severity: existing } : existing ?? {};

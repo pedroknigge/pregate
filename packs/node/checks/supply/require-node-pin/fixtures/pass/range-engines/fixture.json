@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-PIN-001"
+  },
+  "target": "package.json",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

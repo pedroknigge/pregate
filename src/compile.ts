@@ -1,3 +1,4 @@
+import { nodePinReleaseError } from "./node-security-pin.ts";
 import { equal, type SchemaName, unsupported, validate } from "./schema.ts";
 import { normalize as normalizeText } from "./reconstruct.ts";
 import { LOOP_DEFAULTS } from "./enforcement.ts";
@@ -265,6 +266,11 @@ function checkErrors(check: Check, id: string, area: string): string[] {
   const out = check.id === id && check.area === area ? [] : [`id must be ${id} and area ${area}`];
   if (check.impl.kind === "primitive" && check.impl.primitive === "fitness" && (check.languages || check.phase.includes("pre"))) {
     out.push("project fitness requirements are language-independent and run at stop, commit or ci, not pre-edit");
+  }
+  if (check.impl.kind === "primitive" && check.impl.primitive === "node-pin") {
+    const error = nodePinReleaseError(check.impl.releases);
+    if (error !== null) out.push(error);
+    if (!check.phase.includes("pre")) out.push("node-pin warns on pre-edit, before the exact pin is written");
   }
   for (const [name, schema] of Object.entries(check.params)) {
     if (["paths", "exclude", "within"].includes(name)) out.push(`params.${name} is implicit in every check; remove it`);

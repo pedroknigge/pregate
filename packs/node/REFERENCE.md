@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.4.0`. Category: **library**.
+Version: `1.5.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -324,21 +324,21 @@ Source metadata:
 
 ### node/NODE-PIN-001
 
-Check: [`node/supply/require-node-pin@1.0.0`](checks/supply/require-node-pin/check.json). Default severity: **deny**.
+Check: [`node/supply/require-node-pin@1.1.0`](checks/supply/require-node-pin/check.json). Default severity: **deny**.
 
-Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
+Implementation: `node-pin`. Phases: `pre`, `stop`, `commit`, `ci`.
 
-Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `node.require-node-pin`. Minimum severity: `deny`.
+Languages: language-independent Node.js pin files. Cardinality: `singleton`. Dimension: `node.require-node-pin`. Minimum severity: `deny`.
 
-An unpinned tool changes under the team. A current major that is not LTS drops support on the next release train.
+An exact pin below the security patch for its release line stays on a vulnerable build. An unpinned tool changes under the team, and a current major that is not LTS drops support on the next release train.
 
 Default parameters: `{"verifier":"NODE-PIN-001"}`.
 
-**Repair:** Bind NODE-PIN-001 to a reviewed assertion that reads one of .nvmrc, .node-version, .tool-versions, engines.node, or volta.node, checks the major, and checks that major against the current LTS list with an explicit maxAgeMs. Run pregate fitness run NODE-PIN-001.
+**Repair:** When the finding names a patched release, replace that exact pin with it. Keep NODE-PIN-001 bound to a reviewed assertion that reads one of .nvmrc, .node-version, .tool-versions, engines.node, or volta.node, checks the major, and checks that major against the current LTS list with an explicit maxAgeMs. Run pregate fitness run NODE-PIN-001.
 
-**Scope and limits:** Fidelity: evidence. The pack already reads these pins for the Node.js 26 gate. A missing or unreadable pin such as lts/* stays unverified. Which majors are LTS is a dated fact, so the assertion owns the list. The pack does not hardcode majors.
+**Scope and limits:** Fidelity: evidence for the LTS major, and an exact pin for the security patch. The patched versions are data on the check, with the source URL and date, and the gate reads them from the lock with no network. A range, a major-only pin, lts/*, a floating tag, a prerelease tag, or a release line absent from that table stays quiet. A comment is not a pin. Dockerfile distro suffixes and image digests still name that exact version. Which majors are LTS is a dated fact, so the assertion owns the list. The pack does not hardcode LTS majors.
 
-Check-specific parameter schema (project fitness cannot be narrowed with per-file `paths`, `exclude` or `within`):
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 
 ```json
 {
@@ -353,9 +353,9 @@ Source metadata:
 
 ```json
 {
-  "work": "Node.js release schedule, LTS",
-  "locator": ".nvmrc, .node-version, .tool-versions, package.json engines.node and volta.node",
-  "paraphrase": "The project declares a Node.js version the pack can read, and that major is a current LTS line. The same files already gate the Node.js 26 removals."
+  "work": "Node.js release schedule and November 2026 security releases",
+  "locator": "https://nodejs.org/en/blog/vulnerability/november-2026-security-releases (2026-11-11); .nvmrc, .node-version, .tool-versions, package.json engines.node and volta.node, Dockerfile FROM node, actions/setup-node node-version, workflow and .gitlab-ci.yml image and container node tags, action.yml",
+  "paraphrase": "An exact Node.js pin below the patched release for its line is named in the finding. The patched versions are data on the check, dated to that post. The project also keeps a reviewed assertion that the declared major is a current LTS line."
 }
 ```
 
