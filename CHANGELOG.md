@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- That repair is part of the decision and is rendered in the Claude Code, Cursor, Codex, Grok, Antigravity, and OpenCode hook text, and in `pregate check`. A shell write names the target file and `Write`, `Edit`, or `apply_patch`. A protected path and an invalid contract edit name `.pregate/requests/<name>.json` and `pregate preset apply <request.json> --preview`. An enabled project is still the only place a hook blocks.
+- That repair is part of the decision and is rendered in the Claude Code, Cursor, Codex, Grok, Antigravity, and OpenCode hook text, and in `pregate check`. A shell write names the target file and `Write`, `Edit`, or `apply_patch`. A protected path and an invalid contract edit name `.pregate/requests/<name>.json` and `pregate preset apply <request.json> --preview`. An enabled project is still the only place a hook blocks. Grok shows one line of 256 characters. When the absolute `explain` command would cut the path or the replacement, that line uses `pregate explain` and the absolute command stays in the longer text.
 
 ## [0.0.12] - 2026-11-17
 

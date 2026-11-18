@@ -319,9 +319,9 @@ test("each harness renders the layer path and the replacement", () => {
     const out = run([BIN, "hook", "pre", "--harness", item.harness], r.dir, r.env, item.body);
     expect(out.code, `${item.harness}\n${out.stdout}\n${out.stderr}`).toBe(item.exit);
     const text = item.read(out);
-    expect(text, item.harness).toContain("src/core/");
+    expect(text, `${item.harness}\n${text}`).toContain("src/core/");
     expect(text, `${item.harness}\n${text}`).toContain("src/shell/");
-    if (item.harness !== "grok") expect(text, item.harness).toContain("../shell/main");
+    expect(text, `${item.harness}\n${text}`).toContain("../shell/main");
   }
 });
 

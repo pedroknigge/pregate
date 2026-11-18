@@ -110,11 +110,10 @@ export function denyText(vs: Violation[], lock: Lock, attempt: number, close: Cl
   const sorted = ordered(vs);
   const first = sorted[0];
   if (first === undefined) return EMPTY;
-  const explain = `Details: \`${word(ctx.launcher)} explain ${safe(first.rule)}\``;
-  const fits = explain.length <= LINE_MAX / 2;
-  const fallback = `Details: \`pregate explain ${safe(first.rule)}\``;
-  const compact = headline(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, hidden(sorted, ctx), fits ? explain : fallback);
-  const tail = `${CLOSING[close]}\n${fits ? "" : `${explain}\n`}Optional pre-check when permitted: ${precheck(ctx.launcher, first.path)}`;
+  const count = hidden(sorted, ctx);
+  const chosen = explainChoice(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, count, ctx.launcher);
+  const compact = headline(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, count, chosen.end);
+  const tail = `${CLOSING[close]}\n${chosen.spill === "" ? "" : `${chosen.spill}\n`}Optional pre-check when permitted: ${precheck(ctx.launcher, first.path)}`;
   return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, attempt)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
 }
 
@@ -139,12 +138,11 @@ export function adviseText(vs: Violation[], lock: Lock, ctx: DenyContext, beside
   const sorted = ordered(vs);
   const first = sorted[0];
   if (first === undefined) return EMPTY;
-  const explain = `Details: \`${word(ctx.launcher)} explain ${safe(first.rule)}\``;
-  const fits = explain.length <= LINE_MAX / 2;
-  const fallback = `Details: \`pregate explain ${safe(first.rule)}\``;
-  const compact = headline("PREGATE ADVISOR", first, lock, hidden(sorted, ctx), fits ? explain : fallback);
+  const count = hidden(sorted, ctx);
+  const chosen = explainChoice("PREGATE ADVISOR", first, lock, count, ctx.launcher);
+  const compact = headline("PREGATE ADVISOR", first, lock, count, chosen.end);
   const close = besideDeny ? ADVISOR_BESIDE_DENY : ADVISOR;
-  const tail = fits ? close : `${close}\n${explain}`;
+  const tail = chosen.spill === "" ? close : `${close}\n${chosen.spill}`;
   return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
 }
 
@@ -359,12 +357,29 @@ function headline(head: string, v: Violation, lock: Lock, more: number, end = ""
   return clip(oneLine(line), LINE_MAX - tail.length) + tail;
 }
 
-// The concrete path and replacement lead the first line. Grok shows only that line, cut at 256.
+// Grok shows one line of 256 characters. The concrete path and replacement stay on that line.
+// A long absolute `explain` command moves to the body when it would cut them.
+function explainChoice(head: string, v: Violation, lock: Lock, more: number, launcher: string): { end: string; spill: string } {
+  const explain = `Details: \`${word(launcher)} explain ${safe(v.rule)}\``;
+  const fallback = `Details: \`pregate explain ${safe(v.rule)}\``;
+  const preferred = explain.length <= LINE_MAX / 2 ? explain : fallback;
+  const lead = `${head} ${safe(v.rule)} ${where(v)}${fixCue(ruleFix(v, lock))}`;
+  const moreText = more > 0 ? ` +${more} more` : "";
+  const fits = (end: string): boolean => lead.length + moreText.length + (end === "" ? 0 : end.length + 1) + 1 <= LINE_MAX;
+  if (fits(preferred)) return { end: preferred, spill: preferred === explain ? "" : explain };
+  if (preferred !== fallback && fits(fallback)) return { end: fallback, spill: explain };
+  return { end: "", spill: explain };
+}
+
+// The concrete path and replacement lead the first line. A cut lands on a separator, not inside a path.
 function fixCue(fix: DecisionFix): string {
   if (!fix.where && !fix.use) return "";
   const parts = [fix.where ? `where ${fix.where}` : "", fix.use ? `use ${fix.use}` : ""].filter((part) => part !== "");
   const text = ` ${parts.join("; ")}.`;
-  return text.length <= 160 ? text : `${text.slice(0, 159)}…`;
+  if (text.length <= 160) return text;
+  const cut = text.slice(0, 159);
+  const at = Math.max(cut.lastIndexOf(";"), cut.lastIndexOf(" "), cut.lastIndexOf(","));
+  return `${at > 20 ? cut.slice(0, at) : cut}…`;
 }
 
 type Group = { rule: string; items: Violation[] };
