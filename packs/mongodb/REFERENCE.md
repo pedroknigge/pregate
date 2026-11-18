@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## mongodb/models
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **complete**.
 
 ### mongodb/MONGO-SCHEMA-001
 
@@ -150,9 +150,9 @@ A machine ENVIRONMENT and a callback in the same client send the callback's bear
 
 Default parameters: `{}`.
 
-**Repair:** Use one mechanism only, and upgrade the driver to >=7.9.0. Keep ENVIRONMENT for the machine flow, or keep OIDC_CALLBACK or OIDC_HUMAN_CALLBACK and refuse a connection string whose authMechanismProperties include ENVIRONMENT.
+**Repair:** Use one mechanism only and mongodb >=7.9.0.
 
-**Scope and limits:** The keys are read on one object inside a MongoClient or MongoClient.connect call, and ENVIRONMENT in a string or template argument of that same call counts. OIDC_HUMAN_CALLBACK is the same combination as OIDC_CALLBACK. A connection string held in a variable is not visible. mongoose.connect is not matched. Two separate clients in one file are not a combination.
+**Scope and limits:** Keep ENVIRONMENT for the machine flow, or keep OIDC_CALLBACK or OIDC_HUMAN_CALLBACK and refuse a connection string whose authMechanismProperties include ENVIRONMENT. The keys are read on one object inside a MongoClient or MongoClient.connect call, and ENVIRONMENT in a string or template argument of that same call counts. OIDC_HUMAN_CALLBACK is the same combination as OIDC_CALLBACK. A connection string held in a variable is not visible. mongoose.connect is not matched. Two separate clients in one file are not a combination.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

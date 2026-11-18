@@ -54,7 +54,7 @@ These notes follow the [7.9.0 release](https://github.com/mongodb/node-mongodb-n
 
 The same release stops forcing `autoSelectFamily: true` when the option is unset, so Node's process default applies. `SelectServerOptions` is deprecated. The pack records both as driver behavior.
 
-`MONGO-OIDC-001` denies a visible `ENVIRONMENT` plus `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` on one `MongoClient` or `MongoClient.connect` call. The release names both callbacks. A callback-only call and an environment-only call are each one mechanism. Use one mechanism only, and upgrade the driver to >=7.9.0. A URI kept in a variable is not a visible `ENVIRONMENT`. `MONGO-OIDC-002` warns when a manifest or lockfile pins `mongodb` at >=6.7.0 and <7.9.0, and it recommends >=7.9.0.
+`MONGO-OIDC-001` denies a visible `ENVIRONMENT` plus `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` on one `MongoClient` or `MongoClient.connect` call. The release names both callbacks. A callback-only call and an environment-only call are each one mechanism. Use one mechanism only and mongodb >=7.9.0. A URI kept in a variable is not a visible `ENVIRONMENT`. `MONGO-OIDC-002` warns when a manifest or lockfile pins `mongodb` at >=6.7.0 and <7.9.0, and it recommends >=7.9.0.
 
 ## Fixture coverage and limits
 

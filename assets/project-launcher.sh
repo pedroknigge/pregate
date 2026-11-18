@@ -26,12 +26,29 @@ installed() {
   [ -n "$version" ] && [ -x "$data/$version/pregate" ] && [ -s "$data/$version/pregate" ]
 }
 
+uncertainty_open() {
+  u=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  while [ "${u#/}" != "$u" ]; do
+    if [ -f "$u/.pregate/preset.json" ]; then
+      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0
+      return 1
+    fi
+    [ -e "$u/.git" ] && return 1
+    u=${u%/*}
+  done
+  return 1
+}
+
 fail_closed() {
-  active=
+  active= root=
   for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
-    [ -n "$candidate" ] && [ -f "$candidate/.pregate/pregate.lock.json" ] && active=1 && break
+    [ -n "$candidate" ] && [ -f "$candidate/.pregate/pregate.lock.json" ] && active=1 && root=$candidate && break
   done
   [ -n "$active" ] || exit 0
+  if uncertainty_open "$root"; then
+    [ "$hook_event" = pre ] && [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
+    exit 0
+  fi
   hint=${2:-"Run pregate prepare in this project, then pregate doctor."}
   case ${1:-pre} in
   stop)
@@ -57,6 +74,7 @@ if [ $# -gt 0 ] && [ "$1" != hook ]; then
   exec "$data/$version/pregate" "$@"
 fi
 
+hook_event=${2:-} hook_harness=${4:-}
 [ -n "$version" ] || fail_closed pre "the lock names no valid engine version"
 installed || fail_closed pre "engine $version is not installed; run pregate prepare"
 PATH=$path

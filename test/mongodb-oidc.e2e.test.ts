@@ -110,7 +110,15 @@ function denied(result: { code: number | null; text: string; error: string }, ru
   expect(result.text).toContain(rule);
   expect(result.text).toContain("one mechanism only");
   expect(result.text).toContain(">=7.9.0");
-  expect(JSON.parse(result.text).hookSpecificOutput.permissionDecision).toBe("deny");
+  const reason = (JSON.parse(result.text) as { hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string } }).hookSpecificOutput;
+  expect(reason.permissionDecision).toBe("deny");
+  const first = reason.permissionDecisionReason.split("\n")[0] ?? "";
+  expect(first.length).toBeLessThanOrEqual(256);
+  expect(first.startsWith("PREGATE DENY")).toBe(true);
+  const repair = first.indexOf("use one mechanism only and mongodb >=7.9.0");
+  const diagnosis = first.indexOf("combines ENVIRONMENT");
+  expect(repair).toBeGreaterThan(-1);
+  expect(diagnosis).toBeGreaterThan(repair);
 }
 
 function allowed(result: { code: number | null; text: string; error: string }, rule: string) {

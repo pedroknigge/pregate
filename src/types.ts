@@ -26,7 +26,7 @@ export interface Host {
 export type Cause =
   // the agent can fix it ⇒ form deny: does not consume the (file, rule) counter
   | "protected-path" | "request-invalid" | "tool-will-fail" | "cannot-reconstruct"
-  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "hook-switch" | "approval"
+  | "syntax" | "unresolvable-import" | "shell-write" | "shell-admin" | "shell-uncertain" | "hook-switch" | "approval"
   // only the human can fix it ⇒ deny + halt + notice
   | "payload-unrecognized" | "lock-stale" | "version-mismatch"
   | "snapshot-missing" | "state-io" | "git-missing" | "git-not-repository" | "git-error"
@@ -34,7 +34,7 @@ export type Cause =
 export const FIXABLE_BY = Object.freeze({
   "protected-path": "agent", "request-invalid": "agent", "tool-will-fail": "agent",
   "cannot-reconstruct": "agent", "syntax": "agent", "unresolvable-import": "agent",
-  "shell-write": "agent", "shell-admin": "agent", "hook-switch": "agent", "approval": "agent",
+  "shell-write": "agent", "shell-admin": "agent", "shell-uncertain": "agent", "hook-switch": "agent", "approval": "agent",
   "payload-unrecognized": "human", "lock-stale": "human", "version-mismatch": "human",
   "snapshot-missing": "human", "state-io": "human", "git-missing": "human", "git-not-repository": "human",
   "git-error": "human", "regex-limit": "human",
@@ -43,6 +43,7 @@ export const FIXABLE_BY = Object.freeze({
 // "lock-stale" covers a missing, invalid or old lock, sources that fail verification and a vanished
 // preset: same remedy. "git-missing", "git-not-repository" and "git-error" replace one git failure:
 // the edit is still denied. "timeout" and "engine-crash" are not causes: launcher.sh emits them (A6).
+// "shell-uncertain": the shell lexer cannot finish a token, so the command was not classified.
 // "regex-limit": a rule's regex may have given up on this file, so its "no match" is not an answer
 // (O27); the rule's author fixes it. "contract-loosened": the contract now enforces less than the
 // session started with, and no human approval of it was recorded. "approval": the agent set
@@ -102,6 +103,17 @@ export interface Violation {       // data only: message.ts renders the text fro
   severity: Severity;
   repair?: string;                 // synthesized AST repair hint (line numbers and structure only)
   edge?: { from: string; to: string | null; spec: string };   // layer-edge: source layer, target layer (null: none), import as written
+  spec?: string;                   // banned-import: the import specifier as written
+  placed?: Placement;              // placement: the case that matched
+}
+// A denial's concrete repair. `where` is the path or layer the code should occupy.
+// `use` is the import, API, or pattern to use instead. Both come from rule data.
+// `deterministic` is true only when both sides are known. `text` is the sentence the agent reads.
+export interface DecisionFix {
+  where: string | null;
+  use: string | null;
+  text: string;
+  deterministic: boolean;
 }
 export interface Decision {
   contractApproval?: boolean;      // native, enforced human permission for the exact validated edit
@@ -113,6 +125,7 @@ export interface Decision {
   warnings: Violation[];           // introduced warn → additionalContext
   attempt: number;                 // attempt n on (agent, file, rule)
   compact: string; full: string;   // ≤ 256 / ≤ 4,000 chars
+  fix: DecisionFix | null;         // concrete where/what, or an explicit non-deterministic hint; null when nothing is blocked
   notice: string | null;           // to the human: systemMessage / stopReason
   lockHash: string | null;
   shadowed: boolean;               // shadow muted a finding/cause, including calls with another blocking rule
@@ -190,6 +203,7 @@ export interface Alias {
   id: string; check: string; defaults: Record<string, unknown>; severity: Severity | "off";
   source: { work: string; locator: string; paraphrase: string };
   why: string; fixHint: string; avoid: string; examples?: { pass: string; fail: string };
+  fix?: { where?: string; use?: string }; // optional concrete path and replacement; empty is rejected
   relations?: RuleRelation[]; versionGate?: VersionGate;
 }
 // `with` names another alias (ns/ALIAS-ID) or, for idiom, a pack namespace whose framework mandates the opposite.
@@ -233,6 +247,9 @@ export interface Preset {
   ratchet?: { mode: "strict" | "no-new" };
   loop?: Partial<Loop> & { escalate?: "stop" };   // D15.5: stop only
   failMode?: "closed";                            // D15.6: closed only (accepted for compatibility)
+  // Omitted means closed. "open" lets an unclassified call through where this project is enabled.
+  // It does not turn rule violations, protected paths, or shell writes off. enable never writes this key.
+  uncertainty?: "closed" | "open";
   coexist?: { arkgate?: { ownedByArkgate: string[]; config?: string; note?: string } };
 }
 export interface LockRule {
@@ -247,7 +264,7 @@ export interface LockRule {
   enforcement?: Enforcement;       // older locks inherit the preset default
   integrity: boolean;              // builtin core: enforces by default; human-reviewed off is permitted
   origin: Record<string, string>;  // "params.max" → "resolve.fn.size" | "overrides.CC-FN-001" | "alias"
-  text: { message: string; why: string; fix: string; avoid: string | null; source: string };
+  text: { message: string; why: string; fix: string; avoid: string | null; source: string; where?: string; use?: string };
   when?: { dependency: "typescript"; min: string; otherwise?: "warn" };
 }
 export interface Lock {            // lockHash = sha256 of the file bytes (the text is already canonical JSON)

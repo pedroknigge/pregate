@@ -16,7 +16,7 @@ The agent proposes a file in `src/domain` that imports the database adapter. Bef
 1) architecture/CA-DEP-001 → architecture/dependencies/layer-direction@1.0.0 · src/domain/order.ts:1
    the module imports code from a layer this layer may not depend on. Layer `domain` imports layer `infra` via `../infra/db.ts`.
    Why: An inner layer that imports an outer one cannot be tested, reused or kept stable without dragging the details along.
-   Fix: Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
+   Fix: Put the code in domain (src/domain/); implement the outer side under infra (src/infra/). Use a module under src/domain/ instead of ../infra/db.ts. Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
    Avoid: Barrels and re-exports that tunnel the same edge, type-only imports, require calls and path aliases that point at the same outer module.
 ```
 
@@ -106,7 +106,7 @@ The ratchet compares violations by rule and symbol, not arbitrary program meanin
 
 ## What Pregate does not do
 
-Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics and does not deny unknown syntax by itself. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible.
+Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics. Where a project is enabled, syntax it cannot finish (an unclosed quote, substitution, or group) denies. A finished command it does not classify is not a deny by itself. Set `"uncertainty": "open"` in `.pregate/preset.json` and have a human run `pregate preset compile` to let only those unclassified calls through. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible.
 
 The [guarantees](docs/guarantees.md#contract-loosening) put the boundary in CI:
 

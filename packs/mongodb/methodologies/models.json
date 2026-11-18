@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "mongodb/models",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -88,8 +88,9 @@
         "paraphrase": "Driver versions from 6.7.0 before 7.9.0 leak OIDC bearer tokens to domains outside the allowlist when ENVIRONMENT is combined with OIDC_CALLBACK or OIDC_HUMAN_CALLBACK. From 7.9.0, MongoClient throws on that combination."
       },
       "why": "A machine ENVIRONMENT and a callback in the same client send the callback's bearer token to a domain the application did not allow.",
-      "fixHint": "Use one mechanism only, and upgrade the driver to >=7.9.0. Keep ENVIRONMENT for the machine flow, or keep OIDC_CALLBACK or OIDC_HUMAN_CALLBACK and refuse a connection string whose authMechanismProperties include ENVIRONMENT.",
-      "avoid": "The keys are read on one object inside a MongoClient or MongoClient.connect call, and ENVIRONMENT in a string or template argument of that same call counts. OIDC_HUMAN_CALLBACK is the same combination as OIDC_CALLBACK. A connection string held in a variable is not visible. mongoose.connect is not matched. Two separate clients in one file are not a combination.",
+      "fix": { "use": "one mechanism only and mongodb >=7.9.0" },
+      "fixHint": "Use one mechanism only and mongodb >=7.9.0.",
+      "avoid": "Keep ENVIRONMENT for the machine flow, or keep OIDC_CALLBACK or OIDC_HUMAN_CALLBACK and refuse a connection string whose authMechanismProperties include ENVIRONMENT. The keys are read on one object inside a MongoClient or MongoClient.connect call, and ENVIRONMENT in a string or template argument of that same call counts. OIDC_HUMAN_CALLBACK is the same combination as OIDC_CALLBACK. A connection string held in a variable is not visible. mongoose.connect is not matched. Two separate clients in one file are not a combination.",
       "examples": {
         "pass": "pass/callback-only",
         "fail": "fail/both-in-options"

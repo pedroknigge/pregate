@@ -7,6 +7,8 @@ import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./admission.ts";
+import { UNCERTAINTY_CAUSES } from "./message.ts";
+import { uncertaintyAllows } from "./uncertainty.ts";
 import { readStdin, STDIN_TIMEOUT } from "./disk.ts";
 import { checkpoint } from "./progress.ts";
 import { blank, NO_COMMAND } from "./product.ts";
@@ -77,7 +79,8 @@ async function main(argv: string[]): Promise<number> {
   }
   // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
   const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
-  const out = "cause" in e ? adapter.encode(e.kind, rejection(e, harness, gate, input.timedOut), replyFlag) : adapter.encode(e.kind, await dispatch(e, gate), replyFlag);
+  const decision = "cause" in e ? rejection(e, harness, gate, input.timedOut) : await dispatch(e, gate);
+  const out = adapter.encode(e.kind, relax(decision, eventDirs(e)), replyFlag);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -150,6 +153,19 @@ function inputRejection(e: HookEvent | Rejected | null, kind: string): Rejected 
   if (e.kind === "pre-edit") return { ...refused(kind), session: e.changes[0]?.session ?? null, dirs: e.changes.map((c) => c.path) };
   if (e.kind === "pre-command") return { ...refused(kind), session: e.command.session, dirs: [e.command.cwd] };
   return { ...refused(kind), session: e.session, dirs: [e.cwd], reentry: e.kind === "stop" && e.reentry };
+}
+
+function eventDirs(e: HookEvent | Rejected): string[] {
+  if ("cause" in e) return e.dirs.length > 0 ? e.dirs : [process.cwd()];
+  if (e.kind === "pre-edit") return e.changes.map((c) => dirname(c.path));
+  if (e.kind === "pre-command") return [e.command.cwd];
+  return [e.cwd];
+}
+
+// An explicit "uncertainty": "open" lets an unclassified call through. A rule deny is not one of these.
+function relax(d: Decision, dirs: string[]): Decision {
+  if (d.verdict === "none" || d.cause === null || !UNCERTAINTY_CAUSES.has(d.cause)) return d;
+  return uncertaintyAllows(dirs) ? told(null) : d;
 }
 
 function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolean): Decision {

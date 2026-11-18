@@ -1,12 +1,21 @@
+import { causeFix, ruleFix } from "./fix.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { enforcementOf } from "./enforcement.ts";
-import type { Cause, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
+import type { Cause, DecisionFix, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
+
+// Calls the engine could not classify. A rule violation, a protected path, and a shell write are not in this set.
+export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
+  "payload-unrecognized", "lock-stale", "version-mismatch", "cannot-reconstruct", "shell-uncertain",
+]);
+
+// Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
+export const UNCERTAINTY_OVERRIDE = " Override: set uncertainty to open in .pregate/preset.json; the human runs pregate preset compile.";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
 // write text that comes back as the hook's voice (SPEC §11.1).
 
-export type Text = { compact: string; full: string };
+export type Text = { compact: string; full: string; fix: DecisionFix | null };
 export type Halt = "turn-cap" | "file-rule-cap" | "no-progress" | "form-run" | "ask-unavailable";
 export type Close = "retry" | "stalled" | "halt" | "ask";            // how a deny or ask text ends
 // launcher: what precheck cites; max: text budget (hooks keep TEXT_MAX; the CLI pre-check lists everything)
@@ -24,7 +33,7 @@ const LOCATIONS_MAX = 160;
 const MORE_MAX = 80;     // room kept for the "+N more" line
 const ARG_MAX = 300;     // a longer path in the pre-check becomes <file>
 const WORD = /^[A-Za-z0-9@/._-]+$/;   // a shell word that needs no quoting (`$` would expand)
-const EMPTY: Text = { compact: "", full: "" };
+const EMPTY: Text = { compact: "", full: "", fix: null };
 
 const ISSUE = "Ask the user whether to report this finding to the native PREGATE GitHub repository. Prepare a review with `pregate issue draft --last`; code is omitted unless explicitly included. Publication requires human approval in a separate terminal.";
 const NO_PRESET_REPORT = "Ask the user whether to report this finding to the native PREGATE GitHub repository. This directory has no preset, so a draft cannot be prepared from here. Publication requires human approval in a separate terminal.";
@@ -69,6 +78,7 @@ const CAUSE_EN: Record<Cause, string> = {
   "shell-admin": "this command skips git hooks, runs an ungated agent harness, changes PREGATE configuration or builds a command name from a variable, substitution or glob. Do not run it; spell every command name literally.",
   "hook-switch": "this command installs, removes or switches off PREGATE or the hooks of a harness. Do not run it. Do not ask to switch protection off merely to continue a blocked task; propose a reviewed rule adaptation.",
   "approval": "an agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. Setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT does not grant it.",
+  "shell-uncertain": "this command has unfinished shell syntax, so it was not classified. Close every quote, substitution, and group.",
   "payload-unrecognized": "PREGATE could not evaluate this call: the hook payload does not match what this PREGATE version knows of the harness.",
   "lock-stale": "PREGATE could not evaluate this call: its lock is missing, does not match the preset and its sources, or pins an engine older than this one accepts.",
   "version-mismatch": "PREGATE could not evaluate this call: the engine or core version differs from the one the preset pins.",
@@ -109,12 +119,11 @@ export function denyText(vs: Violation[], lock: Lock, attempt: number, close: Cl
   const sorted = ordered(vs);
   const first = sorted[0];
   if (first === undefined) return EMPTY;
-  const explain = `Details: \`${word(ctx.launcher)} explain ${safe(first.rule)}\``;
-  const fits = explain.length <= LINE_MAX / 2;
-  const fallback = `Details: \`pregate explain ${safe(first.rule)}\``;
-  const compact = headline(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, hidden(sorted, ctx), fits ? explain : fallback);
-  const tail = `${CLOSING[close]}\n${fits ? "" : `${explain}\n`}Optional pre-check when permitted: ${precheck(ctx.launcher, first.path)}`;
-  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, attempt)}`, sorted, lock, tail, ctx.max) };
+  const count = hidden(sorted, ctx);
+  const chosen = explainChoice(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, count, ctx.launcher);
+  const compact = headline(`PREGATE ${close === "ask" ? "ASK" : "DENY"}`, first, lock, count, chosen.end);
+  const tail = `${CLOSING[close]}\n${chosen.spill === "" ? "" : `${chosen.spill}\n`}Optional pre-check when permitted: ${precheck(ctx.launcher, first.path)}`;
+  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, attempt)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
 }
 
 // The first line's "+N more": hook UIs may show that line alone, while an unbounded text (the CLI
@@ -130,7 +139,7 @@ export function stopText(vs: Violation[], lock: Lock, ctx: DenyContext): Text {
   const n = sorted.length;
   const compact = headline(`PREGATE BLOCK end of turn: ${n} introduced violation${n === 1 ? "" : "s"} remain. First:`, first, lock, 0);
   const tail = `${STOP}\n${ISSUE}\nPre-check: ${precheck(ctx.launcher, first.path)}`;
-  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max) };
+  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
 }
 
 // `besideDeny`: the same text also carries a denial (a CLI check), so the tail must not say nothing blocked.
@@ -138,13 +147,12 @@ export function adviseText(vs: Violation[], lock: Lock, ctx: DenyContext, beside
   const sorted = ordered(vs);
   const first = sorted[0];
   if (first === undefined) return EMPTY;
-  const explain = `Details: \`${word(ctx.launcher)} explain ${safe(first.rule)}\``;
-  const fits = explain.length <= LINE_MAX / 2;
-  const fallback = `Details: \`pregate explain ${safe(first.rule)}\``;
-  const compact = headline("PREGATE ADVISOR", first, lock, hidden(sorted, ctx), fits ? explain : fallback);
+  const count = hidden(sorted, ctx);
+  const chosen = explainChoice("PREGATE ADVISOR", first, lock, count, ctx.launcher);
+  const compact = headline("PREGATE ADVISOR", first, lock, count, chosen.end);
   const close = besideDeny ? ADVISOR_BESIDE_DENY : ADVISOR;
-  const tail = fits ? close : `${close}\n${explain}`;
-  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max) };
+  const tail = chosen.spill === "" ? close : `${close}\n${chosen.spill}`;
+  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
 }
 
 export function warnText(vs: Violation[], lock: Lock): Text {
@@ -153,7 +161,8 @@ export function warnText(vs: Violation[], lock: Lock): Text {
     return clip(oneLine(head), LINE_MAX - INFO.length) + INFO;
   });
   const items = lines.map((l, k) => (k === 0 ? l : `\n${l}`));
-  return { compact: lines[0] ?? "", full: fit(items, lines.length, TEXT_MAX - MORE_MAX, more) };
+  const first = ordered(vs)[0];
+  return { compact: lines[0] ?? "", full: fit(items, lines.length, TEXT_MAX - MORE_MAX, more), fix: first ? ruleFix(first, lock) : null };
 }
 
 export function violationMessage(v: Violation, lock: Lock): string {
@@ -173,8 +182,21 @@ export function alsoInCall(full: string, compacts: string[]): string {
 export function formText(f: Form, rel: string | null, halt = false): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin", "shell-write"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), f.cause === "shell-admin" ? 220 : 2000) : null;
-  const headline = `PREGATE DENY ${f.cause}${at}: ${detail ?? CAUSE_EN[f.cause]}`;
-  const compact = clip(headline, LINE_MAX);
+  const fix = causeFix(f.cause, rel, f.line, detail);
+  const cue = f.cause === "shell-write" && detail !== null && fix.use ? `Use ${fix.use}. `
+    : (f.cause === "protected-path" || f.cause === "hook-switch") && fix.where && fix.use ? `Put the change in ${fix.where}. Use ${fix.use}. `
+    : "";
+  const diagnosis = detail ?? CAUSE_EN[f.cause];
+  const strict = UNCERTAINTY_CAUSES.has(f.cause);
+  // payload-unrecognized grows by " (claude-code)" when main labels the harness. Leave that room.
+  const limit = LINE_MAX - (f.cause === "payload-unrecognized" ? " (claude-code)".length : 0);
+  const headline = `PREGATE DENY ${f.cause}${at}: ${cue}${diagnosis}`;
+  // An unclassified deny leads with the concrete repair, then the override, inside Grok's line.
+  const compact = strict ? strictCompact(f.cause, at, fix.text, limit) : clip(headline, LINE_MAX);
+  // Grok sees only `compact`. The full text keeps that line, then the unclipped sentence when the
+  // cue pushed a required cause phrase past 256 characters.
+  const lead = strict ? compact
+    : detail !== null || compact === headline ? (detail !== null ? headline : compact) : `${compact}\n${headline}`;
   const next = FIXABLE_BY[f.cause] === "human" ? "Only the user can fix this: stop and report it to them (cause and path)."
     : halt ? FORM_HALTED
     : "If you believe this is a false positive, stop and tell the user (cause and path).";
@@ -184,18 +206,38 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "contract-loosened" ? `${f.detail ? `\n${f.detail}` : ""}\n${WHY["contract-loosened"]}` : f.cause === "protected-path"
     ? "\nPREGATE configuration, rule sources, harness settings and state are protected. Inspect fixed harness configuration files with one literal cat -- /absolute/path/to/settings.json command, without variables, loops, filters, wrappers, pipelines or redirections. Inspect the editable contract with `pregate preset show --json` and diagnose versions/schema with `pregate preset diagnose --json`; do not run a source pre-check on policy files. Read the request format with `pregate preset request-schema`. Propose a preset change in .pregate/requests/<name>.json for human review. Codex 0.166 reports the command working directory, so a relative path resolves there; name a file outside that directory with an absolute path. Validate and prepare its review with `pregate preset apply <request.json> --preview`; this does not activate it. Only the human approves."
     : f.cause === "shell-write"
-    ? `\nWhy: ${detail === null ? "The command writes a project file, or runs a script that does." : `The command was refused because ${detail}.`} Write that file with the edit tool (Write, Edit, apply_patch). A registry read, an install, git init, Docker, and a build, test, or dev script are allowed when the script does not edit gated source.\nFix: Write project files with the edit tool. Name a script with a literal path, such as bash ./run.sh, python3 script.py, node script.js, make -f Makefile, or powershell -File build.ps1. A read-only one-liner stays allowed. A Python module invocation such as python3 -m unittest, python -m, or -m joined to the module name, is scanned for write sinks only when that dotted name resolves to a file in the working directory. A module that does not resolve there, such as unittest, pytest, or pip, is not a script path.`
+    ? `\nWhy: ${detail === null ? "The command writes a project file, or runs a script that does." : `The command was refused because ${detail}.`} Write that file with the edit tool (Write, Edit, apply_patch). A registry read, an install, git init, Docker, and a build, test, or dev script are allowed when the script does not edit gated source.\nFix: ${fix.text} Name a script with a literal path, such as bash ./run.sh, python3 script.py, node script.js, make -f Makefile, or powershell -File build.ps1. A read-only one-liner stays allowed. A Python module invocation such as python3 -m unittest, python -m, or -m joined to the module name, is scanned for write sinks only when that dotted name resolves to a file in the working directory. A module that does not resolve there, such as unittest, pytest, or pip, is not a script path.`
     : f.cause === "approval"
     ? "\nAn agent cannot grant itself approval. Ask the human to run the approval command in a separate terminal. A literal pregate approve with a code, or pregate approve --yes with an optional digest, is the in-harness confirmation. Other commands ask for y on that terminal. --yes skips the question only where PREGATE_UNATTENDED_APPROVAL=1 is already set in that environment by the human or by CI, not by the agent."
     : "";
-  return { compact, full: `${detail === null ? compact : headline}${help}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}` };
+  const uncertainty = strict
+    ? "\nWhere this project is enabled, an unclassified call is denied. That does not turn protection off."
+    : "";
+  const fixAlready = help.includes("\nFix: ") || help.includes("Fix: ") || compact.includes(fix.text);
+  const fixLine = fixAlready ? "" : `\nFix: ${fix.text}`;
+  const carried = strict ? `${fixLine}\n${diagnosis}` : fixLine;
+  return { compact, full: `${lead}${carried}${help}${uncertainty}\n\n${next}${f.cause === "hook-switch" ? `\n${POLICY_ADAPTATION}` : ""}\n${ISSUE}`, fix };
+}
+
+// The first line of an unclassified deny. The repair and the override stay; a long path yields.
+function strictCompact(cause: string, at: string, fixText: string, limit: number): string {
+  const fixSentence = `Fix: ${oneLine(fixText)}`;
+  const tail = `${fixSentence}${UNCERTAINTY_OVERRIDE}`;
+  const withPath = `PREGATE DENY ${cause}${at}: ${tail}`;
+  if (withPath.length <= limit) return withPath;
+  const head = `PREGATE DENY ${cause}: `;
+  const bare = head + tail;
+  if (bare.length <= limit) return bare;
+  const room = limit - head.length - UNCERTAINTY_OVERRIDE.length;
+  if (room >= "Fix: ".length + 8) return head + clip(fixSentence, room) + UNCERTAINTY_OVERRIDE;
+  return clip(head + tail, limit);
 }
 
 // Advisor mode does not block a grammar failure. The file was not evaluated, so the text must not say it was clean.
 export function syntaxAdvisory(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const compact = clip(`PREGATE WARN syntax${at}: parse failure. This file does not parse, so its rules were not evaluated. Fix the syntax error and resend.`, LINE_MAX);
-  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX) };
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
 }
 
 // Advisor mode does not block an import it could not resolve when no enforced rule would have judged the file.
@@ -203,7 +245,7 @@ export function unresolvedAdvisory(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const detail = f.detail ? clip(oneLine(f.detail), 2000) : null;
   const compact = clip(`PREGATE WARN unresolvable-import${at}: ${detail ?? CAUSE_EN["unresolvable-import"]}`, LINE_MAX);
-  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.`, TEXT_MAX) };
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, detail) };
 }
 
 // The literal invocation the shell guard allows (ARCHITECTURE §4.2; MH-29: `pregate` on the PATH or
@@ -343,9 +385,35 @@ function wholeNames(names: string[], room: number): string {
 
 function headline(head: string, v: Violation, lock: Lock, more: number, end = ""): string {
   const r = ruleOf(lock, v.rule);
+  const fix = ruleFix(v, lock);
   const tail = `${more > 0 ? ` +${more} more` : ""}${end === "" ? "" : ` ${end}`}`;
-  const line = `${head} ${safe(v.rule)} ${where(v)} ${message(v, r)} Fix: ${r?.text.fix ?? ""}`;
+  const line = `${head} ${safe(v.rule)} ${where(v)}${fixCue(fix)} ${message(v, r)} Fix: ${fix.text}`;
   return clip(oneLine(line), LINE_MAX - tail.length) + tail;
+}
+
+// Grok shows one line of 256 characters. The concrete path and replacement stay on that line.
+// A long absolute `explain` command moves to the body when it would cut them.
+function explainChoice(head: string, v: Violation, lock: Lock, more: number, launcher: string): { end: string; spill: string } {
+  const explain = `Details: \`${word(launcher)} explain ${safe(v.rule)}\``;
+  const fallback = `Details: \`pregate explain ${safe(v.rule)}\``;
+  const preferred = explain.length <= LINE_MAX / 2 ? explain : fallback;
+  const lead = `${head} ${safe(v.rule)} ${where(v)}${fixCue(ruleFix(v, lock))}`;
+  const moreText = more > 0 ? ` +${more} more` : "";
+  const fits = (end: string): boolean => lead.length + moreText.length + (end === "" ? 0 : end.length + 1) + 1 <= LINE_MAX;
+  if (fits(preferred)) return { end: preferred, spill: preferred === explain ? "" : explain };
+  if (preferred !== fallback && fits(fallback)) return { end: fallback, spill: explain };
+  return { end: "", spill: explain };
+}
+
+// The concrete path and replacement lead the first line. A cut lands on a separator, not inside a path.
+function fixCue(fix: DecisionFix): string {
+  if (!fix.where && !fix.use) return "";
+  const parts = [fix.where ? `where ${fix.where}` : "", fix.use ? `use ${fix.use}` : ""].filter((part) => part !== "");
+  const text = ` ${parts.join("; ")}.`;
+  if (text.length <= 160) return text;
+  const cut = text.slice(0, 159);
+  const at = Math.max(cut.lastIndexOf(";"), cut.lastIndexOf(" "), cut.lastIndexOf(","));
+  return `${at > 20 ? cut.slice(0, at) : cut}…`;
 }
 
 type Group = { rule: string; items: Violation[] };
@@ -382,7 +450,7 @@ function briefGroup(g: Group): string {
 
 function detailGroup(g: Group, lock: Lock): string {
   const [first, ...rest] = g.items;
-  return detail(first!, ruleOf(lock, g.rule)) + (rest.length ? `\n   Also at: ${locations(rest)}` : "");
+  return detail(first!, ruleOf(lock, g.rule), lock) + (rest.length ? `\n   Also at: ${locations(rest)}` : "");
 }
 
 // `a.ts:15,16; b.ts:3`, clipped with the count of locations left out.
@@ -415,7 +483,7 @@ function more(n: number): string {
 
 const SAFE_REPAIR = /^Suggested (?:split|refactor): [A-Za-z0-9 .,:-]{1,120}$/;
 
-function detail(v: Violation, r: LockRule | undefined): string {
+function detail(v: Violation, r: LockRule | undefined, lock: Lock): string {
   const symbol = v.symbol === "<module>" ? "" : ` · ${name(v.symbol)}`;
   const repair = v.repair && SAFE_REPAIR.test(v.repair) ? ` ${v.repair}` : "";
   const lines = [
@@ -423,7 +491,7 @@ function detail(v: Violation, r: LockRule | undefined): string {
     message(v, r),
     measures(v),
     whyLine(v, r),
-    `Fix: ${field(r?.text.fix)}${repair}`,
+    `Fix: ${field(ruleFix(v, lock).text)}${repair}`,
     r?.text.avoid ? `Avoid: ${field(r.text.avoid)}` : "",
   ];
   return lines.filter((l) => l !== "").join("\n   ");

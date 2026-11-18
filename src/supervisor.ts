@@ -12,6 +12,7 @@ import { HARNESSES, profile } from "./harness/profile.ts";
 import type { Decision, Emission, HarnessId } from "./types.ts";
 import { ENGINE_FILE } from "./platform.ts";
 import { progressOutput } from "./progress.ts";
+import { uncertaintyAllows } from "./uncertainty.ts";
 
 interface Run { code: number; stdout: string; stderr: string }
 interface Watch { end: number; extension: string }
@@ -33,11 +34,17 @@ export function launcherFailure(kind: string, claude: boolean, raw: string, why:
   }
   const text = reason.slice(0, 256) + "\n";
   const deny: Decision = { verdict: "deny", halt: true, cause: null, violations: [], warnings: [], attempt: 0,
-    compact: text, full: reason.slice(0, 4000) + "\n", notice: null, lockHash: null, shadowed: false };
+    compact: text, full: reason.slice(0, 4000) + "\n",
+    fix: { where: null, use: null, deterministic: false, text: "No deterministic path or replacement is declared for this engine failure. Report it to the user." },
+    notice: null, lockHash: null, shadowed: false };
   return HARNESSES[harness].encode("pre-edit", deny, harness === "cursor" && native);
 }
 
 function active(raw: string, data: string): boolean {
+  return activeDirs(raw).some((d) => consented(d, data) || pendingRoot(canonical(d), data) !== null);
+}
+
+function activeDirs(raw: string): string[] {
   const p = parse(raw);
   const input = isObject(p?.tool_input) ? p.tool_input : isObject(p?.toolInput) ? p.toolInput : {};
   const call = isObject(p?.toolCall) ? p.toolCall : {};
@@ -46,7 +53,7 @@ function active(raw: string, data: string): boolean {
   const dirs = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT,
     p?.cwd, p?.workspaceRoot, input.file_path, args.TargetFile, args.Path, args.Cwd, ...patch,
     ...(Array.isArray(p?.workspacePaths) ? p.workspacePaths : []), ...(Array.isArray(p?.workspace_roots) ? p.workspace_roots : [])];
-  return dirs.some((d) => typeof d === "string" && (consented(d, data) || pendingRoot(canonical(d), data) !== null));
+  return dirs.filter((d): d is string => typeof d === "string" && d !== "");
 }
 
 function consented(path: string, data: string): boolean {
@@ -152,7 +159,10 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
   } catch (e) {
     // fail-closed: any engine failure in a call that reached a project denies. Only a call with no
     // redirect and no consenting directory, which is no project's call, passes.
-    if (!routed && !active(run.raw, run.data)) return { exit: 0, stdout: "", stderr: "" };
+    if (!routed && !active(run.raw, run.data)) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
+    // An explicit uncertainty opt-out lets a crash through. It does not run outside an enabled project:
+    // that case already returned above. A preset that does not say "open" stays denied.
+    if (uncertaintyAllows(activeDirs(run.raw))) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
     return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness, cursorNativePre(run.argv));
   } finally {
     rmSync(run.dir, { recursive: true, force: true });

@@ -22,7 +22,8 @@ export function projectHookCommand(sub: Sub, windows = WINDOWS): string {
   const run = `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-$PWD}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook ${sub} --harness claude-code; `;
   if (sub === "session-start") return `${run}printf '%s\\n' '{"systemMessage":"PREGATE could not prepare this session: the project launcher is missing. Run pregate project launcher."}'; exit 0`;
   if (sub === "stop") return `${run}printf '%s\\n' '{"decision":"block","reason":"PREGATE could not verify this turn: the project launcher is missing; run pregate project launcher"}'; exit 2`;
-  return `${run}printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user' >&2; exit 2`;
+  const open = `u="\${CLAUDE_PROJECT_DIR:-$PWD}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+  return `${run}${open}printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user' >&2; exit 2`;
 }
 
 function windowsProjectHook(sub: Sub): string {

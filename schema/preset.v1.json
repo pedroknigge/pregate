@@ -160,6 +160,7 @@
       "additionalProperties": false
     },
     "failMode": { "const": "closed" },
+    "uncertainty": { "enum": ["closed", "open"] },
     "coexist": {
       "type": "object",
       "properties": {
