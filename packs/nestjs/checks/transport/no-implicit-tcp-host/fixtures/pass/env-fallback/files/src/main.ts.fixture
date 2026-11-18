@@ -1,0 +1,6 @@
+import { Transport } from "@nestjs/microservices";
+export function bind(app: object) {
+  const host = process.env.HOST || "0.0.0.0";
+  app.connectMicroservice({ transport: Transport.TCP, options: { host: process.env.HOST || "0.0.0.0", port: 3001 } });
+  app.connectMicroservice({ transport: Transport.TCP, options: { host: configService.get("HOST") ?? "localhost", port: 3002 } });
+}

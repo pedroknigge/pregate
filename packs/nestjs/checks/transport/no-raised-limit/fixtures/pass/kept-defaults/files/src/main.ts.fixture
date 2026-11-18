@@ -1,0 +1,6 @@
+import { IoAdapter } from "@nestjs/platform-socket.io";
+import { Transport } from "@nestjs/microservices";
+export function bind(app: object) {
+  app.useWebSocketAdapter(new IoAdapter(app, { maxConcurrentMessages: 1000, maxWaitingMessages: 10000 }));
+  app.connectMicroservice({ transport: Transport.TCP, options: { host: "127.0.0.1", port: 3001, maxConcurrentMessages: 1000, maxBufferSize: 16 * 1024 * 1024 } });
+}

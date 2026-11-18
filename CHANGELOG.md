@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- NestJS pack 1.3.0 adds the opt-in methodology `nestjs/transport`. `NEST-LIMIT-001` denies code that raises or disables a NestJS 12.5 anti-DoS limit, including a WebSocket `maxPayload` above 1048576 or set to 0, unlimited `maxConcurrentMessages`, and the related gRPC, Redis, RabbitMQ, TCP buffer, and multipart caps. The finding names the default and where to set a bounded value. `NEST-TCP-001` warns when a TCP transport on NestJS 12.5 or newer has an empty host, a host read from the environment or `get()` with no fallback, or no host at all in a file that looks meant for other hosts, and tells you to set `host` explicitly. The release notes say an unset host newly means localhost; since v11 a missing key already did, and 12.5 changes a present empty host. The methodology is not added to existing presets. Select it with `pregate pack enable nestjs/transport`. It runs only where `pregate enable` turned the project on, and only when `@nestjs/core` is 12.5.0 or newer.
+
 ## [0.0.12] - 2026-11-17
 
 Four packs gain opt-in methodologies, and none of them is added to an existing preset. Select one with `pregate pack enable`. Pregate still enforces a project only where someone ran `pregate enable`. Architecture 1.4.0 adds `architecture/structure` and the `forbidden-path` primitive. The node pack is 1.4.0 and adds `node/operations`. Maintainability 1.3.0 adds `maintainability/proxies`. TypeScript 1.4.0 adds `typescript/compiler` and `typescript/checked`. Senior pack 1.3.0 adds `SR-FLAG-002` beside `SR-FLAG-001`. An interactive Antigravity session whose mode is Auto still receives `force_ask`. Where a project is enabled, a Grok PreToolUse hook that crashes or times out fails closed. If you installed Pregate globally, run `pregate update` so those hooks use 0.0.12. See the [0.0.12 notes](docs/releases/0.0.12.md).

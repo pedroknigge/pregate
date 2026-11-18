@@ -1,0 +1,5 @@
+import { NestFactory } from "@nestjs/core";
+export async function start() {
+  const app = await NestFactory.create(AppModule, { limits: { parts: 5000 } });
+  await app.listen(3000);
+}
