@@ -15,8 +15,10 @@ import { progressOutput } from "./progress.ts";
 import { uncertaintyAllows } from "./uncertainty.ts";
 
 interface Run { code: number; stdout: string; stderr: string }
-interface Watch { end: number; extension: string }
+interface Watch { end: number; budget: number; extension: string; executing: boolean }
 interface Entry { startedAt?: number; inputTimeout?: boolean; invalid?: boolean }
+// The engine writes this before it imports the gate. Time before the line is process startup.
+const STARTUP_CHECKPOINT = /^PREGATE-CHECKPOINT (?:input|admission)\r?$/m;
 interface EngineRun {
   data: string; version: string; argv: string[]; input: string | Buffer; raw: string; kind: string;
   harness: HarnessId; dir: string; watch: Watch; inputTimeout?: boolean;
@@ -63,9 +65,22 @@ function consented(path: string, data: string): boolean {
   }
 }
 
+function startupCheckpoint(file: string): boolean {
+  try {
+    return STARTUP_CHECKPOINT.test(readFileSync(file, "utf8"));
+  } catch {
+    // fail-closed: an unreadable progress file does not extend the deadline.
+    return false;
+  }
+}
+
 // Output goes to files: a surviving grandchild cannot keep the harness's pipes open past the
 // deadline. The deadline races process exit. On expiry the engine is killed and the deny is
 // returned only after that process has exited, so a caller that ignores SIGTERM cannot outlive it.
+// Reading stdin stays inside the original deadline, and a child that never prints a checkpoint is
+// still killed there. The first input or admission line means the engine is executing, so a cold
+// start before that line does not consume the budget. A child that prints one and then hangs is
+// killed one budget after that line. A redirect keeps the same watch.
 async function child(engine: string, argv: string[], raw: string | Buffer, dir: string, watch: Watch): Promise<Run> {
   const out = join(dir, "out");
   const err = join(dir, "err");
@@ -77,6 +92,10 @@ async function child(engine: string, argv: string[], raw: string | Buffer, dir: 
       if (existsSync(watch.extension)) {
         watch.end = performance.now() + 95_000;
         rmSync(watch.extension);
+      }
+      if (!watch.executing && startupCheckpoint(err)) {
+        watch.executing = true;
+        watch.end = Math.max(watch.end, performance.now() + watch.budget);
       }
       if (performance.now() >= watch.end) {
         proc.kill("SIGKILL");
@@ -135,7 +154,8 @@ export async function supervise(data: string, version: string, args: string[], i
     return cursorNativePre(argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
   }
   const dir = mkdtempSync(join(tmpdir(), "pregate-supervisor-"));
-  const watch = { end: (entry.startedAt ?? performance.now()) + (kind === "stop" ? 45_000 : kind === "session-start" ? 10_000 : 5_000), extension: join(dir, "approval") };
+  const budget = kind === "stop" ? 45_000 : kind === "session-start" ? 10_000 : 5_000;
+  const watch = { end: (entry.startedAt ?? performance.now()) + budget, budget, extension: join(dir, "approval"), executing: false };
   return await engineEmission({ data, version, argv, input, raw, kind, harness, dir, watch, inputTimeout: entry.inputTimeout });
 }
 

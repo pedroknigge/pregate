@@ -88,6 +88,8 @@ async function main(argv: string[]): Promise<number> {
 }
 
 // The supervisor runs the engine as a child under a deadline and relays its two channels.
+// The clock starts before stdin so a slow read stays inside the budget. A startup checkpoint
+// from the child gives that child a full budget of its own; see supervisor.ts.
 async function superviseEngine(argv: string[]): Promise<number> {
   const startedAt = performance.now();
   const input = await readStdin();
