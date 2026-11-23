@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { decideGate, differential, formatDifferential, formatGate, median, parseBaseline, parseBenchArgs, regressed } from "../scripts/latency-gate.ts";
+import { RATIO_LIMIT, decideGate, differential, formatDifferential, formatGate, judgeRatio, median, parseBaseline, parseBenchArgs, regressed } from "../scripts/latency-gate.ts";
 
 test("median of repeated p95 samples is the middle value", () => {
   expect(median([9, 1, 5])).toBe(5);
@@ -30,11 +30,13 @@ test("the gate fails closed for a missing OS, a different arch, or a missing rou
 
 test("bench flags accept the regression gate and reject a short run", () => {
   expect(parseBenchArgs(["--runs", "25", "--repeat", "3", "--inform", "--gate", "bench/latency-baseline.json", "--only", "200 lines, first touch"])).toEqual({
-    harness: "claude-code", runs: 25, repeat: 3, inform: true, gate: "bench/latency-baseline.json", against: null, againstLabel: null, only: ["200 lines, first touch"],
+    harness: "claude-code", runs: 25, repeat: 3, inform: true, gate: "bench/latency-baseline.json", against: null, againstLabel: null, ratio: false, only: ["200 lines, first touch"],
   });
-  expect(parseBenchArgs(["--against", "../ref", "--against-label", "v0.0.5"])).toMatchObject({ against: "../ref", againstLabel: "v0.0.5" });
+  expect(parseBenchArgs(["--against", "../ref", "--against-label", "v0.0.5"])).toMatchObject({ against: "../ref", againstLabel: "v0.0.5", ratio: false });
+  expect(parseBenchArgs(["--against", "../ref", "--ratio"])).toMatchObject({ against: "../ref", ratio: true });
   expect(() => parseBenchArgs(["--against-label", "v0.0.5"])).toThrow("usage:");
   expect(() => parseBenchArgs(["--against"])).toThrow("usage:");
+  expect(() => parseBenchArgs(["--ratio"])).toThrow("usage:");
   expect(() => parseBenchArgs(["--runs", "10"])).toThrow("usage:");
   expect(parseBenchArgs(["--harness", "codex"])).toMatchObject({ harness: "codex" });
   expect(() => parseBenchArgs(["--harness", "cursor"])).toThrow("usage:");
@@ -77,4 +79,33 @@ test("the differential table names the reference and says it informs", () => {
   expect(text).toContain("informational");
   expect(text).toContain("200 lines, first touch");
   expect(text).toContain("1.20×");
+  expect(formatDifferential("v0.0.12", [differential("200 lines, first touch", [100], [100])], false)).not.toContain("informational");
+});
+
+function ratio(route: string, p95: number, samples = 75) {
+  return { route, samples, paired: 1, p50: 1, p95 };
+}
+
+test("the ratio gate passes the measured no-change ratios and fails a 1.55× route", () => {
+  const quiet = judgeRatio("v0.0.12", [
+    ratio("200 lines, first touch", 1.01),
+    ratio("200 lines, second touch", 0.97),
+    ratio("2,000 lines, first touch", 0.93),
+    ratio("2,000 lines, second touch", 0.85),
+  ]);
+  expect(quiet.ok).toBe(true);
+  expect(quiet.text).toContain(`within ${RATIO_LIMIT.toFixed(2)}×`);
+  expect(judgeRatio("v0.0.12", [ratio("200 lines, first touch", RATIO_LIMIT)]).ok).toBe(true);
+  const regressedRatio = judgeRatio("v0.0.12", [ratio("2,000 lines, first touch", 1.55)]);
+  expect(regressedRatio.ok).toBe(false);
+  expect(regressedRatio.text).toContain("regressed");
+  expect(judgeRatio("v0.0.12", [ratio("2,000 lines, first touch", RATIO_LIMIT + 0.001)]).ok).toBe(false);
+});
+
+test("the ratio gate fails closed when the reference was not measured", () => {
+  expect(judgeRatio("v0.0.12", []).ok).toBe(false);
+  expect(judgeRatio("v0.0.12", []).text).toContain("no routes");
+  expect(judgeRatio("v0.0.12", [ratio("200 lines, first touch", Number.NaN)]).text).toContain("unmeasured");
+  expect(judgeRatio("v0.0.12", [ratio("200 lines, first touch", 0)]).ok).toBe(false);
+  expect(judgeRatio("v0.0.12", [{ route: "200 lines, first touch", samples: 0, paired: 1, p50: 1, p95: 1 }]).ok).toBe(false);
 });

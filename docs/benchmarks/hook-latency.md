@@ -1,8 +1,10 @@
 # Hook latency
 
-`scripts/bench.ts` times the compiled binary behind the registered Pre hook. CI runs that command on `ubuntu-latest`, `macos-latest`, and `windows-latest` for four TypeScript routes: 200 lines and 2,000 lines, first touch and second touch. Each job takes 25 samples, repeats that three times, and keeps the median of the three p95 values. The required check is named `bench` and is the `ubuntu-latest` job. macOS and Windows run the same gate.
+`scripts/bench.ts` times the compiled binary behind the registered Pre hook. CI runs that command on `ubuntu-latest`, `macos-latest`, and `windows-latest` for four TypeScript routes: 200 lines and 2,000 lines, first touch and second touch. Each job takes 25 samples and repeats that three times. The required check is named `bench` and is the `ubuntu-latest` job.
 
-The 150 ms p95 budget belongs to the reference machine in the [architecture notes](../ARCHITECTURE.md): macOS arm64, M5 Pro, 18 cores. CI passes `--inform`, so a runner that misses 150 ms does not fail for that miss. The failure is the baseline comparison below. Hardware, file size, and the contract change the number. A passing job is not a promise that every machine meets 150 ms.
+Linux and Windows keep the median of the three p95 values and compare it with the committed baseline below. macOS interleaves those samples with v0.0.12 built in the same job and compares each route's p95 with that reference. The limits are in the gate section below.
+
+The 150 ms p95 budget belongs to the reference machine in the [architecture notes](../ARCHITECTURE.md): macOS arm64, M5 Pro, 18 cores. CI passes `--inform`, so a runner that misses 150 ms does not fail for that miss. Hardware, file size, and the contract change the number. A passing job is not a promise that every machine meets 150 ms.
 
 See the [benchmark script](../../scripts/bench.ts), the [gate](../../scripts/latency-gate.ts), and the [precision notes](../guides/rule-precision.md).
 
@@ -12,7 +14,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Committed baselines
 
-These p95 milliseconds are the gate in `bench/latency-baseline.json`. CI fails a route when the new median p95 is above 1.55 times that platform's baseline.
+These p95 milliseconds are the absolute gate in `bench/latency-baseline.json` for Linux and Windows. CI fails one of those routes when the new median p95 is above 1.55 times that platform's baseline. The macOS merge gate does not use the darwin rows. It fails when a route's p95 is above 1.31 times v0.0.12 measured on the same runner, and it fails if that reference cannot be measured.
 
 | Platform | Architecture | Runner | Route | Baseline p95 ms |
 | --- | --- | --- | --- | ---: |

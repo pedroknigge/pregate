@@ -28,15 +28,17 @@ test("the compiled Pre hook bench runs on the demo fixture", () => {
 }, 180000);
 
 // The reference here is this checkout, so both engines are the same code. The assertion is on the
-// mechanism: both were built, every sample was paired, and the reading did not change the exit.
-test("the bench reports the ratio against a reference checkout and fails nothing for it", () => {
+// mechanism: both were built, every sample was paired, and the ratio gate passed.
+test("the bench reports the ratio against a reference checkout and the ratio gate passes", () => {
   const route = "200 lines, first touch";
   const result = Bun.spawnSync([
-    process.execPath, "scripts/bench.ts", "--runs", "25", "--repeat", "1", "--inform", "--against", repoRoot, "--against-label", "this checkout", "--only", route,
+    process.execPath, "scripts/bench.ts", "--runs", "25", "--repeat", "1", "--inform", "--ratio", "--against", repoRoot, "--against-label", "this checkout", "--only", route,
   ], { cwd: repoRoot, stdout: "pipe", stderr: "pipe", timeout: 300000 });
   const text = `${result.stdout.toString()}${result.stderr.toString()}`;
   expect(result.exitCode, text).toBe(0);
-  expect(text).toContain("Against this checkout, same job, alternating samples (informational):");
+  expect(text).toContain("Against this checkout, same job, alternating samples:");
+  expect(text).toContain("Latency ratio gate:");
+  expect(text).toContain("ok");
   const line = result.stdout.toString().split("\n").find((l) => l.startsWith("{") && l.includes('"differential"'));
   expect(line, text).toBeDefined();
   const report = JSON.parse(line!) as { against: string; differential: { route: string; samples: number; paired: number; p50: number; p95: number }[] };
@@ -51,7 +53,7 @@ test("an --against checkout that cannot build an engine stops the bench", () => 
   const area = mkdtempSync(join(tmpdir(), "pregate-bench-e2e-"));
   try {
     const result = Bun.spawnSync([
-      process.execPath, "scripts/bench.ts", "--runs", "25", "--inform", "--against", area, "--only", "200 lines, first touch",
+      process.execPath, "scripts/bench.ts", "--runs", "25", "--inform", "--ratio", "--against", area, "--only", "200 lines, first touch",
     ], { cwd: repoRoot, stdout: "pipe", stderr: "pipe", timeout: 300000 });
     expect(result.exitCode).not.toBe(0);
     expect(`${result.stdout.toString()}${result.stderr.toString()}`).toContain("reference engine build failed");

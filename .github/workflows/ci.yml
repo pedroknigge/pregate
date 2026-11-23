@@ -317,8 +317,9 @@ jobs:
     uses: ./.github/workflows/native-release.yml
     permissions:
       contents: read
-  # The 150 ms p95 budget belongs to the reference machine (ARCHITECTURE O31). These runners
+  # The 150 ms p95 budget belongs to the reference machine (ARCHITECTURE O31). Linux and Windows
   # compare the median of three p95 samples with bench/latency-baseline.json and fail above 55%.
+  # macOS compares each route's p95 with v0.0.12 measured on the same runner and fails above 1.31×.
   # The required status check on main is named bench, so the ubuntu-latest job keeps that name.
   bench:
     name: ${{ matrix.check }}
@@ -373,6 +374,7 @@ jobs:
         shell: bash
         run: bun scripts/compiled-engine.ts
       - name: Compiled Pre hook latency
+        if: runner.os != 'macOS'
         shell: bash
         run: |
           bun scripts/bench.ts --runs 25 --repeat 3 --inform --gate bench/latency-baseline.json \
@@ -380,11 +382,31 @@ jobs:
             --only "200 lines, second touch" \
             --only "2,000 lines, first touch" \
             --only "2,000 lines, second touch"
-      # Informational. The gate above compares with a fixed number, and hosted runners differ in
-      # speed more than the allowance. This step times the last release's engine and this one in
-      # turn on the same runner and reports the ratio. It cannot fail the job; a ratio becomes a
-      # gate only when its spread over hosted runs is known.
+      # macOS merge gate. The absolute darwin baseline moves with the runner. This step builds
+      # v0.0.12 in the job, interleaves its samples with this tree, and fails when a route's p95
+      # exceeds 1.31× the reference. A fetch, install, or build that does not produce a measurement
+      # fails the step. There is no continue-on-error.
+      - name: Compiled Pre hook latency against v0.0.12
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=v0.0.12
+          reference="${RUNNER_TEMP}/pregate-v0012"
+          git fetch --no-tags --depth 1 origin "refs/tags/${tag}:refs/tags/${tag}"
+          git worktree add --detach "$reference" "$tag"
+          test -f "$reference/scripts/compiled-engine.ts"
+          (cd "$reference" && bun install --frozen-lockfile)
+          bun scripts/bench.ts --runs 25 --repeat 3 --inform --ratio --against "$reference" --against-label "$tag" \
+            --only "200 lines, first touch" \
+            --only "200 lines, second touch" \
+            --only "2,000 lines, first touch" \
+            --only "2,000 lines, second touch"
+      # Informational on Linux and Windows. The absolute gate above compares with a fixed number.
+      # This step times the last release's engine and this one in turn on the same runner and
+      # reports the ratio. It cannot fail the job. macOS uses that ratio as its merge gate, above.
       - name: Latency against the last release (informational)
+        if: runner.os != 'macOS'
         continue-on-error: true
         shell: bash
         run: |
