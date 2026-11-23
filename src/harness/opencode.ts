@@ -1,5 +1,6 @@
 import { posix, win32 } from "node:path";
 import { pathKey, slash } from "../paths.ts";
+import { compareVersions } from "../product.ts";
 import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Hunk, ProposedChange, Rejected, Session } from "../types.ts";
 import { absolute, absoluteLocation, isObject, keys, type Payload, parse } from "./wire.ts";
 
@@ -8,9 +9,13 @@ import { absolute, absoluteLocation, isObject, keys, type Payload, parse } from 
 // below and runs `pregate hook <event> --harness opencode`. A deny is exit 2 with a non-empty stderr;
 // the plugin throws that text before the tool runs. Stdout on exit 0 is advice, never a denial.
 
-// The OpenCode CLI whose plugin API, tool names and payloads are in test/payloads/opencode/.
+// The OpenCode CLI the base payloads in test/payloads/opencode/ were written against.
 // `opencode --version` prints the bare semver, e.g. "2.2.7".
 export const VERIFIED = "2.2.7";
+// 2.3.1 gave each nested call its own id. 2.4.0 added `codemode` on execute.before. Both are
+// required before a script can be treated as a no-op, so this stays separate from VERIFIED:
+// doctor still accepts the 2.2.7 deny-all contract.
+export const CODEMODE_SINCE = "2.4.0";
 
 const CLI_VERSION = /^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\b/;
 
@@ -75,7 +80,7 @@ function sessionOf(p: Payload): Session | null {
 
 function refuse(event: HookKind, p: Payload | null, env: HookEnv): Rejected {
   const input = isObject(p?.tool_input) ? p.tool_input : {};
-  const dirs = [...new Set([input.filePath, input.workdir, p?.cwd, env.projectDir].filter(absoluteLocation))];
+  const dirs = [...new Set([input.filePath, input.path, input.workdir, p?.cwd, env.projectDir].filter(absoluteLocation))];
   return {
     cause: BAD, kind: event === "pre" ? "pre-edit" : event, reentry: p?.stop_hook_active === true,
     session: p === null ? null : sessionOf(p), dirs,
@@ -85,6 +90,25 @@ function refuse(event: HookKind, p: Payload | null, env: HookEnv): Rejected {
 // The plugin sends the tool's input as OpenCode passes it. Closed keys: an extra key may change what
 // the tool writes, so the call is judged by its path and never by content it may not be. Anything
 // this function cannot read exactly is refused: an unknown tool name is untrusted input.
+// 2.2.7 names the file `filePath`. 2.4.0 names it `path`. Exactly one of them.
+function fileKey(input: Payload): "filePath" | "path" | null {
+  const file = Object.hasOwn(input, "filePath");
+  const path = Object.hasOwn(input, "path");
+  if (file === path) return null;
+  return file ? "filePath" : "path";
+}
+
+// The script is a no-op only when this OpenCode reports child calls. A missing version, a version
+// below CODEMODE_SINCE, or a missing boolean `codemode` keeps the old deny: the script is opaque.
+function childrenHooked(p: Payload, input: Payload): boolean {
+  const version = p.opencode_version;
+  return typeof version === "string"
+    && compareVersions(version, CODEMODE_SINCE) >= 0
+    && typeof p.codemode === "boolean"
+    && keys(input, ["code"], [])
+    && typeof input.code === "string";
+}
+
 function tool(p: Payload, session: Session, cwd: string, env: HookEnv): HookEvent | Rejected | null {
   const input = p.tool_input;
   if (typeof p.tool_name !== "string" || typeof p.tool_use_id !== "string" || !isObject(input)) return refuse("pre", p, env);
@@ -95,25 +119,33 @@ function tool(p: Payload, session: Session, cwd: string, env: HookEnv): HookEven
       // The plugin fills workdir from the session directory when OpenCode passes none.
       return { kind: "pre-command", command: { ...base, command: input.command, cwd: input.workdir } };
     case "write": {
-      const edit: Edit = keys(input, ["filePath", "content"], []) && typeof input.content === "string"
+      const key = fileKey(input);
+      const edit: Edit = key !== null && keys(input, [key, "content"], []) && typeof input.content === "string"
         ? { form: "full", content: input.content } : { form: "unknown", cause: p.tool_name };
-      return change(base, input.filePath, edit) ?? refuse("pre", p, env);
+      return change(base, key === null ? undefined : input[key], edit) ?? refuse("pre", p, env);
     }
     case "edit": {
-      const edit: Edit = keys(input, ["filePath", "oldString", "newString"], ["replaceAll"])
+      const key = fileKey(input);
+      const edit: Edit = key !== null && keys(input, [key, "oldString", "newString"], ["replaceAll"])
         && typeof input.oldString === "string" && typeof input.newString === "string"
         && (input.replaceAll === undefined || typeof input.replaceAll === "boolean")
         ? { form: "oldnew", old: input.oldString, neu: input.newString, all: input.replaceAll === true, lines: null }
         : { form: "unknown", cause: p.tool_name };
-      return change(base, input.filePath, edit) ?? refuse("pre", p, env);
+      return change(base, key === null ? undefined : input[key], edit) ?? refuse("pre", p, env);
     }
     case "patch":
       if (!keys(input, ["patchText"], []) || typeof input.patchText !== "string") return refuse("pre", p, env);
       return patched(p, base, input.patchText, cwd, env);
     case "execute":
-      // Code mode runs nested tools inside one script. The plugin's execute.before cannot see those
-      // calls, so an enabled root refuses the whole script instead of letting a write pass [E2E].
+      // From 2.4.0 the script's tool calls arrive as their own execute.before events. The script
+      // itself changes nothing. Below that, the nested calls are invisible, so the script is refused.
+      if (childrenHooked(p, input)) return null;
       return { ...refuse("pre", p, env), cause: "cannot-reconstruct" };
+    case "automation_create":
+      // A shell action is approved once at creation and later runs through Shell.Service, which does
+      // not call execute.before again. Judging the stored command would allow a clean printf.
+      if (isObject(input.action) && input.action.type === "shell") return { ...refuse("pre", p, env), cause: "shell-admin" };
+      return refuse("pre", p, env);
     default:
       return READ_ONLY.has(p.tool_name) ? null : refuse("pre", p, env);
   }

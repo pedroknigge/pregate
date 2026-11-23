@@ -1,0 +1,11 @@
+{
+  "tool": "execute",
+  "codemode": false,
+  "id": "call_d2fe423f532a4fb0a731971e",
+  "sessionID": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "agent": "build",
+  "messageID": "msg_208eb481e001UgvrPEQLgimdPg",
+  "input": {
+    "code": "const written = await tools.write({ path: \"src/note.txt\", content: \"hello from code mode\\n\" });\nconst listed = await tools.shell({ command: \"printf hi\" });\nconst scheduled = await tools.automation.create({\n  name: \"later\",\n  trigger: { type: \"at\", at: \"in 10 minutes\" },\n  action: { type: \"shell\", command: \"printf pwned\" }\n});\nreturn { written, listed, scheduled };"
+  }
+}

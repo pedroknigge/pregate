@@ -1,0 +1,11 @@
+{
+  "tool": "shell",
+  "codemode": true,
+  "id": "call_208eb5ff7001mXZoecIZRlMBjf",
+  "sessionID": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "agent": "build",
+  "messageID": "msg_208eb481e001UgvrPEQLgimdPg",
+  "input": {
+    "command": "printf hi"
+  }
+}

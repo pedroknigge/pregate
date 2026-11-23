@@ -1,0 +1,11 @@
+{
+  "tool": "shell",
+  "codemode": true,
+  "id": "call_208ee98c7002DlDFTjDt87vmKH",
+  "sessionID": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "agent": "build",
+  "messageID": "msg_208ee8b9300192VXm6WUu48lUf",
+  "input": {
+    "command": "printf 'n\\n' > notes.txt"
+  }
+}

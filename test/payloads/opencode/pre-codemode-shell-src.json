@@ -1,0 +1,14 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "cwd": "/tmp/oc-capture/project",
+  "tool_name": "shell",
+  "tool_use_id": "call_208f9113f001TPnQUQInM5m0OD",
+  "tool_input": {
+    "command": "printf 'n\\n' > src/a.ts",
+    "workdir": "/tmp/oc-capture/project"
+  },
+  "agent_id": "build",
+  "codemode": true,
+  "opencode_version": "2.4.0"
+}

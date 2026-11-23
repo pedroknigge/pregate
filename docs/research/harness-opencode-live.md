@@ -16,7 +16,7 @@ Markers: **[V]** verified here, **[E2E]** not verified and left to a real sessio
 
 | Hook | Shape | Use |
 | --- | --- | --- |
-| `tool.hook("execute.before")` | `{ tool, sessionID, agent, messageID, id, input }`; `input` mutable **[V]** | the pre event |
+| `tool.hook("execute.before")` | `{ tool, sessionID, agent, messageID, id, input }`; from 2.4.0 also `codemode` (boolean) and `info` (the tool definition); `input` mutable **[V]** | the pre event |
 | `tool.hook("execute.after")` | the same plus `status` and `result` **[V]** | the advice |
 | `session.hook("prompt")` | `{ sessionID, messageID, prompt, metadata?, delivery }` **[V]** | the briefing |
 | `session.hook("experimental.idle")` | `{ sessionID, background }` **[V]** | the Stop |
@@ -40,10 +40,10 @@ An earlier probe of `ctx.tool.list()` in a configured session reported: `patch`,
 `grep`, `read`, `write`, `shell`, `skill`, `subagent`, `webfetch`, `websearch`, `question`,
 `experimental_image_generate` and the `opencode_*` management tools. A later probe at `setup` time,
 with no model credit left, reported only the plugin-contributed `patch`, so **the exact name set is
-not settled**. The observed input keys are `write {filePath, content}`, `edit {filePath, oldString,
-newString, replaceAll?}`, `patch {patchText}`, `shell {command, workdir?, timeout?, background?}`; the
-schemas were not readable from `tool.list()` in the later probe, so these keys come from the earlier
-one. **[E2E: the exact key set of each built-in tool.]**
+not settled**. The observed input keys on 2.2.7 are `write {filePath, content}`, `edit {filePath, oldString,
+newString, replaceAll?}`, `patch {patchText}`, `shell {command, workdir?, timeout?, background?}`.
+On 2.4.0, `write` and `edit` name the file `path` (captured). The adapter accepts either key, and
+refuses a call that sends both.
 
 `patch` accepts the Codex `*** Begin Patch` grammar with an optional `*** Environment ID:` header. **[V]**
 
@@ -53,19 +53,24 @@ from the list above is denied until a release adds it. That is the fail-closed d
 also the reason the list lives in one place (`src/harness/opencode.ts`).
 
 `execute` is code mode: one call runs a script that may call tools itself. No hook of 2.2.7 sees those
-nested calls. **[E2E: whether they reach `execute.before`]** The adapter denies `execute` in an enabled
-project until that is known.
+nested calls, so below 2.4.0 the adapter still denies the script as `cannot-reconstruct`. OpenCode
+2.4.0 fires `execute.before` again for each tool call inside the script, with its own call id and
+`codemode: true`. **[V, captured 2026-11-23, opencode 2.4.0, `OPENCODE_FLAGS=full_codemode`]** The
+captures are in `test/payloads/opencode/capture/`. Without `full_codemode`, `write` and `shell` are
+not in the script; they are direct calls. From 2.4.0 the script itself is not a file change, and each
+child call is judged with the normal rules. `write` and `edit` name the file `path` on 2.4.0
+(`filePath` on 2.2.7). An `automation_create` whose action is `shell` is denied: that command runs
+later through `Shell.Service` and does not call `execute.before` again.
 
 ## Not verified `[E2E]`
 
-No model call reached this machine: `opencode run --standalone` answered "Insufficient balance". So
-these stay open, and the shim does not depend on any of them for a deny:
+A 2.4.0 session confirmed that a code-mode child call fires `execute.before`. These stay open, and
+the shim does not depend on any of them for a deny:
 
 1. That the text of a thrown rejection reaches the model as the tool error.
 2. That `execute.after` content reaches the model.
 3. That an instruction entry set during the first prompt is present in that request.
 4. That `session.synthetic` continues the turn after a Stop block.
-5. Whether a code-mode nested write fires `execute.before`.
 
 A real denial, with `PREGATE_REAL=1` and a funded workspace, closes 1 to 3; a Stop that blocks twice
-closes 4; a prompt that asks for one file written from a code-mode script closes 5.
+closes 4.

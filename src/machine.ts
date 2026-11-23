@@ -210,13 +210,19 @@ function opencodePluginSource(p: Paths): string {
   return ASSETS["opencode/pregate/index.ts"]!.replaceAll("@PREGATE_LAUNCHER@", slash(`${p.data}/bin/${WINDOWS ? "pregate.cmd" : "pregate"}`));
 }
 
+// The peer pin next to that file. OpenCode loads index.ts; the pin records the plugin API.
+function opencodePluginPackage(): string {
+  return ASSETS["opencode/pregate/package.json"]!;
+}
+
 // The plugin and its entry are both needed: one without the other gates nothing.
 function opencodeDrift(p: Paths): string[] {
-  const dir = opencodePluginDir(p), file = join(dir, "index.ts"), target = opencodeConfigFile(p);
-  const plugin = read(file), config = read(target);
+  const dir = opencodePluginDir(p), file = join(dir, "index.ts"), pin = join(dir, "package.json"), target = opencodeConfigFile(p);
+  const plugin = read(file), pkg = read(pin), config = read(target);
   const out: string[] = [];
   if (plugin === null && config !== null) out.push(`${file}: the PREGATE plugin is missing; run pregate setup.`);
   else if (plugin !== null && plugin !== opencodePluginSource(p)) out.push(`${file}: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
+  if (plugin !== null && pkg !== opencodePluginPackage()) out.push(`${pin}: the OpenCode peer pin differs from the reviewed one; run pregate setup.`);
   if (config !== null) {
     const state = opencodeState(config, dir);
     if (state === "invalid") out.push(`${target}: plugins must be an array; fix it and rerun pregate setup.`);
@@ -234,6 +240,7 @@ function opencodeGated(p: Paths): boolean {
 function opencode(p: Paths): Line {
   const dir = opencodePluginDir(p), file = join(dir, "index.ts");
   save(file, opencodePluginSource(p));
+  save(join(dir, "package.json"), opencodePluginPackage());
   const target = canonical(opencodeConfigFile(p));
   const before = read(target), after = mergeOpencode(before, dir);
   if (after === null) return fail(`${target} must be a JSON object whose "plugins" is an array; left unchanged. Fix it and rerun pregate setup.`);

@@ -1,0 +1,13 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "cwd": "/tmp/oc-capture/project",
+  "tool_name": "execute",
+  "tool_use_id": "call_d2fe423f532a4fb0a731971e",
+  "tool_input": {
+    "code": "const written = await tools.write({ path: \"src/note.txt\", content: \"hello from code mode\\n\" });\nconst listed = await tools.shell({ command: \"printf hi\" });\nconst scheduled = await tools.automation.create({\n  name: \"later\",\n  trigger: { type: \"at\", at: \"in 10 minutes\" },\n  action: { type: \"shell\", command: \"printf pwned\" }\n});\nreturn { written, listed, scheduled };"
+  },
+  "agent_id": "build",
+  "codemode": false,
+  "opencode_version": "2.4.0"
+}

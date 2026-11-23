@@ -459,6 +459,7 @@ describe("doctor", () => {
     const clean = ok(pregate(m, "doctor"), "doctor");
     expect(clean.stdout).toContain("Harnesses gated: opencode.");
     expect(clean.stdout).toContain("opencode: canary denied in its native dialect.");
+    expect(readFileSync(join(dir, "package.json"), "utf8")).toContain('"@opencode/plugin": "2.4.0"');
 
     // The human's switch: setup left it off, and doctor names it.
     put(config, JSON.stringify({ ...json(config), plugins: [`-${dir}`] }));
@@ -473,6 +474,11 @@ describe("doctor", () => {
     expect(pregate(m, "doctor").stdout).toContain(`${dir}/index.ts: the PREGATE plugin differs from the reviewed one; run pregate setup.`);
     ok(pregate(m, "setup"), "setup repairs the plugin");
     expect(plugin()).toBe(source);
+    const pin = readFileSync(join(dir, "package.json"), "utf8");
+    writeFileSync(join(dir, "package.json"), pin.replace("2.4.0", "2.2.7"));
+    expect(pregate(m, "doctor").stdout).toContain(`${dir}/package.json: the OpenCode peer pin differs from the reviewed one; run pregate setup.`);
+    ok(pregate(m, "setup"), "setup restores the pin");
+    expect(readFileSync(join(dir, "package.json"), "utf8")).toBe(pin);
 
     // The folder is there and the list lost the entry: neither half gates on its own.
     put(config, JSON.stringify({ plugins: [] }));

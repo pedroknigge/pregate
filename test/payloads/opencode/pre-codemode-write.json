@@ -1,0 +1,14 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "cwd": "/tmp/oc-capture/project",
+  "tool_name": "write",
+  "tool_use_id": "call_208eb5ff3002zm4wtYnouLFYjd",
+  "tool_input": {
+    "path": "/tmp/oc-capture/project/src/note.txt",
+    "content": "hello from code mode\n"
+  },
+  "agent_id": "build",
+  "codemode": true,
+  "opencode_version": "2.4.0"
+}

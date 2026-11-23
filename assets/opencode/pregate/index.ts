@@ -9,6 +9,9 @@
 // It never decides anything: every verdict comes from `pregate hook <event> --harness opencode`.
 // A project without .pregate/preset.json is inert, so the plugin costs nothing elsewhere.
 // `plugins` in opencode.json names the folder that holds this file; see `pregate setup`.
+//
+// Written against @opencode/plugin 2.4.0 (see package.json). execute.before may set `codemode`.
+// This file forwards that boolean and ctx.app.version. It does not decide whether a script may run.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
@@ -83,10 +86,11 @@ function absolute(path: string): boolean {
 
 // A tool may name a file relative to the session directory. The engine reads absolute paths only,
 // so the shim resolves them against the same directory the tool resolves them against.
+// 2.2.7 uses filePath. 2.4.0 uses path.
 function located(input: unknown, dir: string): Payload {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return {};
   const copy: Payload = { ...(input as Payload) };
-  for (const key of ["filePath", "workdir"]) {
+  for (const key of ["filePath", "path", "workdir"]) {
     const value = copy[key];
     if (typeof value === "string" && value !== "" && !absolute(value)) copy[key] = resolve(dir, value);
     else if (key === "workdir" && value === undefined && copy.command !== undefined) copy[key] = dir;
@@ -140,11 +144,20 @@ export default {
       await ctx.session.instructions.entry.put({ key: "pregate", value: text });
     };
 
+    const appVersion = (): string | null => {
+      const value = ctx?.app?.version;
+      return typeof value === "string" && value !== "" ? value : null;
+    };
+
     ctx.tool.hook("execute.before", async (input: Record<string, any>) => {
       const dir = directory(), sessionID = session(input);
+      const flag = input.codemode;
+      const version = appVersion();
       const payload = envelope("PreToolUse", sessionID, dir, {
         tool_name: input.tool, tool_use_id: String(input.id), tool_input: located(input.input, dir),
         ...(typeof input.agent === "string" ? { agent_id: input.agent } : {}),
+        ...(typeof flag === "boolean" ? { codemode: flag } : {}),
+        ...(version !== null ? { opencode_version: version } : {}),
       });
       const root = rootOf(dir);
       const bin = root === null ? null : engineOf(root);

@@ -1,0 +1,13 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "cwd": "/tmp/oc-capture/project",
+  "tool_name": "execute",
+  "tool_use_id": "call_e41af6c22cf447f6b2da86c1",
+  "tool_input": {
+    "code": "await tools.shell({ command: \"printf 'n\\\\n' > notes.txt\" });\nreturn \"done\";"
+  },
+  "agent_id": "build",
+  "codemode": false,
+  "opencode_version": "2.4.0"
+}

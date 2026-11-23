@@ -1,31 +1,37 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
-import { cliVersion, decode, encode, VERIFIED } from "../../src/harness/opencode.ts";
+import { cliVersion, CODEMODE_SINCE, decode, encode, VERIFIED } from "../../src/harness/opencode.ts";
 import type { Decision, DecideInput, Edit, Emission, HookEvent, HookKind, Lock, ProposedChange, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
 // The OpenCode contract (MULTI-HARNESS MH-05, MH-08, MH-14): the payload the PREGATE plugin sends,
-// decoded to exact events, and the deny/advice/Stop dialect on top of it. The payloads are written
-// from `@opencode/plugin@2.2.7`; test/payloads/opencode/README.md lists what no capture proves yet.
+// decoded to exact events, and the deny/advice/Stop dialect on top of it. The base payloads are
+// written from `@opencode/plugin@2.2.7`. The `pre-codemode-*` files are the plugin envelopes of the
+// OpenCode 2.4.0 captures in test/payloads/opencode/capture/.
 
 const DIR = `${import.meta.dir}/../payloads/opencode`;
 const PROJECT = "/home/user/project";
+const ROOT = "/tmp/oc-capture/project";
 const SID = "ses_0a1b2c3d4e5f6a7b";
+const LIVE = "ses_df7167a14ffe9xbxOkmdZfafen";
 const BAD = "payload-unrecognized";
 const payload = (name: string): string => readFileSync(`${DIR}/${name}`, "utf8");
 const json = (name: string): Record<string, unknown> => JSON.parse(payload(name)) as Record<string, unknown>;
 const raw = (o: unknown): string => JSON.stringify(o);
 const session = { id: SID, harness: "opencode" as const, agentId: null, turnId: null, interactive: false };
+const live = { id: LIVE, harness: "opencode" as const, agentId: "build", turnId: null, interactive: false };
 const call = (n: number): string => `call_000000000000000${n}`;
 const A = `${PROJECT}/src/a.ts`;
 const B = `${PROJECT}/src/b.ts`;
 const causeOf = (e: HookEvent | Rejected | null): string | null => (e !== null && "cause" in e ? e.cause : null);
 const hunk = (old: string[], neu: string[], anchor: string | null = null, eof = false) => ({ anchor, old, neu, eof });
 
-test("VERIFIED is the CLI whose plugin API the payloads come from", () => {
+test("VERIFIED is the base payload CLI; code mode children start at 2.4.0", () => {
   expect(VERIFIED).toBe("2.2.7");
+  expect(CODEMODE_SINCE).toBe("2.4.0");
   expect(cliVersion("2.2.7")).toBe("2.2.7");
+  expect(cliVersion("2.4.0")).toBe("2.4.0");
   expect(cliVersion("2.2.7\n")).toBe("2.2.7");
   expect(cliVersion("opencode 2.2.7")).toBeNull();
 });
@@ -64,8 +70,46 @@ describe("decode: the payloads the plugin sends", () => {
         kind: "pre-command", command: { session, callId: call(4), tool: "shell", command: "printf 'n\\n' > notes.txt", cwd: PROJECT },
       },
     },
-    // Code mode sees one call: the nested writes run inside it, so the whole script is refused.
+    // No version and no codemode: the script is still one opaque call.
     "pre-execute.json": { event: "pre", out: { cause: "cannot-reconstruct", kind: "pre-edit", reentry: false, session, dirs: [PROJECT] } },
+    // OpenCode 2.4.0, captured with full_codemode. The script is not a change; the children are.
+    "pre-codemode-script.json": { event: "pre", out: null },
+    "pre-codemode-script-shell.json": { event: "pre", out: null },
+    "pre-codemode-write.json": {
+      event: "pre", out: {
+        kind: "pre-edit", changes: [{
+          session: live, callId: "call_208eb5ff3002zm4wtYnouLFYjd", tool: "write", path: `${ROOT}/src/note.txt`,
+          edit: { form: "full", content: "hello from code mode\n" }, from: null,
+        }],
+      },
+    },
+    "pre-codemode-shell.json": {
+      event: "pre", out: {
+        kind: "pre-command", command: {
+          session: live, callId: "call_208eb5ff7001mXZoecIZRlMBjf", tool: "shell", command: "printf hi", cwd: ROOT,
+        },
+      },
+    },
+    "pre-codemode-shell-write.json": {
+      event: "pre", out: {
+        kind: "pre-command", command: {
+          session: live, callId: "call_208ee98c7002DlDFTjDt87vmKH", tool: "shell",
+          command: "printf 'n\\n' > notes.txt", cwd: ROOT,
+        },
+      },
+    },
+    "pre-codemode-script-src.json": { event: "pre", out: null },
+    "pre-codemode-shell-src.json": {
+      event: "pre", out: {
+        kind: "pre-command", command: {
+          session: live, callId: "call_208f9113f001TPnQUQInM5m0OD", tool: "shell",
+          command: "printf 'n\\n' > src/a.ts", cwd: ROOT,
+        },
+      },
+    },
+    "pre-codemode-automation.json": {
+      event: "pre", out: { cause: "shell-admin", kind: "pre-edit", reentry: false, session: live, dirs: [ROOT] },
+    },
     // A tool this adapter does not know is untrusted input, and its path locates the call.
     "pre-unknown-tool.json": {
       event: "pre", out: { cause: BAD, kind: "pre-edit", reentry: false, session, dirs: [`${PROJECT}/src/a.ipynb`, PROJECT] },
@@ -74,6 +118,69 @@ describe("decode: the payloads the plugin sends", () => {
     "pre-read.json": { event: "pre", out: null },
     "stop.json": { event: "stop", out: { kind: "stop", session, cwd: PROJECT, reentry: false } },
     "stop-reentry.json": { event: "stop", out: { kind: "stop", session, cwd: PROJECT, reentry: true } },
+  });
+
+  test("below 2.4.0, or without a boolean codemode, the script stays one opaque call", () => {
+    for (const version of ["2.2.7", "2.3.1", "2.4.0-rc.1"]) {
+      const p = { ...json("pre-codemode-script.json"), opencode_version: version };
+      expect(causeOf(decode("pre", raw(p), ENV)), version).toBe("cannot-reconstruct");
+    }
+    const missing = json("pre-codemode-script.json");
+    delete missing.opencode_version;
+    expect(causeOf(decode("pre", raw(missing), ENV))).toBe("cannot-reconstruct");
+    const flag = { ...json("pre-codemode-script.json"), codemode: "true" };
+    expect(causeOf(decode("pre", raw(flag), ENV))).toBe("cannot-reconstruct");
+    const extra = json("pre-codemode-script.json");
+    (extra.tool_input as Record<string, unknown>).extra = true;
+    expect(causeOf(decode("pre", raw(extra), ENV))).toBe("cannot-reconstruct");
+  });
+
+  test("a shell automation is denied even when the stored command is a clean printf", () => {
+    const p = json("pre-codemode-automation.json");
+    (p.tool_input as { action: { command: string } }).action.command = "printf hi";
+    expect(causeOf(decode("pre", raw(p), ENV))).toBe("shell-admin");
+    const prompt = json("pre-codemode-automation.json");
+    (prompt.tool_input as { action: unknown }).action = { type: "prompt", prompt: "hi" };
+    expect(causeOf(decode("pre", raw(prompt), ENV))).toBe(BAD);
+  });
+
+  test.each(["pre-write.json", "pre-edit.json"])("%s accepts path in place of filePath", (name) => {
+    const file = json(name);
+    const input = file.tool_input as Record<string, unknown>;
+    input.path = input.filePath;
+    delete input.filePath;
+    expect(decode("pre", raw(file), ENV)).toEqual(decode("pre", payload(name), ENV));
+  });
+
+  test("filePath and path together are refused", () => {
+    const file = json("pre-write.json");
+    const input = file.tool_input as Record<string, unknown>;
+    input.path = input.filePath;
+    expect(causeOf(decode("pre", raw(file), ENV))).toBe(BAD);
+  });
+
+  test("the 2.4.0 envelopes are the plugin shape of the captured calls", () => {
+    const pairs = [
+      ["execute-script.json", "pre-codemode-script.json"],
+      ["child-write.json", "pre-codemode-write.json"],
+      ["child-shell.json", "pre-codemode-shell.json"],
+      ["child-automation-shell.json", "pre-codemode-automation.json"],
+      ["execute-shell-write.json", "pre-codemode-script-shell.json"],
+      ["child-shell-write.json", "pre-codemode-shell-write.json"],
+      ["execute-shell-src.json", "pre-codemode-script-src.json"],
+      ["child-shell-src.json", "pre-codemode-shell-src.json"],
+    ] as const;
+    for (const [rawName, envName] of pairs) {
+      const captured = JSON.parse(readFileSync(`${DIR}/capture/${rawName}`, "utf8")) as {
+        tool: string; id: string; sessionID: string; codemode: boolean;
+      };
+      const env = json(envName);
+      expect(env.tool_name).toBe(captured.tool);
+      expect(env.tool_use_id).toBe(captured.id);
+      expect(env.session_id).toBe(captured.sessionID);
+      expect(env.codemode).toBe(captured.codemode);
+      expect(env.opencode_version).toBe("2.4.0");
+    }
   });
 
   test("the optional agent id reaches the session; the envelope admits keys it does not read", () => {
