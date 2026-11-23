@@ -6,6 +6,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
+import { hostTarget } from "../scripts/build.ts";
 import { enable, disable } from "../src/consent.ts";
 import { projectHookCommand } from "../src/project-claude.ts";
 import { ENGINE_FILE } from "../src/platform.ts";
@@ -270,5 +271,95 @@ describe("project-local Claude setup", () => {
     expect(untrusted.stdout).toContain("does not grant policy consent");
     expect(untrusted.stdout).toContain("Policy consent is active");
     expect(untrusted.code, untrusted.stdout + untrusted.stderr).toBe(0);
+  });
+
+  test("a crashing or timing-out engine blocks a write only where pregate enable ran", async () => {
+    const i = isolated();
+    const project = gitProject(i);
+    expect(run([join(i.data, pkg.version, ENGINE_FILE), "project", "setup"], i, project).code).toBe(0);
+    const settings = JSON.parse(readFileSync(join(project, ".claude/settings.json"), "utf8")) as {
+      hooks: Record<string, { hooks: { timeout?: number; onFailure?: string }[] }[]>;
+    };
+    const pre = settings.hooks.PreToolUse!.at(-1)!.hooks[0]!;
+    expect(pre).toMatchObject({ timeout: 120, onFailure: "block" });
+    for (const event of ["Stop", "SubagentStop", "SessionStart"]) {
+      expect(settings.hooks[event]!.at(-1)!.hooks[0]!.onFailure).toBeUndefined();
+    }
+    expect(existsSync(join(i.home, ".claude/settings.json"))).toBe(false);
+
+    const fake = join(TMP, "fake", ENGINE_FILE);
+    if (!existsSync(fake)) {
+      const entry = join(TMP, "fake-engine.ts");
+      writeFileSync(entry, [
+        'import { appendFileSync } from "node:fs";',
+        "const marker = process.env.PREGATE_FAKE_MARKER;",
+        'if (marker) appendFileSync(marker, "started\\n");',
+        'if (process.env.PREGATE_FAKE_MODE === "timeout") Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);',
+        "process.exit(1);",
+        "",
+      ].join("\n"));
+      const built = Bun.spawnSync([
+        process.execPath, "build", entry, "--compile",
+        "--no-compile-autoload-bunfig", "--no-compile-autoload-dotenv",
+        `--target=bun-${hostTarget()}`, `--outfile=${fake}`,
+      ], { stdout: "pipe", stderr: "pipe" });
+      expect(built.exitCode, built.stderr.toString()).toBe(0);
+    }
+    const dest = join(i.data, pkg.version, ENGINE_FILE);
+    cpSync(fake, dest);
+    if (!WINDOWS) chmodSync(dest, 0o755);
+
+    const target = join(project, INVOICE_REL);
+    const before = readFileSync(target, "utf8");
+    const proposed = `${before}\n// code-mode write\n`;
+    let n = 0;
+    // `payloadRoot` is the directory the payload names. The hook still runs as `project`.
+    const drive = async (mode: "crash" | "timeout", enforced: boolean, payloadRoot = project) => {
+      const marker = join(i.root, `marker-${++n}`);
+      rmSync(marker, { force: true });
+      const command = registeredCommand(project);
+      const env = { ...i.env, CLAUDE_PROJECT_DIR: project, PREGATE_FAKE_MODE: mode, PREGATE_FAKE_MARKER: marker };
+      const argv = WINDOWS ? ["cmd.exe", "/d", "/s", "/c", command] : ["/bin/sh", "-c", command];
+      const proc = Bun.spawn(argv, {
+        cwd: project, env, stdin: Buffer.from(prePayload(payloadRoot, i.home, proposed)),
+        stdout: "pipe", stderr: "pipe",
+      });
+      let finished = true;
+      const timer = setTimeout(() => {
+        finished = false;
+        if (WINDOWS) Bun.spawnSync(["taskkill", "/PID", String(proc.pid), "/T", "/F"], { stdout: "ignore", stderr: "ignore" });
+        else proc.kill("SIGKILL");
+      }, mode === "timeout" ? 4_000 : 20_000);
+      const code = await proc.exited;
+      clearTimeout(timer);
+      const stdout = await new Response(proc.stdout).text();
+      const stderr = await new Response(proc.stderr).text();
+      const started = existsSync(marker);
+      const failed = !finished || (code !== 0 && code !== 2);
+      const allows = code === 0 ? true : code === 2 ? false : pre.onFailure !== "block" && failed;
+      if (code === 0) expect(stdout.trim(), stderr).toBe("");
+      expect(started, `${mode} enforced=${enforced} code=${code} finished=${finished}\n${stderr}`).toBe(enforced);
+      if (allows) writeFileSync(target, proposed);
+      expect(readFileSync(target, "utf8")).toBe(allows ? proposed : before);
+      if (allows) writeFileSync(target, before);
+      expect(allows, `${mode} enforced=${enforced}`).toBe(!enforced);
+    };
+
+    await drive("crash", false);
+    await drive("timeout", false);
+    const other = join(i.root, "other");
+    mkdirSync(other, { recursive: true });
+    Bun.spawnSync(["git", "init", "-q"], { cwd: other, env: i.env, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    enable(other, i.data);
+    await drive("crash", false);
+    await drive("crash", true, other);
+    enable(project, i.data);
+    await drive("crash", true);
+    await drive("timeout", true);
+    disable(project, i.data);
+    await drive("crash", false);
+    await drive("timeout", false);
+    expect(existsSync(join(i.home, ".claude/settings.json"))).toBe(false);
+    expect(readFileSync(target, "utf8")).toBe(before);
   });
 });

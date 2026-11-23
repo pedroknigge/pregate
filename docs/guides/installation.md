@@ -220,6 +220,8 @@ Run it only after `pregate prepare` and `pregate project launcher`. It does not 
 
 A second run leaves `.claude/settings.json` byte for byte unchanged. Hook groups this command does not own stay in place, including their order. A file that is not a JSON object is left unchanged and the command fails. When this registration is the one in the file, `pregate doctor` reports the project scope on its own, runs a project-hook canary when policy consent is active, and reports workspace trust separately from policy consent. It does not treat a global Claude registration as a fallback for these hooks.
 
+The PreToolUse handler sets `onFailure` to `block`. Claude Code 2.1.295 and newer, including Code Mode since 2.1.329, denies the tool when that hook crashes, times out, or returns invalid output. Stop, SubagentStop, and SessionStart do not set it. The project launcher exits 0 before starting the engine when this checkout never ran `pregate enable`, and after `pregate disable`, so that field cannot block there. `pregate doctor` warns when the installed Claude Code is older than 2.1.295, because then Claude ignores `onFailure`.
+
 ## Project-local Codex hooks
 
 `pregate project hooks --harness codex [--preview|--yes]` registers the Codex hooks in the project's own `.codex/hooks.json`. The hooks run the project launcher. Run `pregate prepare` and `pregate project launcher` first.

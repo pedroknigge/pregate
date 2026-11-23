@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
-import { decode, encode, eventOf } from "../../src/harness/claude.ts";
+import { cliVersion, decode, encode, eventOf, ON_FAILURE_SINCE } from "../../src/harness/claude.ts";
 import type { Decision, DecideInput, Emission, HookEvent, HookKind, Lock, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -132,6 +132,26 @@ describe("decode: captured payloads", () => {
     const notebook = { ...json("pre-edit.json"), tool_name: "NotebookEdit", tool_input: { notebook_path: `${PROJECT}/n.ipynb`, new_source: "" } };
     expect(firstChange(decode("pre", raw(multi), ENV))).toMatchObject({ path: `${PROJECT}/a.ts`, edit: { form: "unknown", cause: "MultiEdit" } });
     expect(firstChange(decode("pre", raw(notebook), ENV))).toMatchObject({ path: `${PROJECT}/n.ipynb`, edit: { form: "unknown" } });
+  });
+
+  test("Claude Code 2.1.330 Code Mode Write is still file_path and content", () => {
+    const codeMode = {
+      ...json("pre-write.json"),
+      tool_use_id: "repl_01CODEMODE",
+      tool_input: { file_path: `${PROJECT}/a.ts`, content: "export const a = 1;\n" },
+    };
+    expect(firstChange(decode("pre", raw(codeMode), ENV))).toMatchObject({
+      callId: "repl_01CODEMODE",
+      tool: "Write",
+      path: `${PROJECT}/a.ts`,
+      edit: { form: "full", content: "export const a = 1;\n" },
+    });
+  });
+
+  test("Claude Code 2.1.330 Code Mode Edit still accepts replace_all", () => {
+    const p = json("pre-edit.json");
+    const e = decode("pre", raw({ ...p, tool_use_id: "toolu_cc_01", tool_input: { file_path: `${PROJECT}/a.ts`, old_string: "a", new_string: "b", replace_all: true } }), ENV);
+    expect(firstChange(e).edit).toEqual({ form: "oldnew", old: "a", neu: "b", all: true, lines: null });
   });
 
   test("an extra key in a Bash input does not change what runs: ignored", () => {
@@ -403,6 +423,15 @@ describe("encode", () => {
     const e = decode("pre", raw({ ...p, tool_input: { ...(p.tool_input as object), mode: "append" } }), ENV);
     expect(causeOf(e)).toBe(BAD);
     expect(out(enc("pre-edit", unrecognized("pre-edit", false)))).toMatchObject({ continue: false });
+  });
+
+  test("claude --version below 2.1.295 is a semver, and a line with none is unknown", () => {
+    expect(ON_FAILURE_SINCE).toBe("2.1.295");
+    expect(cliVersion("2.1.330 (Claude Code)\n")).toBe("2.1.330");
+    expect(cliVersion("2.1.287 (Claude Code)")).toBe("2.1.287");
+    expect(cliVersion("2.1.294-beta.1 (Claude Code)")).toBe("2.1.294-beta.1");
+    expect(cliVersion("Claude Code\n")).toBeNull();
+    expect(cliVersion("")).toBeNull();
   });
 
   // Runs last: every emission of this file.

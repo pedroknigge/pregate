@@ -139,7 +139,7 @@ On 1.0.77, with the field set, a deny (exit 2 and the PreToolUse deny JSON) bloc
 
 A directory that was never enabled, and a checkout that was disabled, exits 0 with empty stdout before the engine starts. The Unix launcher and the Windows launcher both make that decision before starting the engine. A directory `.git` is answered in-process, without git. A worktree, a parent walk, and an unknown git still use `consented()` on Unix, and the same records on Windows. A worktree disable record and a project disable record are not enforced, and a probe that fails before any candidate is enforced exits 0. The engine is not started, so a missing binary, a crash, or a hang cannot reach Grok's hook timeout. On 1.0.77 that empty allow still passes under `failClosed`. The same is true when another project on the machine is enabled: only this directory's own record matters. A file the payload names inside an enforced root still runs the engine, and a crash or a timeout there denies the tool.
 
-Stop and SessionStart do not set the field. Grok ignores it on those events. Project Claude hooks do not set it. Claude Code's own failure spelling is `onFailure`, and this registration does not set that. Cursor's import of the shared field is still recorded as forced off and was not re-measured.
+Stop and SessionStart do not set the field. Grok ignores it on those events. Project Claude hooks do not set `failClosed`. The repository-owned PreToolUse handler written by `pregate project setup` sets Claude Code's `onFailure` to `block`. Stop and SessionStart of that file do not. Cursor's import of the shared field is still recorded as forced off and was not re-measured.
 
 ### Codex CLI version
 
