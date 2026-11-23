@@ -38,18 +38,30 @@ test("merge keeps foreign hooks in place and is byte-identical on the second run
   const once = mergeProjectClaude(before)!;
   expect(once).not.toBe(before);
   expect(mergeProjectClaude(once)).toBe(once);
-  const doc = JSON.parse(once) as { permissions: unknown; hooks: Record<string, { hooks: { command: string }[] }[]> };
+  const doc = JSON.parse(once) as {
+    permissions: unknown;
+    hooks: Record<string, { hooks: { command: string; timeout?: number; onFailure?: string }[] }[]>;
+  };
   expect(doc.permissions).toEqual(FOREIGN.permissions);
   expect(doc.hooks.PreToolUse![0]).toEqual(FOREIGN.hooks.PreToolUse[0]);
   expect(doc.hooks.Stop![0]).toEqual(FOREIGN.hooks.Stop[0]);
   expect(doc.hooks.UserPromptSubmit).toEqual(FOREIGN.hooks.UserPromptSubmit);
-  expect(projectOwnedCommand(doc.hooks.PreToolUse!.at(-1)!.hooks[0]!.command)).toBe(true);
+  const pre = doc.hooks.PreToolUse!.at(-1)!.hooks[0]!;
+  expect(projectOwnedCommand(pre.command)).toBe(true);
+  expect(pre).toMatchObject({ type: "command", timeout: 120, onFailure: "block" });
+  for (const event of ["Stop", "SubagentStop", "SessionStart"]) {
+    expect(doc.hooks[event]!.at(-1)!.hooks[0]!.onFailure).toBeUndefined();
+  }
   expect(projectClaudeMissing(once)).toEqual([]);
   expect(projectClaudeMissing(before)).toEqual(["PreToolUse", "Stop", "SubagentStop", "SessionStart"]);
   const windows = mergeProjectClaude(before, true)!;
   expect(mergeProjectClaude(windows, true)).toBe(windows);
-  const windowsDoc = JSON.parse(windows) as { hooks: { PreToolUse: { hooks: { command: string }[] }[] } };
+  const windowsDoc = JSON.parse(windows) as {
+    hooks: Record<string, { hooks: { command: string; timeout?: number; onFailure?: string }[] }[]>;
+  };
   expect(projectOwnedCommand(windowsDoc.hooks.PreToolUse!.at(-1)!.hooks[0]!.command)).toBe(true);
+  expect(windowsDoc.hooks.PreToolUse!.at(-1)!.hooks[0]).toMatchObject({ timeout: 120, onFailure: "block" });
+  expect(windowsDoc.hooks.Stop!.at(-1)!.hooks[0]!.onFailure).toBeUndefined();
   expect(windowsDoc.hooks.PreToolUse![0]!.hooks[0]!.command).toBe("echo foreign-pre");
 });
 

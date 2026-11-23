@@ -377,7 +377,11 @@ describe("doctor", () => {
     const m = machine(ALL);
     ok(pregate(m, "setup"), "setup");
     const out = pregate(m, "doctor");
-    for (const h of ALL) expect(out.stdout).toContain(`${h} ${HARNESSES[h].VERIFIED}.`);
+    for (const h of ALL) {
+      if (h === "claude-code") {
+        expect(out.stdout).toContain(`WARNING: claude-code ${HARNESSES[h].VERIFIED} is below 2.1.295.`);
+      } else expect(out.stdout).toContain(`${h} ${HARNESSES[h].VERIFIED}.`);
+    }
     expect(out.stdout).toContain(`Launcher at ${m.launcher} with engine ${pkg.version}.`);
     expect(out.stdout).toContain("Codex runs the PREGATE hooks (trusted).");
     expect(out.stdout).toContain(`pregate on PATH: ${m.link}.`);
@@ -386,6 +390,35 @@ describe("doctor", () => {
     for (const h of ALL) expect(out.stdout).toContain(`${h}: canary denied in its native dialect.`);
     expect(out.stdout.split("\n").filter((l) => l.startsWith("ERROR"))).toEqual([]);
     expect(out.code).toBe(0);
+  });
+
+  test("Claude Code below 2.1.295 warns that onFailure block is ignored", () => {
+    const m = machine(["claude-code"], { claude: "#!/bin/sh\n[ \"$1\" = --version ] && echo '2.1.294 (Claude Code)'\nexit 0\n" });
+    ok(pregate(m, "setup"), "setup");
+    const out = pregate(m, "doctor");
+    expect(out.code, out.stdout + out.stderr).toBe(0);
+    expect(out.stdout).toContain("WARNING: claude-code 2.1.294 is below 2.1.295.");
+    expect(out.stdout).toContain("onFailure block is ignored");
+    expect(out.stdout).toContain("including in Code Mode");
+    expect(out.stdout).not.toContain("ERROR:");
+  });
+
+  test("Claude Code 2.1.295 does not warn that onFailure is unavailable", () => {
+    const m = machine(["claude-code"], { claude: "#!/bin/sh\n[ \"$1\" = --version ] && echo '2.1.295 (Claude Code)'\nexit 0\n" });
+    ok(pregate(m, "setup"), "setup");
+    const out = pregate(m, "doctor");
+    expect(out.stdout).not.toContain("below 2.1.295");
+    expect(out.stdout).toContain("hooks verified with 2.1.287");
+    expect(out.code, out.stdout + out.stderr).toBe(0);
+  });
+
+  test("an unreadable Claude Code version keeps the contract warning", () => {
+    const m = machine(["claude-code"], { claude: "#!/bin/sh\n[ \"$1\" = --version ] && echo 'Claude Code'\nexit 0\n" });
+    ok(pregate(m, "setup"), "setup");
+    const out = pregate(m, "doctor");
+    expect(out.stdout).toContain("hooks verified with 2.1.287");
+    expect(out.stdout).not.toContain("below 2.1.295");
+    expect(out.code, out.stdout + out.stderr).toBe(0);
   });
 
   test("Codex below 0.167.0 warns that Guardian review could skip PreToolUse hooks", () => {

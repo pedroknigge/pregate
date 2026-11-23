@@ -3,8 +3,22 @@ import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse }
 
 // The Claude Code adapter; its profile lives here as constants (MH-01). decode is strict where a key
 // can change what gets written, and encode has no branch that grants anything: "allow" never leaves.
+//
+// Claude Code 2.1.330 Code Mode still sends Write as { file_path, content } and Edit as
+// { file_path, old_string, new_string, replace_all? }. A script's tool_use_id may start with repl_.
+// Bash may arrive as command text such as `cd 'app' && git push`, with the same optional command
+// fields. Parsing is unchanged. `onFailure` has been available since 2.1.295; older Claude ignores it.
 
 export const VERIFIED = "2.1.287";
+export const ON_FAILURE_SINCE = "2.1.295";
+
+const CLI_VERSION = /(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)/;
+
+// The first semver on `claude --version`. A line with no semver is unknown, not "below 2.1.295".
+export function cliVersion(text: string): string | null {
+  const line = text.trim().split("\n")[0] ?? "";
+  return CLI_VERSION.exec(line)?.[1] ?? null;
+}
 
 const BAD: Cause = "payload-unrecognized";
 // SubagentStop is a Stop of one subagent: the gate judges only the files that agent edited.

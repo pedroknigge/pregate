@@ -39,6 +39,34 @@ uncertainty_open() {
   return 1
 }
 
+# Same consent records as the global launcher. 0 means this directory is enforced.
+consented() {
+  d=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  while [ "${d#/}" != "$d" ]; do
+    unknown=1
+    g=$(PATH=/usr/bin:/bin:$path git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+    if [ -n "$g" ]; then
+      g=$(cd "$g" 2>/dev/null && pwd -P)
+      [ -n "$g" ] && unknown=
+    else
+      g=$d
+    fi
+    r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g')
+    g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g')
+    records=$(grep -hF "\"root\":\"$r\"," "$data/consent/"*.json 2>/dev/null)
+    if [ -n "$records" ]; then
+      printf '%s' "$records" | grep -qF '"disabled":true' && return 1
+      grep -hF "\"repo\":\"$g\"" "$data/consent/"*.json 2>/dev/null | grep -qF '"disabled":true' && return 1
+      { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0
+    fi
+    [ -z "$unknown" ] && [ -e "$d/.git" ] && [ "$g" != "$r" ] && grep -qF "{\"repo\":\"$g\"}" "$data/consent/"*.json 2>/dev/null && return 0
+    grep -qF "\"root\":\"$r\"," "$data/proposals/"*.json 2>/dev/null && return 0
+    [ -e "$d/.git" ] && return 1
+    d=${d%/*}
+  done
+  return 1
+}
+
 fail_closed() {
   active= root=
   for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
@@ -75,6 +103,37 @@ if [ $# -gt 0 ] && [ "$1" != hook ]; then
 fi
 
 hook_event=${2:-} hook_harness=${4:-}
+# Pre decides enforcement before the engine exists. A checkout where pregate enable never ran,
+# and one where pregate disable ran, exits 0 here. onFailure cannot block a hook that exits 0
+# with empty stdout. An enabled project, including one with uncertainty open, still starts the
+# engine. A payload path inside an enforced root starts it too. A probe that fails before any
+# candidate was enforced exits 0.
+if [ "$hook_event" = pre ]; then
+  enforced=
+  for candidate in "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GROK_WORKSPACE_ROOT:-}" "$PWD"; do
+    [ -n "$candidate" ] && consented "$candidate" && enforced=1 && break
+  done
+  if [ -z "$enforced" ]; then
+    pre_in=$(mktemp 2>/dev/null) || exit 0
+    cat > "$pre_in" || { rm -f "$pre_in"; exit 0; }
+    pre_candidates=$(mktemp 2>/dev/null) || { rm -f "$pre_in"; exit 0; }
+    sed -n 's/.*"workspacePaths":\["\([^"\\]*\)".*/\1/p' "$pre_in" >>"$pre_candidates" 2>/dev/null
+    grep -oE '"(cwd|workspaceRoot|workspace_root|file_path|filePath|TargetFile|Path|Cwd)"[[:space:]]*:[[:space:]]*"[^"\\]*"' "$pre_in" 2>/dev/null \
+      | sed -n 's/.*"\([^"\\]*\)"$/\1/p' >>"$pre_candidates"
+    while IFS= read -r candidate; do
+      [ -n "$candidate" ] && consented "$candidate" && enforced=1 && break
+    done <"$pre_candidates"
+    rm -f "$pre_candidates"
+    if [ -z "$enforced" ]; then
+      rm -f "$pre_in"
+      # Cursor's native preToolUse treats empty stdout as a failure when failClosed is set.
+      [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
+      exit 0
+    fi
+    exec 0< "$pre_in" || { rm -f "$pre_in"; exit 0; }
+    rm -f "$pre_in"
+  fi
+fi
 [ -n "$version" ] || fail_closed pre "the lock names no valid engine version"
 installed || fail_closed pre "engine $version is not installed; run pregate prepare"
 PATH=$path

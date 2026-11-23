@@ -133,8 +133,12 @@ export function projectScope(input: {
 function projectGroups(windows: boolean): Record<string, Payload> {
   const run = (sub: Sub, timeout: number): Payload => ({ type: "command", command: projectHookCommand(sub, windows), timeout });
   const stop = (): Payload => ({ hooks: [run("stop", 60)] });
+  // Claude Code 2.1.295 and newer, including Code Mode since 2.1.329, denies a PreToolUse hook
+  // that crashes, times out, or returns invalid output only when the handler sets this. Exit 0
+  // with empty stdout still allows. Stop and SessionStart do not set it. The project launcher
+  // exits 0 before the engine when this checkout is not enforced, so the field cannot block there.
   return {
-    PreToolUse: { matcher: sharedClaudeMatcher(), hooks: [run("pre", 120)] },
+    PreToolUse: { matcher: sharedClaudeMatcher(), hooks: [{ ...run("pre", 120), onFailure: "block" }] },
     Stop: stop(),
     SubagentStop: stop(),
     SessionStart: { hooks: [run("session-start", 15)] },

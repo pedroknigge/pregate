@@ -12,6 +12,7 @@ import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./admission.ts";
 import { readProposal } from "./proposal.ts";
 import { cliVersion, TESTED as CODEX_TESTED } from "./harness/codex.ts";
+import { cliVersion as claudeCliVersion, ON_FAILURE_SINCE } from "./harness/claude.ts";
 import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
 import { VERSIONS } from "./versions.ts";
 import { HARNESSES } from "./harness/profile.ts";
@@ -830,6 +831,14 @@ function versionOf(h: HarnessId, bin: string | null): Line {
     }
     if (cli !== null && compareVersions(cli, verified) >= 0 && cli === verified) return ok(`codex ${verified}.`);
     if (cli === CODEX_TESTED) return ok(`codex ${cli} (native lifecycle tested; minimum ${verified}).`);
+  }
+  if (h === "claude-code") {
+    const cli = claudeCliVersion(r.stdout);
+    if (cli !== null && compareVersions(cli, ON_FAILURE_SINCE) < 0) {
+      return warn(
+        `claude-code ${cli} is below ${ON_FAILURE_SINCE}. onFailure block is ignored, so a PreToolUse hook that crashes or times out fails open, including in Code Mode. Upgrade Claude Code.`,
+      );
+    }
   }
   return v.includes(verified) ? ok(`${h} ${verified}.`)
     : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed contract may cause payload-unrecognized denials.`);
