@@ -1,0 +1,6 @@
+{
+  "name": "cli",
+  "version": "2.4.0",
+  "channel": "latest",
+  "directory": "/tmp/oc-capture/project"
+}

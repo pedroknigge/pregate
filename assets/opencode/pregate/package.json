@@ -1,0 +1,8 @@
+{
+  "name": "@pregate/opencode",
+  "private": true,
+  "description": "Pregate's OpenCode plugin. OpenCode loads index.ts. This file pins the plugin API that file was written against.",
+  "peerDependencies": {
+    "@opencode/plugin": "2.4.0"
+  }
+}

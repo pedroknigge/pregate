@@ -1,0 +1,11 @@
+{
+  "tool": "execute",
+  "codemode": false,
+  "id": "call_e41af6c22cf447f6b2da86c1",
+  "sessionID": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "agent": "build",
+  "messageID": "msg_208ee8b9300192VXm6WUu48lUf",
+  "input": {
+    "code": "await tools.shell({ command: \"printf 'n\\\\n' > notes.txt\" });\nreturn \"done\";"
+  }
+}

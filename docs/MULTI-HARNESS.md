@@ -324,21 +324,32 @@ Every verdict still comes from `src/gate.ts`.
   `.git` entry. In a project with a preset, it runs the project launcher first and this installation's
   launcher second; with neither, a pre call is denied instead of passing.
 - **Payload.** `{ hook_event_name, session_id, cwd, tool_name, tool_use_id, tool_input }`, plus
-  `agent_id` and `stop_hook_active` where the API has them. The shim resolves a relative `filePath` or
-  `workdir` against `ctx.location.directory` and fills a missing `workdir`, because the engine reads
-  absolute paths only.
-- **Tool names.** `write`, `edit`, `patch`, `shell` and `execute` are decoded; the read-only set is
-  ignored and every other name is refused as `payload-unrecognized`. The set is closed on purpose: a
-  built-in whose name differs is denied (fail closed) until a release adds it, and the observed names
-  are recorded in [harness-opencode-live](research/harness-opencode-live.md). `patch` uses the Codex
-  grammar plus OpenCode's optional `*** Environment ID:` header.
-- **`execute` (code mode) is denied in an enabled project.** Its nested tool calls run inside one
-  script, and no hook of 2.2.7 sees them. The adapter reports `cannot-reconstruct`, so the script
-  cannot write around the gate. This is the safe answer until a capture proves that nested calls reach
-  `execute.before`.
-- **`[E2E]`.** No model call reached this shim: that the thrown text reaches the model, that
-  `execute.after` content does, that an instruction entry arrives before the next request, and that a
-  synthetic message continues the turn are unverified. `test/payloads/opencode/README.md` lists them.
+  `agent_id`, `codemode`, `opencode_version` and `stop_hook_active` where the API has them. The shim
+  resolves a relative `filePath`, `path` or `workdir` against `ctx.location.directory` and fills a
+  missing `workdir`, because the engine reads absolute paths only. `codemode` is forwarded only when
+  it is a boolean. `opencode_version` is `ctx.app.version`.
+- **Tool names.** `write`, `edit`, `patch`, `shell`, `execute` and a shell `automation_create` are
+  decoded; the read-only set is ignored and every other name is refused as `payload-unrecognized`.
+  `write` and `edit` accept `filePath` (2.2.7) or `path` (2.4.0), and refuse the call when both are
+  present. The set is closed on purpose: a built-in whose name differs is denied (fail closed) until
+  a release adds it, and the observed names are recorded in
+  [harness-opencode-live](research/harness-opencode-live.md). `patch` uses the Codex grammar plus
+  OpenCode's optional `*** Environment ID:` header.
+- **`execute` (code mode).** From OpenCode 2.4.0, `execute.before` fires again for each tool call
+  inside the script, with its own call id and `codemode: true`. The script itself is not a file
+  change. Each child call is judged with the normal write, edit and shell rules. Below 2.4.0, or
+  when `opencode_version` or a boolean `codemode` is missing, the script stays one opaque call and
+  the adapter reports `cannot-reconstruct`. A capture on 2.4.0 with `OPENCODE_FLAGS=full_codemode`
+  is in `test/payloads/opencode/capture/`. Without that flag, `write` and `shell` are not inside the
+  script; they are direct calls, which this adapter already judges. The plugin peer dependency is
+  `@opencode/plugin` 2.4.0.
+- **A shell automation is denied.** `automation_create` with `action.type` `shell` is `shell-admin`.
+  OpenCode approves that command at creation and later runs it with `Shell.Service`, which does not
+  call `execute.before` again. A prompt or code automation stays `payload-unrecognized`.
+- **`[E2E]`.** A 2.4.0 session with `full_codemode` showed child `execute.before` calls for `write`,
+  `shell` and `automation_create`. That the thrown text reaches the model, that `execute.after`
+  content does, that an instruction entry arrives before the next request, and that a synthetic
+  message continues the turn are still unverified. `test/payloads/opencode/README.md` lists them.
 - **Off switches.** Removing the `plugins` entry, deleting the folder, or writing `-<path>` in the
   entry. `doctor` and `drift` report all three.
 

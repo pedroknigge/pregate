@@ -1,0 +1,11 @@
+{
+  "tool": "execute",
+  "codemode": false,
+  "id": "call_e705841258dd4a89a1ec5664",
+  "sessionID": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "agent": "build",
+  "messageID": "msg_208f8ffab001l1zoGuJZcep4Tq",
+  "input": {
+    "code": "await tools.shell({ command: \"printf 'n\\\\n' > src/a.ts\" });\nreturn \"done\";"
+  }
+}

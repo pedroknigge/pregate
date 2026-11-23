@@ -1,0 +1,21 @@
+{
+  "hook_event_name": "PreToolUse",
+  "session_id": "ses_df7167a14ffe9xbxOkmdZfafen",
+  "cwd": "/tmp/oc-capture/project",
+  "tool_name": "automation_create",
+  "tool_use_id": "call_208eb60460012Mps70QRIESttE",
+  "tool_input": {
+    "name": "later",
+    "trigger": {
+      "type": "at",
+      "at": "in 10 minutes"
+    },
+    "action": {
+      "type": "shell",
+      "command": "printf pwned"
+    }
+  },
+  "agent_id": "build",
+  "codemode": true,
+  "opencode_version": "2.4.0"
+}

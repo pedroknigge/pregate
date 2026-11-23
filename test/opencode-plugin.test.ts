@@ -110,7 +110,7 @@ function project(o: { preset?: boolean; projectLauncher?: boolean } = {}): { roo
 // The plugin as setup writes it: one placeholder replaced. The launcher path does not exist, so only
 // the project launcher can answer.
 let loads = 0;
-async function plugin(directory: string): Promise<{ hooks: Registrations; side: Side }> {
+async function plugin(directory: string, version?: string): Promise<{ hooks: Registrations; side: Side }> {
   const dir = join(AREA, `plugin${++loads}`);
   mkdirSync(dir, { recursive: true });
   const source = readFileSync(join(import.meta.dir, "../assets/opencode/pregate/index.ts"), "utf8")
@@ -122,6 +122,7 @@ async function plugin(directory: string): Promise<{ hooks: Registrations; side: 
   const side: Side = { instructions: [], synthetic: [] };
   const ctx = {
     location: { directory },
+    ...(version === undefined ? {} : { app: { name: "cli", version, channel: "latest" } }),
     tool: {
       hook: async (name: string, cb: Hook) => {
         if (name === "execute.before") hooks.before = cb; else hooks.after = cb;
@@ -164,6 +165,23 @@ describe("execute.before", () => {
       hook_event_name: "PreToolUse", session_id: "ses_1", cwd: p.root, tool_name: "write", tool_use_id: "call_1",
       tool_input: { filePath: join(p.root, "src/a.ts"), content: "export const one = 1;\n" }, agent_id: "build",
     }]);
+  });
+
+  test("codemode and the app version are forwarded, and a relative path is resolved", async () => {
+    const p = project();
+    const { hooks } = await plugin(p.root, "2.4.0");
+    await expect(hooks.before(call("write", { path: "src/note.txt", content: "hello from code mode\n" }, "call_w", { codemode: true })))
+      .rejects.toThrow("PREGATE DENY protected-path: test");
+    await hooks.before(call("shell", { command: "printf hi" }, "call_s", { codemode: true }));
+    await hooks.before(call("execute", { code: "return 1" }, "call_e", { codemode: false }));
+    await hooks.before(call("shell", { command: "printf hi" }, "call_q", { codemode: "yes" }));
+    const pre = calls(p.log).filter((entry) => entry.hook_event_name === "PreToolUse");
+    expect(pre.map((entry) => ({ tool: entry.tool_name, codemode: entry.codemode, version: entry.opencode_version, input: entry.tool_input }))).toEqual([
+      { tool: "write", codemode: true, version: "2.4.0", input: { path: join(p.root, "src/note.txt"), content: "hello from code mode\n" } },
+      { tool: "shell", codemode: true, version: "2.4.0", input: { command: "printf hi", workdir: p.root } },
+      { tool: "execute", codemode: false, version: "2.4.0", input: { code: "return 1" } },
+      { tool: "shell", codemode: undefined, version: "2.4.0", input: { command: "printf hi", workdir: p.root } },
+    ]);
   });
 
   test("a relative path and a missing workdir are resolved against the session directory", async () => {
