@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "verifier": "NODE-PIN-001"
+  },
+  "target": ".github/workflows/ci.yml",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 8
+      }
+    ]
+  },
+  "trap": {
+    "family": "exact-node-pin",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "A node-version-file beside an exact node-version does not hide that pin."
+  }
+}

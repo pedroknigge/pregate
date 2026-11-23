@@ -313,8 +313,8 @@ Counts and pack names below are generated from this tree. They are an implementa
 
 <!-- BEGIN readme catalog -->
 
-Static checks: **547** (4 in core, 543 in optional packs). These can run from syntax or a diff.
-Fitness obligations: **646** (64 in core, 582 in optional packs). A fitness obligation stays unverified, and does not block, until a project binds a command.
+Static checks: **548** (4 in core, 544 in optional packs). These can run from syntax or a diff.
+Fitness obligations: **645** (64 in core, 581 in optional packs). A fitness obligation stays unverified, and does not block, until a project binds a command.
 Pattern checks by language: typescript 451, python 18, go 8, rust 6. A check with two languages is counted in each. These are pattern checks only, not a claim that every grammar has the same coverage.
 
 48 optional packs, grouped by the category in each `source.json`. Names that are not in this table are not packs in this tree.

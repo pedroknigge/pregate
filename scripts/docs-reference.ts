@@ -84,6 +84,7 @@ function rule(r: Rule, p: Pack): string {
   const c = definition.data;
   const languages = c.impl.kind === "pattern" ? Object.keys(c.impl.patterns) : c.languages ?? ["typescript (includes JavaScript)"];
   const fitness = c.impl.kind === "primitive" && c.impl.primitive === "fitness";
+  const nodePin = c.impl.kind === "primitive" && c.impl.primitive === "node-pin";
   const guard = c.impl.kind === "primitive" && (c.impl.primitive === "placement" || (c.impl.primitive === "diff" && c.impl.count === "markers"));
   const link = p.path === "catalog" ? `../${definition.path}` : definition.path.slice(p.path.length + 1);
   const gate = r.versionGate
@@ -91,7 +92,7 @@ function rule(r: Rule, p: Pack): string {
     : "";
   return [`### ${p.source.ns}/${r.id}`, "", `Check: [\`${r.check}@${c.version}\`](${link}). Default severity: **${r.severity}**.${gate}`, "",
     `Implementation: \`${c.impl.kind === "primitive" ? c.impl.primitive : "pattern"}\`. Phases: ${c.phase.map((v) => `\`${v}\``).join(", ")}.`, "",
-    `Languages: ${fitness ? "language-independent project verification" : guard ? "language-independent change guard" : languages.map((v) => `\`${v}\``).join(", ")}. Cardinality: \`${c.cardinality}\`. Dimension: \`${c.dimension}\`. Minimum severity: \`${c.minSeverity ?? "none"}\`.`, "",
+    `Languages: ${fitness ? "language-independent project verification" : nodePin ? "language-independent Node.js pin files" : guard ? "language-independent change guard" : languages.map((v) => `\`${v}\``).join(", ")}. Cardinality: \`${c.cardinality}\`. Dimension: \`${c.dimension}\`. Minimum severity: \`${c.minSeverity ?? "none"}\`.`, "",
     r.why, "", `Default parameters: \`${JSON.stringify(r.defaults)}\`.`, "", `**Repair:** ${r.fixHint}`, "",
     `**Scope and limits:** ${r.avoid}`, "", ...relations(r), fitness ? "Check-specific parameter schema (project fitness cannot be narrowed with per-file `paths`, `exclude` or `within`):" : "Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):", "",
     "```json", JSON.stringify(c.params, null, 2), "```", "", "Source metadata:", "", "```json", JSON.stringify(r.source, null, 2), "```", ""].join("\n");

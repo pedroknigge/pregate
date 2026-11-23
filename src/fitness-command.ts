@@ -12,7 +12,7 @@ import { inScope, matches } from "./paths.ts";
 import { H, sha256, stateDir } from "./state.ts";
 import { contractState } from "./status.ts";
 import { trackedWorkspacePaths, workspaceFile, workspacePaths } from "./workspace.ts";
-import type { FitnessBinding, FitnessReceipt, Lock, Phase, Preset, Violation } from "./types.ts";
+import { fitnessRequirement, type FitnessBinding, type FitnessReceipt, type Lock, type Phase, type Preset, type Violation } from "./types.ts";
 import { fitnessPlan, fitnessPlanText, fitnessTemplate } from "./fitness-plan.ts";
 import { candidateRationale, FITNESS_CANDIDATES, readFitnessCandidates } from "./fitness-candidates.ts";
 import { redactCredentialText } from "./credential-literal.ts";
@@ -23,7 +23,7 @@ type InputRead = (rel: string) => Uint8Array | null;
 
 function fitnessRules(lock: Lock, phase: Phase) {
   return lock.rules.filter((r) => r.phases.includes(phase) && !lock.ownedByArkgate.includes(r.id)
-    && r.impl.kind === "primitive" && r.impl.primitive === "fitness");
+    && fitnessRequirement(r.impl) !== null);
 }
 
 function bindingOf(lock: Lock, verifier: string): FitnessBinding | undefined {
@@ -81,7 +81,7 @@ export function projectFitness(root: string, lock: Lock, phase: Phase, read?: In
     let receipt: FitnessReceipt | null = null, hash = "", error: string | null = null;
     if (binding && existsSync(path)) ({ receipt, error } = storedReceipt(path));
     if (binding && error === null) ({ hash, error } = reviewedInputs(binding, receipt));
-    const requirement = rule.impl.kind === "primitive" && rule.impl.primitive === "fitness" ? rule.impl.requirement : rule.id;
+    const requirement = fitnessRequirement(rule.impl) ?? rule.id;
     return { rule: rule.id, requirement, statement: rule.text.why, fixHint: rule.text.fix,
       verifier, rationale: binding?.rationale ?? null, inputs: binding?.inputs ?? [],
       ...(typeof receipt?.diagnostics === "string" ? { diagnostics: receipt.diagnostics } : {}),

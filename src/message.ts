@@ -1,4 +1,5 @@
 import { causeFix, ruleFix } from "./fix.ts";
+import { NODE_PIN_DETAIL } from "./node-security-pin.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { enforcementOf } from "./enforcement.ts";
 import type { Cause, DecisionFix, Form, Lock, LockRelation, LockRule, Severity, Violation } from "./types.ts";
@@ -530,6 +531,7 @@ function edgeText(v: Violation): string {
 }
 
 function template(v: Violation, r: LockRule | undefined): string {
+  if (v.detail !== undefined && NODE_PIN_DETAIL.test(v.detail)) return v.detail;
   return oneLine(r?.text.message ?? "").replace(/\{(\w+)\}/g, (_all, key: string) => {
     if (key === "symbol") return v.symbol === "<module>" ? "the module" : name(v.symbol);
     if (key === "path") return name(v.path);

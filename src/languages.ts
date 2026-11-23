@@ -1,4 +1,5 @@
 import type { Grammar, Impl, Lock, RuleLanguage } from "./types.ts";
+import { isNodePinFile } from "./node-security-pin.ts";
 import { ruleApplies } from "./paths.ts";
 import { isDependencyPinFile } from "./package-version.ts";
 
@@ -23,7 +24,7 @@ export function commentKinds(rel: string): string[] {
 }
 
 export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): RuleLanguage[] {
-  if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path")) return [];
+  if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path" || r.impl.primitive === "node-pin")) return [];
   if (r.languages) return r.languages;
   if (r.impl.kind === "pattern") return Object.keys(r.impl.patterns) as RuleLanguage[];
   if (r.impl.primitive === "placement" || (r.impl.primitive === "diff" && r.impl.count === "markers")) return ["typescript", "python", "go", "rust"];
@@ -33,6 +34,7 @@ export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): Ru
 const STATIC_PRIMITIVES = ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact", "sibling-test", "required-import", "dependency-pin"];
 
 export function languageApplies(r: { impl: Impl; languages?: RuleLanguage[] }, rel: string): boolean {
+  if (r.impl.kind === "primitive" && r.impl.primitive === "node-pin") return isNodePinFile(rel);
   if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path" || r.impl.primitive === "adr-touch")) return true;
   if (r.impl.kind === "primitive" && r.impl.primitive === "typescript-fact" && r.impl.fact === "tsconfig") {
     return /(^|\/)tsconfig[^/]*\.json$/.test(rel) && !rel.split("/").includes("node_modules");
