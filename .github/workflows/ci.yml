@@ -397,8 +397,6 @@ jobs:
           git worktree add --detach "$reference" "$tag"
           test -f "$reference/scripts/compiled-engine.ts"
           (cd "$reference" && bun install --frozen-lockfile)
-          # Throwaway: 400 ms inside the candidate Pre hook. Reverted after this run fails the ratio gate.
-          export PREGATE_LATENCY_INJECT_MS=400
           bun scripts/bench.ts --runs 25 --repeat 3 --inform --ratio --against "$reference" --against-label "$tag" \
             --only "200 lines, first touch" \
             --only "200 lines, second touch" \

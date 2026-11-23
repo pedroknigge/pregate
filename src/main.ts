@@ -44,8 +44,6 @@ async function main(argv: string[]): Promise<number> {
   }
   const env = harnessEnv();
   const kind = event === "auto" ? (eventOf(raw) ?? "pre") : event;
-  // Throwaway probe for the macOS ratio gate. Removed after the failing CI run is recorded.
-  if (kind === "pre") holdInjectedLatency();
   const harness = profile(ours ? flag as HarnessId : "claude-code", raw, env);
   // Cursor runs a project Claude hook and the native .cursor/hooks.json hook for the same call.
   // The Claude one stands aside when the native file owns that event, so the call is evaluated once.
@@ -178,12 +176,6 @@ function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolea
   // Unknown tool names are untrusted input: do not echo secrets or unbounded payload data.
   const label = timedOut ? `${STDIN_TIMEOUT} (${harness})` : `payload-unrecognized (${harness})`;
   return { ...d, full: d.full.replace("payload-unrecognized", label), compact: d.compact.replace("payload-unrecognized", label) };
-}
-
-function holdInjectedLatency(): void {
-  const ms = Number(process.env.PREGATE_LATENCY_INJECT_MS);
-  if (!Number.isFinite(ms) || ms <= 0) return;
-  Bun.sleepSync(ms);
 }
 
 function dispatch(e: HookEvent, gate: Gate): Decision | Promise<Decision> {
