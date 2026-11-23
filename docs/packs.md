@@ -30,12 +30,12 @@ For one combined selection, use `guide --preview --packs <ns,ns>` or an edited `
 
 ## Bundled library inventory
 
-48 optional packs; 1125 distinct check IDs. Counts do not measure semantic coverage or precision.
+48 optional packs; 1127 distinct check IDs. Counts do not measure semantic coverage or precision.
 
 | Checker family | Checks | Evidence needed for enforcement |
 | --- | ---: | --- |
 | Project fitness obligations | 581 | Reviewed current project assertions; unbound means UNVERIFIED |
-| Static pattern, import and change checks | 524 | Precise applicability, valid alternatives and passing/failing/trap controls |
+| Static pattern, import and change checks | 526 | Precise applicability, valid alternatives and passing/failing/trap controls |
 | Metrics | 20 | A measured project budget; a threshold is not a universal invariant |
 
 These are implementation counts, not a certified enforce-ready total. Prefer stable conditions to prescribed mechanisms; keep contextual policies optional and heuristics advisory until admitted. See [invariant enforcement criteria](guides/invariant-enforcement.md).
