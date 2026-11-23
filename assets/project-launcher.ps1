@@ -153,6 +153,15 @@ function Test-Candidate([string]$candidate) {
     return 'no'
 }
 
+# JSON.stringify writes one backslash as two. A Windows path in the payload is C:\\repo\\file.
+function ConvertFrom-JsonPath([string]$escaped) {
+    if ([string]::IsNullOrEmpty($escaped)) { return $escaped }
+    # A script block returns the character itself. -replace would treat a backslash as an escape.
+    $text = [regex]::Replace($escaped, '\\"', { '"' })
+    $text = [regex]::Replace($text, '\\\\', { '\' })
+    return [regex]::Replace($text, '\\/', { '/' })
+}
+
 function Test-PregateEnforced([string]$raw) {
     $script:ConsentRecords = @()
     foreach ($pair in @(
@@ -172,11 +181,12 @@ function Test-PregateEnforced([string]$raw) {
         if ($c -and (Test-Candidate $c) -eq 'yes') { return $true }
     }
     if ($raw) {
-        foreach ($m in [regex]::Matches($raw, '"(?:cwd|workspaceRoot|workspace_root|file_path|filePath|TargetFile|Path|Cwd)"\s*:\s*"([^"\\]*)"')) {
-            if ($m.Groups[1].Value -and (Test-Candidate $m.Groups[1].Value) -eq 'yes') { return $true }
+        foreach ($m in [regex]::Matches($raw, '"(?:cwd|workspaceRoot|workspace_root|file_path|filePath|TargetFile|Path|Cwd)"\s*:\s*"((?:[^"\\]|\\.)*)"')) {
+            $path = ConvertFrom-JsonPath $m.Groups[1].Value
+            if ($path -and (Test-Candidate $path) -eq 'yes') { return $true }
         }
-        if ($raw -match '"workspacePaths"\s*:\s*\[\s*"([^"\\]*)"') {
-            if ((Test-Candidate $Matches[1]) -eq 'yes') { return $true }
+        if ($raw -match '"workspacePaths"\s*:\s*\[\s*"((?:[^"\\]|\\.)*)"') {
+            if ((Test-Candidate (ConvertFrom-JsonPath $Matches[1])) -eq 'yes') { return $true }
         }
     }
     return $false
