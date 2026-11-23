@@ -154,6 +154,8 @@ function setUp(work: string, root: string, shared: string | undefined, harness: 
     CODEX_HOME: join(work, "home/.codex"), GROK_HOME: join(work, "home/.grok"),
     GIT_AUTHOR_NAME: "bench", GIT_AUTHOR_EMAIL: "bench@localhost", GIT_COMMITTER_NAME: "bench", GIT_COMMITTER_EMAIL: "bench@localhost",
   };
+  // Throwaway probe. v0.0.12 does not read this variable, so only the candidate engine waits.
+  if (process.env.PREGATE_LATENCY_INJECT_MS) env.PREGATE_LATENCY_INJECT_MS = process.env.PREGATE_LATENCY_INJECT_MS;
   // One release build per bench run; CI may precompile and set PREGATE_COMPILED_ENGINE.
   const engine = join(work, process.platform === "win32" ? "pregate.exe" : "pregate");
   if (shared !== undefined && existsSync(shared)) cpSync(shared, engine);
