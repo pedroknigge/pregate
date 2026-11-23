@@ -359,7 +359,7 @@ function discover(context: Context, options: Options): Result {
 function render(all: Catalog[], json: boolean, selected: string[], sources: Preset["sources"] = [], detailed = true): Result {
   const packs = all.map((c) => ({ ...c, source: sources.find((s) => s.ns === c.ns) ?? null,
     validation: "structure-only; run rules test for fixture evidence", languages: [...new Set(c.checks
-      .filter((check) => check.impl.kind === "pattern" || ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact"].includes(check.impl.primitive))
+      .filter((check) => check.impl.kind === "pattern" || ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact", "dependency-pin"].includes(check.impl.primitive))
       .flatMap((check) => ruleLanguages(check)).flatMap((lang) => lang === "typescript" ? ["javascript", "typescript"] : [lang]))].sort(),
     checks: c.checks.map((check) => ({ ...check, languages: ruleLanguages(check) })),
     methodologies: c.methodologies.map((m) => ({ ...m, selected: selected.includes(m.id) || m.id.startsWith("core/") })) }));

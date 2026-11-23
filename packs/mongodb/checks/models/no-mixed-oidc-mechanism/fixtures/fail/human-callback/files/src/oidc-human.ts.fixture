@@ -1,0 +1,11 @@
+import { MongoClient } from "mongodb";
+
+const callback = async () => ({ accessToken: "token" });
+const ENVIRONMENT = "azure";
+const OIDC_HUMAN_CALLBACK = callback;
+
+export function connect(uri: string): Promise<MongoClient> {
+  return MongoClient.connect(uri, {
+    authMechanismProperties: { ENVIRONMENT, OIDC_HUMAN_CALLBACK },
+  });
+}

@@ -1,6 +1,7 @@
 import { analyze, isImportRule } from "./evaluate.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { ruleFix } from "./fix.ts";
+import { grammarOf } from "./languages.ts";
 import { violationMessage } from "./message.ts";
 import { canonical } from "./ratchet.ts";
 import { errorIn, parse, type Parsed } from "./ts.ts";
@@ -24,8 +25,20 @@ export function auditRules(lock: Lock) {
 }
 
 export function auditFile(lock: Lock, rel: string, text: string, host: Host): { findings: AuditFinding[]; errors: AuditError[] } {
+  if (grammarOf(rel) === null) return auditUnparsed(lock, rel, text, host);
   const parsed = parse(rel, text);
   return auditParsed(lock, rel, parsed, host);
+}
+
+function auditUnparsed(lock: Lock, rel: string, text: string, host: Host): { findings: AuditFinding[]; errors: AuditError[] } {
+  const result = analyze(lock, "ci", rel, text, { ...host, hash: false });
+  if ("cause" in result) return { findings: [], errors: [{ path: rel, cause: result.cause, line: result.line }] };
+  const findings: AuditFinding[] = [];
+  for (const v of canonical(result.violations)) {
+    const rule = lock.rules.find((r) => r.id === v.rule)!;
+    findings.push({ ...v, check: rule.check, enforcement: enforcementOf(lock, rule), message: violationMessage(v, lock), fix: ruleFix(v, lock).text });
+  }
+  return { findings, errors: [] };
 }
 
 function auditParsed(lock: Lock, rel: string, parsed: Parsed, host: Host): { findings: AuditFinding[]; errors: AuditError[] } {

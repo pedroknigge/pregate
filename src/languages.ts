@@ -1,5 +1,6 @@
 import type { Grammar, Impl, Lock, RuleLanguage } from "./types.ts";
 import { ruleApplies } from "./paths.ts";
+import { isDependencyPinFile } from "./package-version.ts";
 
 const EXTENSIONS = new Map<string, Grammar>([
   ["ts", "typescript"], ["mts", "typescript"], ["cts", "typescript"],
@@ -29,13 +30,14 @@ export function ruleLanguages(r: { impl: Impl; languages?: RuleLanguage[] }): Ru
   return ["typescript"];
 }
 
-const STATIC_PRIMITIVES = ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact", "sibling-test", "required-import"];
+const STATIC_PRIMITIVES = ["metric", "layer-edge", "banned-import", "drizzle-bounded-select", "interval-cleanup", "react-index-key", "credential-literal", "python-legacy", "typescript-fact", "sibling-test", "required-import", "dependency-pin"];
 
 export function languageApplies(r: { impl: Impl; languages?: RuleLanguage[] }, rel: string): boolean {
   if (r.impl.kind === "primitive" && (r.impl.primitive === "fitness" || r.impl.primitive === "forbidden-path" || r.impl.primitive === "adr-touch")) return true;
   if (r.impl.kind === "primitive" && r.impl.primitive === "typescript-fact" && r.impl.fact === "tsconfig") {
     return /(^|\/)tsconfig[^/]*\.json$/.test(rel) && !rel.split("/").includes("node_modules");
   }
+  if (r.impl.kind === "primitive" && r.impl.primitive === "dependency-pin") return isDependencyPinFile(rel);
   if (!r.languages && r.impl.kind === "primitive" && (r.impl.primitive === "placement" || (r.impl.primitive === "diff" && r.impl.count === "markers"))) return true;
   const g = grammarOf(rel);
   return g !== null && ruleLanguages(r).includes(g === "tsx" ? "typescript" : g);

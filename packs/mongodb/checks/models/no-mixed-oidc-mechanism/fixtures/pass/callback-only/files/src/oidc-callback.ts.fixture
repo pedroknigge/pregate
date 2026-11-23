@@ -1,0 +1,12 @@
+import { MongoClient } from "mongodb";
+
+const callback = async () => ({ accessToken: "token" });
+
+// ENVIRONMENT with OIDC_CALLBACK would mix mechanisms. This file uses the callback only.
+export function connect(uri: string): MongoClient {
+  return new MongoClient(uri, {
+    authMechanismProperties: {
+      OIDC_CALLBACK: callback,
+    },
+  });
+}

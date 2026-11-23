@@ -1,0 +1,152 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "mongodb/models/no-mixed-oidc-mechanism",
+  "version": "1.0.0",
+  "area": "models",
+  "cardinality": "singleton",
+  "dimension": "mongodb.models.oidc-mechanisms",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "oidc-properties",
+          "rule": {
+            "kind": "object",
+            "all": [
+              {
+                "has": {
+                  "any": [
+                    {
+                      "kind": "pair",
+                      "has": {
+                        "field": "key",
+                        "regex": "^[\"']?ENVIRONMENT[\"']?$"
+                      }
+                    },
+                    {
+                      "kind": "shorthand_property_identifier",
+                      "regex": "^ENVIRONMENT$"
+                    }
+                  ]
+                }
+              },
+              {
+                "has": {
+                  "any": [
+                    {
+                      "kind": "pair",
+                      "has": {
+                        "field": "key",
+                        "regex": "^[\"']?OIDC_(?:HUMAN_)?CALLBACK[\"']?$"
+                      }
+                    },
+                    {
+                      "kind": "shorthand_property_identifier",
+                      "regex": "^OIDC_(?:HUMAN_)?CALLBACK$"
+                    }
+                  ]
+                }
+              },
+              {
+                "inside": {
+                  "stopBy": "end",
+                  "kind": "@call",
+                  "any": [
+                    {
+                      "has": {
+                        "field": "constructor",
+                        "regex": "(^|\\.)MongoClient$"
+                      }
+                    },
+                    {
+                      "has": {
+                        "field": "function",
+                        "regex": "(^|\\.)MongoClient(\\.connect)?$"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "oidc-uri",
+          "rule": {
+            "kind": "@call",
+            "all": [
+              {
+                "any": [
+                  {
+                    "has": {
+                      "field": "constructor",
+                      "regex": "(^|\\.)MongoClient$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "function",
+                      "regex": "(^|\\.)MongoClient(\\.connect)?$"
+                    }
+                  }
+                ]
+              },
+              {
+                "has": {
+                  "field": "arguments",
+                  "all": [
+                    {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "string",
+                            "regex": "authMechanismProperties=[^\"'\\n]*ENVIRONMENT:"
+                          },
+                          {
+                            "kind": "template_string",
+                            "regex": "authMechanismProperties=[^\"'\\n]*ENVIRONMENT:"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "has": {
+                        "stopBy": "end",
+                        "any": [
+                          {
+                            "kind": "pair",
+                            "has": {
+                              "field": "key",
+                              "regex": "^[\"']?OIDC_(?:HUMAN_)?CALLBACK[\"']?$"
+                            }
+                          },
+                          {
+                            "kind": "shorthand_property_identifier",
+                            "regex": "^OIDC_(?:HUMAN_)?CALLBACK$"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} combines ENVIRONMENT with OIDC_CALLBACK or OIDC_HUMAN_CALLBACK. Use one mechanism only, and upgrade the driver to >=7.9.0."
+  }
+}
