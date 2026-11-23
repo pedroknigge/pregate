@@ -1,0 +1,557 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nestjs/transport/no-raised-limit",
+  "version": "1.0.0",
+  "area": "transport",
+  "cardinality": "singleton",
+  "dimension": "nestjs.dos-limit",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "max-payload",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxPayload[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:0|Infinity|Number\\.POSITIVE_INFINITY|(?:[2-9]|[1-9]\\d+)\\s*\\*\\s*1024\\s*\\*\\s*1024|1024\\s*\\*\\s*1024\\s*\\*\\s*(?:[2-9]|[1-9]\\d+)|1024\\s*\\*\\s*(?:[2-9]|[1-9]\\d+)\\s*\\*\\s*1024|[2-9]\\d{6}|1[1-9]\\d{5}|10[5-9]\\d{4}|1049\\d{3}|1048[6-9]\\d{2}|10485[8-9]\\d|104857[7-9]|\\d{8,})$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "any": [
+                {
+                  "kind": "new_expression",
+                  "regex": "\\bnew\\s+WsAdapter\\b"
+                },
+                {
+                  "kind": "decorator",
+                  "regex": "@WebSocketGateway\\b"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "max-concurrent",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxConcurrentMessages[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:Infinity|Number\\.POSITIVE_INFINITY|[1-9]\\d{4,}|[2-9]\\d{3}|1[1-9]\\d{2}|10[1-9]\\d|100[1-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "any": [
+                {
+                  "kind": "new_expression",
+                  "regex": "\\bnew\\s+(?:Ws|Io)Adapter\\b"
+                },
+                {
+                  "kind": "decorator",
+                  "regex": "@WebSocketGateway\\b"
+                },
+                {
+                  "kind": "object",
+                  "has": {
+                    "kind": "pair",
+                    "all": [
+                      {
+                        "has": {
+                          "field": "key",
+                          "regex": "^[\"']?transport[\"']?$"
+                        }
+                      },
+                      {
+                        "has": {
+                          "field": "value",
+                          "regex": "Transport\\.TCP\\b"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "tcp-concurrent-zero",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxConcurrentMessages[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^0$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.TCP\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "max-waiting",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxWaitingMessages[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:Infinity|Number\\.POSITIVE_INFINITY|[1-9]\\d{5,}|[2-9]\\d{4}|1[1-9]\\d{3}|10[1-9]\\d{2}|100[1-9]\\d|1000[1-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "new_expression",
+              "regex": "\\bnew\\s+IoAdapter\\b"
+            }
+          }
+        },
+        {
+          "id": "grpc-pending",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxPendingResponses[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:0|Infinity|Number\\.POSITIVE_INFINITY|[1-9]\\d{4,}|[2-9]\\d{3}|1[1-9]\\d{2}|10[1-9]\\d|100[1-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.GRPC\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "redis-wildcard",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxWildcardChannelLength[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:0|Infinity|Number\\.POSITIVE_INFINITY|[1-9]\\d{4,}|[2-9]\\d{3}|1[1-9]\\d{2}|10[3-9]\\d|102[5-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.REDIS\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "rmq-message-size",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxMessageSize[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})\\s*\\*\\s*1024\\s*\\*\\s*1024|1024\\s*\\*\\s*1024\\s*\\*\\s*(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})|1024\\s*\\*\\s*(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})\\s*\\*\\s*1024|[2-9]\\d{7}|\\d{9,}|1[7-9]\\d{6}|16[8-9]\\d{5}|167[8-9]\\d{4}|1677[8-9]\\d{3}|16777[3-9]\\d{2}|167772[2-9]\\d|1677721[7-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.RMQ\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "tcp-buffer",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxBufferSize[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})\\s*\\*\\s*1024\\s*\\*\\s*1024|1024\\s*\\*\\s*1024\\s*\\*\\s*(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})|1024\\s*\\*\\s*(?:1[7-9]|[2-9]\\d|[1-9]\\d{2,})\\s*\\*\\s*1024|[2-9]\\d{7}|\\d{9,}|1[7-9]\\d{6}|16[8-9]\\d{5}|167[8-9]\\d{4}|1677[8-9]\\d{3}|16777[3-9]\\d{2}|167772[2-9]\\d|1677721[7-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "object",
+              "has": {
+                "kind": "pair",
+                "all": [
+                  {
+                    "has": {
+                      "field": "key",
+                      "regex": "^[\"']?transport[\"']?$"
+                    }
+                  },
+                  {
+                    "has": {
+                      "field": "value",
+                      "regex": "Transport\\.TCP\\b"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "send-buffer",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?maxSendBufferSize[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:0|Infinity|Number\\.POSITIVE_INFINITY|(?:129|1[3-9]\\d|[2-9]\\d{2}|[1-9]\\d{3,})\\s*\\*\\s*1024\\s*\\*\\s*1024|1024\\s*\\*\\s*1024\\s*\\*\\s*(?:129|1[3-9]\\d|[2-9]\\d{2}|[1-9]\\d{3,})|[2-9]\\d{8}|\\d{10,}|1[4-9]\\d{8}|13[5-9]\\d{7}|134[3-9]\\d{6}|1342[2-9]\\d{5}|13421[8-9]\\d{4}|134217[8-9]\\d{3}|1342177[3-9]\\d{2}|134217729)$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "any": [
+                {
+                  "kind": "new_expression",
+                  "regex": "\\bnew\\s+WsAdapter\\b"
+                },
+                {
+                  "kind": "object",
+                  "has": {
+                    "kind": "pair",
+                    "all": [
+                      {
+                        "has": {
+                          "field": "key",
+                          "regex": "^[\"']?transport[\"']?$"
+                        }
+                      },
+                      {
+                        "has": {
+                          "field": "value",
+                          "regex": "Transport\\.TCP\\b"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "json-fields-size",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?jsonFieldsSize[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:Infinity|Number\\.POSITIVE_INFINITY|(?:[2-9]|[1-9]\\d+)\\s*\\*\\s*1024\\s*\\*\\s*1024|1024\\s*\\*\\s*1024\\s*\\*\\s*(?:[2-9]|[1-9]\\d+)|1024\\s*\\*\\s*(?:[2-9]|[1-9]\\d+)\\s*\\*\\s*1024|[2-9]\\d{6}|1[1-9]\\d{5}|10[5-9]\\d{4}|1049\\d{3}|1048[6-9]\\d{2}|10485[8-9]\\d|104857[7-9]|\\d{8,})$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "pair",
+              "has": {
+                "field": "key",
+                "regex": "^[\"']?limits[\"']?$"
+              }
+            }
+          }
+        },
+        {
+          "id": "multipart-parts",
+          "since": {
+            "dependencies": [
+              "@nestjs/core",
+              "@nestjs/microservices",
+              "@nestjs/platform-ws",
+              "@nestjs/platform-socket.io",
+              "@nestjs/websockets"
+            ],
+            "version": "12.5.0"
+          },
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^[\"']?parts[\"']?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^(?:Infinity|Number\\.POSITIVE_INFINITY|[1-9]\\d{4,}|[2-9]\\d{3}|1[1-9]\\d{2}|10[1-9]\\d|100[1-9])$"
+                }
+              }
+            ],
+            "inside": {
+              "stopBy": "end",
+              "kind": "pair",
+              "has": {
+                "field": "key",
+                "regex": "^[\"']?limits[\"']?$"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "{symbol} raises a NestJS 12.5 limit. Keep maxPayload at 1048576 on WsAdapter, or set a lower finite value."
+  }
+}

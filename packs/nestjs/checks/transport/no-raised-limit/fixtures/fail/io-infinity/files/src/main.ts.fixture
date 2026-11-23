@@ -1,0 +1,7 @@
+import { IoAdapter } from "@nestjs/platform-socket.io";
+export function bind(app: object) {
+  app.useWebSocketAdapter(new IoAdapter(app, {
+    maxConcurrentMessages: Infinity,
+    maxWaitingMessages: Infinity,
+  }));
+}

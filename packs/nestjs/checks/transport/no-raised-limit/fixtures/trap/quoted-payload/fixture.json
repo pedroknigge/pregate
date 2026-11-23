@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "src/main.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 3
+      }
+    ]
+  },
+  "trap": {
+    "family": "quoted-limit-key",
+    "origin": "forge",
+    "discovered": "2026-11-18",
+    "note": "A quoted maxPayload key is the same WsAdapter option. 100 * 1024 * 1024 is the pre-12.5 ws default the release replaced."
+  }
+}

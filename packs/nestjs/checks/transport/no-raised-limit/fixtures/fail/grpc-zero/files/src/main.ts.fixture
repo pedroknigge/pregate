@@ -1,0 +1,2 @@
+import { Transport } from "@nestjs/microservices";
+export const grpc = { transport: Transport.GRPC, options: { package: "orders", protoPath: "orders.proto", maxPendingResponses: 0 } };

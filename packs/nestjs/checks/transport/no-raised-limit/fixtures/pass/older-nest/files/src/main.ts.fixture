@@ -1,0 +1,6 @@
+import { WsAdapter } from "@nestjs/platform-ws";
+import { Transport } from "@nestjs/microservices";
+export function bind(app: object) {
+  app.useWebSocketAdapter(new WsAdapter(app, { maxPayload: 0 }));
+  app.connectMicroservice({ transport: Transport.TCP, options: { maxConcurrentMessages: 0 } });
+}
