@@ -4,18 +4,14 @@ Thank you for contributing to **Pregate** — the deterministic pre-execution ga
 
 ## Architecture and Design Principles
 
-Before submitting changes, read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SPEC.md`](docs/SPEC.md):
+Before submitting changes, read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SPEC.md`](docs/SPEC.md).
 
-1. **Pure Functional Core (`layers.core` in `.pregate/preset.json`)**:
-   - Core modules in `src/` must remain 100% pure and deterministic (`FCIS-ENV-001`, `FCIS-IO-001`, `FCIS-IO-002`, `FCIS-THROW-001`, `FCIS-DEP-001`).
-   - Core modules may not import from `shell` adapter modules.
-2. **Imperative Shell (`layers.shell` in `.pregate/preset.json`)**:
-   - Filesystem, Git, network, process execution, and harness hook protocols live in the `shell` layer.
-   - Every external boundary must enforce explicit timeouts and byte caps.
-3. **Human Digest-Bound Consent**:
-   - No agent or automated code path may forge human consent. `enable`, `disable`, `uninstall` and `approve` apply only when the human types `y` on an interactive terminal. `--yes` skips that question only when `PREGATE_UNATTENDED_APPROVAL=1` is already set (an unattended CI job); it is not an agent switch, and `CI` alone does not count. Contract files (`.pregate/preset.json`, `.pregate/pregate.lock.json`) change only through a verified SHA-256 preview digest (`pregate approve <code>`).
-4. **Latency Budget**:
-   - Pre-execution hooks (`PreToolUse`, `preToolUse`, `pre_tool_use`) must remain fast (p95 $\le 150\text{ ms}$ on reference hardware).
+Judge these by hand:
+
+1. **Where a new module lives.** Filesystem, Git, network, process execution, and harness hook protocols belong in the shell layer. A calculation belongs in the core. Name the new file under that layer in [`.pregate/preset.json`](.pregate/preset.json).
+2. **Core results are values.** A core module does not throw to report a result.
+3. **Bounds on the outside world.** Every external boundary enforces an explicit timeout and a byte cap.
+4. **Latency budget.** Pre-execution hooks (`PreToolUse`, `preToolUse`, `pre_tool_use`) stay fast: p95 ≤ 150 ms on the reference hardware in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Corrections
 
@@ -26,9 +22,7 @@ When a correction happens, prefer this order:
 3. **Runtime verification**.
 4. **Prose**, last.
 
-A paragraph does not hold a lesson that a redesign or a check can hold. Record the correction in [`corrections.json`](corrections.json). Every entry names one test title or one rule id that already exists. `bun scripts/corrections.ts --check` fails when that id does not. The summary is the record of what was wrong. It is not the check.
-
-`bun scripts/quick-fix.ts --check` is one such lint for this repository, not a new rule pack. A `setTimeout`, `setInterval`, `sleep`, `Atomics.wait`, or a counted `attempt` / `retry` loop in `src/` is rejected. The message tells the author to fix the cause. A reviewed deadline, poll, or bound on a real condition is a row in [`scripts/quick-fix-allowlist.json`](scripts/quick-fix-allowlist.json): the file, the site the check prints, and the reason.
+A paragraph does not hold a lesson that a redesign or a check can hold. Record the correction in [`corrections.json`](corrections.json).
 
 ## Development Setup
 
@@ -59,36 +53,18 @@ PREGATE_E2E_SIGSTORE=1 bun test test/signing.e2e.test.ts
 
 ## Authoring Checks and Rule Packs
 
-1. Built-in core checks live under [`catalog/checks/`](catalog/checks/), core methodologies under [`catalog/methodologies/`](catalog/methodologies/), and optional bundled packs under [`packs/`](packs/).
-2. Every check requires positive (`fixtures/pass/`), negative (`fixtures/fail/`), and trap (`fixtures/trap/`) test fixtures.
-3. Validate catalog fixtures and invariants before opening a pull request:
+Built-in core checks live under [`catalog/checks/`](catalog/checks/), core methodologies under [`catalog/methodologies/`](catalog/methodologies/), and optional bundled packs under [`packs/`](packs/).
 
-```sh
-bun src/main.ts rules test catalog
-bun scripts/core-invariants.ts --check
-bun scripts/readiness-packs.ts --check
-bun scripts/dcouplr-delivery-rules.ts --check
-bun scripts/source-invariants.ts --check
-bun scripts/invariant-coverage.ts --check
-bun scripts/docs-reference.ts --check
-```
+## Whole tree
 
-## Self-Verification Gate
-
-Pregate gates its own repository. Before submitting a PR, ensure both the full tree check and repository audit pass:
+Exit 0 from both:
 
 ```sh
 bun src/main.ts check --all
 bun src/main.ts audit
-bun scripts/corrections.ts --check
-bun scripts/feature-map.ts --check
-bun scripts/quick-fix.ts --check
 ```
 
 ## Pull Request Checklist
 
-- [ ] `bun run typecheck` passes with zero errors.
-- [ ] `bun test` and `bun src/main.ts rules test catalog` pass.
-- [ ] If CLI flags, checks, methodologies, harnesses, or languages changed, run `bun scripts/docs-reference.ts` and `bun src/main.ts preset compile`. That command also refreshes the README facts block.
 - [ ] `bun src/main.ts check --all` and `bun src/main.ts audit` exit `0`.
-- [ ] A new correction is an entry in `corrections.json` whose test title or rule id already exists. `bun scripts/corrections.ts --check`, `bun scripts/feature-map.ts --check`, and `bun scripts/quick-fix.ts --check` pass. A new CLI command is a row in `feature-map.json` whose proof already exists.
+- [ ] A new correction is an entry in [`corrections.json`](corrections.json).
