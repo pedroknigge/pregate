@@ -1,7 +1,7 @@
 import { posix, win32 } from "node:path";
 import { pathKey, slash } from "../paths.ts";
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Hunk, ProposedChange, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, Hunk, ProposedChange, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The Codex CLI adapter (MULTI-HARNESS MH-05, MH-08, MH-14). Codex blocks only on exit 2 with a
 // non-empty stderr, and every other failure of the hook runs the tool: decode refuses what it cannot
@@ -51,20 +51,8 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   return tool(p, session, p.cwd, env) ?? refuse(event, p, env);
 }
 
-// MH-14. A deny is stderr and exit 2 only: Codex ignores stdout on exit 2, and a JSON reply with one
-// key too many lets the tool run. Halt does not exist (continue:false makes the hook fail and the
-// tool run), nor does ask (Codex treats it as no decision): both leave as the deny text.
-export function encode(kind: HookEvent["kind"], d: Decision, subagent = false): Emission {
-  if (kind !== "stop" && kind !== "post-invocation" && d.verdict === "none" && d.full !== "") {
-    const hookEventName = kind === "session-start" ? subagent ? "SubagentStart" : "SessionStart" : "PreToolUse";
-    return { stdout: json({ hookSpecificOutput: { hookEventName, additionalContext: d.full } }), stderr: "", exit: 0 };
-  }
-  if (kind === "post-invocation") return { stdout: "", stderr: "", exit: 0 };
-  if (kind === "session-start" || d.verdict === "none") {
-    return { stdout: !subagent && d.notice !== null ? json({ systemMessage: d.notice }) : "", stderr: "", exit: 0 };
-  }
-  if (kind === "stop") return { stdout: json({ decision: "block", reason: d.full }), stderr: "", exit: 0 };
-  return { stdout: "", stderr: d.full, exit: 2 };
+export function encode(kind: HookEvent["kind"], scoped: WireDecision, subagent = false): ReturnType<typeof deliver> {
+  return deliver("codex", kind, scoped, subagent);
 }
 
 function named(p: Payload): HookKind | null {
@@ -155,7 +143,6 @@ function patch(text: string): Op[] | null {
   return new Set(ops.map((o) => pathKey(o.path.normalize("NFD")))).size === ops.length ? ops : null;
 }
 
-// The hunk whose @@ line is lines[i], and the index of the line after it; null if it does not parse.
 function hunkAt(lines: string[], i: number): { hunk: Hunk; next: number } | null {
   const at = lines[i]!;
   // Codex reads "@@ " as no anchor and matches an anchor loosely [V]: only an exact one is read.

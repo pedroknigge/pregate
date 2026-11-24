@@ -1,5 +1,5 @@
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The Antigravity (agy) adapter (MULTI-HARNESS MH-05, MH-11, MH-14). An empty stdout leaves a Pre
 // call to agy's own permission flow, so it is the only neutral: "allow" would skip that flow.
@@ -32,30 +32,8 @@ export function decode(event: HookKind, raw: string, _env: HookEnv): HookEvent |
   return res === "ignore" ? null : (res ?? refuse(event, p, session, BAD));
 }
 
-// Every reply is exit 0: agy reads a deny from JSON (MH-05). The approval command's pre-command
-// ask is force_ask, so a cached Always Allow cannot apply the contract. A contract-edit ask
-// (contractApproval) and every other ask stay a deny: decide() does not ask on agy. Pre warnings
-// and halt notices leave on PostInvocation; a Stop that blocks reopens the agent loop.
-export function encode(kind: HookEvent["kind"], d: Decision): Emission {
-  if (kind === "session-start" && d.verdict === "none" && d.full !== "") {
-    return { stdout: json({ injectSteps: [{ systemMessage: { systemMessage: d.full } }] }), stderr: "", exit: 0 };
-  }
-  if (kind === "post-invocation") return encodePostInvocation(d);
-  if (kind === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
-  if (kind === "pre-command" && d.verdict === "ask" && d.contractApproval !== true) {
-    return { stdout: json({ decision: "force_ask", reason: d.notice ?? d.compact }), stderr: "", exit: 0 };
-  }
-  return { stdout: json({ decision: kind === "stop" ? "continue" : "deny", reason: d.full }), stderr: "", exit: 0 };
-}
-
-function encodePostInvocation(d: Decision): Emission {
-  if (d.halt && d.notice !== null) {
-    return { stdout: json({ injectSteps: [{ errorMessage: { userMessage: d.notice } }], terminationBehavior: "terminate" }), stderr: "", exit: 0 };
-  }
-  if (d.verdict === "none" && d.full !== "") {
-    return { stdout: json({ injectSteps: [{ systemMessage: { systemMessage: d.full } }] }), stderr: "", exit: 0 };
-  }
-  return { stdout: "", stderr: "", exit: 0 };
+export function encode(kind: HookEvent["kind"], scoped: WireDecision): ReturnType<typeof deliver> {
+  return deliver("agy", kind, scoped);
 }
 
 function matchesEvent(event: HookKind, p: Payload): boolean {

@@ -9,6 +9,7 @@ import { readTree } from "../src/disk.ts";
 import { analyze } from "../src/evaluate.ts";
 import { check, clock, LOCK, onPreEdit, onSessionStart, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
+import { enabledWire } from "../src/harness/wire.ts";
 import { comparedLock, introduced } from "../src/ratchet.ts";
 import { grammarOf, parse } from "../src/ts.ts";
 import type { Analysis, Lock, Read } from "../src/types.ts";
@@ -50,12 +51,12 @@ test("captured session payloads inject the contract only with local consent", ()
     const adapter = HARNESSES[harness];
     const event = adapter.decode("session-start", JSON.stringify(payload), { grokEvent: "session_start", projectDir: root, remote: false });
     if (event === null || "cause" in event || event.kind !== "session-start") throw new Error("capture did not decode");
-    expect(adapter.encode(event.kind, onSessionStart(event)).stdout).toBe("");
+    expect(adapter.encode(event.kind, enabledWire(onSessionStart(event))).stdout).toBe("");
   }
   enable(root);
   for (const harness of ["codex", "cursor", "grok", "agy"] as const) {
     const d = onSessionStart({ kind: "session-start", cwd: root, session: { harness, id: `briefing-${harness}`, agentId: null, turnId: null, interactive: false } });
-    const out = HARNESSES[harness].encode("session-start", d);
+    const out = HARNESSES[harness].encode("session-start", enabledWire(d));
     if (harness === "grok") expect(out.stdout).toBe("");
     else {
       expect(out.stdout).toContain("PREGATE is active");

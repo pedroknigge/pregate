@@ -130,6 +130,7 @@ export interface Decision {
   notice: string | null;           // to the human: systemMessage / stopReason
   lockHash: string | null;
   shadowed: boolean;               // shadow muted a finding/cause, including calls with another blocking rule
+  enforcedAt?: string;             // enabled root that made a block reachable; absent means the block cannot be emitted
 }
 export interface Emission { stdout: string; stderr: string; exit: 0 | 2 }   // exit 1 is unrepresentable
 export interface DecideInput {

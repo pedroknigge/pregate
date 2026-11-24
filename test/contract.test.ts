@@ -5,6 +5,7 @@ import { compile } from "../src/compile.ts";
 import { bundledBetween, bundledNamespaces, contractDiff, reviewDiff, sourceDiff, validateContract } from "../src/contract.ts";
 import { clock, grammars, VERSIONS } from "../src/gate.ts";
 import { encode } from "../src/harness/agy.ts";
+import { enabledWire } from "../src/harness/wire.ts";
 import type { Decision, Lock } from "../src/types.ts";
 import { policyFixtureSource } from "./policy-fixtures.ts";
 
@@ -248,9 +249,9 @@ test("contract validation rejects invalid schema and a pack without real fixture
 test("agy rejects contract permission requests without trusted parent context", () => {
   const d: Decision = { verdict: "ask", contractApproval: true, halt: false, cause: null, violations: [], warnings: [], attempt: 0,
     compact: "Approve?", full: "WARNING: weaker coverage. Approve?", fix: null, notice: null, lockHash: null, shadowed: false };
-  expect(JSON.parse(encode("pre-edit", d).stdout).decision).toBe("deny");
-  expect(JSON.parse(encode("pre-command", d).stdout).decision).toBe("deny");
-  expect(JSON.parse(encode("pre-edit", { ...d, contractApproval: false }).stdout).decision).toBe("deny");
+  expect(JSON.parse(encode("pre-edit", enabledWire(d)).stdout).decision).toBe("deny");
+  expect(JSON.parse(encode("pre-command", enabledWire(d)).stdout).decision).toBe("deny");
+  expect(JSON.parse(encode("pre-edit", enabledWire({ ...d, contractApproval: false })).stdout).decision).toBe("deny");
 });
 
 test("a stronger severity does not hide removal of a covered language", () => {

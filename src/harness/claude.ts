@@ -1,5 +1,5 @@
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The Claude Code adapter; its profile lives here as constants (MH-01). decode is strict where a key
 // can change what gets written, and encode has no branch that grants anything: "allow" never leaves.
@@ -50,25 +50,8 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   return tool(p, session, p.cwd) ?? refuse(event, p, env);
 }
 
-// SPEC §4.5. Every deny is exit 2 with the same text in the JSON and on stderr: exit 2 blocks even
-// when the JSON does not reach Claude Code intact. SessionStart can only inform.
-// `subagent`: the event is a SubagentStart. Its reply names that event and carries only the briefing:
-// the human already has the session's notices.
-export function encode(e: HookEvent["kind"], d: Decision, subagent = false): Emission {
-  const told = d.notice === null ? {} : { systemMessage: d.notice };
-  if (e === "session-start" && subagent) return quiet(context("SubagentStart", d.verdict === "none" ? d.full : ""));
-  if (e === "session-start") return quiet({ ...context("SessionStart", d.verdict === "none" ? d.full : ""), ...told });
-  if (e === "post-invocation") return quiet({});
-  // Stop.additionalContext continues Claude's turn even on exit 0. Observations stay in the report.
-  if (d.verdict === "none") return e === "stop" ? quiet(told) : quiet({ ...context("PreToolUse", d.full), ...told });
-  if (e === "stop") return { stdout: json({ decision: "block", reason: d.full, ...told }), stderr: d.full, exit: 2 };
-  if (d.verdict === "ask") {
-    const ask = { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: d.notice ?? d.compact, additionalContext: d.full };
-    return quiet({ hookSpecificOutput: ask });
-  }
-  const halt = d.halt ? { continue: false, stopReason: d.notice ?? d.compact } : told;
-  const deny = { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: d.full };
-  return { stdout: json({ hookSpecificOutput: deny, ...halt }), stderr: d.full, exit: 2 };
+export function encode(e: HookEvent["kind"], scoped: WireDecision, subagent = false): ReturnType<typeof deliver> {
+  return deliver("claude-code", e, scoped, subagent);
 }
 
 function named(p: Payload | null): HookKind | null {
@@ -120,11 +103,3 @@ function optional(v: unknown): boolean {
   return v === undefined || typeof v === "string";
 }
 
-function context(hookEventName: string, text: string): object {
-  return text === "" ? {} : { hookSpecificOutput: { hookEventName, additionalContext: text } };
-}
-
-// Silence is no objection: Claude Code's own permission flow goes on.
-function quiet(o: object): Emission {
-  return { stdout: Object.keys(o).length === 0 ? "" : json(o), stderr: "", exit: 0 };
-}

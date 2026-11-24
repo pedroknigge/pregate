@@ -17,6 +17,7 @@ import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
 import { causeFix, unknownFix } from "./fix.ts";
+import { blockAt } from "./harness/wire.ts";
 import type { Cause, Decision, HookEvent, Lock, ProposedChange, ProposedCommand, Session } from "./types.ts";
 
 // The imperative shell around the pure core (ARCHITECTURE §4): one function per hook event, plus
@@ -210,7 +211,7 @@ function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, st
   const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
   if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: own, rel: null, startedAt };
-  return settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: guarded === "protected-path" });
+  return blockAt(settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: guarded === "protected-path" }), others[0] ?? null);
 }
 
 // True only when the path is inside some other enabled root. A path in the disabled checkout, a

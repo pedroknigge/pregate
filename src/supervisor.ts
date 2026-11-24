@@ -6,7 +6,7 @@ import { enabled } from "./consent.ts";
 import { pendingRoot } from "./proposal.ts";
 import { blank, ENGINE_VERSION, NO_COMMAND } from "./product.ts";
 import { eventOf } from "./harness/claude.ts";
-import { isObject, parse } from "./harness/wire.ts";
+import { enabledWire, isObject, parse } from "./harness/wire.ts";
 import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile } from "./harness/profile.ts";
 import type { Decision, Emission, HarnessId } from "./types.ts";
@@ -39,7 +39,7 @@ export function launcherFailure(kind: string, claude: boolean, raw: string, why:
     compact: text, full: reason.slice(0, 4000) + "\n",
     fix: { where: null, use: null, deterministic: false, text: "No deterministic path or replacement is declared for this engine failure. Report it to the user." },
     notice: null, lockHash: null, shadowed: false };
-  return HARNESSES[harness].encode("pre-edit", deny, harness === "cursor" && native);
+  return HARNESSES[harness].encode("pre-edit", enabledWire(deny), harness === "cursor" && native);
 }
 
 function active(raw: string, data: string): boolean {

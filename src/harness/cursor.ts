@@ -1,5 +1,5 @@
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, ProposedChange, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, ProposedChange, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The Cursor (cursor-agent) adapter. Cursor runs the hooks of ~/.claude/settings.json with its own
 // payload (MULTI-HARNESS MH-04), and every file mutation reaches preToolUse as a Write carrying the
@@ -28,31 +28,10 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   return { kind: "stop", session, cwd, reentry: loops > 0 };
 }
 
-// MH-14. The shared registration (Cursor importing ~/.claude or .claude/settings.json) is answered
-// with Claude Code's deny JSON at exit 0 [V]. Cursor enforces no ask, has no halt and no channel to
-// the human, so ask leaves as a deny and halt and notice drop: the deny text already tells the agent
-// to stop and report. A Stop blocks by starting another turn.
-// `native`: the project's own .cursor/hooks.json preToolUse (`hook pre --harness cursor`). That hook
-// answers with Cursor's permission object. Allow is that object, never an empty stdout, so failClosed
-// treats only a missing runtime as a failure. The imported registration leaves `native` false.
-export function encode(kind: HookEvent["kind"], d: Decision, native = false): Emission {
-  if (native && (kind === "pre-edit" || kind === "pre-command")) return nativePre(d);
-  if (kind !== "stop" && kind !== "post-invocation" && d.verdict === "none" && d.full !== "") return { stdout: json({ additional_context: d.full }), stderr: "", exit: 0 };
-  if (d.verdict === "none" || kind === "session-start" || kind === "post-invocation") return { stdout: "", stderr: "", exit: 0 };
-  if (kind === "stop") return { stdout: json({ followup_message: d.full }), stderr: "", exit: 0 };
-  const deny = { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: d.full };
-  return { stdout: json({ hookSpecificOutput: deny }), stderr: "", exit: 0 };
-}
+export { nativePreAllow } from "./wire.ts";
 
-// The bytes a native preToolUse prints when it has no objection, including a call it does not judge.
-// failClosed blocks a hook that prints nothing, so this is the allow.
-export function nativePreAllow(): Emission {
-  return { stdout: json({ permission: "allow" }), stderr: "", exit: 0 };
-}
-
-function nativePre(d: Decision): Emission {
-  if (d.verdict === "none") return nativePreAllow();
-  return { stdout: json({ permission: "deny", user_message: d.full, agent_message: d.full }), stderr: "", exit: 0 };
+export function encode(kind: HookEvent["kind"], scoped: WireDecision, native = false): ReturnType<typeof deliver> {
+  return deliver("cursor", kind, scoped, native);
 }
 
 // A subagent has its own session_id and no parent marker [V], so there is no agentId. Nothing is

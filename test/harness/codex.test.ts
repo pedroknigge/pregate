@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
 import { cliVersion, decode, encode, TESTED, VERIFIED } from "../../src/harness/codex.ts";
+import { enabledWire } from "../../src/harness/wire.ts";
 import type { Decision, DecideInput, Edit, Emission, HookEvent, HookKind, Lock, ProposedChange, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -337,7 +338,7 @@ const input = (change: Partial<DecideInput>): DecideInput => ({
 });
 const emitted: Emission[] = [];
 const enc = (kind: HookEvent["kind"], d: Decision): Emission => {
-  const e = encode(kind, d);
+  const e = encode(kind, enabledWire(d));
   emitted.push(e);
   return e;
 };
@@ -406,8 +407,8 @@ describe("encode", () => {
 
   test("SubagentStart names its own event and omits human notices", () => {
     const context = { ...decide(input({})), full: "PREGATE is active: …", notice: null };
-    expect(encode("session-start", context, true)).toEqual({ stdout: raw({ hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context.full } }) + "\n", stderr: "", exit: 0 });
-    expect(encode("session-start", { ...context, full: "", notice: "human setup notice" }, true)).toEqual(QUIET);
+    expect(encode("session-start", enabledWire(context), true)).toEqual({ stdout: raw({ hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: context.full } }) + "\n", stderr: "", exit: 0 });
+    expect(encode("session-start", enabledWire({ ...context, full: "", notice: "human setup notice" }), true)).toEqual(QUIET);
   });
 
   test("a rejected call denies through its event's channel", () => {

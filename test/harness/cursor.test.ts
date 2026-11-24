@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
 import { decode, encode } from "../../src/harness/cursor.ts";
+import { enabledWire } from "../../src/harness/wire.ts";
 import type { DecideInput, Decision, Emission, HookEvent, HookKind, Lock, Rejected, Session, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -293,7 +294,7 @@ const deny = (d: Decision): Emission => ({
 const unrecognized = (kind: HookEvent["kind"], reentry: boolean): Decision => rejected({ cause: BAD, kind, reentry, session: null, dirs: [] });
 const emitted: Emission[] = [];
 const enc = (kind: HookEvent["kind"], d: Decision): Emission => {
-  const e = encode(kind, d);
+  const e = encode(kind, enabledWire(d));
   emitted.push(e);
   return e;
 };
@@ -362,18 +363,18 @@ describe("encode", () => {
   // Runs last: every emission of this file.
   test("native preToolUse answers with Cursor's permission object", () => {
     const none = decide(input({}));
-    expect(encode("pre-edit", none, true)).toEqual({ stdout: `${raw({ permission: "allow" })}\n`, stderr: "", exit: 0 });
+    expect(encode("pre-edit", enabledWire(none), true)).toEqual({ stdout: `${raw({ permission: "allow" })}\n`, stderr: "", exit: 0 });
     const denied = decide(input({ introduced: [v("core/FCIS-IO-001")] }));
-    expect(encode("pre-edit", denied, true)).toEqual({
+    expect(encode("pre-edit", enabledWire(denied), true)).toEqual({
       stdout: `${raw({ permission: "deny", user_message: denied.full, agent_message: denied.full })}\n`, stderr: "", exit: 0,
     });
     const ask = decide(input({ introduced: [v("core/TDD-FOCUS-001")], session: { ...session("1", "1"), interactive: true } }));
     expect(ask.verdict).toBe("ask");
-    expect(encode("pre-command", ask, true).stdout).toContain('"permission":"deny"');
-    expect(encode("pre-edit", denied, true).stdout).not.toContain("hookSpecificOutput");
-    expect(encode("pre-edit", none, true).stdout).not.toContain("updated_input");
+    expect(encode("pre-command", enabledWire(ask), true).stdout).toContain('"permission":"deny"');
+    expect(encode("pre-edit", enabledWire(denied), true).stdout).not.toContain("hookSpecificOutput");
+    expect(encode("pre-edit", enabledWire(none), true).stdout).not.toContain("updated_input");
     // Stop stays on the verified native channel. The permission object is only preToolUse.
-    expect(encode("stop", denied, true).stdout).toContain("followup_message");
+    expect(encode("stop", enabledWire(denied), true).stdout).toContain("followup_message");
   });
 
   test('the string "allow" never leaves, nor a halt key, and exit is always 0', () => {

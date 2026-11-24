@@ -13,7 +13,7 @@ import { decode as codex } from "../src/harness/codex.ts";
 import * as state from "../src/state.ts";
 import * as workspace from "../src/workspace.ts";
 import * as gitHost from "../src/git.ts";
-import type { Edit, HookEvent, ProposedChange, Rejected, Session } from "../src/types.ts";
+import type { Decision, Edit, HookEvent, ProposedChange, Rejected, Session } from "../src/types.ts";
 import { engineAt } from "./compiled-engine.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { canonical } from "../src/disk.ts";
@@ -21,6 +21,7 @@ import * as disk from "../src/disk.ts";
 import { pathKey } from "../src/paths.ts";
 import { report } from "../src/report-command.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
+import { enabledWire } from "../src/harness/wire.ts";
 import { policyFixture } from "./policy-fixtures.ts";
 import { proposeContract, readProposal, PENDING_MS } from "../src/approval.ts";
 import { commandOnPath } from "../src/control-file.ts";
@@ -399,13 +400,13 @@ test("Claude Code SubagentStart payloads decode as the subagent's session start 
   expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart" }), env)).toMatchObject({ cause: "payload-unrecognized" });
   expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SessionStart", agent_id: "a1" }), env)).toMatchObject({ cause: "payload-unrecognized" });
   expect(claude("session-start", JSON.stringify({ ...base, hook_event_name: "SessionStart", source: "startup" }), env)).toMatchObject({ kind: "session-start", session: { agentId: null } });
-  const briefing = { verdict: "none", full: "PREGATE is active", compact: "", notice: "for the human", halt: false } as unknown as Parameters<typeof HARNESSES["claude-code"]["encode"]>[1];
-  const reply = HARNESSES["claude-code"].encode("session-start", briefing, true);
+  const briefing = { verdict: "none", full: "PREGATE is active", compact: "", notice: "for the human", halt: false, cause: null, violations: [], warnings: [], attempt: 0, fix: null, lockHash: null, shadowed: false } as Decision;
+  const reply = HARNESSES["claude-code"].encode("session-start", enabledWire(briefing), true);
   expect(reply.exit).toBe(0);
   expect(JSON.parse(reply.stdout)).toEqual({ hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: "PREGATE is active" } });
   // A problem with the contract is the session's notice, not a subagent's context.
-  expect(HARNESSES["claude-code"].encode("session-start", { ...briefing, verdict: "deny" } as typeof briefing, true)).toEqual({ stdout: "", stderr: "", exit: 0 });
-  expect(JSON.parse(HARNESSES["claude-code"].encode("session-start", briefing).stdout)).toEqual({
+  expect(HARNESSES["claude-code"].encode("session-start", enabledWire({ ...briefing, verdict: "deny" }), true)).toEqual({ stdout: "", stderr: "", exit: 0 });
+  expect(JSON.parse(HARNESSES["claude-code"].encode("session-start", enabledWire(briefing)).stdout)).toEqual({
     hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "PREGATE is active" }, systemMessage: "for the human" });
 });
 
@@ -1351,7 +1352,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s record
   const last = await stop();
   expect(last.verdict).toBe("none");
   expect(last.stopIncomplete).toEqual({ reason: "limit", cause: null });
-  const emission = HARNESSES[harness].encode("stop", last);
+  const emission = HARNESSES[harness].encode("stop", enabledWire(last));
   expect(emission.exit).toBe(0);
   if (harness === "claude-code" || harness === "codex") {
     expect(JSON.parse(emission.stdout)).toEqual({ systemMessage: last.notice });
