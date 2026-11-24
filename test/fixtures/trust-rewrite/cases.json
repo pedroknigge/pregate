@@ -1,0 +1,1441 @@
+{
+  "clean-small-follow-up": {
+    "pull": {
+      "number": 10,
+      "title": "Change 10",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 1,
+        "state": "PENDING",
+        "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "submitted_at": null,
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      },
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 10,
+            "deletions": 0,
+            "changes": 10
+          }
+        ]
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 2,
+            "deletions": 0,
+            "changes": 2
+          }
+        ]
+      }
+    }
+  },
+  "major-line-rewrite": {
+    "pull": {
+      "number": 11,
+      "title": "Change 11",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 8,
+            "deletions": 2,
+            "changes": 10
+          }
+        ]
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 4,
+            "deletions": 2,
+            "changes": 6
+          }
+        ]
+      }
+    }
+  },
+  "half-is-not-major": {
+    "pull": {
+      "number": 12,
+      "title": "Change 12",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "COMMENTED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 10,
+            "deletions": 0,
+            "changes": 10
+          }
+        ]
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 5,
+            "deletions": 0,
+            "changes": 5
+          }
+        ]
+      }
+    }
+  },
+  "fraction-above": {
+    "pull": {
+      "number": 13,
+      "title": "Change 13",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "CHANGES_REQUESTED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 3,
+            "deletions": 0,
+            "changes": 3
+          }
+        ]
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 2,
+            "deletions": 0,
+            "changes": 2
+          }
+        ]
+      }
+    }
+  },
+  "fraction-below": {
+    "pull": {
+      "number": 14,
+      "title": "Change 14",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 3,
+            "deletions": 0,
+            "changes": 3
+          }
+        ]
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 0,
+            "changes": 1
+          }
+        ]
+      }
+    }
+  },
+  "dismissed-review-is-first": {
+    "pull": {
+      "number": 15,
+      "title": "Change 15",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T02:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      },
+      {
+        "id": 1,
+        "state": "DISMISSED",
+        "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "submitted_at": "2024-01-03T00:30:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 10,
+            "deletions": 0,
+            "changes": 10
+          }
+        ]
+      },
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 6,
+            "deletions": 0,
+            "changes": 6
+          }
+        ]
+      }
+    }
+  },
+  "replaced-opening-head": {
+    "pull": {
+      "number": 16,
+      "title": "Change 16",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "no-review-opening-survives": {
+    "pull": {
+      "number": 17,
+      "title": "Change 17",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "human-not-agent": {
+    "pull": {
+      "number": 18,
+      "title": "Change 18",
+      "state": "closed",
+      "body": "Ship the parser.",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "marker-must-be-exact": {
+    "pull": {
+      "number": 19,
+      "title": "Change 19",
+      "state": "closed",
+      "body": "Notes mention CURSOR_AGENT_PR_BODY_BEGIN without the comment.",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "bot-author": {
+    "pull": {
+      "number": 20,
+      "title": "Change 20",
+      "state": "closed",
+      "body": "",
+      "user": {
+        "login": "octocat",
+        "type": "Bot"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "closed-unmerged": {
+    "pull": {
+      "number": 21,
+      "title": "Change 21",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": null,
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [],
+    "compares": {}
+  },
+  "zero-initial-diff": {
+    "pull": {
+      "number": 22,
+      "title": "Change 22",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "dddddddddddddddddddddddddddddddddddddddd",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "dddddddddddddddddddddddddddddddddddddddd"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": []
+      },
+      "dddddddddddddddddddddddddddddddddddddddd...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 100,
+            "deletions": 0,
+            "changes": 100
+          }
+        ]
+      }
+    }
+  },
+  "no-follow-up": {
+    "pull": {
+      "number": 23,
+      "title": "Change 23",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {}
+  },
+  "merge-commit-first-parent": {
+    "pull": {
+      "number": 24,
+      "title": "Change 24",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      {
+        "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T13:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T13:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "cccccccccccccccccccccccccccccccccccccccc"
+          },
+          {
+            "sha": "2222222222222222222222222222222222222222"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {
+      "main...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 10,
+            "deletions": 0,
+            "changes": 10
+          }
+        ]
+      },
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa...cccccccccccccccccccccccccccccccccccccccc": {
+        "files": [
+          {
+            "filename": "src/gate.ts",
+            "status": "modified",
+            "additions": 2,
+            "deletions": 0,
+            "changes": 2
+          }
+        ]
+      }
+    }
+  },
+  "review-commit-missing": {
+    "pull": {
+      "number": 25,
+      "title": "Change 25",
+      "state": "closed",
+      "body": "<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\n## Summary\n\nRecorded for the rewrite classifier.\n",
+      "user": {
+        "login": "octocat",
+        "type": "User"
+      },
+      "created_at": "2024-01-02T00:00:00Z",
+      "merged_at": "2024-01-04T00:00:00Z",
+      "head": {
+        "ref": "cursor/example",
+        "sha": "cccccccccccccccccccccccccccccccccccccccc"
+      },
+      "base": {
+        "ref": "main",
+        "sha": "1111111111111111111111111111111111111111"
+      }
+    },
+    "commits": [
+      {
+        "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-02T00:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "1111111111111111111111111111111111111111"
+          }
+        ]
+      },
+      {
+        "sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "commit": {
+          "message": "Work\n",
+          "author": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          },
+          "committer": {
+            "name": "Ada",
+            "email": "ada@example.com",
+            "date": "2024-01-03T12:00:00Z"
+          }
+        },
+        "parents": [
+          {
+            "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": 2,
+        "state": "APPROVED",
+        "commit_id": "ffffffffffffffffffffffffffffffffffffffff",
+        "submitted_at": "2024-01-03T01:00:00Z",
+        "user": {
+          "login": "reviewer",
+          "type": "User"
+        }
+      }
+    ],
+    "compares": {}
+  }
+}
