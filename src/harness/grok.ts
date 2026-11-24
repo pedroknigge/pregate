@@ -1,5 +1,5 @@
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, json, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The Grok Build adapter (MULTI-HARNESS MH-05, MH-12, MH-14). Grok runs the shared registration in
 // ~/.claude/settings.json with its own payload: camelCase keys (the snake twins are ignored), native
@@ -41,19 +41,8 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   return tool(p, p.toolName, p.toolUseId, session, p.cwd) ?? refuse(event, p, env);
 }
 
-// Grok shows the model only the first line of a reason, cut at 256 characters, so a reason is the
-// compact text on one line. Halt has no effect in Grok, ask is denied (MH-05), and the human has no
-// channel of their own: nothing else is emitted.
-export function encode(e: HookEvent["kind"], d: Decision): Emission {
-  if (e !== "stop" && e !== "session-start" && e !== "post-invocation" && d.verdict === "none" && d.full !== "") {
-    return { stdout: json({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.full } }), stderr: "", exit: 0 };
-  }
-  if (e === "session-start" || e === "post-invocation" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
-  const reason = d.compact.replace(/[\r\n]+/g, " ");
-  if (e === "stop") return { stdout: json({ decision: "block", reason }), stderr: "", exit: 0 };
-  // exit 2 blocks even when the JSON does not reach Grok intact.
-  const deny = { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason };
-  return { stdout: json({ hookSpecificOutput: deny }), stderr: reason, exit: 2 };
+export function encode(e: HookEvent["kind"], scoped: WireDecision): ReturnType<typeof deliver> {
+  return deliver("grok", e, scoped);
 }
 
 function named(p: Payload): HookKind | null {

@@ -1,8 +1,8 @@
 import { posix, win32 } from "node:path";
 import { pathKey, slash } from "../paths.ts";
 import { compareVersions } from "../product.ts";
-import type { Cause, Decision, Edit, Emission, HookEnv, HookEvent, HookKind, Hunk, ProposedChange, Rejected, Session } from "../types.ts";
-import { absolute, absoluteLocation, isObject, keys, type Payload, parse } from "./wire.ts";
+import type { Cause, Edit, HookEnv, HookEvent, HookKind, Hunk, ProposedChange, Rejected, Session } from "../types.ts";
+import { absolute, absoluteLocation, deliver, isObject, keys, type Payload, parse, type WireDecision } from "./wire.ts";
 
 // The OpenCode adapter (MULTI-HARNESS MH-05, MH-08, MH-14). OpenCode has no hook process of its own:
 // the Pregate plugin (assets/opencode/pregate/index.ts) normalizes `execute.before` into the payload
@@ -54,15 +54,8 @@ export function decode(event: HookKind, raw: string, env: HookEnv): HookEvent | 
   return tool(p, session, p.cwd, env);
 }
 
-// MH-14. A deny is stderr and exit 2 only: the plugin throws that text and OpenCode fails the call.
-// Halt and ask do not exist here (there is no hook-level stop and no approval channel), so both leave
-// as the deny text; the notice is dropped for the same reason. Advice and a Stop block use stdout,
-// which the plugin reads itself.
-export function encode(kind: HookEvent["kind"], d: Decision): Emission {
-  if (kind !== "stop" && d.verdict === "none" && d.full !== "") return { stdout: d.full, stderr: "", exit: 0 };
-  if (kind === "session-start" || d.verdict === "none") return { stdout: "", stderr: "", exit: 0 };
-  if (kind === "stop") return { stdout: JSON.stringify({ decision: "block", reason: d.full }) + "\n", stderr: "", exit: 0 };
-  return { stdout: "", stderr: d.full, exit: 2 };
+export function encode(kind: HookEvent["kind"], scoped: WireDecision): ReturnType<typeof deliver> {
+  return deliver("opencode", kind, scoped);
 }
 
 function named(p: Payload): HookKind | null {

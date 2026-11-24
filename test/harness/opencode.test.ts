@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
 import { cliVersion, CODEMODE_SINCE, decode, encode, VERIFIED } from "../../src/harness/opencode.ts";
+import { enabledWire } from "../../src/harness/wire.ts";
 import type { Decision, DecideInput, Edit, Emission, HookEvent, HookKind, Lock, ProposedChange, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -334,7 +335,7 @@ const input = (change: Partial<DecideInput>): DecideInput => ({
 });
 const emitted: Emission[] = [];
 const enc = (kind: HookEvent["kind"], d: Decision): Emission => {
-  const e = encode(kind, d);
+  const e = encode(kind, enabledWire(d));
   emitted.push(e);
   return e;
 };

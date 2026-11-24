@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { decide } from "../../src/decide.ts";
 import { cliVersion, decode, encode, eventOf, ON_FAILURE_SINCE } from "../../src/harness/claude.ts";
+import { enabledWire } from "../../src/harness/wire.ts";
 import type { Decision, DecideInput, Emission, HookEvent, HookKind, Lock, Rejected, Severity, Violation } from "../../src/types.ts";
 import { contract, ENV } from "./contract.ts";
 
@@ -273,7 +274,7 @@ const out = (e: Emission): Record<string, unknown> => JSON.parse(e.stdout) as Re
 const emitted: Emission[] = [];
 const unrecognized = (kind: HookEvent["kind"], reentry: boolean): Decision => rejected({ cause: BAD, kind, reentry, session: null, dirs: [] });
 const enc = (kind: HookEvent["kind"], d: Decision): Emission => {
-  const e = encode(kind, d);
+  const e = encode(kind, enabledWire(d));
   emitted.push(e);
   return e;
 };

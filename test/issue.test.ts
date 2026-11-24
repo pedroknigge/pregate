@@ -11,6 +11,7 @@ import { issueContent } from "../src/issue.ts";
 import { pendingReview } from "../src/pending-review.ts";
 import { approvePending } from "../src/approval-command.ts";
 import { HARNESSES } from "../src/harness/profile.ts";
+import { enabledWire } from "../src/harness/wire.ts";
 import { REPO } from "../src/product.ts";
 import { readFixture } from "../src/fixture-replay.ts";
 import { testFixture } from "../src/fixtures.ts";
@@ -387,7 +388,7 @@ test("no harness approves a submission from the agent; each denial names the hum
   expect(routed.verdict).toBe("deny");
   expect(routed.full).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
   expect(routed.full).not.toContain(`! pregate issue submit ${id} --yes`);
-  const out = HARNESSES["claude-code"].encode("pre-command", routed);
+  const out = HARNESSES["claude-code"].encode("pre-command", enabledWire(routed));
   expect(out.exit).toBe(2);
   expect(out.stdout).not.toContain('"permissionDecision":"ask"');
   for (const suffix of ["; echo injected", " | cat", " --extra", " && true"]) expect(command(humanSession, `pregate issue submit ${id} --yes${suffix}`).verdict).toBe("deny");

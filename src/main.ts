@@ -4,6 +4,7 @@ import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
 import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
+import { wireOf } from "./harness/wire.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./admission.ts";
@@ -80,7 +81,7 @@ async function main(argv: string[]): Promise<number> {
   // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
   const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
   const decision = "cause" in e ? rejection(e, harness, gate, input.timedOut) : await dispatch(e, gate);
-  const out = adapter.encode(e.kind, relax(decision, eventDirs(e)), replyFlag);
+  const out = adapter.encode(e.kind, wireOf(relax(decision, eventDirs(e)), scopeDirs(e)), replyFlag);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -112,9 +113,10 @@ function harnessEnv(): HookEnv {
 // An inactive call exits silently, except a session start in a Git repository without a contract:
 // it says once how to set PREGATE up. Informational only; nothing is recorded.
 function dormant(e: HookEvent | Rejected | null, adapter: (typeof HARNESSES)[HarnessId]): number {
-  const line = e !== null && !("cause" in e) && e.kind === "session-start" ? dormantNotice(e.cwd) : null;
+  if (e === null || "cause" in e || e.kind !== "session-start") return 0;
+  const line = dormantNotice(e.cwd);
   if (line === null) return 0;
-  const out = adapter.encode("session-start", told(null, line));
+  const out = adapter.encode("session-start", wireOf(told(null, line), scopeDirs(e)));
   if (out.stdout !== "") writeAll(1, out.stdout);
   return 0;
 }
@@ -162,6 +164,11 @@ function eventDirs(e: HookEvent | Rejected): string[] {
   if (e.kind === "pre-edit") return e.changes.map((c) => dirname(c.path));
   if (e.kind === "pre-command") return [e.command.cwd];
   return [e.cwd];
+}
+
+function scopeDirs(e: HookEvent | Rejected): string[] {
+  const named = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT];
+  return [...eventDirs(e), ...named.filter((dir): dir is string => typeof dir === "string" && dir !== "")];
 }
 
 // An explicit "uncertainty": "open" lets an unclassified call through. A rule deny is not one of these.

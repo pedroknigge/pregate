@@ -25,6 +25,7 @@ import { contractState } from "./status.ts";
 import { usesPrimitive } from "./proxy-checks.ts";
 import { commitCounts } from "./proxy-diff.ts";
 import { accepted, arrivedWithHead, owned, reader, snapshotReader, stopFiles, workspacePaths } from "./workspace.ts";
+import { blockAt } from "./harness/wire.ts";
 import type { CallEvent, Decision, DecideInput, Form, HookEvent, Lock, Session, Snapshot, Violation } from "./types.ts";
 
 // A file of a summarized review: status, line counts, size after (or before, if deleted) and
@@ -218,7 +219,8 @@ export async function onStop(e: Extract<HookEvent, { kind: "stop" }>, budgetMs =
     afterSha: null, astHash: null,
   }, null);
   const decided = failed === undefined ? d : decide({ ...input, form: form(failed) });
-  return lost === null ? decided : { ...decided, notice: [decided.notice, lost].filter(Boolean).join("\n\n") };
+  const withLost = lost === null ? decided : { ...decided, notice: [decided.notice, lost].filter(Boolean).join("\n\n") };
+  return blockAt(withLost, chosen?.root ?? null);
 }
 
 // No snapshot yet. A consented project that Git cannot read still denies; a readable
@@ -228,10 +230,10 @@ function missingRepository(e: Extract<HookEvent, { kind: "stop" }>, sid: string,
   if (typeof here !== "string") return null;
   const failure = repositoryFailure(here);
   if (failure === null) return null;
-  return settle(
+  return blockAt(settle(
     { session: e.session, kind: "stop", callId: "stop", abs: null, root: here, rel: null, startedAt },
     { ...NOTHING, form: form(failure) },
-  );
+  ), existsSync(here) ? here : null);
 }
 
 // A root this session reached while it was enabled, whose consent is now disabled or gone. A human
