@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "id": "pre-budget-starts-at-admission",
+      "summary": "A supervised Pre on Windows counted cold start inside the 5 second deadline, so a clean git switch was denied at the admission checkpoint.",
+      "source": "CHANGELOG Unreleased, Fixed. test/supervisor.test.ts names Windows CI run 44400647892.",
+      "test": "time before admission does not consume the pre budget"
+    },
+    {
+      "id": "hang-after-admission-still-dies",
+      "summary": "Extending the Pre deadline so cold start is not charged must not let a hang after the admission checkpoint run past 5 seconds.",
+      "source": "CHANGELOG Unreleased, Fixed.",
+      "test": "a hang after admission is still cut 5 s after that checkpoint"
+    },
+    {
+      "id": "claude-below-2-1-295-ignores-onfailure",
+      "summary": "pregate doctor did not say that Claude Code below 2.1.295 ignores onFailure, so a PreToolUse crash or timeout fails open on those versions.",
+      "source": "CHANGELOG Unreleased, Changed.",
+      "test": "Claude Code below 2.1.295 warns that onFailure block is ignored"
+    },
+    {
+      "id": "grok-pretooluse-fail-closed",
+      "summary": "A Grok PreToolUse hook that crashed or timed out inside an enabled project had to deny the tool. Grok 1.0.70 ignores the field and stays fail-open.",
+      "source": "CHANGELOG 0.0.12, Fixed, #45.",
+      "test": "the recorded Grok failClosed measurement is the real 1.0.77 and 1.0.70 run (#45)"
+    },
+    {
+      "id": "timeout-engine-is-dead-before-deny",
+      "summary": "When a supervised engine passed its deadline, the deny could return while that process was still alive.",
+      "source": "CHANGELOG 0.0.11, Fixed.",
+      "test": "a timed-out engine is dead before the deny returns"
+    },
+    {
+      "id": "atomic-write-removes-temporary-file",
+      "summary": "writeAtomic left its temporary file beside the destination when the replace failed.",
+      "source": "CHANGELOG 0.0.11, Fixed.",
+      "test": "a failed atomic write removes the temporary file"
+    },
+    {
+      "id": "approval-env-is-not-a-hook-switch",
+      "summary": "Setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER, or PREGATE_ACCEPT_CONTRACT on a command was reported as a hook switch. The cause is approval.",
+      "source": "CHANGELOG 0.0.11, Fixed, #105.",
+      "test": "approval-forging variables stay denied and are not a hook switch"
+    },
+    {
+      "id": "git-config-read-is-allowed",
+      "summary": "A literal git config read, including git config --get core.hooksPath, was denied as shell-admin.",
+      "source": "CHANGELOG 0.0.11, Fixed, #114.",
+      "test": "the codex pre hook allows read-only git config queries"
+    }
+  ]
+}
