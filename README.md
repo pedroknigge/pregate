@@ -376,7 +376,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 
 ## Contributing
 
-Read [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), and the [Code of conduct](CODE_OF_CONDUCT.md) before submitting a change or reporting a vulnerability. Include a valid example that should pass and an invalid example that should fail when proposing a rule change.
+Read [Contributing](CONTRIBUTING.md), [Security](SECURITY.md), and the [Code of conduct](CODE_OF_CONDUCT.md) before submitting a change or reporting a vulnerability.
 
 ## License
 
