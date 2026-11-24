@@ -1,4 +1,3 @@
-import { enforcedHere } from "../consent.ts";
 import { slash } from "../paths.ts";
 import type { Decision, Emission, HarnessId, HookEvent } from "../types.ts";
 
@@ -82,9 +81,13 @@ function line<Chars extends number, Lines extends number>(
 
 export type EnabledScope = { readonly [EnabledBrand]: true; readonly root: string };
 export type InactiveScope = { readonly kind: "inactive" };
+export type ProtocolScope = { readonly kind: "protocol" };
 export type PassiveDecision = Omit<Decision, "verdict" | "halt"> & { readonly verdict: "none"; readonly halt: false };
+export type ProtocolDecision = Omit<Decision, "cause"> & { readonly cause: "payload-unrecognized" };
+export type Place = "enforced" | "protocol" | "off";
 export type WireDecision =
   | { readonly scope: EnabledScope; readonly decision: Decision }
+  | { readonly scope: ProtocolScope; readonly decision: ProtocolDecision }
   | { readonly scope: InactiveScope; readonly decision: PassiveDecision };
 
 function mint(root: string): EnabledScope {
@@ -100,15 +103,15 @@ export function blockAt(decision: Decision, root: string | null): Decision {
   return { ...decision, enforcedAt: root };
 }
 
-export function scopeEnabled(dirs: readonly string[]): boolean {
-  return enforcedRoot(dirs) !== null;
-}
-
-// A block is emitted only for a root where pregate enable is in effect. Pending review and a session that reached some other root do not count.
-export function wireOf(decision: Decision, dirs: readonly string[]): WireDecision {
-  const named = decision.enforcedAt !== undefined && safeEnforced(decision.enforcedAt) ? decision.enforcedAt : null;
-  const root = named ?? (decision.verdict === "none" ? null : enforcedRoot(dirs));
+// A project block is emitted only for a root where pregate enable is in effect.
+// An unreadable payload still fail-closes while a review is pending. A session that reached some other root does not.
+export function wireOf(decision: Decision, dirs: readonly string[], place: (dir: string) => Place): WireDecision {
+  const named = decision.enforcedAt !== undefined && located(place, decision.enforcedAt) === "enforced" ? decision.enforcedAt : null;
+  const root = named ?? (decision.verdict === "none" ? null : first(dirs, place, "enforced"));
   if (root !== null && decision.verdict !== "none") return { scope: mint(root), decision };
+  if (decision.verdict !== "none" && decision.cause === "payload-unrecognized" && first(dirs, place, "protocol") !== null) {
+    return { scope: { kind: "protocol" }, decision: decision as ProtocolDecision };
+  }
   if (decision.verdict === "none" && decision.halt !== true) return { scope: { kind: "inactive" }, decision: decision as PassiveDecision };
   return { scope: { kind: "inactive" }, decision: passivate(decision) };
 }
@@ -118,16 +121,17 @@ function passivate(d: Decision): PassiveDecision {
   return { ...d, verdict: "none", halt: false, compact: "", full: "", notice: null, fix: null, enforcedAt: undefined };
 }
 
-function safeEnforced(dir: string): boolean {
-  try { return enforcedHere(dir); }
+function located(place: (dir: string) => Place, dir: string): Place | null {
+  if (dir === "") return null;
+  try { return place(dir); }
   catch (error) {
-    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return false;
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return "off";
     throw error;
   }
 }
 
-function enforcedRoot(dirs: readonly string[]): string | null {
-  for (const dir of dirs) if (dir !== "" && safeEnforced(dir)) return dir;
+function first(dirs: readonly string[], place: (dir: string) => Place, want: Place): string | null {
+  for (const dir of dirs) if (located(place, dir) === want) return dir;
   return null;
 }
 

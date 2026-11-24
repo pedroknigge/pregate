@@ -2,9 +2,9 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { disable, disableProject, enable } from "../../src/consent.ts";
+import { disable, disableProject, enable, enforcedHere } from "../../src/consent.ts";
 import { canonical } from "../../src/disk.ts";
-import { blockAt, wireOf } from "../../src/harness/wire.ts";
+import { blockAt, wireOf, type Place } from "../../src/harness/wire.ts";
 import type { Decision } from "../../src/types.ts";
 
 const NAMES = ["HOME", "USERPROFILE", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CONFIG_HOME"] as const;
@@ -35,6 +35,14 @@ function isolate(): string {
   return root;
 }
 
+function place(dir: string): Place {
+  try { return enforcedHere(dir) ? "enforced" : "off"; }
+  catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return "off";
+    throw error;
+  }
+}
+
 function blocked(): Decision {
   return {
     verdict: "deny", halt: true, cause: "shell-admin", violations: [], warnings: [], attempt: 1,
@@ -47,16 +55,16 @@ function blocked(): Decision {
 test("a deny is unreachable until pregate enable, and a disable puts it back out of reach", () => {
   const root = isolate();
   const decision = blocked();
-  expect(wireOf(decision, [root]).decision.verdict).toBe("none");
-  expect(wireOf(decision, [root]).decision.full).toBe("");
+  expect(wireOf(decision, [root], place).decision.verdict).toBe("none");
+  expect(wireOf(decision, [root], place).decision.full).toBe("");
   enable(root);
-  expect(wireOf(decision, [root]).decision.verdict).toBe("deny");
+  expect(wireOf(decision, [root], place).decision.verdict).toBe("deny");
   disable(root);
-  expect(wireOf(decision, [root]).decision.verdict).toBe("none");
+  expect(wireOf(decision, [root], place).decision.verdict).toBe("none");
   enable(root);
-  expect(wireOf(decision, [root]).decision.verdict).toBe("deny");
+  expect(wireOf(decision, [root], place).decision.verdict).toBe("deny");
   disableProject(root);
-  expect(wireOf(decision, [root]).decision.verdict).toBe("none");
+  expect(wireOf(decision, [root], place).decision.verdict).toBe("none");
 });
 
 test("a block that names another enabled root stays reachable from a disabled checkout", () => {
@@ -67,7 +75,7 @@ test("a block that names another enabled root stays reachable from a disabled ch
   expect(Bun.spawnSync(["git", "init", "-q", other], { env: process.env }).exitCode).toBe(0);
   enable(other);
   disable(own);
-  const reached = wireOf(blockAt(blocked(), other), [own]);
+  const reached = wireOf(blockAt(blocked(), other), [own], place);
   expect(reached.decision.verdict).toBe("deny");
   expect(reached.scope).toHaveProperty("root", other);
 });
@@ -79,5 +87,5 @@ test("an informational decision keeps its text where nothing is enforced", () =>
     compact: "", full: "PREGATE is disabled for this worktree. Pre-command and pre-edit do not block it.",
     fix: null, notice: null, lockHash: null, shadowed: false,
   };
-  expect(wireOf(note, [root]).decision.full).toContain("do not block");
+  expect(wireOf(note, [root], place).decision.full).toContain("do not block");
 });

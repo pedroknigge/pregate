@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { slash } from "../../src/paths.ts";
 
 const DIR = join(import.meta.dir, "../../src/harness");
 const ALLOWED: Record<string, readonly string[]> = {
@@ -11,7 +12,7 @@ const ALLOWED: Record<string, readonly string[]> = {
   "grok.ts": ["./wire.ts", "../types.ts"],
   "opencode.ts": ["./wire.ts", "../types.ts", "../paths.ts", "../product.ts", "node:path"],
   "profile.ts": ["./agy.ts", "./claude.ts", "./codex.ts", "./cursor.ts", "./grok.ts", "./opencode.ts", "./wire.ts", "../types.ts"],
-  "wire.ts": ["../consent.ts", "../paths.ts", "../types.ts"],
+  "wire.ts": ["../paths.ts", "../types.ts"],
 };
 
 function specs(source: string): string[] {
@@ -38,7 +39,7 @@ test("enabledWire is the adapter seam, not the hook path", () => {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (name.endsWith(".ts")) {
-        if (readFileSync(path, "utf8").includes("enabledWire")) hits.push(path.slice(root.length + 1));
+        if (readFileSync(path, "utf8").includes("enabledWire")) hits.push(slash(path.slice(root.length + 1)));
       } else if (!name.includes(".")) walk(path);
     }
   };

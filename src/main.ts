@@ -4,13 +4,17 @@ import { writeAll } from "./write-all.ts";
 import { eventOf } from "./harness/claude.ts";
 import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile, subagentEvent } from "./harness/profile.ts";
-import { wireOf } from "./harness/wire.ts";
+import { wireOf, type Place } from "./harness/wire.ts";
+import { enforcedHere } from "./consent.ts";
+import { pendingRoot } from "./proposal.ts";
+import { literalPaths } from "./shell.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./admission.ts";
 import { UNCERTAINTY_CAUSES } from "./message.ts";
 import { uncertaintyAllows } from "./uncertainty.ts";
-import { readStdin, STDIN_TIMEOUT } from "./disk.ts";
+import { canonical, readStdin, STDIN_TIMEOUT } from "./disk.ts";
+import { slash } from "./paths.ts";
 import { checkpoint } from "./progress.ts";
 import { blank, NO_COMMAND } from "./product.ts";
 
@@ -81,7 +85,7 @@ async function main(argv: string[]): Promise<number> {
   // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
   const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
   const decision = "cause" in e ? rejection(e, harness, gate, input.timedOut) : await dispatch(e, gate);
-  const out = adapter.encode(e.kind, wireOf(relax(decision, eventDirs(e)), scopeDirs(e)), replyFlag);
+  const out = adapter.encode(e.kind, wireOf(relax(decision, eventDirs(e)), scopeDirs(e), place), replyFlag);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -116,7 +120,7 @@ function dormant(e: HookEvent | Rejected | null, adapter: (typeof HARNESSES)[Har
   if (e === null || "cause" in e || e.kind !== "session-start") return 0;
   const line = dormantNotice(e.cwd);
   if (line === null) return 0;
-  const out = adapter.encode("session-start", wireOf(told(null, line), scopeDirs(e)));
+  const out = adapter.encode("session-start", wireOf(told(null, line), scopeDirs(e), place));
   if (out.stdout !== "") writeAll(1, out.stdout);
   return 0;
 }
@@ -168,7 +172,34 @@ function eventDirs(e: HookEvent | Rejected): string[] {
 
 function scopeDirs(e: HookEvent | Rejected): string[] {
   const named = [process.cwd(), process.env.CLAUDE_PROJECT_DIR, process.env.CURSOR_PROJECT_DIR, process.env.GROK_WORKSPACE_ROOT];
-  return [...eventDirs(e), ...named.filter((dir): dir is string => typeof dir === "string" && dir !== "")];
+  const command = !("cause" in e) && e.kind === "pre-command" ? commandDirs(e.command.command, e.command.cwd) : [];
+  return [...eventDirs(e), ...command, ...named.filter((dir): dir is string => typeof dir === "string" && dir !== "")];
+}
+
+// `sh -c 'pregate update --projects <root>'` is one quoted word. The shell guard still reads that
+// text as an update of the root. Split such a word once so the root can carry the deny.
+function commandDirs(command: string, cwd: string): string[] {
+  const words = literalPaths(command, cwd);
+  const found = new Set(words);
+  const prefix = `${slash(cwd).replace(/\/$/, "")}/`;
+  for (const abs of words) {
+    if (!abs.startsWith(prefix)) continue;
+    const word = abs.slice(prefix.length);
+    if (!word.includes("pregate")) continue;
+    for (const inner of literalPaths(word, cwd)) found.add(inner);
+  }
+  return [...found];
+}
+
+function place(dir: string): Place {
+  try {
+    if (enforcedHere(dir)) return "enforced";
+    if (pendingRoot(canonical(dir)) !== null) return "protocol";
+    return "off";
+  } catch (error) {
+    if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return "off";
+    throw error;
+  }
 }
 
 // An explicit "uncertainty": "open" lets an unclassified call through. A rule deny is not one of these.

@@ -6,7 +6,7 @@ import { enabled } from "./consent.ts";
 import { pendingRoot } from "./proposal.ts";
 import { blank, ENGINE_VERSION, NO_COMMAND } from "./product.ts";
 import { eventOf } from "./harness/claude.ts";
-import { enabledWire, isObject, parse, scopeEnabled } from "./harness/wire.ts";
+import { enabledWire, isObject, parse } from "./harness/wire.ts";
 import { nativePreAllow } from "./harness/cursor.ts";
 import { HARNESSES, profile } from "./harness/profile.ts";
 import type { Decision, Emission, HarnessId } from "./types.ts";
@@ -183,8 +183,6 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
     // An explicit uncertainty opt-out lets a crash through. It does not run outside an enabled project:
     // that case already returned above. A preset that does not say "open" stays denied.
     if (uncertaintyAllows(activeDirs(run.raw))) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
-    // A pending review is not a project where pregate enable is in effect.
-    if (!routed && !scopeEnabled(activeDirs(run.raw))) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
     return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness, cursorNativePre(run.argv));
   } finally {
     rmSync(run.dir, { recursive: true, force: true });
