@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "../src/capabilities.ts";
 import { INIT_PRESET_NAMES } from "../src/init-presets.ts";
 import type { Check, RuleRelation } from "../src/types.ts";
-import { REGRESSION } from "./latency-gate.ts";
+import { RATIO_LIMIT, REGRESSION } from "./latency-gate.ts";
 import { readmeCatalogBegin, readmeCatalogBlock, readmeCatalogEnd } from "./readme-catalog.ts";
 
 const root = resolve(import.meta.dir, "..");
@@ -275,7 +275,7 @@ function latencyBaselines(): string {
   const rows = Object.entries(baseline.os).sort((a, b) => compareName(a[0], b[0])).flatMap(([platform, os]) =>
     Object.entries(os.p95Ms).map(([route, ms]) => `| \`${platform}\` | \`${os.arch}\` | \`${os.runner}\` | ${route} | ${ms.toFixed(1)} |`));
   return ["## Committed baselines", "",
-    `These p95 milliseconds are the gate in \`bench/latency-baseline.json\`. CI fails a route when the new median p95 is above ${REGRESSION} times that platform's baseline.`, "",
+    `These p95 milliseconds are the absolute gate in \`bench/latency-baseline.json\` for Linux and Windows. CI fails one of those routes when the new median p95 is above ${REGRESSION} times that platform's baseline. The macOS merge gate does not use the darwin rows. It fails when a route's p95 is above ${RATIO_LIMIT} times v0.0.12 measured on the same runner, and it fails if that reference cannot be measured.`, "",
     "| Platform | Architecture | Runner | Route | Baseline p95 ms |", "| --- | --- | --- | --- | ---: |",
     ...rows, ""].join("\n");
 }

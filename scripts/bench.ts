@@ -2,20 +2,21 @@
 // launcher, on a git copy of test/demo-repo, run the way the harness runs the hook. Every sample
 // starts a fresh session, so each one measures the same state. Internal: it is not shipped.
 // Usage: bun run bench [--runs N] [--repeat K] [--inform] [--gate <baseline>] [--only <route>]
-//        [--against <checkout> [--against-label <name>]]
+//        [--against <checkout> [--against-label <name>] [--ratio]]
 // (N ≥ 25, default 30; K ≥ 1, default 1). The 150 ms budget holds on the reference machine (O31);
 // --inform reports that miss without failing. --gate fails when the median p95 of K repeats
 // regresses more than 55% against the committed per-OS baseline. --against builds the engine of
-// another source checkout (the last release) with this toolchain, times both engines in turn on
-// every sample, and reports the ratio; it informs and fails nothing. With GITHUB_STEP_SUMMARY set,
-// the tables go there too.
+// another source checkout with this toolchain and times both engines in turn on every sample.
+// Without --ratio that reading fails nothing. --ratio fails the run when a route's p95 ratio
+// exceeds the limit, and a reference that cannot be built fails the run. With GITHUB_STEP_SUMMARY
+// set, the tables go there too.
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
 import { merge } from "../src/register.ts";
 import { ensureCompiledEngine } from "./compiled-engine.ts";
 import { confirmOnTerminal } from "./confirm-terminal.ts";
-import { decideGate, differential, formatDifferential, formatGate, median, nearestRank, parseBaseline, parseBenchArgs, type BenchOptions, type Differential } from "./latency-gate.ts";
+import { decideGate, differential, formatDifferential, formatGate, judgeRatio, median, nearestRank, parseBaseline, parseBenchArgs, type BenchOptions, type Differential } from "./latency-gate.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const BUDGET_MS = 150;      // p95 of any Pre (§4.1)
@@ -49,9 +50,10 @@ function benchIn(work: string, options: BenchOptions): number {
     console.log(JSON.stringify({ harness: options.harness, platform: process.platform, arch: process.arch, routes: stats }));
     const summary = process.env.GITHUB_STEP_SUMMARY;
     if (summary) appendFileSync(summary, markdown(stats, verdict));
-    if (options.against !== null) reportDifferential(series, options.againstLabel ?? options.against);
+    const label = options.againstLabel ?? options.against;
+    const ratio = label === null ? 0 : applyRatioIfRequested(label, reportDifferential(series, label, options.ratio), options.ratio);
     const gate = options.gate === null ? 0 : applyGate(stats, options.gate);
-    return (over.length > 0 && !options.inform) || gate !== 0 ? 1 : 0;
+    return (over.length > 0 && !options.inform) || gate !== 0 || ratio !== 0 ? 1 : 0;
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
@@ -75,14 +77,25 @@ function referenceEngine(work: string, checkout: string): string {
   return out;
 }
 
-function reportDifferential(series: Map<string, number[]>[][], label: string): void {
+function reportDifferential(series: Map<string, number[]>[][], label: string, gate: boolean): Differential[] {
   const names = [...(series[0]?.[0]?.keys() ?? [])];
   const pooled = (name: string, index: number) => series.flatMap((arms) => arms[index]!.get(name) ?? []);
   const rows: Differential[] = names.map((name) => differential(name, pooled(name, 0), pooled(name, 1)));
-  console.log(`\n${formatDifferential(label, rows)}`);
+  const text = formatDifferential(label, rows, !gate);
+  console.log(`\n${text}`);
   console.log(JSON.stringify({ platform: process.platform, arch: process.arch, against: label, differential: rows }));
   const summary = process.env.GITHUB_STEP_SUMMARY;
-  if (summary) appendFileSync(summary, ["", "```", formatDifferential(label, rows), "```", ""].join("\n"));
+  if (summary) appendFileSync(summary, ["", "```", text, "```", ""].join("\n"));
+  return rows;
+}
+
+function applyRatioIfRequested(label: string, rows: Differential[], requested: boolean): number {
+  if (!requested) return 0;
+  const judged = judgeRatio(label, rows);
+  console.log(`\n${judged.text}`);
+  const summary = process.env.GITHUB_STEP_SUMMARY;
+  if (summary) appendFileSync(summary, ["", "```", judged.text, "```", ""].join("\n"));
+  return judged.ok ? 0 : 1;
 }
 
 function selectRoutes(all: Route[], only: string[]): Route[] {
