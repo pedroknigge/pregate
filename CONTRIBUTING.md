@@ -17,6 +17,19 @@ Before submitting changes, read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) a
 4. **Latency Budget**:
    - Pre-execution hooks (`PreToolUse`, `preToolUse`, `pre_tool_use`) must remain fast (p95 $\le 150\text{ ms}$ on reference hardware).
 
+## Corrections
+
+When a correction happens, prefer this order:
+
+1. **Redesign** so the mistake cannot happen.
+2. A **lint, a type, or a test** that catches it.
+3. **Runtime verification**.
+4. **Prose**, last.
+
+A paragraph does not hold a lesson that a redesign or a check can hold. Record the correction in [`corrections.json`](corrections.json). Every entry names one test title or one rule id that already exists. `bun scripts/corrections.ts --check` fails when that id does not. The summary is the record of what was wrong. It is not the check.
+
+`bun scripts/quick-fix.ts --check` is one such lint for this repository, not a new rule pack. A `setTimeout`, `setInterval`, `sleep`, `Atomics.wait`, or a counted `attempt` / `retry` loop in `src/` is rejected. The message tells the author to fix the cause. A reviewed deadline, poll, or bound on a real condition is a row in [`scripts/quick-fix-allowlist.json`](scripts/quick-fix-allowlist.json): the file, the site the check prints, and the reason.
+
 ## Development Setup
 
 Prerequisites:
@@ -67,6 +80,8 @@ Pregate gates its own repository. Before submitting a PR, ensure both the full t
 ```sh
 bun src/main.ts check --all
 bun src/main.ts audit
+bun scripts/corrections.ts --check
+bun scripts/quick-fix.ts --check
 ```
 
 ## Pull Request Checklist
@@ -75,3 +90,4 @@ bun src/main.ts audit
 - [ ] `bun test` and `bun src/main.ts rules test catalog` pass.
 - [ ] If CLI flags, checks, methodologies, harnesses, or languages changed, run `bun scripts/docs-reference.ts` and `bun src/main.ts preset compile`. That command also refreshes the README facts block.
 - [ ] `bun src/main.ts check --all` and `bun src/main.ts audit` exit `0`.
+- [ ] A new correction is an entry in `corrections.json` whose test title or rule id already exists. `bun scripts/corrections.ts --check` and `bun scripts/quick-fix.ts --check` pass.

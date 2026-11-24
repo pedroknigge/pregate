@@ -78,6 +78,8 @@ jobs:
           bun scripts/invariant-coverage.ts --check
           bun scripts/docs-reference.ts --check
           bun scripts/catch-all-lint.ts --check
+          bun scripts/corrections.ts --check
+          bun scripts/quick-fix.ts --check
       # Real Sigstore coverage. The default suite stays offline unless this variable is set.
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
@@ -192,6 +194,10 @@ jobs:
           bun scripts/docs-reference.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun scripts/catch-all-lint.ts --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun scripts/corrections.ts --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun scripts/quick-fix.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # The demo keeps its own empty GOCACHE (no network, no user cache). Compiling this module
       # once first loads the toolchain and the standard library into the OS cache, which is the

@@ -1,0 +1,57 @@
+[
+  {
+    "file": "src/approval.ts",
+    "site": "approve: setTimeout(APPROVAL_MS)",
+    "reason": "Aborts the human approval prompt when APPROVAL_MS ends. The timer does not ask again and does not hide a failed read."
+  },
+  {
+    "file": "src/ci/command.ts",
+    "site": "watchCommand: setTimeout(intervalMs)",
+    "reason": "pregate ci wait polls provider status on the interval the operator set, until the deadline. A pending check is the state being observed. The delay does not retry a failed request."
+  },
+  {
+    "file": "src/ci/github.ts",
+    "site": "curlJson: setTimeout(25_000)",
+    "reason": "Kills curl if it is still running after 25 seconds. curl already has --max-time 20. The timer does not send the request again."
+  },
+  {
+    "file": "src/disk.ts",
+    "site": "readStdin: setTimeout(STDIN_DEADLINE_MS)",
+    "reason": "Ends the stdin read at STDIN_DEADLINE_MS when EOF does not arrive. The hook then fails closed. The timer does not read stdin again."
+  },
+  {
+    "file": "src/disk.ts",
+    "site": "whenReleased: Atomics.wait(delay)",
+    "reason": "Windows can refuse a rename or delete while an on-access scanner holds the new file. The pause waits for that handle, and a lock that outlasts waitMs still throws. Any other error is not retried."
+  },
+  {
+    "file": "src/guided-terminal.ts",
+    "site": "choose: for (let attempt = 0; attempt < 3; attempt++)",
+    "reason": "A person who types a choice outside the menu is asked at most three times, then the review cancels. The bound is the conversation. It does not retry a failed operation."
+  },
+  {
+    "file": "src/guided-terminal.ts",
+    "site": "question: setTimeout(APPROVAL_MS)",
+    "reason": "Aborts an unanswered terminal question when APPROVAL_MS ends. The timer does not ask again and does not hide a failed read."
+  },
+  {
+    "file": "src/guided-terminal.ts",
+    "site": "selectPacks: for (let attempt = 0; attempt < 3; attempt++)",
+    "reason": "A person who names a pack that is not in the list is asked at most three times, then the review cancels. The bound is the conversation. It does not retry a failed operation."
+  },
+  {
+    "file": "src/machine.ts",
+    "site": "exited: Bun.sleep(2000)",
+    "reason": "After codex app-server exits, the last stderr line is read, and the read gives up after 2 seconds if the stream never ends. The RPC is not sent again."
+  },
+  {
+    "file": "src/supervisor.ts",
+    "site": "child: setInterval(20)",
+    "reason": "The supervisor clock checks the engine deadline every 20 milliseconds and kills the child when it expires. The interval does not spawn the engine again."
+  },
+  {
+    "file": "src/write-all.ts",
+    "site": "writeAll: Atomics.wait(1)",
+    "reason": "A non-blocking pipe returns EAGAIN or EWOULDBLOCK when the reader is behind. The 1 millisecond pause yields until the pipe accepts the rest of the bytes. Any other error still throws."
+  }
+]
