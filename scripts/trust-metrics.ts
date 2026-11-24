@@ -1,14 +1,16 @@
-// Merged pull requests and reverts per ISO week, for a later decision about review on main.
+// Merged pull requests, reverts, and agent pull requests that avoided a major rewrite, per ISO week.
 //
 // Usage:
 //   bun scripts/trust-metrics.ts [--since YYYY-MM-DD] [--json] [--repo <path>] [--branch <name>]
 //
 // The default report is markdown on stdout. `--json` prints the same report as JSON.
 // History comes from `git log --first-parent` on this checkout. When `GITHUB_TOKEN` is set and
-// `origin` is a github.com repository, merged pull requests and the median time from open to
-// merge come from the GitHub REST API. The script only reads. It does not push or comment.
+// `origin` is a github.com repository, merged pull requests, the median time from open to merge,
+// and the without-rewrite rate come from the GitHub REST API. The script only sends GET. It does
+// not push or comment. Without a token, the without-rewrite rate is absent, same as the median.
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { judgeAgentPull, readSeed, rewriteLimits, type AgentSeed } from "./agent-rewrite.ts";
 
 const USAGE = "usage: trust-metrics.ts [--since YYYY-MM-DD] [--json] [--repo <path>] [--branch <name>]";
 const MAX_PULL_PAGES = 50;
@@ -24,6 +26,7 @@ const LIMITS = [
   "The median open-to-merge time is merged_at minus created_at for pull requests the GitHub API reports as merged in that week. It is absent when the API was not used. An even count uses the mean of the two central values. With pull data, merged pull request counts come from the API, not from commit subjects.",
   "The API scan reads at most 5,000 recently updated closed pull requests. When that cap stops the scan early, truncated is true.",
   "These numbers do not say who approved a change, whether review was required, or whether a revert was a product failure. A revert of a revert counts.",
+  ...rewriteLimits(),
 ];
 
 export interface CommitRecord {
@@ -39,6 +42,8 @@ export interface PullRecord {
   createdMs: number;
   mergedMs: number;
   mergeCommitSha: string | null;
+  agent: boolean;
+  majorRewrite: boolean | null;
 }
 
 export interface WeekRow {
@@ -49,6 +54,9 @@ export interface WeekRow {
   mergedPrs: number;
   reverts: number;
   revertRate: number | null;
+  agentMergedPrs: number | null;
+  unrewrittenPrs: number | null;
+  unrewrittenRate: number | null;
   medianOpenToMergeSeconds: number | null;
 }
 
@@ -66,6 +74,9 @@ export interface Report {
     mergedPrs: number;
     reverts: number;
     revertRate: number | null;
+    agentMergedPrs: number | null;
+    unrewrittenPrs: number | null;
+    unrewrittenRate: number | null;
     medianOpenToMergeSeconds: number | null;
   };
   weeks: WeekRow[];
@@ -82,6 +93,8 @@ interface WeekTally {
   commits: number;
   reverts: number;
   mergedPrs: number;
+  agentMerged: number;
+  unrewritten: number;
   durations: number[];
 }
 
@@ -164,7 +177,7 @@ function median(values: number[]): number | null {
 }
 
 function blankWeek(): WeekTally {
-  return { commits: 0, reverts: 0, mergedPrs: 0, durations: [] };
+  return { commits: 0, reverts: 0, mergedPrs: 0, agentMerged: 0, unrewritten: 0, durations: [] };
 }
 
 export function buildReport(input: {
@@ -222,6 +235,10 @@ export function buildReport(input: {
       row.mergedPrs += 1;
       const represented = (pull.mergeCommitSha !== null && revertShas.has(pull.mergeCommitSha)) || revertPulls.has(pull.number);
       if (startsWithRevertWord(pull.title) && !represented) row.reverts += 1;
+      if (pull.agent && pull.majorRewrite !== null) {
+        row.agentMerged += 1;
+        if (!pull.majorRewrite) row.unrewritten += 1;
+      }
       if (Number.isFinite(pull.createdMs) && Number.isFinite(pull.mergedMs)) row.durations.push((pull.mergedMs - pull.createdMs) / 1000);
     }
   }
@@ -253,6 +270,9 @@ export function buildReport(input: {
       mergedPrs: row.mergedPrs,
       reverts: row.reverts,
       revertRate: rate(row.reverts, row.mergedPrs),
+      agentMergedPrs: input.pulls === null ? null : row.agentMerged,
+      unrewrittenPrs: input.pulls === null ? null : row.unrewritten,
+      unrewrittenRate: input.pulls === null ? null : rate(row.unrewritten, row.agentMerged),
       medianOpenToMergeSeconds: median(row.durations),
     };
   });
@@ -260,6 +280,8 @@ export function buildReport(input: {
   const commits = rows.reduce((sum, row) => sum + row.commits, 0);
   const mergedPrs = rows.reduce((sum, row) => sum + row.mergedPrs, 0);
   const reverts = rows.reduce((sum, row) => sum + row.reverts, 0);
+  const agentMergedPrs = input.pulls === null ? null : rows.reduce((sum, row) => sum + (row.agentMergedPrs ?? 0), 0);
+  const unrewrittenPrs = input.pulls === null ? null : rows.reduce((sum, row) => sum + (row.unrewrittenPrs ?? 0), 0);
   return {
     schemaVersion: 1,
     repository: input.repository,
@@ -269,7 +291,16 @@ export function buildReport(input: {
     source: input.pulls === null ? "git" : "git+github",
     truncated: input.truncated,
     limits: LIMITS,
-    totals: { commits, mergedPrs, reverts, revertRate: rate(reverts, mergedPrs), medianOpenToMergeSeconds: median(durations) },
+    totals: {
+      commits,
+      mergedPrs,
+      reverts,
+      revertRate: rate(reverts, mergedPrs),
+      agentMergedPrs,
+      unrewrittenPrs,
+      unrewrittenRate: agentMergedPrs === null || unrewrittenPrs === null ? null : rate(unrewrittenPrs, agentMergedPrs),
+      medianOpenToMergeSeconds: median(durations),
+    },
     weeks: rows,
   };
 }
@@ -278,6 +309,11 @@ export function formatRate(reverts: number, merged: number): string {
   if (merged === 0) return "n/a";
   const shown = Math.round((reverts / merged) * 1000) / 1000;
   return `${reverts}/${merged} (${shown})`;
+}
+
+function formatOptionalRate(part: number | null, whole: number | null): string {
+  if (part === null || whole === null) return "n/a";
+  return formatRate(part, whole);
 }
 
 export function formatDuration(seconds: number | null): string {
@@ -306,10 +342,10 @@ export function renderMarkdown(report: Report): string {
     "",
     `Repository \`${report.repository}\`. Branch \`${report.branch}\`. Commits from ${since} UTC, grouped by the ISO week of the committer date. Source: ${source}. Generated ${report.generatedAt}.`,
     "",
-    "| Week | Commits to main | Merged PRs | Reverts | Revert rate | Median open to merge |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
-    ...report.weeks.map((week) => `| ${week.week} | ${week.commits} | ${week.mergedPrs} | ${week.reverts} | ${formatRate(week.reverts, week.mergedPrs)} | ${formatDuration(week.medianOpenToMergeSeconds)} |`),
-    `| Total | ${report.totals.commits} | ${report.totals.mergedPrs} | ${report.totals.reverts} | ${formatRate(report.totals.reverts, report.totals.mergedPrs)} | ${formatDuration(report.totals.medianOpenToMergeSeconds)} |`,
+    "| Week | Commits to main | Merged PRs | Reverts | Revert rate | Without rewrite | Median open to merge |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ...report.weeks.map((week) => `| ${week.week} | ${week.commits} | ${week.mergedPrs} | ${week.reverts} | ${formatRate(week.reverts, week.mergedPrs)} | ${formatOptionalRate(week.unrewrittenPrs, week.agentMergedPrs)} | ${formatDuration(week.medianOpenToMergeSeconds)} |`),
+    `| Total | ${report.totals.commits} | ${report.totals.mergedPrs} | ${report.totals.reverts} | ${formatRate(report.totals.reverts, report.totals.mergedPrs)} | ${formatOptionalRate(report.totals.unrewrittenPrs, report.totals.agentMergedPrs)} | ${formatDuration(report.totals.medianOpenToMergeSeconds)} |`,
     "",
   ];
   if (report.truncated) lines.push("The GitHub pull-request scan stopped at 5,000 closed pull requests. Later pages were not read.", "");
@@ -371,50 +407,38 @@ export function readCommits(repo: string, branch: string, sinceMs: number | null
   return commits;
 }
 
-interface ApiPull {
-  number: number;
+interface ListedPull extends AgentSeed {
   title: string;
-  created_at: string;
-  updated_at: string;
-  merged_at: string | null;
-  merge_commit_sha: string | null;
+  updatedMs: number;
+  mergeCommitSha: string | null;
 }
 
-function asPulls(value: unknown): ApiPull[] {
+function asPulls(value: unknown): ListedPull[] {
   if (!Array.isArray(value)) throw new Error("GitHub pull list was not an array");
-  const pulls: ApiPull[] = [];
+  const pulls: ListedPull[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") throw new Error("GitHub pull list had a non-object entry");
     const row = item as Record<string, unknown>;
-    const number = row.number;
+    const seed = readSeed(item);
     const title = row.title;
-    const created = row.created_at;
     const updated = row.updated_at;
-    const merged = row.merged_at;
     const sha = row.merge_commit_sha;
-    if (typeof number !== "number" || typeof title !== "string" || typeof created !== "string" || typeof updated !== "string") {
-      throw new Error("GitHub pull list was missing number, title, created_at, or updated_at");
-    }
-    if (merged !== null && typeof merged !== "string") throw new Error("GitHub pull merged_at was not a string");
-    if (sha !== null && sha !== undefined && typeof sha !== "string") throw new Error("GitHub pull merge_commit_sha was not a string");
-    pulls.push({
-      number,
-      title,
-      created_at: created,
-      updated_at: updated,
-      merged_at: typeof merged === "string" ? merged : null,
-      merge_commit_sha: typeof sha === "string" ? sha : null,
-    });
+    if (typeof title !== "string" || typeof updated !== "string") throw new Error(`pull #${seed.number} was missing title or updated_at`);
+    if (sha !== null && sha !== undefined && typeof sha !== "string") throw new Error(`pull #${seed.number} merge_commit_sha was not a string`);
+    const updatedMs = Date.parse(updated);
+    if (Number.isNaN(updatedMs)) throw new Error(`pull #${seed.number} has no updated_at`);
+    pulls.push({ ...seed, title, updatedMs, mergeCommitSha: typeof sha === "string" ? sha : null });
   }
   return pulls;
 }
 
-async function fetchPulls(remote: { owner: string; name: string }, sinceMs: number | null, auth: string): Promise<{ pulls: PullRecord[]; truncated: boolean }> {
-  const pulls: PullRecord[] = [];
+async function fetchPulls(remote: { owner: string; name: string }, sinceMs: number | null, auth: string): Promise<{ pulls: ListedPull[]; truncated: boolean }> {
+  const pulls: ListedPull[] = [];
   const seen = new Set<number>();
   for (let page = 1; page <= MAX_PULL_PAGES; page += 1) {
     const url = `https://api.github.com/repos/${encodeURIComponent(remote.owner)}/${encodeURIComponent(remote.name)}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`;
     const response = await fetch(url, {
+      method: "GET",
       headers: {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${auth}`,
@@ -431,20 +455,11 @@ async function fetchPulls(remote: { owner: string; name: string }, sinceMs: numb
     if (batch.length === 0) return { pulls, truncated: false };
     let oldest = Number.POSITIVE_INFINITY;
     for (const pull of batch) {
-      const updated = Date.parse(pull.updated_at);
-      if (!Number.isNaN(updated) && updated < oldest) oldest = updated;
-      if (!pull.merged_at || seen.has(pull.number)) continue;
-      const mergedMs = Date.parse(pull.merged_at);
-      if (Number.isNaN(mergedMs) || (sinceMs !== null && mergedMs < sinceMs)) continue;
+      if (pull.updatedMs < oldest) oldest = pull.updatedMs;
+      if (pull.mergedMs === null || seen.has(pull.number)) continue;
+      if (sinceMs !== null && pull.mergedMs < sinceMs) continue;
       seen.add(pull.number);
-      const createdMs = Date.parse(pull.created_at);
-      pulls.push({
-        number: pull.number,
-        title: pull.title,
-        createdMs: Number.isNaN(createdMs) ? Number.NaN : createdMs,
-        mergedMs,
-        mergeCommitSha: pull.merge_commit_sha,
-      });
+      pulls.push(pull);
     }
     const more = batch.length === 100 && (sinceMs === null || oldest >= sinceMs);
     if (!more) return { pulls, truncated: false };
@@ -488,8 +503,22 @@ async function main(): Promise<void> {
   let truncated = false;
   if (auth && remote) {
     const fetched = await fetchPulls(remote, sinceMs, auth);
-    pulls = fetched.pulls;
     truncated = fetched.truncated;
+    const judged: PullRecord[] = [];
+    for (const listed of fetched.pulls) {
+      if (listed.mergedMs === null) continue;
+      const result = await judgeAgentPull(remote, listed, auth);
+      judged.push({
+        number: listed.number,
+        title: listed.title,
+        createdMs: listed.createdMs,
+        mergedMs: listed.mergedMs,
+        mergeCommitSha: listed.mergeCommitSha,
+        agent: result.agent,
+        majorRewrite: result.majorRewrite,
+      });
+    }
+    pulls = judged;
   }
   const repository = remote ? `${remote.owner}/${remote.name}` : options.repo;
   const report = buildReport({
@@ -502,7 +531,8 @@ async function main(): Promise<void> {
     truncated,
   });
   process.stdout.write(options.json ? renderJson(report) : renderMarkdown(report));
-  console.error(`trust: ${report.weeks.length} weeks, ${report.totals.mergedPrs} merged PRs, ${report.totals.reverts} reverts, source ${report.source}`);
+  const share = formatOptionalRate(report.totals.unrewrittenPrs, report.totals.agentMergedPrs);
+  console.error(`trust: ${report.weeks.length} weeks, ${report.totals.mergedPrs} merged PRs, ${report.totals.reverts} reverts, without rewrite ${share}, source ${report.source}`);
 }
 
 if (import.meta.main) {
