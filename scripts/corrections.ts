@@ -1,15 +1,14 @@
 // A correction stays in this repository only when it names a test title or a rule id
 // that already exists. A renamed test or a deleted rule makes the entry fail.
 // The summary is the record. It does not satisfy the check.
-import { Lang, parse, type SgNode } from "@ast-grep/napi";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, sep } from "node:path";
+import { titlesIn, walkFiles } from "./test-titles.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const LEDGER = "corrections.json";
 const FIELDS = new Set(["id", "summary", "source", "test", "rule"]);
 const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const WRAP = new Set(["as_expression", "satisfies_expression", "parenthesized_expression", "non_null_expression"]);
 
 export interface ReferenceIndex {
   tests: ReadonlySet<string>;
@@ -35,15 +34,11 @@ export function reviewLedger(raw: string, index: ReferenceIndex): string[] {
 
 export function referenceIndex(root = ROOT): ReferenceIndex {
   const tests = new Set<string>();
-  for (const path of walk(join(root, "test"), (name) => name.endsWith(".test.ts"))) {
-    const rootNode = parse(Lang.TypeScript, readFileSync(path, "utf8")).root();
-    for (const call of rootNode.findAll({ rule: { kind: "call_expression" } })) {
-      const title = testTitle(call);
-      if (title !== null) tests.add(title);
-    }
+  for (const path of walkFiles(join(root, "test"), (name) => name.endsWith(".test.ts"))) {
+    for (const title of titlesIn(readFileSync(path, "utf8"))) tests.add(title);
   }
   const rules = new Set<string>();
-  for (const path of [...walk(join(root, "catalog"), isRuleFile), ...walk(join(root, "packs"), isRuleFile)]) {
+  for (const path of [...walkFiles(join(root, "catalog"), isRuleFile), ...walkFiles(join(root, "packs"), isRuleFile)]) {
     const rel = path.slice(root.length + 1).replaceAll("\\", "/");
     const data = JSON.parse(readFileSync(path, "utf8")) as { id?: unknown; invariants?: { id?: unknown }[] };
     if (rel.endsWith("/check.json")) {
@@ -87,45 +82,8 @@ function entryProblems(row: unknown, at: number, seen: Set<string>, index: Refer
   return problems;
 }
 
-function testTitle(call: SgNode): string | null {
-  const callee = field(call, "function");
-  if (callee === null) return null;
-  const name = callee.text();
-  if (name !== "test" && name !== "it" && !name.startsWith("test.") && !name.startsWith("it.")) return null;
-  return literal(field(call, "arguments")?.namedChildren()[0] ?? null);
-}
-
-function literal(node: SgNode | null): string | null {
-  while (node !== null && WRAP.has(String(node.kind()))) node = node.namedChildren()[0] ?? null;
-  if (node === null || node.kind() !== "string") return null;
-  const raw = node.text();
-  if (raw.startsWith("\"")) {
-    try {
-      const value = JSON.parse(raw) as unknown;
-      return typeof value === "string" ? value : null;
-    } catch { return null; }
-  }
-  if (raw.startsWith("'") && raw.endsWith("'") && raw.length >= 2) {
-    return raw.slice(1, -1).replaceAll("\\'", "'").replaceAll("\\\\", "\\");
-  }
-  return null;
-}
-
-function field(node: SgNode, name: string): SgNode | null {
-  return (node as { field(name: string): SgNode | null }).field(name);
-}
-
 function isRuleFile(name: string, dir: string): boolean {
   return name === "check.json" || (dir.endsWith(`${sep}methodologies`) && name.endsWith(".json"));
-}
-
-function walk(dir: string, keep: (name: string, dir: string) => boolean): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "vendor" || entry.name === "fixtures") return [];
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return walk(path, keep);
-    return keep(entry.name, dir) ? [path] : [];
-  });
 }
 
 if (import.meta.main) {

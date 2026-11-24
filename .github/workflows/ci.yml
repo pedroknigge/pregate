@@ -79,6 +79,7 @@ jobs:
           bun scripts/docs-reference.ts --check
           bun scripts/catch-all-lint.ts --check
           bun scripts/corrections.ts --check
+          bun scripts/feature-map.ts --check
           bun scripts/quick-fix.ts --check
       # Real Sigstore coverage. The default suite stays offline unless this variable is set.
       - name: Install cosign
@@ -196,6 +197,8 @@ jobs:
           bun scripts/catch-all-lint.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun scripts/corrections.ts --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun scripts/feature-map.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun scripts/quick-fix.ts --check
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
