@@ -1,0 +1,238 @@
+{
+  "features": [
+    {
+      "id": "guide",
+      "summary": "Opens the project guide. It can preview a contract and detect an ArkGate config. It does not enable a project by itself.",
+      "cli": "guide",
+      "test": "guide on a new project detects ark.config.json and includes the import"
+    },
+    {
+      "id": "status",
+      "summary": "Prints whether this directory is enforced. Before pregate enable it says nothing is enforced. It does not turn enforcement on.",
+      "cli": "status",
+      "test": "status and doctor lead with enforced, advisor and unverified rules on a mixed contract"
+    },
+    {
+      "id": "approve",
+      "summary": "Applies a reviewed digest when the human gives the code. A bare approve with no terminal leaves the proposal. It is not how a project becomes enabled.",
+      "cli": "approve",
+      "test": "a detached approve with piped stdin names the root and command and leaves the proposal"
+    },
+    {
+      "id": "enable",
+      "summary": "Records consent for this worktree. Hooks enforce a project only after this command. A directory that never ran it stays open.",
+      "cli": "enable",
+      "scenario": "Enable and disable"
+    },
+    {
+      "id": "disable",
+      "summary": "Withdraws consent for this worktree, or the whole project with --project. Hooks stop enforcing here. Other enabled projects stay as they were.",
+      "cli": "disable",
+      "scenario": "Enable and disable"
+    },
+    {
+      "id": "check",
+      "summary": "Evaluates the contract for the project or for one file on stdin. A hook still blocks a tool only where pregate enable ran.",
+      "cli": "check",
+      "test": "stdin check denies indirect eval and allows names that only contain those letters"
+    },
+    {
+      "id": "audit",
+      "summary": "Reports findings for the repository under the live policy. It does not enable the project. A hook blocks work only where pregate enable ran.",
+      "cli": "audit",
+      "test": "a declaration file with an import type query audits clean"
+    },
+    {
+      "id": "promote",
+      "summary": "Moves a reviewed rule to enforce through a preview and an approval. The ratchet keeps an existing finding. Promotion does not enable a project that never ran pregate enable.",
+      "cli": "promote",
+      "test": "promote moves dirty CA-DEP-001 to enforce; the ratchet keeps the old finding and denies a new one"
+    },
+    {
+      "id": "fitness",
+      "summary": "Reports whether adopted project assertions pass. With no contract it refuses. After enable, unbound requirements stay unverified and the lock is unchanged.",
+      "cli": "fitness",
+      "scenario": "Fitness status"
+    },
+    {
+      "id": "init",
+      "summary": "Writes the contract and, with --yes and unattended approval already set, activates consent. Ordinary rules stay in shadow. A second directory is not enabled by this one.",
+      "cli": "init",
+      "test": "init recommends %s and approval preserves shadow debt inventory"
+    },
+    {
+      "id": "scan",
+      "summary": "Recommends packs from the files it sees, including a JSON plan. It does not enable the project or select those packs.",
+      "cli": "scan",
+      "test": "scan --json recommends hono for an app and not for docs, examples, or fixtures"
+    },
+    {
+      "id": "layers",
+      "summary": "Shows or previews a layer map. Applying it is a reviewed change. It does not enable enforcement in a directory that never ran pregate enable.",
+      "cli": "layers",
+      "test": "one terminal approval activates a new repo with layers and compiled project rules"
+    },
+    {
+      "id": "import",
+      "summary": "Previews an ArkGate config as a Pregate contract. The human approves before it applies. Import does not enable some other directory.",
+      "cli": "import",
+      "test": "import preview, human approval, and a rule ArkGate owns is not reported twice"
+    },
+    {
+      "id": "demo",
+      "summary": "Runs an isolated sample, or refuses an unknown language without creating one. The sample is not the caller's project. Refusing a language does not enable anything.",
+      "cli": "demo",
+      "scenario": "Demo"
+    },
+    {
+      "id": "report",
+      "summary": "Prints session baselines and findings for the project. A clean check does not erase a Stop finding. The report does not enable a project.",
+      "cli": "report",
+      "test": "compiled hooks and report retain the session baseline after committing a violation"
+    },
+    {
+      "id": "session",
+      "summary": "Previews a new session baseline, or refuses when this project has none. The lock stays unchanged. A directory with no contract is not rebased.",
+      "cli": "session",
+      "scenario": "Session rebase"
+    },
+    {
+      "id": "feedback",
+      "summary": "Drafts a local judgment of a finding. Applying it is a reviewed digest. Feedback does not enable a project that never ran pregate enable.",
+      "cli": "feedback",
+      "test": "human feedback is local, digest-reviewed, reportable and deliberately replaceable"
+    },
+    {
+      "id": "storage",
+      "summary": "Inspects local session storage and previews recovery of an abandoned lease. Apply is a reviewed command. It does not enable enforcement.",
+      "cli": "storage",
+      "test": "reviewed recovery removes a killed writer's lease without source or counter changes"
+    },
+    {
+      "id": "dispute",
+      "summary": "Drafts a fixture from a recorded denial, or says this repository has none. The active contract stays unchanged. A directory with no preset is not disputed.",
+      "cli": "dispute",
+      "scenario": "Dispute"
+    },
+    {
+      "id": "issue",
+      "summary": "Drafts an offline issue from a recorded event and submits only the approved body. It does not enable the project.",
+      "cli": "issue",
+      "test": "compiled issue reporting offers an offline review and sends only the approved body through gh"
+    },
+    {
+      "id": "pack",
+      "summary": "Lists, shows, and enables a methodology through a review. The hook denies an agent pack enable after pregate enable. A project that was never enabled does not start enforcing that methodology.",
+      "cli": "pack",
+      "scenario": "Pack enable"
+    },
+    {
+      "id": "explain",
+      "summary": "Prints why a rule exists, or what a path is judged by. It does not change the contract and it does not enable a project.",
+      "cli": "explain",
+      "test": "Prisma 7 client breaks deny or warn through the hook and CLI, and Prisma 6 does not"
+    },
+    {
+      "id": "preset",
+      "summary": "Shows, compiles, and applies the contract. Apply validates and asks before it writes. Compiling does not enable a second project.",
+      "cli": "preset",
+      "test": "D29: preset apply validates and prompts before changing the contract"
+    },
+    {
+      "id": "rules",
+      "summary": "Runs a check's fixtures, or drafts a rule. Passing fixtures does not enable the project those fixtures describe.",
+      "cli": "rules",
+      "test": "pack fixtures pass through the compiled CLI"
+    },
+    {
+      "id": "compile",
+      "summary": "Turns a rules document into a proposal or a template. Applying it is a preview the human approves. It does not enable a project by itself.",
+      "cli": "compile",
+      "test": "one terminal approval activates a new repo with layers and compiled project rules"
+    },
+    {
+      "id": "install",
+      "summary": "Writes the selected Git hook or CI backstop. Running it twice leaves the same settings. Install does not record pregate enable.",
+      "cli": "install",
+      "test": "install run twice writes the same settings"
+    },
+    {
+      "id": "ci",
+      "summary": "Reads GitHub Actions or Vercel status for a commit and can wait for it. It does not enable a project and it does not change the contract.",
+      "cli": "ci",
+      "test": "the compiled binary recognizes Vercel statuses and check runs, with and without Actions"
+    },
+    {
+      "id": "setup",
+      "summary": "Installs the engine, launcher, and harness hooks on this machine. A project stays unenforced until pregate enable runs there.",
+      "cli": "setup",
+      "test": "D25: setup installs versioned skills; doctor detects missing/stale copies; uninstall removes them"
+    },
+    {
+      "id": "prepare",
+      "summary": "Installs a verified engine into the cache without registering harnesses or writing a launcher. It does not enable a project.",
+      "cli": "prepare",
+      "test": "installs a verified engine into the cache without changing harness homes, skills, launcher, link or profiles"
+    },
+    {
+      "id": "project",
+      "summary": "Writes a project launcher or project hooks, and can set up the Claude hook in the repo. Those files do not enforce a checkout that never ran pregate enable.",
+      "cli": "project",
+      "test": "setup is byte-idempotent, preserves foreign hooks, leaves HOME untouched, and denies only after policy consent"
+    },
+    {
+      "id": "update",
+      "summary": "Installs an engine and can prepare a project review without applying it. The old engine stays until that review is approved. Update does not enable a new directory.",
+      "cli": "update",
+      "test": "the engine lands and warms up before the launcher names it; then that engine's setup runs; the old engine stays"
+    },
+    {
+      "id": "uninstall",
+      "summary": "Removes the machine hooks, launcher, and engines after the same confirmation as disable. Projects are not enforced again until setup and enable.",
+      "cli": "uninstall",
+      "test": "--purge also removes the state; a link that is not ours stays"
+    },
+    {
+      "id": "doctor",
+      "summary": "Reads harness homes, hook files, and consent for this directory. In a home with no harness it says consent is inactive. It does not run pregate enable.",
+      "cli": "doctor",
+      "scenario": "Doctor"
+    },
+    {
+      "id": "help",
+      "summary": "Prints the command list. The long help flag before initialization still lists pack categories. It does not enable a project.",
+      "cli": "--help",
+      "test": "the compiled library is discoverable and its fixtures run offline before initialization"
+    },
+    {
+      "id": "help-short",
+      "summary": "Prints the same command list as the long help flag. It does not enable a project or change the contract.",
+      "cli": "-h",
+      "test": "the compiled library is discoverable and its fixtures run offline before initialization"
+    },
+    {
+      "id": "version",
+      "summary": "Prints the engine version and the core version. It does not enable a project.",
+      "cli": "--version",
+      "test": "a fresh clone has no node_modules entry, no symlink outside the repo, and prints the package version"
+    },
+    {
+      "id": "hook",
+      "summary": "The entry a harness hook executes. Inside an enabled project it can deny a tool. A directory that never ran pregate enable is allowed, including a hook bypass.",
+      "cli": "hook",
+      "test": "hook pre denies interpreter, script, Makefile and harness-settings bypasses"
+    },
+    {
+      "id": "edit-gate",
+      "summary": "Cursor Write on preToolUse. After enable, a control-text script and a preset replace are denied and the files stay put. The same kind of write is not blocked before enable.",
+      "hook": { "harness": "cursor", "event": "preToolUse", "tool": "Write" },
+      "scenario": "Edit gate"
+    },
+    {
+      "id": "shell-gate",
+      "summary": "Cursor Shell on preToolUse. After enable, a hook bypass and a node write are denied and not executed. That bypass is allowed before pregate enable.",
+      "hook": { "harness": "cursor", "event": "preToolUse", "tool": "Shell" },
+      "scenario": "Shell gate"
+    }
+  ]
+}

@@ -81,6 +81,7 @@ Pregate gates its own repository. Before submitting a PR, ensure both the full t
 bun src/main.ts check --all
 bun src/main.ts audit
 bun scripts/corrections.ts --check
+bun scripts/feature-map.ts --check
 bun scripts/quick-fix.ts --check
 ```
 
@@ -90,4 +91,4 @@ bun scripts/quick-fix.ts --check
 - [ ] `bun test` and `bun src/main.ts rules test catalog` pass.
 - [ ] If CLI flags, checks, methodologies, harnesses, or languages changed, run `bun scripts/docs-reference.ts` and `bun src/main.ts preset compile`. That command also refreshes the README facts block.
 - [ ] `bun src/main.ts check --all` and `bun src/main.ts audit` exit `0`.
-- [ ] A new correction is an entry in `corrections.json` whose test title or rule id already exists. `bun scripts/corrections.ts --check` and `bun scripts/quick-fix.ts --check` pass.
+- [ ] A new correction is an entry in `corrections.json` whose test title or rule id already exists. `bun scripts/corrections.ts --check`, `bun scripts/feature-map.ts --check`, and `bun scripts/quick-fix.ts --check` pass. A new CLI command is a row in `feature-map.json` whose proof already exists.

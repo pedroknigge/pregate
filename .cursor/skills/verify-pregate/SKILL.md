@@ -86,6 +86,8 @@ if printf '%s\n' "$status_text" | grep -F "Nothing is enforced"; then
 fi
 ```
 
+After enable, and before the edit gate, run [features/fitness.md](features/fitness.md), [features/session-rebase.md](features/session-rebase.md), and [features/dispute.md](features/dispute.md). [features/demo.md](features/demo.md) does not use `$repo` and can run at any time after Launch. Each file prints one line for the pull request. None of those commands enable a project. A directory with no contract is refused. Dispute in particular has to run before a denial is recorded, or `pregate dispute --last` drafts a fixture.
+
 Hook entry, after enable. Cursor Shell with an empty `cwd` and one `workspace_roots` entry is the workspace root ([src/harness/cursor.ts](../../../src/harness/cursor.ts)). `pregate status` is allowed in an enabled project ([docs/guarantees.md](../../../docs/guarantees.md)).
 
 ```sh
@@ -176,7 +178,23 @@ proof="$checkout/evidence/$version/skill-proof.md"
   printf '\n%s\n' "Side effect: notes/agent-pass.txt was written after allow."
 } > "$proof"
 test -s "$proof"
+pr="$checkout/evidence/$version/pr-summary.md"
+{
+  printf '%s\n' "## Verify Pregate"
+  printf '\n'
+  printf '%s\n' "- Binary: $("$PREGATE" --version)."
+  printf '%s\n' "- Repository: sindresorhus/ky at 3541888878c4d303a8bc2ad61815f4e048f55a5d. Consent is active only in that clone."
+  printf '%s\n' "- Doctor: isolated home, no harness, local consent inactive."
+  printf '%s\n' "- Shell script write: deny, scripts/agent-disable.sh absent."
+  printf '%s\n' "- Preset replace: deny, .pregate/preset.json SHA-256 unchanged."
+  printf '%s\n' "- Note: allow, notes/agent-pass.txt written after allow."
+  printf '\n'
+  printf '%s\n' "Paste this file into the pull request body. Under it, paste the one line each feature file printed for fitness status, demo, session rebase, and dispute."
+} > "$pr"
+test -s "$pr"
 ```
+
+Pull-request CI does not run this skill and does not clone the fixture. It does run `bun scripts/feature-map.ts --check`, which appends the feature map to the job summary. Paste `$pr` anyway so the review shows this drive.
 
 ## Cleanup
 
@@ -186,6 +204,7 @@ Remove the temporary root. The scratch clone lives under `$verify_root/tmp`, so 
 rm -rf "$verify_root"
 test ! -e "$verify_root"
 test -s "$proof"
+test -s "$pr"
 printf '\nEvidence file remains after cleanup.\n' >> "$proof"
 export HOME="$original_home"
 export PATH="$original_path"
@@ -206,5 +225,7 @@ bun scripts/real-repo-evidence.ts --out "evidence/$(bun -p 'require("./package.j
 ```
 
 `--repo` selects a name from the pinned `REPOS` array. The default run clones all five, writes `evidence/<package version>/real-repos.md` and `real-repos.json`, then deletes its temporary HOME. A false positive, a false negative, a witness that changed on deny, or an enable that did not stick exits 1 after the report is written.
+
+The feature map is [feature-map.json](../../../feature-map.json). `bun scripts/feature-map.ts --check` fails when a CLI command is missing or a proof does not resolve. `bun scripts/feature-map.ts --summary` prints the table to paste beside `$pr`.
 
 Feature notes: [features/README.md](features/README.md).
