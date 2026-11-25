@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.1`. Category: **library**.
+Version: `1.3.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -176,7 +176,7 @@ Source metadata:
 
 ## trpc/router
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **complete**.
 
 ### trpc/TRPC-PROC-001
 
@@ -399,5 +399,47 @@ Source metadata:
   "work": "tRPC documentation, Middlewares (trpc.io)",
   "locator": "https://trpc.io/docs/server/middlewares",
   "paraphrase": "A tRPC middleware must return the result of calling next() (or await next(), inspect the result, and return it) so the procedure response and context reach the caller."
+}
+```
+
+### trpc/TRPC-PIN-001
+
+Check: [`trpc/supply/require-server-pin@1.0.0`](checks/supply/require-server-pin/check.json). Default severity: **warn**.
+
+Implementation: `dependency-pin`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `trpc.supply.server-pin`. Minimum severity: `none`.
+
+A pin that can still install @trpc/server 11.0.0 up to but not including 11.29.11 keeps the unauthenticated WebSocket crash, and from 11.8.1 the FormData prototype pollution, even when the call sites look safe.
+
+Default parameters: `{"package":"@trpc/server","introduced":"11.0.0","fixed":"11.29.11"}`.
+
+**Repair:** Upgrade @trpc/server to >=11.29.11.
+
+**Scope and limits:** The warning is a pin that can install @trpc/server >=11.0.0 and <11.29.11, from dependencies, devDependencies, peerDependencies, or optionalDependencies, or a resolved lockfile version in that range. A range entirely below 11.0.0, a pin at >=11.29.11, and an unreadable spec such as *, latest, or a git URL do not warn. @trpc/client and other package names are not this package. 10.x is outside GHSA-wx68-jchj-87rh; @trpc/next 10.x in GHSA-pmm4-m3wj-qm6r has no patched release. The check reads package.json, package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, yarn.lock, and bun.lock.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "package": {
+    "const": "@trpc/server"
+  },
+  "introduced": {
+    "const": "11.0.0"
+  },
+  "fixed": {
+    "const": "11.29.11"
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "tRPC security advisories GHSA-wx68-jchj-87rh and GHSA-pmm4-m3wj-qm6r, fixed in @trpc/server 11.29.11",
+  "locator": "https://github.com/trpc/trpc/security/advisories/GHSA-wx68-jchj-87rh",
+  "paraphrase": "@trpc/server from 11.0.0 before 11.29.11 crashes a WebSocket server on a malformed Host header or request path (GHSA-wx68-jchj-87rh, high, published 2026-11-23). The same 11.29.11 release stops formDataToObject from reaching built-in prototypes (GHSA-pmm4-m3wj-qm6r, moderate, @trpc/server >=11.8.1 and <11.29.11, https://github.com/trpc/trpc/security/advisories/GHSA-pmm4-m3wj-qm6r)."
 }
 ```

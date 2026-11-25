@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@trpc/server": "11.29.11",
+    "@trpc/client": "11.29.10"
+  }
+}

@@ -30,11 +30,12 @@ Ready-made combinations live in `packs/presets/`.
 | `TRPC-DEV-001` | `isDev: true` in `initTRPC...create({...})` outside test files. | Stack traces reach every client in production. | warn |
 | `TRPC-CODE-001` | `new TRPCError({ code })` with a numeric HTTP status or unknown literal string. | Unknown error codes fall back to 500 `INTERNAL_SERVER_ERROR` and break typed client handling. | deny |
 | `TRPC-RET-NEXT-001` | A `.middleware(` or `.use(` callback that calls `next(...)` or `await next(...)` as a bare statement without returning or capturing it. | Discarding the `next()` result drops the procedure response and returns `undefined`. | deny |
+| `TRPC-PIN-001` | `package.json` or a lockfile pins `@trpc/server` at >=11.0.0 and <11.29.11. | That range includes the WebSocket Host-header crash (GHSA-wx68-jchj-87rh) and, from 11.8.1, the FormData prototype pollution (GHSA-pmm4-m3wj-qm6r). Both are fixed in 11.29.11. | warn |
 
 ## Methodologies
 
 - `trpc/client` — TRPC-BATCH-001, TRPC-ERR-001, TRPC-CTX-001, TRPC-CALLER-001, TRPC-DEV-001
-- `trpc/router` — TRPC-PROC-001, TRPC-INPUT-001, TRPC-OUTPUT-001, TRPC-MUT-001, TRPC-SELFCALL-001, TRPC-CODE-001, TRPC-RET-NEXT-001
+- `trpc/router` — TRPC-PROC-001, TRPC-INPUT-001, TRPC-OUTPUT-001, TRPC-MUT-001, TRPC-SELFCALL-001, TRPC-CODE-001, TRPC-RET-NEXT-001, TRPC-PIN-001
 
 Non-decidable practices from the same sources are in `BACKLOG.md`.
 
@@ -44,7 +45,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.1`. 12 distinct check IDs.
+Category: **library**. Version: `1.3.0`. 13 distinct check IDs.
 
 Methodologies: `trpc/client` (complete), `trpc/router` (complete).
 

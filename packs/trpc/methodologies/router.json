@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "trpc/router",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "status": "complete",
   "conflicts": [],
   "invariants": [
@@ -129,6 +129,28 @@
       "examples": {
         "pass": "pass/return-next",
         "fail": "fail/bare-next-statement"
+      }
+    },
+    {
+      "id": "TRPC-PIN-001",
+      "check": "trpc/supply/require-server-pin",
+      "defaults": {
+        "package": "@trpc/server",
+        "introduced": "11.0.0",
+        "fixed": "11.29.11"
+      },
+      "severity": "warn",
+      "source": {
+        "work": "tRPC security advisories GHSA-wx68-jchj-87rh and GHSA-pmm4-m3wj-qm6r, fixed in @trpc/server 11.29.11",
+        "locator": "https://github.com/trpc/trpc/security/advisories/GHSA-wx68-jchj-87rh",
+        "paraphrase": "@trpc/server from 11.0.0 before 11.29.11 crashes a WebSocket server on a malformed Host header or request path (GHSA-wx68-jchj-87rh, high, published 2026-11-23). The same 11.29.11 release stops formDataToObject from reaching built-in prototypes (GHSA-pmm4-m3wj-qm6r, moderate, @trpc/server >=11.8.1 and <11.29.11, https://github.com/trpc/trpc/security/advisories/GHSA-pmm4-m3wj-qm6r)."
+      },
+      "why": "A pin that can still install @trpc/server 11.0.0 up to but not including 11.29.11 keeps the unauthenticated WebSocket crash, and from 11.8.1 the FormData prototype pollution, even when the call sites look safe.",
+      "fixHint": "Upgrade @trpc/server to >=11.29.11.",
+      "avoid": "The warning is a pin that can install @trpc/server >=11.0.0 and <11.29.11, from dependencies, devDependencies, peerDependencies, or optionalDependencies, or a resolved lockfile version in that range. A range entirely below 11.0.0, a pin at >=11.29.11, and an unreadable spec such as *, latest, or a git URL do not warn. @trpc/client and other package names are not this package. 10.x is outside GHSA-wx68-jchj-87rh; @trpc/next 10.x in GHSA-pmm4-m3wj-qm6r has no patched release. The check reads package.json, package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, yarn.lock, and bun.lock.",
+      "examples": {
+        "pass": "pass/fixed-exact",
+        "fail": "fail/exact-vulnerable"
       }
     }
   ]

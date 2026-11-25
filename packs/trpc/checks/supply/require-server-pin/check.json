@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "trpc/supply/require-server-pin",
+  "version": "1.0.0",
+  "area": "supply",
+  "cardinality": "singleton",
+  "dimension": "trpc.supply.server-pin",
+  "minSeverity": null,
+  "params": {
+    "package": { "const": "@trpc/server" },
+    "introduced": { "const": "11.0.0" },
+    "fixed": { "const": "11.29.11" }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "dependency-pin"
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "@trpc/server is pinned in the GHSA-wx68-jchj-87rh range (versions >=11.0.0 and <11.29.11). Upgrade @trpc/server to >=11.29.11."
+  }
+}
