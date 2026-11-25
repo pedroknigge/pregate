@@ -39,9 +39,15 @@ After approval:
 
 ```sh
 pregate status
+pregate enable
 pregate audit
 pregate pack list
 ```
+
+`pregate enable` is also where folders that produce false positives are
+reviewed. It prints each candidate and, once you accept, writes the globs into
+`scope.exclude`. A later audit proposes only folders that were not in that
+list. See [folders left out of analysis](onboarding-scope.md#folders-left-out-of-analysis).
 
 Status checks effective protection, including the installation and harness hooks.
 If they are missing, run the human setup command `pregate setup`. Local consent
