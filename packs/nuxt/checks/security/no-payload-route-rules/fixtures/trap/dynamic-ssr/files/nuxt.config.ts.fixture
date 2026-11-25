@@ -1,0 +1,6 @@
+export default defineNuxtConfig({
+  routeRules: {
+    "/**": { cache: true },
+    "/users/:id/billing": { ssr: false },
+  },
+})

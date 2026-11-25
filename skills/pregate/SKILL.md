@@ -885,7 +885,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `next-website@1.0.0` — library: `next-website/readiness` (preview)
 - `nextjs@1.5.0` — library: `nextjs/rendering` (complete), `nextjs/routing` (complete)
 - `node@1.5.0` — library: `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete)
-- `nuxt@1.2.0` — library: `nuxt/data` (complete), `nuxt/server` (complete)
+- `nuxt@1.3.0` — library: `nuxt/data` (complete), `nuxt/security` (complete), `nuxt/server` (complete)
 - `postgres@1.2.0` — library: `postgres/client` (complete), `postgres/safety` (complete)
 - `prisma@1.3.0` — library: `prisma/client` (complete), `prisma/writes` (complete)
 - `pstack@1.2.0` — process: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview)

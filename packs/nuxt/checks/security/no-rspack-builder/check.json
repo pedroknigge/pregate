@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nuxt/security/no-rspack-builder",
+  "version": "1.0.0",
+  "area": "security",
+  "cardinality": "singleton",
+  "dimension": "nuxt.security.rspack-builder",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "rspack-builder",
+          "since": {
+            "dependencies": [
+              "nuxt"
+            ],
+            "version": "4.7.0"
+          },
+          "files": [
+            "**/nuxt.config.{ts,mts,cts,js,mjs,cjs}"
+          ],
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^['\"]?builder['\"]?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "regex": "^['\"`]rspack['\"`](?:\\s+as\\s+const)?$"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "builder: 'rspack' is deprecated in Nuxt 4.7.0. Use builder: 'rsbuild' (@nuxt/rsbuild-builder)."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "nuxt.config.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "quoted-dynamic-route",
+    "origin": "forge",
+    "discovered": "2026-11-25",
+    "note": "Double-quoted '/**' with cache: true and a dynamic path that sets ssr: false is the same payload bypass as a single-quoted redirect."
+  }
+}

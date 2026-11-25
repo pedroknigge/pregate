@@ -1,6 +1,6 @@
 # nuxt
 
-Data-only rule pack for Nuxt 3 TypeScript projects. Source version **1.0.0**. Every check is a syntax pattern over the `typescript` grammar (`.ts` fixtures only); no executable code, no `.vue` grammar.
+Data-only rule pack for Nuxt 4 TypeScript projects. Source version **1.3.0**. Syntax checks use the `typescript` grammar (`.ts` fixtures only); the version pin reads `package.json` and lockfiles. No executable code, no `.vue` grammar. Nuxt 3 has no patched line for the advisories fixed in 4.7.0.
 
 ## Stance
 
@@ -31,15 +31,19 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 | `NUXT-NAV-001` | A `navigateTo(...)` or `abortNavigation(...)` statement that is neither awaited nor returned. | Middleware only redirects or cancels when the result is returned; a floating call lets the guarded page render. | deny |
 | `NUXT-ASYNC-001` | A block-bodied `useAsyncData`/`useLazyAsyncData` handler with no valued `return`. | The handler must return a truthy value, or the client refetches during hydration. | deny |
 | `NUXT-META-001` | `process.browser/client/dev/server/test` in app code. | Soft-deprecated since Nuxt 3.12; use the `import.meta` flags. | warn |
+| `NUXT-PIN-001` | `nuxt` in `package.json` or a lockfile can install >=3.0.0 and <4.7.0. | GHSA-jxc9-w3j6-pwp2, GHSA-vrh2-cfcx-c3fg, and GHSA-h5xj-x893-p5f7 are fixed only in 4.7.0. Nuxt 3 has no patched line. | warn |
+| `NUXT-RULES-001` | `routeRules` in `nuxt.config` that cache `'/**'` beside a page rule whose path does not end in `/**`, when `nuxt` is below 4.7.0. | That page's `/_payload.json` skips redirect, proxy, headers, cors, `ssr: false`, and cache exclusions (GHSA-jxc9-w3j6-pwp2). | warn |
+| `NUXT-BUILDER-001` | `builder: 'rspack'` in `nuxt.config` when `nuxt` is >= 4.7.0. | Deprecated in 4.7.0 in favour of `builder: 'rsbuild'`. | warn |
 
 ## Methodologies
 
 - `nuxt/server` — NUXT-SERVER-001, NUXT-VALID-001, NUXT-URL-001, NUXT-CTX-001
 - `nuxt/data` — NUXT-FETCH-001, NUXT-ENV-001, NUXT-STATE-001, NUXT-HYDR-001, NUXT-NAV-001, NUXT-ASYNC-001, NUXT-META-001
+- `nuxt/security` — NUXT-PIN-001, NUXT-RULES-001, NUXT-BUILDER-001. Not part of any bundled preset. Select it with `pregate pack enable nuxt/security`.
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/nuxt` runs **59** real fixtures (at least 2 pass + 2 fail + 1 trap per check). Every trap fails as required: dynamic server imports, member-call fetch, bracket env access, generic-only `useState`, size-limit-without-schema bodies, deferred `Date.now`, loopback absolute URLs, `context`-aliased scope exports, an unreturned `abortNavigation` on an `if` arm, an `useAsyncData` handler whose only `return` is in a nested callback, and the Nuxt 2 `process.browser` flag.
+`pregate rules test packs/nuxt` runs **79** real fixtures (at least 2 pass + 2 fail + 1 trap per check). Every trap fails as required: dynamic server imports, member-call fetch, bracket env access, generic-only `useState`, size-limit-without-schema bodies, deferred `Date.now`, loopback absolute URLs, `context`-aliased scope exports, an unreturned `abortNavigation` on an `if` arm, an `useAsyncData` handler whose only `return` is in a nested callback, the Nuxt 2 `process.browser` flag, a nested lockfile `nuxt` 3.16.2 under a 4.7.0 root, a double-quoted `'/**'` cache rule beside `ssr: false` on a dynamic path, and `builder: 'rspack' as const`.
 
 The hydration rule cannot tell `onMounted` from setup scope, so it flags all app-code `Math.random`/`Date.now` and documents the narrow reading in BACKLOG.md. The unkeyed-`useState` rule matches syntactically empty argument lists only. Cross-file facts (who imports what, where a value flows) stay out of scope.
 
@@ -49,9 +53,9 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.2.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.3.0`. 15 distinct check IDs.
 
-Methodologies: `nuxt/data` (complete), `nuxt/server` (complete).
+Methodologies: `nuxt/data` (complete), `nuxt/security` (complete), `nuxt/server` (complete).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

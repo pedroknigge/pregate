@@ -162,6 +162,9 @@ export interface PatternConfig {   // "x-*" keys are ignored (notes); any other 
   // Quiet unless a named dependency is known to be at least this version. The first name with
   // evidence decides. A lower bound below the floor wins, so an older package is not newly denied.
   since?: { dependencies: string[]; version: string };
+  // Quiet unless a named dependency is known to allow a version below this one. The first name
+  // with evidence decides. Missing or unreadable evidence stays quiet.
+  until?: { dependencies: string[]; version: string };
   when?: PatternWhen;                    // gates the pattern on a literal root next.config cacheComponents
 }
 
