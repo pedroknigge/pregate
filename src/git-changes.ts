@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GitChanges } from "./shell.ts";
 
@@ -10,6 +11,22 @@ import type { GitChanges } from "./shell.ts";
 // `--stdin` list, a prefix), which the guard treats as a write to anything. The shell layer runs
 // git; the core only judges the paths.
 const MAX_PATHS = 50_000;
+
+// True when this checkout's git hook is the one `pregate enable` installed.
+export function pregateGitHook(cwd: string): boolean {
+  const top = git(cwd, ["rev-parse", "--show-toplevel"])?.trim();
+  const root = top !== undefined && top !== "" ? top : cwd;
+  const hooksPath = git(root, ["config", "--get", "core.hooksPath"])?.trim() ?? "";
+  if (hooksPath.includes(".pregate")) return true;
+  const installed = git(root, ["rev-parse", "--git-path", "hooks/pre-commit"])?.trim();
+  if (installed !== undefined && installed !== "" && hookMentionsPregate(root, installed)) return true;
+  return [".husky/pre-commit", ".githooks/pre-commit"].some((rel) => hookMentionsPregate(root, rel));
+}
+
+function hookMentionsPregate(root: string, rel: string): boolean {
+  try { return readFileSync(join(root, rel.trim()), "utf8").includes("pregate"); }
+  catch { return false; }
+}
 
 export function gitChanges(cwd: string, args: string[]): GitChanges | null {
   const top = git(cwd, ["rev-parse", "--show-toplevel"]);

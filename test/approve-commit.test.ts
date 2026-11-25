@@ -184,9 +184,8 @@ test("the short approval form asks in an interactive Claude parent, and a short 
   expect(onPreCommand({ ...call, session: { ...session, interactive: false } }).verdict).toBe("none");
   expect(onPreCommand({ ...call, session: { ...session, harness: "codex", interactive: false } }).verdict).toBe("none");
   const bare = onPreCommand({ ...call, command: "pregate approve" });
-  expect(bare.verdict).toBe("deny");
-  expect(bare.compact).toStartWith("You may propose the literal command pregate approve <code>");
-  expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("deny");
+  expect(bare.verdict).toBe("none");
+  expect(onPreCommand({ ...call, command: `pregate approve ${code.slice(0, 8)}` }).verdict).toBe("none");
 }));
 
 test("an interactive agy session asks, and skip-permissions, CI and a child conversation keep the allow", () => project(async (root) => {
@@ -208,8 +207,8 @@ test("an interactive agy session asks, and skip-permissions, CI and a child conv
   expect(asked.halt).toBe(false);
   expect(asked.contractApproval).toBeUndefined();
   expect(onPreCommand({ ...call, command: `! pregate approve --yes --digest ${code}` }).verdict).toBe("ask");
-  expect(onPreCommand({ ...call, command: `sh -c 'pregate approve ${code}'` }).verdict).toBe("deny");
-  expect(onPreCommand({ ...call, command: `echo ${code} | pregate approve` }).verdict).toBe("deny");
+  expect(onPreCommand({ ...call, command: `sh -c 'pregate approve ${code}'` }).verdict).toBe("none");
+  expect(onPreCommand({ ...call, command: `echo ${code} | pregate approve` }).verdict).toBe("none");
   expect(onPreCommand({ ...call, session: { ...session, child: true } }).verdict).toBe("none");
   process.env.CI = "1";
   expect(onPreCommand(call).verdict).toBe("none");

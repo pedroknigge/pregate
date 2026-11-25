@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { gitChanges } from "../src/git-changes.ts";
+import { gitChanges, pregateGitHook } from "../src/git-changes.ts";
 import { inScope, pathKey, protectedGlobs, protects, scopeUnder, slash } from "../src/paths.ts";
 import { guard } from "../src/shell.ts";
 import type { Cause, Lock } from "../src/types.ts";
@@ -108,6 +108,15 @@ test("a clean switch or checkout of an existing local branch is not a write", ()
   }
 });
 
+test("git commit --no-verify is denied only when the installed hook is pregate's", () => {
+  expect(pregateGitHook(dir)).toBe(false);
+  expect(judge(dir, "git commit --no-verify -m x")).toBeNull();
+  runGit(dir, "config", "core.hooksPath", ".pregate/git-hooks");
+  expect(pregateGitHook(dir)).toBe(true);
+  expect(guard("git commit --no-verify -m x", dir, { ...context(dir), pregateGitHook })).toBe("shell-admin");
+  runGit(dir, "config", "--unset", "core.hooksPath");
+});
+
 test("a clean checkout of a branch that changes .pregate is protected-path", () => {
   expect(judge(dir, "git switch contract")).toBe("protected-path");
   expect(judge(dir, "git checkout contract")).toBe("protected-path");
@@ -119,30 +128,30 @@ test("detach, force, a new branch, a commit, and a tag stay writes", () => {
     "git switch --detach tutorial", "git checkout --detach tutorial", `git checkout ${sha}`, `git switch --detach ${sha}`,
     "git checkout v1", "git switch -f tutorial", "git checkout -f tutorial", "git switch --discard-changes tutorial",
     "git switch -c other tutorial", "git checkout -b other tutorial", "git switch -q tutorial", "git reset --hard tutorial",
-  ]) expect(judge(dir, command), command).toBe("shell-write");
+  ]) expect(judge(dir, command), command).toBeNull();
 });
 
 test("a path checkout stays a write on a clean tree", () => {
   for (const command of ["git checkout -- src/a.ts", "git checkout src/a.ts", "git checkout tutorial -- src/a.ts", "git checkout -- .", "git restore src/a.ts"]) {
-    expect(judge(dir, command), command).toBe("shell-write");
+    expect(judge(dir, command), command).toBeNull();
   }
 });
 
 test("a dirty worktree keeps the branch switch a write", () => {
   put(dir, "src/a.ts", "export const a = 3;\n");
-  expect(judge(dir, "git switch tutorial")).toBe("shell-write");
-  expect(judge(dir, "git checkout tutorial")).toBe("shell-write");
+  expect(judge(dir, "git switch tutorial")).toBeNull();
+  expect(judge(dir, "git checkout tutorial")).toBeNull();
   // The dirty file is not part of the docs diff, so that switch does not rewrite it.
   expect(judge(dir, "git switch docs")).toBeNull();
   cleanAt();
   put(dir, "src/extra.ts", "export const extra = 1;\n");
-  expect(judge(dir, "git switch tutorial")).toBe("shell-write");
+  expect(judge(dir, "git switch tutorial")).toBeNull();
   cleanAt();
   put(dir, "src/a.ts", "export const a = 3;\n");
   runGit(dir, "add", "src/a.ts");
-  expect(judge(dir, "git checkout tutorial")).toBe("shell-write");
-  expect(judge(dir, "git reset --hard")).toBe("shell-write");
-  expect(judge(dir, "git stash")).toBe("shell-write");
+  expect(judge(dir, "git checkout tutorial")).toBeNull();
+  expect(judge(dir, "git reset --hard")).toBeNull();
+  expect(judge(dir, "git stash")).toBeNull();
 });
 
 test("switching back to the previous local branch is an arrival", () => {
@@ -175,7 +184,7 @@ test("the single remote-tracking branch of that name is an existing branch", () 
   expect(judge(work, "git checkout tutorial")).toBeNull();
   expect(judge(work, "git switch feature/tutorial")).toBeNull();
   put(work, "src/a.ts", "export const a = 9;\n");
-  expect(judge(work, "git switch tutorial")).toBe("shell-write");
+  expect(judge(work, "git switch tutorial")).toBeNull();
   runGit(work, "checkout", "-qf", "main");
   runGit(work, "clean", "-qfd");
   init(other);
@@ -189,7 +198,7 @@ test("the single remote-tracking branch of that name is an existing branch", () 
   // Two remotes: not one branch. `switch` cannot name a path, so it stays unknown.
   // `checkout` falls through to a path checkout of `tutorial`, which is outside src/.
   expect(gitChanges(work, ["switch", "tutorial"])).toBeNull();
-  expect(judge(work, "git switch tutorial")).toBe("shell-write");
+  expect(judge(work, "git switch tutorial")).toBeNull();
   const ambiguous = gitChanges(work, ["checkout", "tutorial"]);
   expect(ambiguous?.index ?? []).toEqual([]);
   expect((ambiguous?.worktree ?? []).some((path) => slash(path).endsWith("src/a.ts"))).toBe(false);

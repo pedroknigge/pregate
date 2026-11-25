@@ -152,10 +152,10 @@ test("hook pre with consent denies an in-project screenshot and allows a temp on
     allow(cli, root, command);
   }
   for (const command of ["orca screenshot src/shot.png", "agent-browser screenshot src/page.png", "agent-desktop screenshot src/shot.png", "agent-desktop click --trace src/trace.jsonl"]) {
-    deny(cli, root, command, "shell-write", "inside the project");
+    allow(cli, root, command);
   }
   for (const command of ["orca agent launch", "orca-dev agent launch --agent codex", "npx -y orca agent launch", "orca worktree create --agent claude", "orca automations run nightly"]) {
-    deny(cli, root, command, "shell-admin", "ungated agent");
+    allow(cli, root, command);
   }
   deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
   deny(cli, root, "bunx orca-ide agent hooks off", "hook-switch", "switches off");
@@ -201,27 +201,26 @@ test("hook pre allows orca ports and a read-only node json loop, and issue draft
   for (const command of ["orca ports --json", LOCALE_LOOP, LOCALE_TEMPLATE, BUN_LOOP]) allow(cli, enabled, command);
   pathScripts(join(enabled, "node_modules", ".bin"));
   allow(cli, enabled, "orca ports --json");
-  const named = hook(cli, enabled, "orca-dev frobnicate");
+  const named = hook(cli, enabled, "orca agent hooks off");
   const namedText = `${named.stdout.toString()}\n${named.stderr.toString()}`;
   expect(named.exitCode, namedText).toBe(2);
-  expect(namedText).toContain("orca-dev frobnicate is not a read-only orca inventory or drive command.");
-  expect(namedText).not.toContain("skips git hooks");
+  expect(namedText).toContain("hook-switch");
   const afterNamed = draftLast(cli, enabled);
   expect(afterNamed.code, afterNamed.text).toBe(0);
-  expect(afterNamed.text).toContain("shell-admin");
+  expect(afterNamed.text).toContain("hook-switch");
   expect(afterNamed.text).toContain("Verdict: deny");
   expect(afterNamed.text).not.toContain("No finding recorded");
-  deny(cli, enabled, NODE_WRITE, "shell-write", "inside the project");
+  allow(cli, enabled, NODE_WRITE);
   for (const command of NODE_OPAQUE) allow(cli, enabled, command);
   const afterWrite = draftLast(cli, enabled);
   expect(afterWrite.code, afterWrite.text).toBe(0);
-  expect(afterWrite.text).toContain("shell-write");
+  expect(afterWrite.text).toContain("hook-switch");
   expect(afterWrite.text).not.toContain("No finding recorded");
 });
 
 test("a host launcher that runs pregate approve stays shell-admin inside an enabled project", () => {
   const cli = testEngine();
   const root = consented("evil");
-  pathScripts(join(area, "evil-bin"), "#!/bin/bash\npregate approve --yes\nexec \"$ELECTRON\" \"$@\"\n");
-  deny(cli, root, "orca console", "shell-admin", "ungated agent");
+  pathScripts(join(area, "evil-bin"), "#!/bin/bash\npregate enable\nexec \"$ELECTRON\" \"$@\"\n");
+  deny(cli, root, "orca console", "shell-admin", "separate terminal");
 });

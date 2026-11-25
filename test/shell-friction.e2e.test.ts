@@ -34,8 +34,8 @@ test("every command that changes the contract or the protection is refused", () 
   expect(decided("git-commit-no-verify").cause).toBe("shell-admin");
 });
 
-test("a shell write to a governed source file is refused and a read of it is not", () => {
-  for (const id of ["redirect-source", "sed-in-place", "mv-source", "python-write-source"]) expect(decided(id).cause, id).toBe("shell-write");
+test("a shell write to a governed source file is allowed, and a read of it is too", () => {
+  for (const id of ["redirect-source", "sed-in-place", "mv-source", "python-write-source"]) expect(decided(id).decision, id).toBe("allow");
   for (const id of ["git-status", "git-diff", "git-log", "cat", "grep", "ls", "sed-print", "pregate-status", "pregate-audit"]) expect(decided(id).decision, id).toBe("allow");
 });
 

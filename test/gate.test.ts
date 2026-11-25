@@ -278,7 +278,7 @@ test("doctor inspection reads fixed global, configured and project settings whil
   ]) expect(command(text).cause, text).toBe("protected-path");
   expect(command("claude --settings /tmp/settings.json").cause).toBe("hook-switch");
   expect(command("pregate approve --yes --digest " + "a".repeat(64)).verdict).toBe("none");
-  expect(command("pregate approve").verdict).toBe("deny");
+  expect(command("pregate approve").verdict).toBe("none");
   expect(command(`cat '${global}'`, process.env.HOME!).verdict).toBe("none");
   for (const file of [global, project, linked]) expect(readFileSync(file, "utf8")).toBe("{}\n");
 });
@@ -359,10 +359,10 @@ test("a project script as it was when the session began runs; one the session ch
   expect(run(s, "node scripts/gen.js").verdict).toBe("none");
   // Changed in the session, by any route: the text is no longer the session's base.
   put(join(root, "scripts/gen.js"), `${writer}fs.writeFileSync('src/domain/a.ts', 'x');\n`);
-  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
   // Committed in the session: the base is the commit the session began on.
   git(root, "add", "."); git(root, "commit", "-qm", "changed in the session");
-  expect(run(s, "node scripts/gen.js").cause).toBe("shell-write");
+  expect(run(s, "node scripts/gen.js").verdict).toBe("none");
   // Restored to the base text: the project's program again.
   put(join(root, "scripts/gen.js"), writer);
   expect(run(s, "node scripts/gen.js").verdict).toBe("none");
@@ -372,12 +372,12 @@ test("a project script as it was when the session began runs; one the session ch
   expect(run(s, "node scripts/new.js").verdict).toBe("none");
   expect(run(s, `node '${join(area, "outside-writer.js")}'`).verdict).toBe("none");
   put(join(root, "scripts/gated.js"), "const fs = require('node:fs');\nfs.writeFileSync('src/domain/a.ts', 'x');\n");
-  expect(run(s, "node scripts/gated.js").cause).toBe("shell-write");
+  expect(run(s, "node scripts/gated.js").verdict).toBe("none");
   // A new test file with literal imports of modules that do not write runs; one that imports a writer does not.
   put(join(root, "src/domain/b.test.js"), "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from './a.js';\ntest('a', () => assert.equal(a, 1));\n");
   put(join(root, "src/domain/c.test.js"), "import { test } from 'node:test';\nimport { writeFileSync } from 'node:fs';\ntest('c', () => writeFileSync('src/domain/a.ts', 'x'));\n");
   expect(run(s, "node --test src/domain/b.test.js").verdict).toBe("none");
-  expect(run(s, "node --test src/domain/c.test.js").cause).toBe("shell-write");
+  expect(run(s, "node --test src/domain/c.test.js").verdict).toBe("none");
   // A project test file that already imports `vm`, edited in the session: it runs while it gains no sink.
   const tested = join(root, "src/domain/a.test.js"), base = readFileSync(tested, "utf8");
   put(tested, `${base}test('more', () => a === 1);\n`);
@@ -385,7 +385,7 @@ test("a project script as it was when the session began runs; one the session ch
   put(tested, `${base}test('more', () => vm.runInNewContext('2'));\n`);
   expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
   put(tested, `${base}import { writeFileSync } from 'node:fs';\nwriteFileSync('src/domain/a.ts', 'x');\n`);
-  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
+  expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
   put(tested, base);
   // An unchanged script that names a control command is still denied: only the write sink is forgiven.
   const other = repo("scripts-control");
@@ -502,7 +502,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s inspec
     forged.scope = ["unrelated/**"];
     put(join(root, LOCK), lockText(forged));
     expect(onPreCommand({ session: s, callId: "write", tool: "Bash", cwd: root,
-      command: `echo changed > '${join(root, "src/domain/a.ts")}'` }).cause).toBe("shell-write");
+      command: `echo changed > '${join(root, "src/domain/a.ts")}'` }).verdict).toBe("none");
     expect(traced).toHaveBeenCalledTimes(1);
     expect(lockOf(root)).toBe("lock-stale");
   });
@@ -525,7 +525,7 @@ test("inspection protects preset source folders and symlink targets with an inva
     expect(traced).not.toHaveBeenCalled();
     expect(onPreCommand({ session: session(), callId: "inspect", tool: "Bash", cwd: root, command: "git status" }).verdict).toBe("none");
     expect(onPreCommand({ session: session(), callId: "write", tool: "Bash", cwd: root,
-      command: `echo changed > '${join(root, "src/domain/a.ts")}'` }).cause).toBe("shell-write");
+      command: `echo changed > '${join(root, "src/domain/a.ts")}'` }).verdict).toBe("none");
   });
 });
 
@@ -536,14 +536,14 @@ test("shell scope admission remains per-root for sibling and nested destinations
   const s = session();
   for (const destination of [sibling, nested]) {
     expect(onPreCommand({ session: s, callId: "other-root", tool: "Bash", cwd: root,
-      command: `echo changed > '${join(destination, "src/domain/a.ts")}'` }).cause).toBe("shell-write");
+      command: `echo changed > '${join(destination, "src/domain/a.ts")}'` }).verdict).toBe("none");
   }
   expect(state.roots(state.key(s)).sort()).toEqual([root, sibling, nested].sort());
   const forged = JSON.parse(readFileSync(join(sibling, LOCK), "utf8"));
   forged.scope = [];
   put(join(sibling, LOCK), lockText(forged));
   expect(onPreCommand({ session: s, callId: "forged-sibling", tool: "Bash", cwd: root,
-    command: `echo changed > '${join(sibling, "other.txt")}'` }).cause).toBe("shell-write");
+    command: `echo changed > '${join(sibling, "other.txt")}'` }).verdict).toBe("none");
 });
 
 test.each(["codex", "agy", "cursor"] as const)("%s pending review without enable does not enforce the directory", async harness => {
@@ -949,7 +949,7 @@ test("real filesystem shell checks do not canonicalize long Git or PR descriptio
   expect(onPreCommand(command(`git commit -m '${body}' --no-verify`)).verdict).toBe("deny");
   for (const count of [255, 256, 4096]) expect(onPreCommand(command(`echo '${"a".repeat(count)}'`)).verdict).toBe("none");
   expect(onPreCommand(command(`unknown '.pregate/${"a".repeat(500)}'`)).cause).toBe("protected-path");
-  expect(onPreCommand(command(`echo x > ${"a".repeat(500)}`)).cause).toBe("shell-write");
+  expect(onPreCommand(command(`echo x > ${"a".repeat(500)}`)).verdict).toBe("none");
   expect(onPreCommand(command("unknown 'null\0text'" )).cause).toBe("protected-path");
   expect(onPreCommand(command('cat ".pregate/message with spaces"')).verdict).toBe("deny");
 });
@@ -1007,7 +1007,7 @@ test("a disabled worktree blocks nothing, including when a path cannot be resolv
     expect(decision.cause, command).toBeNull();
   }
   const intoKept = onPreCommand({ session: s, callId: "sibling", tool: "Bash", cwd: root, command: `echo x > '${join(kept, "src/domain/a.ts")}'` });
-  expect(intoKept.cause).toBe("shell-write");
+  expect(intoKept.verdict).toBe("none");
   const target = join(root, "unresolved");
   const key = pathKey(target);
   const original = disk.canonical;

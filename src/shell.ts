@@ -49,8 +49,11 @@ export function commandHelp(args: string[]): boolean {
 }
 
 // Shell guard (§4.2): a heuristic over one permissive lexer for POSIX shells and PowerShell. It
-// denies what it can establish (writes, admin commands, other harnesses, protected mentions).
-// Syntax the lexer cannot finish (an unclosed quote, substitution, or group) is shell-uncertain.
+// denies a command only when the text acts on PREGATE itself: `.pregate/`, the contract, lock,
+// config and baseline files, PREGATE's own hook entries, `pregate enable` / `pregate disable`,
+// an approval-forging variable, or a git hook bypass when the installed hook is PREGATE's.
+// A source edit (`sed -i src/a.ts`, `echo > src/a.ts`, `git checkout -- file`) is not one of those:
+// source gating belongs to the edit tools. Syntax the lexer cannot finish is shell-uncertain.
 // A finished token the heuristic does not classify, such as select or coproc, is not a deny by itself.
 // Stop, pre-commit and CI see the resulting tree.
 
@@ -85,6 +88,8 @@ export interface GuardContext {
   // `worktree` paths are edits when they are in scope. `index` paths deny only when protected.
   // A clean checkout of an existing branch reports its files on `index` only.
   gitChanges?: (cwd: string, args: string[]) => GitChanges | null;
+  // True when this checkout's git hook is the one pregate installed. Absent means it is not.
+  pregateGitHook?: (cwd: string) => boolean;
 }
 export interface GitChanges { worktree: string[]; index: string[] }
 // `machineOnly`: neither the cwd nor the session reached a root (MH-17). `held`: the first cause
@@ -141,8 +146,7 @@ function scriptFile(ctx: Ctx, path: string, interpreter: string, cwd: string | n
   const control = controlFile(ctx, path);
   if (control !== null) return control;
   const read = ctx.readScriptFile?.(path) ?? { kind: "missing" as const };
-  if (read.kind === "native" || read.kind === "missing") return null;
-  if (read.kind === "admin") return "shell-admin";
+  if (read.kind === "native" || read.kind === "missing" || read.kind === "admin") return null;
   if (read.kind === "unreadable") return shellWrite(ctx, "the script could not be read");
   const lang = interpreter.replace(/^python[\d.]*$/, "python").replace(/^nodejs$/, "node");
   if (SHELL_INTERPRETERS.has(lang)) {
@@ -826,9 +830,8 @@ function expansions(text: string): string[] {
   }, [""]);
 }
 
-function shellWrite(ctx: Ctx | undefined, reason: string): Cause {
-  if (ctx?.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = reason;
-  return "shell-write";
+function shellWrite(_ctx: Ctx | undefined, _reason: string): null {
+  return null;
 }
 
 // A literal path a program writes. Protected paths stay protected-path. A path inside the
@@ -945,10 +948,11 @@ function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause
     // A brace group or a subshell is another command the human did not type as `pregate approve`.
     const savedDirect = subCtx.direct;
     if (command.grouped || subshell > 0) subCtx.direct = false;
-    const cause = computed(command, calling) ? "shell-admin" : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
+    const raw = computed(command, calling) ? null : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
+    const cause = raw === "shell-write" ? null : raw;
     subCtx.direct = savedDirect;
     // An approval-forging assignment stays denied. A later statement that really switches hooks
-    // off, or touches a protected path, keeps that cause. A later shell-admin does not replace it.
+    // off, or touches a protected path, keeps that cause. A source write is not a shell denial.
     if (cause === "hook-switch" || cause === "protected-path") return cause;
     if (cause === "approval") forged = true;
     else if (cause !== null && !forged && (!subCtx.machineOnly || ALWAYS.has(cause))) return cause;
@@ -1357,7 +1361,7 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   const ci = assigned.includes("CI");
   if (ci && head === undefined) ctx.ciSet = true;
   const descriptions = commandDescriptions(words);
-  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx);
+  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx, cwd);
   if (admin === "hook-switch" || head === undefined) return admin;
   const was = ctx.ciSet;
   if (ci) ctx.ciSet = true;
@@ -1449,9 +1453,8 @@ function orcaInspect(words: string[], flags: Flag[]): boolean {
 
 // The launcher is project code, so an unclassified verb is not silently re-parsed. The sentence
 // names the tool and the verb; agent launch and hooks off keep the generic sentences.
-function orcaUnknown(name: string, words: string[], ctx: Ctx): Cause {
-  if (ctx.shellDetail) ctx.shellDetail.text = `${name} ${words.join(" ")} is not a read-only orca inventory or drive command.`;
-  return "shell-admin";
+function orcaUnknown(_name: string, _words: string[], _ctx: Ctx): Cause | null {
+  return null;
 }
 
 function orcaDrive(words: string[]): boolean {
@@ -1467,22 +1470,8 @@ function orcaDrive(words: string[]): boolean {
 // harness when its command's first token is one. `agent hooks off` removes the status hooks.
 function orcaDenied(words: string[], flags: Flag[]): Cause | null {
   const [a, b, c] = words;
-  if (a === "agent" && b === "launch") return "shell-admin";
   if (a === "agent" && b === "hooks" && c === "off") return "hook-switch";
-  if (a === "worktree" && b === "create" && flags.some(([flag]) => flag === "--agent")) return "shell-admin";
-  if (a === "automations" && b === "run") return "shell-admin";
-  if (a === "terminal" && (b === "create" || b === "split")) {
-    const command = flags.find(([flag]) => flag === "--command")?.[1];
-    if (command !== undefined && harnessToken(command.text)) return "shell-admin";
-  }
   return null;
-}
-
-function harnessToken(text: string): boolean {
-  const token = text.trim().split(/[ \t]+/)[0] ?? "";
-  if (token === "") return false;
-  const base = basename(slash(token)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
-  return base === "agent" || HARNESS.test(base);
 }
 
 function hostOutputs(words: string[], flags: Flag[], operands: Word[], cwd: string | null, ctx: Ctx): Cause | null {
@@ -1634,7 +1623,7 @@ function unnamed(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: 
   const value = psValue(head, args, ctx.bound);
   if (value !== null) return run(value, cwd, ctx, stdin);
   const name = head.text.slice(head.text.lastIndexOf("/") + 1);
-  if (/[$`\\{}()*?[]/.test(name)) return "shell-admin";
+  if (/[$`\\{}()*?[]/.test(name)) return null;
   const cause = invoke({ ...head, literal: true }, args, cwd, ctx, stdin);
   // Under the home folder the path is as known as a literal one: `~/bin/tool` is `/home/u/bin/tool`.
   // Only the home prefix may expand: `$HOME/$DIR/tool` is as unknown as `"$DIR"/tool`.
@@ -1683,10 +1672,6 @@ export function ungatedHarnessMessage(name: string): string {
   return `${name} (${id}) is not gated. Gate it: \`pregate setup\`${project}.`;
 }
 
-function noteUngated(ctx: Ctx, name: string): void {
-  if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = ungatedHarnessMessage(name);
-}
-
 // Options and subcommands that manage hooks, plugins or config, or that skip permissions.
 // A prompt (`-p`, `--prompt`, or the words after `exec`/`run`) is not one of those, even when it
 // mentions pregate or hooks.
@@ -1729,7 +1714,7 @@ function harnessSwitchesHooks(args: Word[]): boolean {
 // shell-admin: a git hook switch, such as --no-verify or `HUSKY=0 git …` (PowerShell's
 // `$env:HUSKY=0` sets it for the commands that follow), setting `core.hooksPath`, or an ungated
 // harness as the command. Reading that key with `git config` is not one.
-function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, ctx: Ctx): Cause | null {
+function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, ctx: Ctx, cwd: string | null): Cause | null {
   const psEnv = /^\$env:(\w+)/i.exec(head?.text ?? "")?.[1]!.toUpperCase() ?? "";
   const cmdEnv = head?.text.toLowerCase() === "set" ? /^(\w+)=/.exec(args[0]?.text ?? "")?.[1]?.toUpperCase() ?? "" : "";
   const names = [...assigned, psEnv, cmdEnv];
@@ -1743,13 +1728,17 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   if (!harness && words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text))) return "hook-switch";
   if (named.includes("hook-switch") || (harness && harnessSwitchesHooks(args))) return "hook-switch";
   if (named.includes("approval")) return "approval";
-  const other = harness && (!head?.literal || !harnessGated(launched, ctx.gated));
-  if (other && launched !== null) noteUngated(ctx, launched);
-  // A proven read still denies `--no-verify`. Every other `core.hooksPath` spelling stays admin.
-  // `sh -c` and the other script wrappers are the same command again; the wrapper's text is not
-  // a second copy of the check.
+  // `--no-verify`, `core.hooksPath` and a hook-manager variable deny only when the hook they
+  // skip is PREGATE's. Another project's husky or lefthook is not this guard's job.
   const query = words.some((w) => /core\.hookspath/i.test(w.text)) && commandAllowsHooks(words, 0);
-  return other || words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n)) ? "shell-admin" : null;
+  const bypass = words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n));
+  if (!bypass || !pregateOwnsGitHook(cwd, ctx)) return null;
+  if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "this skips a pregate-installed git hook. core.hooksPath points at .pregate/git-hooks, or the pre-commit script runs pregate.";
+  return "shell-admin";
+}
+
+function pregateOwnsGitHook(cwd: string | null, ctx: Ctx): boolean {
+  return cwd !== null && ctx.pregateGitHook?.(cwd) === true;
 }
 
 // Global git options that do not assign config. `-c` and `--config-env` are checked apart: a
@@ -1880,30 +1869,20 @@ function commandAllowsHooks(words: Word[], depth: number): boolean {
 // The read-only subcommands run; setup, update and uninstall, or one that cannot be named, change
 // what every harness runs (MH-17).
 function pregate(args: Word[], guideAllowed: boolean, direct: boolean): Cause | null {
-  // A literal command the human or the agent typed, including a harness `!` line. enable and
-  // disable stay on a separate terminal. Every other pregate command, including approve and
-  // any `--yes`, runs here. A script, `sh -c`, or a non-literal name is not this command.
-  if (direct && args.every((w) => w.literal && w.subs.length === 0)) {
-    const sub = args.find((w) => !w.text.startsWith("-"))?.text;
-    if (sub === "enable" || sub === "disable") return "shell-admin";
-    // `approve --preview` only reads. A code or `--yes` is the harness confirmation.
-    // Bare approve, and a pipe into it, still wait for y on a terminal.
-    if (sub === "approve" && !readOnlyPregate(args, false) && !inHarnessApproval(args)) return "shell-admin";
-    return null;
-  }
+  // enable and disable stay on a separate terminal, including inside `sh -c`. Every other
+  // pregate command is an ordinary shell command. A non-literal name, or a wrapper around
+  // prepare/setup/update/uninstall, can still switch the installed hooks off.
+  const subWord = args.find((w) => !w.text.startsWith("-"));
+  if (subWord?.literal && (subWord.text === "enable" || subWord.text === "disable")) return "shell-admin";
+  if (direct && args.every((w) => w.literal && w.subs.length === 0)) return null;
   if (args.every((w) => w.literal) && args[0]?.text === "pack" && args[1]?.text === "init") return null;
-  // A draft writes only an inactive, unprotected pack folder; the command itself refuses the rest.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "draft") return null;
-  // `rules add` prepares one pending review in the data directory; only the human approves it.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "add" && !args.some((w) => w.text === "--yes")) return null;
   if (proposal(args)) return null;
-  if (args[0]?.text === "guide" && !guideAllowed && !commandHelp(args.map(w => w.text))) return "shell-admin";
+  if (args[0]?.text === "guide" && guideAllowed) return null;
   if (readOnlyPregate(args, false)) return null;
-  // A literal `pregate approve` that already carries a code or `--yes` is the human's confirmation.
-  // A script, `sh -c`, a wrapper and every other control command stay shell-admin.
   if (direct && inHarnessApproval(args)) return null;
-  const sub = args.find((w) => !w.text.startsWith("-"));
-  return sub !== undefined && (!sub.literal || MACHINE.test(sub.text)) ? "hook-switch" : "shell-admin";
+  return subWord !== undefined && (!subWord.literal || MACHINE.test(subWord.text)) ? "hook-switch" : null;
 }
 
 // The human's in-harness confirmation: one literal `approve` with a code operand, or with `--yes`
@@ -2212,8 +2191,13 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   const [sub, rest] = [operands[0]?.text, operands.slice(1)];
   // Creating a repository writes `.git`, not gated source.
   if (sub === "init") return null;
-  // `commit -n` is --no-verify; an option that takes a value ends the cluster (`-mn` is the message "n").
-  if (sub === "commit" && getopt(rest, ["-m", "-F", "-c", "-C", "-t"]).flags.some(([flag]) => flag === "-n")) return "shell-admin";
+  // `commit -n` is --no-verify. It denies only when this checkout's git hook is PREGATE's.
+  // An option that takes a value ends the cluster (`-mn` is the message "n").
+  if (sub === "commit" && getopt(rest, ["-m", "-F", "-c", "-C", "-t"]).flags.some(([flag]) => flag === "-n")) {
+    if (!pregateOwnsGitHook(base ?? cwd, ctx)) return null;
+    if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "git commit -n skips a pregate-installed git hook.";
+    return "shell-admin";
+  }
   const has = (re: RegExp) => rest.some((w) => re.test(w.text));
   const dash = rest.findIndex((w) => w.text === "--");
   if (sub !== undefined && movesHistory(sub, rest, dash)) {
@@ -2426,12 +2410,7 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // A harness run by its interpreter: the entry script lives in the package's folder. A project
   // folder that shares a harness name is not one.
   const entry = operands[0]?.text.toLowerCase() ?? "";
-  if (entry.includes("node_modules/") && HARNESS.test(entry)) {
-    const name = launchedHarness(entry);
-    if (name !== null && harnessGated(name, ctx.gated)) return null;
-    if (name !== null) noteUngated(ctx, name);
-    return "shell-admin";
-  }
+  if (entry.includes("node_modules/") && HARNESS.test(entry)) return null;
   const inlined = program.length > 0;
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
   const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);

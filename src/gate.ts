@@ -12,7 +12,7 @@ import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
-import { gitChanges } from "./git-changes.ts";
+import { gitChanges, pregateGitHook } from "./git-changes.ts";
 import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
@@ -269,7 +269,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
     configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
-    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges, pregateGitHook,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);

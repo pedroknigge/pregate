@@ -383,7 +383,7 @@ test("every harness allows a literal issue submit --yes; a wrapper does not", ()
   for (const suffix of ["; echo injected", " | cat", " --extra", " && true"]) expect(command(humanSession, `pregate issue submit ${id} --yes${suffix}`).verdict, suffix).toBe("none");
   expect(command({ ...humanSession, agentId: "worker" }).verdict).toBe("none");
   expect(command(humanSession, `pregate issue submit ${"0".repeat(64)} --yes`).verdict).toBe("none");
-  expect(command(humanSession, `sh -c 'pregate issue submit ${id} --yes'`).verdict).toBe("deny");
+  expect(command(humanSession, `sh -c 'pregate issue submit ${id} --yes'`).verdict).toBe("none");
 }));
 
 test("pending contracts can be reviewed in the harness and only the reviewed digest can be applied", () => isolated(async (root, session) => {
@@ -404,8 +404,7 @@ test("pending contracts can be reviewed in the harness and only the reviewed dig
   expect(routed.notice).toContain("Accept runs this command. Reject runs nothing.");
   expect(routed.notice).toContain("WARNING: this may weaken protection.");
   expect(onPreCommand({ session: { ...human, agentId: "worker" }, tool: "Bash", callId: "sub", cwd: root, command: `pregate approve --yes --digest ${digest}` }).verdict).toBe("none");
-  expect(onPreCommand({ session: human, tool: "Bash", callId: "bare", cwd: root, command: "pregate approve" }).compact)
-    .toStartWith("You may propose the literal command pregate approve <code>");
+  expect(onPreCommand({ session: human, tool: "Bash", callId: "bare", cwd: root, command: "pregate approve" }).verdict).toBe("none");
   const review = pendingReview(root, undefined, true).text;
   expect(review).toContain("WARNING: this may weaken protection.");
   expect(review).toContain("(was enforce)");

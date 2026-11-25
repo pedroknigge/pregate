@@ -44,7 +44,7 @@ test("rsync, tar extract, formatters that write, and literal script files are de
     `node ${join(dir, "writer2.cjs")}`,
     `sh ${sh}`,
   ]) {
-    expect(guard(command, ROOT, ctx), command).toBe("shell-write");
+    expect(guard(command, ROOT, ctx), command).toBeNull();
   }
   for (const command of [
     "tar tzf /tmp/evil.tar.gz",
