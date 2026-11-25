@@ -1,6 +1,6 @@
 # mongodb
 
-TypeScript client-side MongoDB driver/mongoose rules. Source version **1.3.0**, for engine **0.0.12**.
+TypeScript client-side MongoDB driver/mongoose rules. Source version **1.3.1**, for engine **0.0.12**.
 The engine parses TS/JS only: this pack enforces client-side usage (queries, ObjectIds,
 connections, sessions, schema options). Everything the engine cannot see — index selection,
 `$jsonSchema` validation, replica-set topology, GridFS chunking, change-stream resume
@@ -30,13 +30,19 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 | `MONGO-TX-001` | Raw `startTransaction()` instead of `withTransaction()`. | Open transactions hold locks without auto commit/abort/retry. | deny |
 | `MONGO-INDEX-001` | `createIndex`/`ensureIndex`/`createIndexes` calls in app code. | Index builds belong in schemas or migrations, not request paths. | deny |
 | `MONGO-OIDC-001` | `MongoClient` options or a connection string that combine `ENVIRONMENT` with `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK`. | That pair leaks an OIDC bearer token to a domain outside the allowlist on driver versions before 7.9.0. | deny |
-| `MONGO-OIDC-002` | `package.json` or a lockfile pins `mongodb` at >=6.7.0 and <7.9.0. | The pin can still install the OIDC token leak. | warn |
+| `MONGO-OIDC-002` | `package.json` or a lockfile pins `mongodb` at >=6.7.0 and <7.9.1. | The pin can still install a driver that writes connection-string credentials into errors and logs, and that accepts a NUL in SASL PLAIN. | warn |
 | `MONGO-DELETEMANY-001` | `deleteMany()` or `deleteMany({})` with an omitted or empty filter document. | An empty filter matches and deletes every document in the collection. | deny |
 
 ## Methodologies
 
 - `mongodb/models` — MONGO-SCHEMA-001, MONGO-CONNECT-001, MONGO-TX-001, MONGO-INDEX-001, MONGO-OIDC-001, MONGO-OIDC-002
 - `mongodb/queries` — MONGO-FIND-001, MONGO-INJECT-001, MONGO-OBJECTID-001, MONGO-AGG-001, MONGO-UPDATE-001, MONGO-DELETEMANY-001
+
+## Driver 7.9.1
+
+These notes follow the [7.9.1 release](https://github.com/mongodb/node-mongodb-native/releases/tag/v7.9.1). The [7.9.0 notes](#driver-790) below still describe `dropIndexes`, `createIndex`, and the mixed-OIDC deny.
+
+`MONGO-OIDC-002` warns when a manifest or lockfile pins `mongodb` at >=6.7.0 and <7.9.1, and it recommends >=7.9.1. A pin of 7.9.0 is inside that window. The release says versions before 7.9.1 let a NUL in `PLAIN` credentials change the identity the server authenticates ([CVE-2026-129929](https://github.com/mongodb/node-mongodb-native/security/advisories/GHSA-prmg-mvj2-c4f7), NODE-7828). It also says versions from 4.0.0 before 7.9.1 can place connection-string values, including credentials, in errors and in logged representations of the client ([CVE-2026-129930](https://github.com/mongodb/node-mongodb-native/security/advisories/GHSA-779g-w5r4-wr2x), NODE-7799). A pin below 6.7.0 stays quiet on this rule even when those CVEs apply. `MONGO-OIDC-001` still repairs with one mechanism and mongodb >=7.9.0, the release that throws on the mixed OIDC pair.
 
 ## Driver 7.9.0
 
@@ -54,7 +60,7 @@ These notes follow the [7.9.0 release](https://github.com/mongodb/node-mongodb-n
 
 The same release stops forcing `autoSelectFamily: true` when the option is unset, so Node's process default applies. `SelectServerOptions` is deprecated. The pack records both as driver behavior.
 
-`MONGO-OIDC-001` denies a visible `ENVIRONMENT` plus `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` on one `MongoClient` or `MongoClient.connect` call. The release names both callbacks. A callback-only call and an environment-only call are each one mechanism. Use one mechanism only and mongodb >=7.9.0. A URI kept in a variable is not a visible `ENVIRONMENT`. `MONGO-OIDC-002` warns when a manifest or lockfile pins `mongodb` at >=6.7.0 and <7.9.0, and it recommends >=7.9.0.
+`MONGO-OIDC-001` denies a visible `ENVIRONMENT` plus `OIDC_CALLBACK` or `OIDC_HUMAN_CALLBACK` on one `MongoClient` or `MongoClient.connect` call. The release names both callbacks. A callback-only call and an environment-only call are each one mechanism. Use one mechanism only and mongodb >=7.9.0. A URI kept in a variable is not a visible `ENVIRONMENT`. The driver pin floor is 7.9.1; see [Driver 7.9.1](#driver-791).
 
 ## Fixture coverage and limits
 
@@ -63,7 +69,7 @@ Every check has a failing trap with exact lines: sort-without-limit, `$expr` equ
 request input, bracket query-id access, `$function` stages, multi-option `strict: false`,
 empty connect options, aliased sessions, `db.collection()` index builds, a plain
 update through a Mongoose model's raw `Model.collection`, a connection string that
-carries `ENVIRONMENT` beside a callback, and a nested lockfile pin under a fixed root.
+carries `ENVIRONMENT` beside a callback, and a nested 7.9.0 pin under a 7.9.1 root.
 
 MONGO-INJECT-001 complements `vibe-proof/security/mass-assignment` (which guards
 `insert`/`update`/`create`/`save(req.body)`): that rule owns the write call, this one owns
@@ -77,7 +83,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.3.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.3.1`. 12 distinct check IDs.
 
 Methodologies: `mongodb/models` (complete), `mongodb/queries` (complete).
 

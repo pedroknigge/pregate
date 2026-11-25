@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "mongodb/models/no-vulnerable-driver-pin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "models",
   "cardinality": "singleton",
   "dimension": "mongodb.models.oidc-driver-pin",
@@ -9,7 +9,7 @@
   "params": {
     "package": { "const": "mongodb" },
     "introduced": { "const": "6.7.0" },
-    "fixed": { "const": "7.9.0" }
+    "fixed": { "const": "7.9.1" }
   },
   "impl": {
     "kind": "primitive",
@@ -22,6 +22,6 @@
     "ci"
   ],
   "feedback": {
-    "message": "mongodb is pinned in the CVE-2026-126835 range (versions >=6.7.0 and <7.9.0). Upgrade the mongodb driver to >=7.9.0."
+    "message": "mongodb is pinned below 7.9.1 (versions >=6.7.0 and <7.9.1). Upgrade the mongodb driver to >=7.9.1. 7.9.1 fixes CVE-2026-129930 and CVE-2026-129929."
   }
 }

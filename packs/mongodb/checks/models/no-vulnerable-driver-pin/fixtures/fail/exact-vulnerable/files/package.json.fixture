@@ -1,6 +1,6 @@
 {
   "name": "app",
   "dependencies": {
-    "mongodb": "7.8.1"
+    "mongodb": "7.9.0"
   }
 }

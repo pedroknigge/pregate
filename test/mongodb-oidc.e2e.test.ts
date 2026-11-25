@@ -39,6 +39,18 @@ const ADVISORY = `{
   }
 }
 `;
+const PREVIOUS_FLOOR = `{
+  "dependencies": {
+    "mongodb": "7.9.0"
+  }
+}
+`;
+const FIXED_DRIVER = `{
+  "dependencies": {
+    "mongodb": "7.9.1"
+  }
+}
+`;
 
 function releasedCapture<T>(capture: string, descriptors: number[], body: () => T): T {
   try { return body(); } finally {
@@ -132,7 +144,8 @@ function warned(result: { code: number | null; text: string; error: string }, ru
   expect(result.code, result.text + result.error).toBe(0);
   expect(result.text).toContain("PREGATE WARN");
   expect(result.text).toContain(rule);
-  expect(result.text).toContain(">=7.9.0");
+  expect(result.text).toContain(">=7.9.1");
+  expect(result.text).not.toContain(">=7.9.0");
   expect(result.text).not.toContain("\"permissionDecision\":\"deny\"");
 }
 
@@ -180,15 +193,22 @@ test("the hook blocks, allows, and warns the MongoDB OIDC rules only after prega
   allowed(ok, "mongodb/MONGO-OIDC-001");
   const advisory = p.hook(sid, "package.json", ADVISORY);
   warned(advisory, "mongodb/MONGO-OIDC-002");
+  const previous = p.hook(sid, "package.json", PREVIOUS_FLOOR);
+  warned(previous, "mongodb/MONGO-OIDC-002");
+  const fixed = p.hook(sid, "package.json", FIXED_DRIVER);
+  allowed(fixed, "mongodb/MONGO-OIDC-002");
   const advisorCheck = p.run(["check", "--stdin", "--path", "package.json"], ADVISORY);
   expect(advisorCheck.code, advisorCheck.text).toBe(0);
   expect(advisorCheck.text).toContain("PREGATE WARN");
   expect(advisorCheck.text).toContain("mongodb/MONGO-OIDC-002");
-  expect(advisorCheck.text).toContain(">=7.9.0");
+  expect(advisorCheck.text).toContain(">=7.9.1");
+  expect(advisorCheck.text).not.toContain(">=7.9.0");
 
   console.log("E2E ENABLE\n" + enabled.text);
   console.log("E2E BLOCKED\n" + blocked.text);
   console.log("E2E ALLOWED\n" + ok.text);
   console.log("E2E ADVISORY\n" + advisory.text);
+  console.log("E2E PREVIOUS FLOOR\n" + previous.text);
+  console.log("E2E FIXED DRIVER\n" + fixed.text);
   console.log("E2E ADVISORY CHECK\n" + advisorCheck.text);
 });
