@@ -115,7 +115,7 @@ function readPreset(root: string): Preset | null {
   try {
     const preset = JSON.parse(readFileSync(join(root, PRESET), "utf8")) as Preset;
     return preset !== null && typeof preset === "object" ? preset : null;
-  } catch {
+  } catch { // fail-closed: an unreadable preset is not rewritten
     return null;
   }
 }
@@ -212,7 +212,7 @@ function shallowDir(root: string, path: string): DirFacts {
 
 function listed(root: string, rel: string): Dirent[] | null {
   try { return readdirSync(join(root, rel), { withFileTypes: true }); }
-  catch { return null; }
+  catch { return null; /* fail-closed: an unreadable directory is not proposed */ }
 }
 
 function generatedHeader(path: string): boolean {
@@ -224,7 +224,7 @@ function generatedHeader(path: string): boolean {
     if (n === 0 || buf.subarray(0, n).includes(0)) return false;
     const head = buf.subarray(0, n).toString("utf8").toLowerCase().split("\n").slice(0, 12).join("\n");
     return MARKERS.some((marker) => head.includes(marker));
-  } catch {
+  } catch { // fail-closed: a file that cannot be read is not evidence of a generated header
     return false;
   } finally {
     if (fd !== null) closeSync(fd);
@@ -235,7 +235,7 @@ function readBounded(path: string, max: number): string | null {
   try {
     if (statSync(path).size > max) return null;
     return readFileSync(path, "utf8");
-  } catch {
+  } catch { // fail-closed: an unreadable ignore file adds no directory
     return null;
   }
 }
