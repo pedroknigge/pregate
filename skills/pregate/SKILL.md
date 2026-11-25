@@ -870,7 +870,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `dcouplr@1.27.1` — library: `dcouplr/delivery` (preview), `dcouplr/events` (preview), `dcouplr/factories` (preview), `dcouplr/factory-runtime` (preview), `dcouplr/logging` (preview), `dcouplr/managed-components` (preview), `dcouplr/messages` (preview), `dcouplr/observability` (preview), `dcouplr/queue-runtime` (preview), `dcouplr/queues` (preview), `dcouplr/runtime` (preview), `dcouplr/saga-runtime` (preview), `dcouplr/sagas` (preview), `dcouplr/utility-runtime` (preview)
 - `ddd@1.1.0` — pattern: `ddd/ddd-tactical` (complete)
 - `design-invariants@1.0.0` — invariants: `design-invariants/architecture` (preview), `design-invariants/code-quality` (preview), `design-invariants/design-principles` (preview), `design-invariants/domain-state` (preview), `design-invariants/error-handling` (preview), `design-invariants/package-principles` (preview), `design-invariants/performance-and-data` (preview), `design-invariants/process` (preview), `design-invariants/security` (preview), `design-invariants/testing` (preview)
-- `drizzle@1.3.0` — library: `drizzle/queries` (complete), `drizzle/schema` (complete)
+- `drizzle@1.3.1` — library: `drizzle/queries` (complete), `drizzle/schema` (complete)
 - `enterprise-ready@1.0.0` — invariants: `enterprise-ready/readiness` (preview)
 - `express@1.2.1` — library: `express/middleware` (complete), `express/requests` (complete)
 - `firebase@1.2.0` — library: `firebase/auth` (complete), `firebase/firestore` (complete)

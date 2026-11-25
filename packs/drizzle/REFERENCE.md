@@ -2,17 +2,17 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.3.0`. Category: **library**.
+Version: `1.3.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## drizzle/queries
 
-Manifest version: `1.3.0`. Status: **complete**.
+Manifest version: `1.3.1`. Status: **complete**.
 
 ### drizzle/DRIZ-RAW-001
 
-Check: [`drizzle/queries/no-sql-concat@1.0.0`](checks/queries/no-sql-concat/check.json). Default severity: **deny**.
+Check: [`drizzle/queries/no-sql-concat@1.0.1`](checks/queries/no-sql-concat/check.json). Default severity: **deny**.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -24,7 +24,7 @@ Default parameters: `{}`.
 
 **Repair:** Use the query builder, or sql`... ${value} ...` so the value travels as a parameter. Reserve sql.raw for constant fragments, never for input.
 
-**Scope and limits:** sql.raw with a constant string still fires; once text is raw the engine cannot tell a constant from input. Sanitizing before sql.raw also fires: the check is the raw call, not the cleaner.
+**Scope and limits:** A plus that only builds the value inside a sql template parameter, such as "d2d-canonical:" + id, does not fire: Drizzle binds that interpolation. The same plus in a string or a plain template passed to .execute still fires, because that text is the statement. A callee that is not named sql, such as an alias of the tag, is not recognized as this parameter form. sql.raw with a constant string still fires; once text is raw the engine cannot tell a constant from input. Sanitizing before sql.raw also fires: the check is the raw call, not the cleaner.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

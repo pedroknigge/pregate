@@ -1,0 +1,10 @@
+export async function getAccountAvailableForCanonical(
+  db: { execute(query: unknown): Promise<unknown> },
+  canonicalId: string,
+) {
+  return db.execute(sql`
+    select available
+    from accounts
+    where key = ${"d2d-canonical:" + canonicalId}
+  `);
+}
