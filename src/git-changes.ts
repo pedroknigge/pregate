@@ -25,7 +25,11 @@ export function pregateGitHook(cwd: string): boolean {
 
 function hookMentionsPregate(root: string, rel: string): boolean {
   try { return readFileSync(join(root, rel.trim()), "utf8").includes("pregate"); }
-  catch { return false; }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "EISDIR" || code === "ENOTDIR") return false;
+    throw error;
+  }
 }
 
 export function gitChanges(cwd: string, args: string[]): GitChanges | null {
