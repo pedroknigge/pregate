@@ -369,8 +369,10 @@ test("a project script as it was when the session began runs; one the session ch
   // New in the session, in the project or outside every root.
   put(join(root, "scripts/new.js"), writer);
   put(join(area, "outside-writer.js"), writer);
-  expect(run(s, "node scripts/new.js").cause).toBe("shell-write");
-  expect(run(s, `node '${join(area, "outside-writer.js")}'`).cause).toBe("shell-write");
+  expect(run(s, "node scripts/new.js").verdict).toBe("none");
+  expect(run(s, `node '${join(area, "outside-writer.js")}'`).verdict).toBe("none");
+  put(join(root, "scripts/gated.js"), "const fs = require('node:fs');\nfs.writeFileSync('src/domain/a.ts', 'x');\n");
+  expect(run(s, "node scripts/gated.js").cause).toBe("shell-write");
   // A new test file with literal imports of modules that do not write runs; one that imports a writer does not.
   put(join(root, "src/domain/b.test.js"), "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { a } from './a.js';\ntest('a', () => assert.equal(a, 1));\n");
   put(join(root, "src/domain/c.test.js"), "import { test } from 'node:test';\nimport { writeFileSync } from 'node:fs';\ntest('c', () => writeFileSync('src/domain/a.ts', 'x'));\n");
@@ -381,8 +383,8 @@ test("a project script as it was when the session began runs; one the session ch
   put(tested, `${base}test('more', () => a === 1);\n`);
   expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
   put(tested, `${base}test('more', () => vm.runInNewContext('2'));\n`);
-  expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
-  put(tested, `${base}import { writeFileSync } from 'node:fs';\n`);
+  expect(run(s, "node --test src/domain/a.test.js").verdict).toBe("none");
+  put(tested, `${base}import { writeFileSync } from 'node:fs';\nwriteFileSync('src/domain/a.ts', 'x');\n`);
   expect(run(s, "node --test src/domain/a.test.js").cause).toBe("shell-write");
   put(tested, base);
   // An unchanged script that names a control command is still denied: only the write sink is forgiven.

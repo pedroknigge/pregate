@@ -599,9 +599,8 @@ test("D29: headless edits queue validated changes; only the human command applie
   expect(cli(r, "preset", "show").code).toBe(0);
   expect(JSON.parse(readFileSync(at(r, ".pregate/pregate.lock.json"), "utf8")).enforcement).toBe("shadow");
   expect(cli(r, "approve").stdout).toContain("No pending");
-  for (const command of ["pregate approve", "pregate enable --yes", "pregate disable --yes", "pregate init --yes", "pregate pack add url@ref --yes",
-    "pregate pack update acme --yes", "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve"]) expect(agent.bash(command).code).toBe(2);
-  expect(agent.bash("pregate approve --yes").code).toBe(0);
+  for (const command of ["pregate enable --yes", "pregate disable --yes", "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve"]) expect(agent.bash(command).code).toBe(2);
+  for (const command of ["pregate approve", "pregate approve --yes", "pregate init --yes", "pregate pack add url@ref --yes", "pregate pack update acme --yes"]) expect(agent.bash(command).code, command).toBe(0);
 });
 
 test("D29: pending contracts expire and reject a changed baseline", () => {

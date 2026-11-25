@@ -8,7 +8,7 @@ import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
-import { approvalAskReview, literalPregate } from "./pending-review.ts";
+import { approvalAskReview } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
@@ -167,8 +167,6 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const root = isCause(located) ? null : located;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
   if (isCause(located)) return settle(call, { ...NOTHING, form: locatedForm(sid, located, cwd) });
-  const approval = administrativeApproval(root, c);   // a batch code needs no root
-  if (approval !== null) return approval;
   // `enabled` can miss a root after `git init` changes its common dir. The consent record
   // still names it, so shell-admin is not dropped the way a never-enabled directory is.
   const machineOnly = root === null && state.roots(sid).length === 0 && !enforcedHere(cwd);
@@ -223,19 +221,6 @@ function enforcedElsewhere(own: string, others: string[], p: string): boolean {
   } catch {
     return false; // fail-closed: an unresolvable path is not enforced from a disabled checkout
   }
-}
-
-// issue submit, feedback apply and storage apply stay on a separate terminal. `pregate approve`
-// with a code or `--yes` is not in this list: the shell guard allows that exact command, and the
-// approval log records a non-terminal confirmation. A batch code needs no root.
-function administrativeApproval(root: string | null, c: ProposedCommand): Decision | null {
-  const command = literalPregate(c.command, launcher());
-  if (command === null) return null;
-  const known = [/^issue submit [0-9a-f]{64} --yes$/, /^feedback apply [0-9a-f]{64} --yes$/, /^storage apply [0-9a-f]{64} --yes$/].some((re) => re.test(command));
-  if (!known || root === null) return null;
-  const text = `PREGATE: Ask the user to approve. Do not run the approval command yourself. Show the complete preview and ask the user to run ${c.command} in a separate terminal. The agent must not run the approval command.`;
-  const fix = causeFix("approval", null, null, null);
-  return { ...told(null), verdict: "deny", full: `${text}\nFix: ${fix.text}`, compact: text, notice: text, fix };
 }
 
 // What the guard asks about a path, answered on its canonical form by the root that holds it: a

@@ -92,12 +92,11 @@ const approval = [
   "export PREGATE_ACCEPT_CONTRACT=abc",
   "env -u PREGATE_UNATTENDED_APPROVAL echo ok",
   "set PREGATE_UNATTENDED_APPROVAL=1 & pregate disable --yes",
+  "PREGATE_UNATTENDED_APPROVAL=1 pregate uninstall",
+  "export PREGATE_UNATTENDED_APPROVAL=1; pregate uninstall",
 ];
 
 const hookSwitch = [
-  "pregate uninstall",
-  "PREGATE_UNATTENDED_APPROVAL=1 pregate uninstall",
-  "export PREGATE_UNATTENDED_APPROVAL=1; pregate uninstall",
   "PREGATE_PROJECT_HOOK=1 pregate status",
   "env -i pregate status",
   "env -u PREGATE_PROJECT_HOOK pregate status",
@@ -106,7 +105,7 @@ const hookSwitch = [
 ];
 
 test("the codex pre hook denies approval forging and keeps a real hook switch", () => {
-  for (const command of ["pregate status", "echo ok"]) {
+  for (const command of ["pregate status", "echo ok", "pregate uninstall"]) {
     const allowed = hook(command);
     expect(allowed.code, `${command}\n${allowed.text}`).toBe(0);
     expect(allowed.text, command).not.toContain("PREGATE DENY");

@@ -138,10 +138,11 @@ function noTerminal(route?: { roots: string[]; command: string }): string {
 }
 
 // `bound`: this call is `pregate approve` with a code or `--yes`. That confirmation does not need
-// a terminal. Other commands pass false, so `--yes` still needs `PREGATE_UNATTENDED_APPROVAL=1`.
-export async function approve(summary: string, warning: boolean, yes = false, bound = false): Promise<boolean> {
+// a terminal. `terminalOnly`: `pregate enable` and `pregate disable`. `--yes` on those still needs
+// a terminal or the unattended opt-in. Every other command accepts `--yes` from a harness shell.
+export async function approve(summary: string, warning: boolean, yes = false, bound = false, terminalOnly = false): Promise<boolean> {
   const answer = testAnswer();
-  const confirmed = yes && (bound || unattendedApproval());
+  const confirmed = yes && (bound || unattendedApproval() || !terminalOnly);
   const prompting = answer !== undefined ? !yes : !confirmed;
   const text = Buffer.from(approvalText(summary, warning, prompting), "utf8");
   if (answer !== undefined) {

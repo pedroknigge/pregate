@@ -565,7 +565,7 @@ function seal(path: string): () => void {
   };
 }
 
-test("a non-literal script is denied and a literal script or read-only one-liner is not", () => {
+test("a non-literal script is allowed and a literal script that runs a control command is not", () => {
   const r = fresh();
   const bin = join(r.dir, "bin");
   mkdirSync(bin);
@@ -579,10 +579,7 @@ test("a non-literal script is denied and a literal script or read-only one-liner
   const a = claude(r);
   ok(a.start(), "session");
   for (const command of ['bash "$SCRIPT"', 'sh "$X"', 'bash < "$S"', 'python3 "$P"', 'node "$P"', 'make -f "$F"', "powershell -File $P"]) {
-    const out = a.bash(command);
-    denied(out, "shell-write");
-    expect(said(out)).toContain("Why:");
-    expect(said(out)).toContain("Fix:");
+    silent(a.bash(command));
   }
   silent(a.bash('python3 -c "print(1 + 1)"'));
   silent(a.bash('node -e "console.log(1)"'));
