@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.5.0`. Category: **library**.
+Version: `1.5.1`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## nextjs/rendering
 
-Manifest version: `1.4.0`. Status: **complete**.
+Manifest version: `1.4.1`. Status: **complete**.
 
 ### nextjs/NEXT-HEAD-001
 
@@ -300,7 +300,7 @@ Source metadata:
 
 ### nextjs/NEXT-SEGMENT-001
 
-Check: [`nextjs/data/no-sync-segment-params@1.0.1`](checks/data/no-sync-segment-params/check.json). Default severity: **deny**. Version gate: **deny** when the nearest `next` declaration is entirely `>=16.0.0`; otherwise the rule does not run. A specifier that can still install an older release, or that cannot be read, does not match.
+Check: [`nextjs/data/no-sync-segment-params@1.0.2`](checks/data/no-sync-segment-params/check.json). Default severity: **deny**. Version gate: **deny** when the nearest `next` declaration is entirely `>=16.0.0`; otherwise the rule does not run. A specifier that can still install an older release, or that cannot be read, does not match.
 
 Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
 
@@ -312,7 +312,7 @@ Default parameters: `{}`.
 
 **Repair:** Await params before reading it: const { slug } = await params. Keep the synchronous read inside generateImageMetadata. https://nextjs.org/docs/app/guides/upgrading/version-16
 
-**Scope and limits:** Page files are covered by NEXT-PARAMS-001. This rule reads layout, route, default, and the image generator files. A member, index, destructure, or nested parameter pattern named params is flagged. A use inside a block that declares a local named params, including URLSearchParams, is not flagged. A parameter read in that same block is not flagged either. searchParams in a layout is not the page request API and is not flagged. generateImageMetadata is excluded. The rule runs only when next is declared entirely on 16 or newer.
+**Scope and limits:** Page files are covered by NEXT-PARAMS-001. This rule reads layout, route, default, and the image generator files. A member, index, destructure, or nested parameter pattern named params is flagged. A use inside a block that declares a local named params, including URLSearchParams, is not flagged. A parameter read in that same block is not flagged either. A read inside a call whose callee is defineRoute, including a member call such as kernel.defineRoute, is not flagged, because that wrapper awaits params before the handler runs. A binding named params created by destructuring an await, or an await in parentheses, is not flagged. A direct read of the route Promise, a destructure whose initializer is not an await, a helper that receives the Promise, and a handler declared outside the defineRoute call are still flagged. An import that renames defineRoute is still read as the Promise. searchParams in a layout is not the page request API and is not flagged. generateImageMetadata is excluded. The rule runs only when next is declared entirely on 16 or newer.
 
 Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
 

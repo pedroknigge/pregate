@@ -65,7 +65,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [musk](../packs/musk/REFERENCE.md) | process | 1.0.1 | 5 | `musk/algorithm` (complete) |
 | [nestjs](../packs/nestjs/REFERENCE.md) | library | 1.3.0 | 13 | `nestjs/controllers` (complete), `nestjs/providers` (complete), `nestjs/transport` (complete) |
 | [next-website](../packs/next-website/REFERENCE.md) | library | 1.0.0 | 54 | `next-website/readiness` (preview) |
-| [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.5.0 | 22 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
+| [nextjs](../packs/nextjs/REFERENCE.md) | library | 1.5.1 | 22 | `nextjs/rendering` (complete), `nextjs/routing` (complete) |
 | [node](../packs/node/REFERENCE.md) | library | 1.5.0 | 32 | `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete) |
 | [nuxt](../packs/nuxt/REFERENCE.md) | library | 1.3.0 | 15 | `nuxt/data` (complete), `nuxt/security` (complete), `nuxt/server` (complete) |
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |

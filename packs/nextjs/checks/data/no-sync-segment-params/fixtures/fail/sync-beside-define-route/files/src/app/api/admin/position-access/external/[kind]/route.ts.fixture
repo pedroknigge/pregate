@@ -1,0 +1,11 @@
+import { defineRoute } from "@/kernel/app/define-route";
+
+export const GET = defineRoute({
+  handler: async ({ params }) => {
+    return Response.json({ kind: params.kind });
+  },
+});
+
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return Response.json({ id: params.id });
+}

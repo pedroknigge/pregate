@@ -1,0 +1,18 @@
+import { defineRoute } from "@/kernel/app/define-route";
+
+const kernel = { defineRoute };
+
+export const GET = defineRoute<{ id: string }>({
+  async handler({ params }) {
+    const id = params.id;
+    return Response.json({ id, key: params["id"], maybe: params?.id });
+  },
+});
+
+export const PUT = defineRoute(async ({ params }) => params.id);
+
+export const PATCH = defineRoute(async ({ params: { id } }) => Response.json({ id }));
+
+export const DELETE = kernel.defineRoute({
+  handler: async (ctx: { params: { id: string } }) => ctx.params.id,
+});
