@@ -198,8 +198,13 @@ test("a git submodule is proposed and then left out of analysis", () => {
   writeFileSync(join(root, "src/app.js"), JS);
   git(root, ["add", "."]);
   git(root, ["commit", "-qm", "app"]);
-  git(root, ["-c", "protocol.file.allow=always", "submodule", "add", lib, "libs/dep"]);
+  const sha = Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd: lib, env: baseEnv, stdout: "pipe" }).stdout.toString().trim();
+  writeFileSync(join(root, ".gitmodules"), `[submodule "dep"]\n\tpath = libs/dep\n\turl = ${lib.split("\\").join("/")}\n`);
+  git(root, ["add", ".gitmodules"]);
+  git(root, ["update-index", "--add", "--cacheinfo", "160000", sha, "libs/dep"]);
   git(root, ["commit", "-qm", "submodule"]);
+  mkdirSync(join(root, "libs/dep/src"), { recursive: true });
+  writeFileSync(join(root, "libs/dep/src/lib.js"), JS);
   const init = run(root, ["init", "--preset", "legacy-safe", "--yes"], { ...baseEnv, PREGATE_UNATTENDED_APPROVAL: "1" });
   expect(init.code, init.stdout + init.stderr).toBe(0);
   enforce(root);

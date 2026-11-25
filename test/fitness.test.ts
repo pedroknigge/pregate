@@ -137,7 +137,11 @@ test("one digest adopts different project assertions, runs shared commands once,
   expect(p.run("audit", "--json").code).toBe(0); // unbound requirements do not block
   expect(p.run("audit", "--json", "--strict").code).toBe(2);
   expect(p.run(...flags).text).toContain("Nothing proposed or executed");
-  expect(p.run("approve", "--yes").code).toBe(1);
+  // Audit prepared an exclusion review for the toy pack's fixtures. Applying it must keep the adopted bindings.
+  const applied = p.run("approve", "--yes");
+  expect(applied.code, applied.text).toBe(0);
+  const kept = JSON.parse(readFileSync(join(p.root, PRESET), "utf8")) as { fitness?: Record<string, unknown> };
+  expect(Object.keys(kept.fitness ?? {}).sort()).toEqual(["FIT-BUDGET", "FIT-ORIGIN", "FIT-STATE"]);
   writeFileSync(p.file, JSON.stringify({ ...p.manifest, assertions: p.manifest.assertions.map(a => ({ ...a, limits: a.limits + " Changed claim." })) }));
   expect(p.run("fitness", "run", "--all").text).toContain("nothing executed");
   expect(readFileSync(join(p.root, "order-runs"), "utf8")).toBe("1");
