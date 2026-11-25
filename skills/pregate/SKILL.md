@@ -883,7 +883,7 @@ Categories: `invariants`, `language`, `pattern`, `library`, `practice`, `process
 - `musk@1.0.1` — process: `musk/algorithm` (complete)
 - `nestjs@1.3.0` — library: `nestjs/controllers` (complete), `nestjs/providers` (complete), `nestjs/transport` (complete)
 - `next-website@1.0.0` — library: `next-website/readiness` (preview)
-- `nextjs@1.4.1` — library: `nextjs/rendering` (complete), `nextjs/routing` (complete)
+- `nextjs@1.5.0` — library: `nextjs/rendering` (complete), `nextjs/routing` (complete)
 - `node@1.5.0` — library: `node/internals` (complete), `node/operations` (preview), `node/runtime` (complete), `node/security` (complete)
 - `nuxt@1.2.0` — library: `nuxt/data` (complete), `nuxt/server` (complete)
 - `postgres@1.2.0` — library: `postgres/client` (complete), `postgres/safety` (complete)

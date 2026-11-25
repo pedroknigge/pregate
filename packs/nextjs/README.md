@@ -1,6 +1,6 @@
 # nextjs
 
-App Router pack for Next.js TypeScript projects. Source version **1.4.1**. Data-only rule pack: every check is a syntax pattern, no executable code.
+App Router pack for Next.js TypeScript projects. Source version **1.5.0**. Data-only rule pack: syntax checks are patterns, and NEXT-PIN-001 uses the dependency-pin primitive. The pack ships no executable code.
 
 ## Stance
 
@@ -41,15 +41,16 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 | `NEXT-PROXY-001` | A named `middleware` export in `proxy.ts`. | Proxy calls `proxy` or the default export. Does not run below 16. | deny on Next >= 16 |
 | `NEXT-PROXY-002` | `middleware.ts` with `export const config = { runtime: "nodejs" }`. | That Node.js file is the deprecated filename; proxy owns Node. Edge middleware, the default, stays. Does not run below 16. | warn on Next >= 16 |
 | `NEXT-SERVER-EXPORT-001` | Route segment exports from a `'use client'` page, layout, or route. With `cacheComponents: true`, also `dynamic`, `dynamicParams`, `fetchCache`, and `runtime` on the server, including `runtime = "nodejs"`. | Client Components cannot export them. Those four are removed or unsupported when Cache Components is on. | deny |
+| `NEXT-PIN-001` | `next` in `package.json` or a lockfile at <=15.5.28, or from 16.0.0 through 16.4.4. | Those releases are inside the advisories GitHub published on 2026-11-03. 15.5.29 and 16.4.5 are the patched releases. | warn |
 
 ## Methodologies
 
 - `nextjs/routing` — NEXT-LINK-001, NEXT-DOC-001, NEXT-ROUTE-001, NEXT-REVAL-001, NEXT-NAV-001, NEXT-SERVER-EXPORT-001, NEXT-PROXY-001, NEXT-PROXY-002
-- `nextjs/rendering` — NEXT-HEAD-001, NEXT-IMG-001, NEXT-FONT-001, NEXT-CACHE-001, NEXT-CONFLICT-001, NEXT-DIRECTIVE-001, NEXT-META-001, NEXT-ASYNC-001, NEXT-PARAMS-001, NEXT-SEGMENT-001, NEXT-SITEMAP-001, NEXT-IMAGE-001, NEXT-REVALTAG-001
+- `nextjs/rendering` — NEXT-HEAD-001, NEXT-IMG-001, NEXT-FONT-001, NEXT-CACHE-001, NEXT-CONFLICT-001, NEXT-DIRECTIVE-001, NEXT-META-001, NEXT-ASYNC-001, NEXT-PARAMS-001, NEXT-SEGMENT-001, NEXT-SITEMAP-001, NEXT-IMAGE-001, NEXT-REVALTAG-001, NEXT-PIN-001
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/nextjs` runs **151** real fixtures. Every check has two passing and two failing cases plus a failing trap with exact lines. Regression cases preserve next/headers, exported module-name notes, import options, CMS HTML strings and unrelated attribute text; an arrow-rendered internal anchor still reports. External anchors, `next/image`, icon and local stylesheet links, explicit cache options, template-literal pushes, and numeric `revalidate` values remain pass guards. Next.js 16 fixtures also keep awaited props, `{ expire }` and a cacheLife profile, Edge middleware, a default export named `middleware`, and synchronous `params` inside `generateImageMetadata`. Cache Components fixtures cover a literal `cacheComponents: true` in the root Next config and the previous model without it.
+`pregate rules test packs/nextjs` runs **157** real fixtures. Every check has two passing and two failing cases plus a failing trap with exact lines. NEXT-PIN-001 warns when a manifest or lockfile can install `next` at <=15.5.28 or from 16.0.0 through 16.4.4. `15.5.29`, `^15.5.29`, and `16.4.5` stay quiet. A nested lockfile pin warns when the root `next` pin is already patched and `eslint-config-next` carries the old number. Regression cases preserve next/headers, exported module-name notes, import options, CMS HTML strings and unrelated attribute text; an arrow-rendered internal anchor still reports. External anchors, `next/image`, icon and local stylesheet links, explicit cache options, template-literal pushes, and numeric `revalidate` values remain pass guards. Next.js 16 fixtures also keep awaited props, `{ expire }` and a cacheLife profile, Edge middleware, a default export named `middleware`, and synchronous `params` inside `generateImageMetadata`. Cache Components fixtures cover a literal `cacheComponents: true` in the root Next config and the previous model without it.
 
 Fixtures only prove the sample syntax. The [fetch reference](https://nextjs.org/docs/app/api-reference/functions/fetch) documents default `auto no cache`. With [Cache Components](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents), fetch stays uncached unless it runs inside `use cache`. NEXT-LINK-001 now identifies actual anchor/attribute structure anywhere in JSX and remains advisory because navigation intent is unknown. Other JSX rules still have their documented expression limits. Open cross-file questions are catalogued in [BACKLOG.md](BACKLOG.md).
 
@@ -67,7 +68,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.4.1`. 21 distinct check IDs.
+Category: **library**. Version: `1.5.0`. 22 distinct check IDs.
 
 Methodologies: `nextjs/rendering` (complete), `nextjs/routing` (complete).
 

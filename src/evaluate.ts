@@ -18,7 +18,7 @@ import { gatedSeverity } from "./typescript-version.ts";
 import { dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
 import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
-import { dependencyPinLine, versionGateMatches } from "./package-version.ts";
+import { dependencyPinHit, pinWindows, versionGateMatches } from "./package-version.ts";
 import { cacheComponentsEnabled } from "./next-config.ts";
 import { hasSiblingTest, importsFeatureFlag, longestFunction, nonBlankLines } from "./proxy-checks.ts";
 import { nodePinDetail, staleNodePins } from "./node-security-pin.ts";
@@ -267,10 +267,8 @@ type Report = (r: LockRule, line: number, symbol: string, measured?: number | nu
 
 function reportDependencyPin(rule: LockRule, rel: string, text: string | null, report: Report): void {
   const name = rule.params.package;
-  const introduced = rule.params.introduced;
-  const fixed = rule.params.fixed;
-  if (text === null || typeof name !== "string" || typeof introduced !== "string" || typeof fixed !== "string") return;
-  const line = dependencyPinLine(rel, text, { package: name, introduced, fixed });
+  if (text === null || typeof name !== "string") return;
+  const line = dependencyPinHit(rel, text, name, pinWindows(rule.params));
   if (line !== null) report(rule, line, MODULE);
 }
 function ruleProgress<T>(host: Host, r: LockRule, run: () => T): T {

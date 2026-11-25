@@ -220,6 +220,7 @@ function compare(left: Bound, right: Bound): number {
 
 // A manifest or lockfile that can install `package` in [introduced, fixed). The bounds are
 // exact triples. An unreadable spec is not a pin. Lockfiles contribute resolved versions only.
+// Several advisory windows are separate calls: a pin inside any one window is enough.
 const PIN_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock)$/;
 const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
 
@@ -227,6 +228,32 @@ export interface DependencyPin { package: string; introduced: string; fixed: str
 
 export function isDependencyPinFile(rel: string): boolean {
   return PIN_FILE.test(rel) && !rel.split("/").includes("node_modules");
+}
+
+export interface PinWindow { introduced: string; fixed: string }
+
+// `ranges` is the window list. Without it, `introduced` and `fixed` are the one window.
+export function pinWindows(params: Record<string, unknown>): PinWindow[] {
+  if (Array.isArray(params.ranges)) return params.ranges.flatMap(asWindow);
+  return asWindow(params);
+}
+
+function asWindow(value: unknown): PinWindow[] {
+  if (typeof value !== "object" || value === null) return [];
+  const record = value as Record<string, unknown>;
+  const introduced = record.introduced;
+  const fixed = record.fixed;
+  if (typeof introduced !== "string" || typeof fixed !== "string") return [];
+  return [{ introduced, fixed }];
+}
+
+// The first line inside any window, in the order the windows are given.
+export function dependencyPinHit(rel: string, text: string, name: string, ranges: readonly PinWindow[]): number | null {
+  for (const range of ranges) {
+    const line = dependencyPinLine(rel, text, { package: name, introduced: range.introduced, fixed: range.fixed });
+    if (line !== null) return line;
+  }
+  return null;
 }
 
 // The first line that pins `pin.package` inside the half-open window, or null when the file

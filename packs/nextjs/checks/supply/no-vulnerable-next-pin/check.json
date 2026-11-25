@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nextjs/supply/no-vulnerable-next-pin",
+  "version": "1.0.0",
+  "area": "supply",
+  "cardinality": "singleton",
+  "dimension": "nextjs.next-pin",
+  "minSeverity": null,
+  "params": {
+    "package": { "const": "next" },
+    "ranges": {
+      "const": [
+        { "introduced": "0.0.0", "fixed": "15.5.29" },
+        { "introduced": "16.0.0", "fixed": "16.4.5" }
+      ]
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "dependency-pin"
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "next is pinned at <=15.5.28 or from 16.0.0 through 16.4.4. Upgrade to 15.5.29 or 16.4.5."
+  }
+}

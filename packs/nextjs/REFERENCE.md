@@ -2,13 +2,13 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.4.1`. Category: **library**.
+Version: `1.5.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
 ## nextjs/rendering
 
-Manifest version: `1.3.1`. Status: **complete**.
+Manifest version: `1.4.0`. Status: **complete**.
 
 ### nextjs/NEXT-HEAD-001
 
@@ -423,6 +423,54 @@ Source metadata:
   "work": "Next.js 16 upgrade guide, https://nextjs.org/docs/app/guides/upgrading/version-16; Next.js 16 release, https://nextjs.org/blog/next-16",
   "locator": "Caching APIs, revalidateTag; revalidateTag() (updated)",
   "paraphrase": "revalidateTag now requires a second argument. The upgrade guide shows a cacheLife profile such as 'max'. The Next.js 16 release also allows an inline { expire: number } object. The single-argument form is deprecated and is a TypeScript error."
+}
+```
+
+### nextjs/NEXT-PIN-001
+
+Check: [`nextjs/supply/no-vulnerable-next-pin@1.0.0`](checks/supply/no-vulnerable-next-pin/check.json). Default severity: **warn**.
+
+Implementation: `dependency-pin`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `nextjs.next-pin`. Minimum severity: `none`.
+
+A next pin that can still install 15.5.28 or 16.4.4 keeps the Edge HttpOnly cookie leak, the SVG optimizer bypass, the proxy response mix-up, the use cache key collision, and the Cache Components shell poisoning.
+
+Default parameters: `{"package":"next","ranges":[{"introduced":"0.0.0","fixed":"15.5.29"},{"introduced":"16.0.0","fixed":"16.4.5"}]}`.
+
+**Repair:** Upgrade next to 15.5.29 on the 15 line, or to 16.4.5 on the 16 line.
+
+**Scope and limits:** The warning is a pin that can install next below 15.5.29, or from 16.0.0 up to but not including 16.4.5, from dependencies, devDependencies, peerDependencies, or optionalDependencies, or a resolved lockfile version in either window. GHSA-pc58-hwjq-p385 has no lower bound, so a 14.x pin warns too. 15.5.29, a range entirely inside 15.5.29 up to but not including 16.0.0, and 16.4.5 or newer do not warn. eslint-config-next and other package names are not this package. An unreadable spec such as *, latest, or a git URL does not warn. A prerelease compares as its release triple. The check reads package.json, package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, yarn.lock, and bun.lock.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "package": {
+    "const": "next"
+  },
+  "ranges": {
+    "const": [
+      {
+        "introduced": "0.0.0",
+        "fixed": "15.5.29"
+      },
+      {
+        "introduced": "16.0.0",
+        "fixed": "16.4.5"
+      }
+    ]
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Next.js security advisories published 2026-11-03",
+  "locator": "https://github.com/vercel/next.js/security/advisories/GHSA-f3mh-rxg3-f5g2",
+  "paraphrase": "GitHub published these next advisories on 2026-11-03. Patched releases are 15.5.29 and 16.4.5. GHSA-f3mh-rxg3-f5g2 (CVE-2026-119346) exposes HttpOnly cookies through x-middleware-set-cookie on Edge routes, for next >=15.0.0 <=15.5.28 and >=16.0.0 <=16.4.4. GHSA-7qx7-33qx-rqx2 (CVE-2026-119347) processes an SVG when dangerouslyAllowSVG is false, on the same ranges. GHSA-pc58-hwjq-p385 (CVE-2026-119348) mixes responses behind a proxy, for next <=15.5.28 and >=16.0.0 <=16.4.4. GHSA-rhh4-g77r-r9qj (CVE-2026-119349) collides use cache keys for distinct binary arguments, for next >=16.0.0 <=16.4.4. GHSA-vvgp-ww4w-46vf (CVE-2026-119350) poisons a Cache Components fallback shell, for next >=16.4.0 <=16.4.4. The same patched versions also fix GHSA-mfr8-8qww-v76h (CVE-2026-119790, >=16.3.0 <=16.4.4) and GHSA-vc7v-qv4w-wrv8 (CVE-2026-119351, >=16.2.0 <=16.4.4)."
 }
 ```
 
