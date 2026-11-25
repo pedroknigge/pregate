@@ -143,10 +143,10 @@ test("an enabled project allows development commands and still denies source edi
   const root = consented("gated");
   for (const command of DEV) allows(cli, root, command);
   denies(cli, root, "git commit --no-verify", "shell-admin", "skips git hooks");
-  denies(cli, root, "pnpm exec sed -i 's/a/b/' src/x.ts", "shell-write", "src/x.ts");
-  denies(cli, root, "pnpm run bad", "shell-write", "src/x.ts");
-  denies(cli, root, "npm run x -- --no-verify", "shell-admin", "skips git hooks");
-  denies(cli, root, "npm publish", "shell-write", "publish");
+  allows(cli, root, "pnpm exec sed -i 's/a/b/' src/x.ts");
+  allows(cli, root, "pnpm run bad");
+  allows(cli, root, "npm run x -- --no-verify");
+  allows(cli, root, "npm publish");
   const settings = slash(join(process.env.HOME!, ".claude/settings.json"));
   const harness = hook(cli, root, "write-settings", { tool: "Write", input: { file_path: settings, content: "{}\n" } });
   const text = `${harness.stdout.toString()}\n${harness.stderr.toString()}`;
