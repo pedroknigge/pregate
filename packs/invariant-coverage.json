@@ -4748,7 +4748,7 @@
     },
     {
       "id": "PS-60",
-      "text": "**Babysit** drives a PR or a stack to merge-ready: conflicts, review threads, and CI are closed or deferred.",
+      "text": "**Babysit** declares a mode and clears one PR at a time: drive loops to merge-ready in the order conflicts, review threads, then CI, and a conflict is reported and the run stops.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 85,
@@ -4799,7 +4799,7 @@
     },
     {
       "id": "PS-63",
-      "text": "**Orchestrate** assigns a multi-day project to one coordinator.",
+      "text": "**Program-scale work** routes large, cross-cutting, or unattended work to figure-it-out.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 88,
@@ -4884,7 +4884,7 @@
     },
     {
       "id": "PS-68",
-      "text": "**Multi-phase plan** names phases, the verifiable exit of each phase, and the order.",
+      "text": "**Multi-phase plan** names the PRs in landing order and the unit, live, and perf check that verifies each one.",
       "source": {
         "path": "packs/pstack/INVARIANTS.md",
         "line": 93,

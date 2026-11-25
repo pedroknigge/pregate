@@ -70,7 +70,7 @@ These are implementation counts, not a certified enforce-ready total. Prefer sta
 | [nuxt](../packs/nuxt/REFERENCE.md) | library | 1.3.0 | 15 | `nuxt/data` (complete), `nuxt/security` (complete), `nuxt/server` (complete) |
 | [postgres](../packs/postgres/REFERENCE.md) | library | 1.2.0 | 11 | `postgres/client` (complete), `postgres/safety` (complete) |
 | [prisma](../packs/prisma/REFERENCE.md) | library | 1.3.0 | 14 | `prisma/client` (complete), `prisma/writes` (complete) |
-| [pstack](../packs/pstack/REFERENCE.md) | process | 1.2.0 | 97 | `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview) |
+| [pstack](../packs/pstack/REFERENCE.md) | process | 1.2.1 | 97 | `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview) |
 | [python](../packs/python/REFERENCE.md) | language | 1.4.0 | 25 | `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete) |
 | [react](../packs/react/REFERENCE.md) | library | 1.2.1 | 14 | `react/components` (complete), `react/hooks` (complete) |
 | [react-native](../packs/react-native/REFERENCE.md) | library | 1.2.0 | 10 | `react-native/platform` (complete), `react-native/security` (complete) |

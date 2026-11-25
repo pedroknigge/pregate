@@ -65,7 +65,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **process**. Version: `1.2.0`. 97 distinct check IDs.
+Category: **process**. Version: `1.2.1`. 97 distinct check IDs.
 
 Methodologies: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview).
 
