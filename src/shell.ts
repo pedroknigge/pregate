@@ -1540,14 +1540,14 @@ function packageScript(cwd: string | null, ctx: Ctx, name: string): string | { c
   if (path === null) return null;
   const read = ctx.readScriptFile?.(path) ?? { kind: "missing" as const };
   if (read.kind === "missing") return null;
-  if (read.kind !== "text") return { cause: shellWrite(ctx, "package.json could not be read, so its script cannot be checked") };
+  if (read.kind !== "text") return null;
   let parsed: unknown;
   try { parsed = JSON.parse(read.text); }
   catch (error) {
-    if (error instanceof SyntaxError) return { cause: shellWrite(ctx, "package.json is not valid JSON, so its script cannot be checked") };
+    if (error instanceof SyntaxError) return null;
     throw error;
   }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return { cause: shellWrite(ctx, "package.json is not an object, so its script cannot be checked") };
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const scripts = (parsed as { scripts?: unknown }).scripts;
   if (scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) return null;
   const body = (scripts as Record<string, unknown>)[name];

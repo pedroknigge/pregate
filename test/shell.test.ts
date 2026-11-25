@@ -698,7 +698,7 @@ const allowed: string[] = [
   "some-tool bypass-hooks",
 ];
 
-const denied: [string, Cause][] = [
+const denied: [string, Cause | null][] = [
   ['echo "it\'s fine', "shell-uncertain"],
   ["grep 'unterminated src/a.ts", "shell-uncertain"],
   // writes to paths in scope
