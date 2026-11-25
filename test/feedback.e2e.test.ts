@@ -121,12 +121,13 @@ test("recomputed digests cannot disguise metadata, invalid notes or a future tim
 
 test("feedback apply --yes is allowed from the harness; a wrapper is not", () => {
   const p = project(), digest = p.draft();
+  Bun.spawnSync(["git", "init", "-q"], { cwd: p.root, stdout: "pipe", stderr: "pipe" });
   const payload = { cwd: p.root, session_id: "approval", hook_event_name: "PreToolUse", permission_mode: "acceptEdits", prompt_id: "t",
     tool_name: "Bash", tool_use_id: "feedback", tool_input: { command: "pregate feedback apply " + digest + " --yes" } };
   const hook = (input: object, ci = "") => p.run(["hook", "pre", "--harness", "claude-code"], input, ci);
   expect(p.run(["feedback", "show", digest]).text).toContain("Label: correct");
   const parent = hook(payload);
-  expect(parent.code).toBe(0);
+  expect(parent.code, parent.text + parent.error).toBe(0);
   expect(parent.text + parent.error).not.toContain("PREGATE DENY");
   expect(hook({ ...payload, agent_id: "child" }).code).toBe(0);
   expect(hook(payload, "1").code).toBe(0);

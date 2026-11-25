@@ -164,12 +164,12 @@ test("hook pre with consent denies an in-project screenshot and allows a temp on
 const LOCALE_LOOP = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'";
 const LOCALE_TEMPLATE = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(`./src/messages/${locale}.json`); console.log(m.management.hoursDashboard.table); }'";
 const BUN_LOOP = "bun -e 'for (const locale of [\"en\", \"es\"]) { console.log(require(\"./src/messages/\" + locale + \".json\")); }'";
-const NODE_DENIALS = [
-  ["node -e 'require(\"fs\").writeFileSync(\"src/a.ts\", \"x\")'", "inside the project"],
-  ["node -e 'require(\"child_process\").execSync(\"ls\")'", "Write that file with the edit tool"],
-  ["node -e 'require(\"f\" + \"s\").writeFileSync(\"x\", \"y\")'", "Write that file with the edit tool"],
-  ["node -e 'eval(\"console.log(1)\")'", "Write that file with the edit tool"],
-] as const;
+const NODE_WRITE = "node -e 'require(\"fs\").writeFileSync(\"src/a.ts\", \"x\")'";
+const NODE_OPAQUE = [
+  "node -e 'require(\"child_process\").execSync(\"ls\")'",
+  "node -e 'require(\"f\" + \"s\").writeFileSync(\"x\", \"y\")'",
+  "node -e 'eval(\"console.log(1)\")'",
+];
 
 function draftLast(cli: string, cwd: string): { code: number; text: string } {
   const draft = Bun.spawnSync([cli, "issue", "draft", "--last"], { cwd, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
@@ -193,7 +193,8 @@ test("hook pre allows orca ports and a read-only node json loop, and issue draft
   allow(cli, root, LOCALE_LOOP);
   allow(cli, root, "orca frob");
   allow(cli, root, "orca agent launch");
-  for (const [command] of NODE_DENIALS) allow(cli, root, command);
+  allow(cli, root, NODE_WRITE);
+  for (const command of NODE_OPAQUE) allow(cli, root, command);
 
   const enabled = consented("ports-on");
   pathScripts(join(area, "consent-ports"));
@@ -210,7 +211,8 @@ test("hook pre allows orca ports and a read-only node json loop, and issue draft
   expect(afterNamed.text).toContain("shell-admin");
   expect(afterNamed.text).toContain("Verdict: deny");
   expect(afterNamed.text).not.toContain("No finding recorded");
-  for (const [command, phrase] of NODE_DENIALS) deny(cli, enabled, command, "shell-write", phrase);
+  deny(cli, enabled, NODE_WRITE, "shell-write", "inside the project");
+  for (const command of NODE_OPAQUE) allow(cli, enabled, command);
   const afterWrite = draftLast(cli, enabled);
   expect(afterWrite.code, afterWrite.text).toBe(0);
   expect(afterWrite.text).toContain("shell-write");

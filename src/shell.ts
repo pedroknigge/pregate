@@ -1601,7 +1601,13 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
     const at = args.findIndex((w) => /^\/[ck]$/i.test(w.text));
     return at < 0 ? "shell-write" : inline(joined(args.slice(at + 1)), cwd, ctx);
   }
-  if (name === "eval" || name === "invoke-expression" || name === "iex") return inline(joined(args), cwd, ctx);
+  if (name === "eval" || name === "invoke-expression" || name === "iex") {
+    // A literal `eval 'echo ok'` is scanned. `eval "$l"` is the stdin loop a pty can type
+    // `pregate approve` into without another hook. That command is not readable, so it stays denied.
+    const body = joined(args);
+    if (!body.literal) return shellWrite(ctx, "`eval` runs a command this process cannot read");
+    return inline(body, cwd, ctx);
+  }
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
   if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd, ctx) ?? writes(targets(name, args), cwd, ctx.inScope, ctx);

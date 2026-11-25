@@ -8,7 +8,7 @@ import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
-import { approvalAskReview } from "./pending-review.ts";
+import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
@@ -167,6 +167,10 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const root = isCause(located) ? null : located;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
   if (isCause(located)) return settle(call, { ...NOTHING, form: locatedForm(sid, located, cwd) });
+  // `storage apply --yes` is how a busy session is recovered. The exclusive cleanup lock makes
+  // every other record fail with state-io, including this command, so the allow does not wait
+  // for a snapshot write. A wrapper is not this command and still goes through the guard.
+  if (root !== null && storageRecovery(c.command)) return told(null);
   // `enabled` can miss a root after `git init` changes its common dir. The consent record
   // still names it, so shell-admin is not dropped the way a never-enabled directory is.
   const machineOnly = root === null && state.roots(sid).length === 0 && !enforcedHere(cwd);
@@ -183,6 +187,11 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const cause = ctx.failure() ?? guarded;
   const o = { ...NOTHING, lock: valid?.lock ?? null, lockHash: valid?.hash ?? null, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" };
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
+}
+
+function storageRecovery(command: string): boolean {
+  const rest = literalPregate(command, launcher());
+  return rest !== null && /^storage apply [0-9a-f]{64} --yes$/.test(rest);
 }
 
 // A named shell-admin denial carries its own sentence. Every other cause keeps the generic text.

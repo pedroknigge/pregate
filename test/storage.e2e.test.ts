@@ -103,7 +103,7 @@ test("a killed cleaner is recovered through the same human route; the agent's ap
     tool_input: { command: "pregate storage apply " + id + " --yes" } };
   expect(p.run(["storage", "show", id]).text).toContain("Recover abandoned storage");
   const parent = p.run(["hook", "pre"], payload, "");
-  expect(parent.code).toBe(0);
+  expect(parent.code, parent.text + parent.error).toBe(0);
   expect(parent.text + parent.error).not.toContain("PREGATE DENY");
   expect(existsSync(join(p.folder, ".pruning"))).toBe(true);
   expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(0);
