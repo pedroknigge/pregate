@@ -1769,8 +1769,11 @@ describe("engine selection", () => {
       }
       expect(redirect(command("pregate check --all"))).toBe("0.2.6");
       expect(redirect(command("pregate approve --yes"))).toBe("0.2.6");
-      for (const text of ["pregate guide", "pregate guide --yes", "pregate guide --json --preview", "pregate guide --preview --unknown",
-        "env pregate guide --json", "sh -c 'pregate guide --preview'"]) {
+      for (const text of ["pregate guide", "pregate guide --yes", "pregate guide --json --preview", "pregate guide --preview --unknown"]) {
+        expect(redirect(command(text))).toBe("0.2.6");
+        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("none");
+      }
+      for (const text of ["env pregate guide --json", "sh -c 'pregate guide --preview'"]) {
         expect(redirect(command(text))).toBe("0.2.6");
         expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("deny");
       }

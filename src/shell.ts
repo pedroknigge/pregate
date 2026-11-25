@@ -1880,6 +1880,9 @@ function pregate(args: Word[], guideAllowed: boolean, direct: boolean): Cause | 
   if (direct && args.every((w) => w.literal && w.subs.length === 0)) {
     const sub = args.find((w) => !w.text.startsWith("-"))?.text;
     if (sub === "enable" || sub === "disable") return "shell-admin";
+    // `approve --preview` only reads. A code or `--yes` is the harness confirmation.
+    // Bare approve, and a pipe into it, still wait for y on a terminal.
+    if (sub === "approve" && !readOnlyPregate(args, false) && !inHarnessApproval(args)) return "shell-admin";
     return null;
   }
   if (args.every((w) => w.literal) && args[0]?.text === "pack" && args[1]?.text === "init") return null;

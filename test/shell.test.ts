@@ -370,7 +370,9 @@ test("preset apply and check help are literal read-only commands with protected 
     for (const command of ["check", "preset apply", "update", "pack update", "fitness bind", "approve", "storage apply", "issue list", "issue draft", "rules test", "demo"]) {
       for (const flag of ["--help", "-h"]) {
         expect(guard(`${prefix} ${command} ${flag}`, ROOT, ctx)).toBeNull();
-        expect(guard(`${prefix} ${command} ${flag} --yes`, ROOT, ctx)).toBe(prefix === "pregate" ? null : "protected-path");
+        const withYes = guard(`${prefix} ${command} ${flag} --yes`, ROOT, ctx);
+        if (command === "approve" || prefix !== "pregate") expect(withYes, `${prefix} ${command} ${flag} --yes`).not.toBeNull();
+        else expect(withYes, `${prefix} ${command} ${flag} --yes`).toBeNull();
         for (const tail of [" > .pregate/preset.json", " > src/a.ts"]) {
           expect(guard(`${prefix} ${command} ${flag}${tail}`, ROOT, ctx)).not.toBeNull();
         }
@@ -949,6 +951,8 @@ const denied: [string, Cause][] = [
   ["sh .pregate/bin/pregate check --stdin", "protected-path"],
   // admin commands, other harnesses, hook switches
   ["sh -c '! pregate approve --yes --digest " + "a".repeat(64) + "'", "shell-admin"],
+  ["pregate approve", "shell-admin"],
+  ["printf 'y\n' | pregate approve", "shell-admin"],
   ["pregate enable --yes", "shell-admin"],
   ["pregate disable --yes", "shell-admin"],
   // a command name the shell builds may be PREGATE's own approval

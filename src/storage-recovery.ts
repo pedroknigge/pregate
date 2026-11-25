@@ -68,7 +68,7 @@ export function recoveryPreview(plan: RecoveryPlan, id: string): string {
       ...session.markers.map((marker) => "  " + marker.path + " · PID " + marker.pid + " · " + marker.reason + " SHA-256 " + marker.hash)]),
     "Only exact reviewed owners from this machine whose PID is still absent can be removed. Active, foreign/unknown-host, inaccessible, ownerless and legacy/ambiguous markers stay.",
     "A shared session can belong to several roots; review its listed roots. Age alone never authorizes recovery.",
-    "Digest: " + id, ...humanApprovalInstructions("pregate storage apply " + id + " --yes"),
+    "Digest: " + id, ...humanApprovalInstructions("pregate storage apply " + id + " --yes", "harness"),
   ].join("\n"));
 }
 

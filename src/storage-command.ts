@@ -46,7 +46,7 @@ export function storagePreview(plan: StoragePlan, id: string): string {
     "Snapshots, baseline caches, histories and denial/Stop counters stay intact. Shared/newer code remains.",
     "Old findings remain listed; deleted source cannot be included in a new issue or dispute reproduction.",
     "This is permanent file removal, not secure disk erasure. It does not remove code copied into existing issue drafts.",
-    "Digest: " + id, ...humanApprovalInstructions("pregate storage apply " + id + " --yes"),
+    "Digest: " + id, ...humanApprovalInstructions("pregate storage apply " + id + " --yes", "harness"),
   ].join("\n"));
 }
 

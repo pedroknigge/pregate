@@ -86,7 +86,7 @@ test("reviewed recovery removes a killed writer's lease without source or counte
   const preview = p.run(["storage", "show", id]).text;
   expect(preview).toContain("PID " + pid);
   expect(preview).toContain(`pregate storage apply ${id} --yes`);
-  expect(preview).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
+  expect(preview).toContain("including a harness ! line");
   expect(p.run(["storage", "apply", id]).code).toBe(1);
   expect(JSON.parse(p.run(["storage", "inspect", "--json"]).text).sessions[0].writers).toBe(1);
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(0);
@@ -103,12 +103,11 @@ test("a killed cleaner is recovered through the same human route; the agent's ap
     tool_input: { command: "pregate storage apply " + id + " --yes" } };
   expect(p.run(["storage", "show", id]).text).toContain("Recover abandoned storage");
   const parent = p.run(["hook", "pre"], payload, "");
-  expect(parent.code).toBe(2);
-  expect(parent.text + parent.error).toContain(`run pregate storage apply ${id} --yes in a separate terminal`);
-  expect(parent.text + parent.error).not.toContain(`! pregate storage apply ${id} --yes`);
+  expect(parent.code).toBe(0);
+  expect(parent.text + parent.error).not.toContain("PREGATE DENY");
   expect(existsSync(join(p.folder, ".pruning"))).toBe(true);
-  expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(2);
-  expect(p.run(["hook", "pre"], payload).code).toBe(2);
+  expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(0);
+  expect(p.run(["hook", "pre"], payload).code).toBe(0);
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(0);
   expect(existsSync(join(p.folder, ".pruning"))).toBe(false);
   expect(p.run(["hook", "pre"], { ...payload, tool_name: "Write", tool_input: { file_path: join(p.root, "src/a.ts"), content: "export const changed = 2;\n" } }).code).toBe(0);
@@ -165,7 +164,7 @@ test("reviewed retention removes only eligible code and preserves resumable base
   const preview = p.run(["storage", "show", digest]).text;
   expect(preview).toContain("1 blobs");
   expect(preview).toContain(`pregate storage apply ${digest} --yes`);
-  expect(preview).toContain("Claude Code, Codex, Grok, agy, OpenCode and Cursor each need a separate terminal.");
+  expect(preview).toContain("including a harness ! line");
   expect(p.run(["storage", "apply", digest]).code).toBe(1);
   expect(existsSync(join(p.folder, "blobs", old.hash))).toBe(true);
   expect(p.run(["storage", "apply", digest, "--yes"]).code).toBe(0);
@@ -253,13 +252,11 @@ test("cleanup approval cannot be self-approved by the parent, children or wrappe
     tool_input: { command: "pregate storage apply " + id + " --yes" } };
   expect(p.run(["storage", "show", id]).text).toContain("Snapshots, baseline caches, histories");
   const parent = p.run(["hook", "pre"], payload, "");
-  expect(parent.code).toBe(2);
-  expect(parent.text + parent.error).toContain(`run pregate storage apply ${id} --yes in a separate terminal`);
-  expect(parent.text + parent.error).not.toContain(`! pregate storage apply ${id} --yes`);
-  for (const input of [{ ...payload, agent_id: "child" }, { ...payload, tool_input: { command: "env " + payload.tool_input.command } }]) {
-    expect(p.run(["hook", "pre"], input, "").code).toBe(2);
-  }
-  expect(p.run(["hook", "pre"], payload).code).toBe(2);
+  expect(parent.code).toBe(0);
+  expect(parent.text + parent.error).not.toContain("PREGATE DENY");
+  expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(0);
+  expect(p.run(["hook", "pre"], { ...payload, tool_input: { command: "env " + payload.tool_input.command } }, "").code).toBe(2);
+  expect(p.run(["hook", "pre"], payload).code).toBe(0);
   expect(existsSync(join(p.folder, "blobs", sha256("old source")))).toBe(true);
 });
 

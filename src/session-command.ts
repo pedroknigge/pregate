@@ -105,7 +105,7 @@ function summary(plan: RebaseReview, digest: string): string {
   return visible([`Review the session baseline for ${plan.root}.`, `Session: ${plan.session}. New baseline: ${plan.head}.`,
     "Approval treats this committed tree as existing debt. This does not prove authorship, fix violations or change the rules. Original snapshots and events remain.",
     ...plan.changes ? summarized(plan, digest) : [plan.diff || "No source content changes from the retained baseline."], ...notes(plan, digest), `Digest: ${digest}`,
-    ...humanApprovalInstructions(`pregate session rebase ${plan.session} --digest ${digest} --yes`)].join("\n"));
+    ...humanApprovalInstructions(`pregate session rebase ${plan.session} --digest ${digest} --yes`, "harness")].join("\n"));
 }
 
 function summarized(plan: RebaseReview, digest: string): string[] {

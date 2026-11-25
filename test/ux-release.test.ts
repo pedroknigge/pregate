@@ -102,8 +102,8 @@ test("session review refuses uncommitted changes, stale commits and agent applic
   const preview = await sessionCommand(["rebase", p.sid, "--preview"]), digest = /Digest: ([a-f0-9]{64})/.exec(preview.text)![1]!;
   const inspect = await onPreCommand({ session: p.session, cwd: p.root, tool: "Bash", callId: "preview", command: `pregate session rebase ${p.sid} --preview` });
   expect(inspect.verdict, inspect.full).toBe("none");
-  const deny = await onPreCommand({ session: p.session, cwd: p.root, tool: "Bash", callId: "self-approve", command: `pregate session rebase ${p.sid} --digest ${digest} --yes` });
-  expect(deny.verdict).toBe("deny");
+  const allowed = await onPreCommand({ session: p.session, cwd: p.root, tool: "Bash", callId: "self-approve", command: `pregate session rebase ${p.sid} --digest ${digest} --yes` });
+  expect(allowed.verdict).toBe("none");
   writeFileSync(p.file, "export const main = 3;\n"); git(p.root, "add", "."); git(p.root, "commit", "-qm", "changed input");
   expect((await sessionCommand(["rebase", p.sid, "--digest", digest, "--yes"])).code).toBe(1);
   expect(existsSync(join(sessionDir(p.sid), H(p.root), "reviewed-baseline.json"))).toBe(false);

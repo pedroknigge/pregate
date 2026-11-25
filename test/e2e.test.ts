@@ -599,8 +599,8 @@ test("D29: headless edits queue validated changes; only the human command applie
   expect(cli(r, "preset", "show").code).toBe(0);
   expect(JSON.parse(readFileSync(at(r, ".pregate/pregate.lock.json"), "utf8")).enforcement).toBe("shadow");
   expect(cli(r, "approve").stdout).toContain("No pending");
-  for (const command of ["pregate enable --yes", "pregate disable --yes", "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve"]) expect(agent.bash(command).code).toBe(2);
-  for (const command of ["pregate approve", "pregate approve --yes", "pregate init --yes", "pregate pack add url@ref --yes", "pregate pack update acme --yes"]) expect(agent.bash(command).code, command).toBe(0);
+  for (const command of ["pregate approve", "pregate enable --yes", "pregate disable --yes", "PREGATE_TESTING=1 PREGATE_TEST_ANSWER=y pregate approve"]) expect(agent.bash(command).code).toBe(2);
+  for (const command of ["pregate approve --yes", "pregate init --yes", "pregate pack add url@ref --yes", "pregate pack update acme --yes"]) expect(agent.bash(command).code, command).toBe(0);
 });
 
 test("D29: pending contracts expire and reject a changed baseline", () => {
@@ -646,11 +646,10 @@ test("compiled issue reporting offers an offline review and sends only the appro
   expect(draft.stdout).not.toContain(content.trim());
   expect(draft.stdout).toContain(`Engine: ${pkg.version}`);
   expect(cli(r, "issue", "submit", id).code).toBe(1);
-  expect(a.bash(`pregate issue submit ${id} --yes`).code).toBe(2);
+  expect(a.bash(`pregate issue submit ${id} --yes`).code).toBe(0);
   const parent = claude(r, { env: { CI: "", PREGATE_UNATTENDED_APPROVAL: "" } }).bash(`pregate issue submit ${id} --yes`);
-  expect(parent.code).toBe(2);
-  expect(parent.stdout + parent.stderr).toContain(`run pregate issue submit ${id} --yes in a separate terminal`);
-  expect(parent.stdout + parent.stderr).not.toContain(`! pregate issue submit ${id} --yes`);
+  expect(parent.code).toBe(0);
+  expect(parent.stdout + parent.stderr).not.toContain("PREGATE DENY");
   const stub = at(r, "gh-stub");
   mkdirSync(stub);
   const fake = join(stub, "gh"), args = join(stub, "args");
