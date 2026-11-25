@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "dependencies": {
+    "next": "16.4.5",
+    "eslint-config-next": "15.5.28"
+  }
+}

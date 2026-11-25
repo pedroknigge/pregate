@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "package": "next",
+    "ranges": [
+      { "introduced": "0.0.0", "fixed": "15.5.29" },
+      { "introduced": "16.0.0", "fixed": "16.4.5" }
+    ]
+  },
+  "target": "package.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 4 }]
+  }
+}

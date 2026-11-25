@@ -182,7 +182,7 @@ export type Impl =
   | { kind: "primitive"; primitive: "react-index-key" }                   // fixed placeholder list exception
   | { kind: "primitive"; primitive: "credential-literal" }                // fixture-aware exact URL placeholders
   | { kind: "primitive"; primitive: "python-legacy" }                    // removed and pending Python stdlib APIs, gated on the declared version
-  | { kind: "primitive"; primitive: "dependency-pin" }                 // params.package, introduced, fixed; a manifest or lockfile pin in [introduced, fixed)
+  | { kind: "primitive"; primitive: "dependency-pin" }                 // params.package plus introduced/fixed, or ranges of those windows; a manifest or lockfile pin in any [introduced, fixed)
   | { kind: "primitive"; primitive: "typescript-fact"; fact: "tsconfig" | "prefer-const" | "type-only-import" | "boundary-parse" | "parameter-sort" | "readonly-array" | "rethrow-cause" | "interface-prefix" | "boolean-mode" }
   | { kind: "primitive"; primitive: "layer-edge" }                          // lock.layers
   | { kind: "primitive"; primitive: "fitness"; requirement: string }       // approved project verification, independent of source grammar

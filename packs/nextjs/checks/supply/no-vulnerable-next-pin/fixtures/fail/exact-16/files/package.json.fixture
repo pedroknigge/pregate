@@ -1,0 +1,6 @@
+{
+  "name": "app",
+  "dependencies": {
+    "next": "16.4.4"
+  }
+}
