@@ -1,6 +1,12 @@
 {
   "entries": [
     {
+      "id": "ca-dep-002-next-route",
+      "summary": "CA-DEP-002 denied next/server in a Next.js API route because the app router was classified as core. Delivery files may import the framework. A core file may not.",
+      "source": "CHANGELOG Unreleased, Fixed, #158.",
+      "test": "issue 158: an API route may import next/server while a core file may not"
+    },
+    {
       "id": "pre-budget-starts-at-admission",
       "summary": "A supervised Pre on Windows counted cold start inside the 5 second deadline, so a clean git switch was denied at the admission checkpoint.",
       "source": "CHANGELOG Unreleased, Fixed. test/supervisor.test.ts names Windows CI run 44400647892.",

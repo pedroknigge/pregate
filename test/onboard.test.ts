@@ -100,6 +100,24 @@ test("an app folder that imports a web framework is an adapter, not core, and no
   expect(detectLayers({ ...files, "src/app/server.ts": 'import { x } from "express-validator";\n' }).app!.kind).toBe("core");
 });
 
+test("a Next.js app folder that imports next/server is an adapter, and next-auth is not", async () => {
+  await grammars();
+  const route = "src/app/api/admin/position-access/external/[kind]/route.ts";
+  const next = "import { NextResponse } from 'next/server';\nexport function GET() { return NextResponse.json({}); }\n";
+  const detected = detectLayers({ "src/domain/order.ts": "export const id = 1;\n", [route]: next });
+  expect(detected.app).toEqual({ paths: ["src/app/**"], mayImport: ["domain"], kind: "adapter" });
+  expect(detected.domain).toEqual({ paths: ["src/domain/**"], mayImport: [], kind: "core" });
+  expect(detectLayers({ "src/domain/order.ts": "", "src/app/page.tsx": 'import { NextResponse } from "next/server";\n' }).app!.kind).toBe("adapter");
+  expect(detectLayers({ "src/domain/order.ts": "", "src/app/server.ts": 'const { NextResponse } = require("next/server");\n' }).app!.kind).toBe("adapter");
+  expect(detectLayers({ "src/domain/order.ts": "", "src/app/server.ts": 'export const nav = import("next/navigation");\n' }).app!.kind).toBe("adapter");
+  const auth = detectLayers({ "src/domain/order.ts": "", "src/app/server.ts": 'import NextAuth from "next-auth";\nexport const auth = NextAuth;\n' });
+  expect(auth.app!.kind).toBe("core");
+  expect(auth.domain!.kind).toBe("core");
+  const coreImport = detectLayers({ "src/domain/order.ts": next, "src/app/page.tsx": "export default function Page() { return null; }\n" });
+  expect(coreImport.domain!.kind).toBe("core");
+  expect(coreImport.app!.kind).toBe("core");
+});
+
 test("a new project's scope drops recipe folders that do not exist and keeps the recipe when nothing matches", () => {
   const scope = { include: ["src/**", "lib/**", "test/**"], exclude: ["src/**/generated/**"] };
   expect(initialScope({ "src/a.ts": "", "test/a.test.ts": "", "tools/x.ts": "" }, scope))

@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.4.0`. Category: **pattern**.
+Version: `1.4.1`. Category: **pattern**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ## architecture/clean-architecture
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **complete**.
 
 ### architecture/CA-DEP-001
 
@@ -93,11 +93,11 @@ Languages: `typescript (includes JavaScript)`. Cardinality: `multi`. Dimension: 
 
 A framework or ORM type in the core ties business rules to a vendor's lifecycle and to infrastructure every test must then start.
 
-Default parameters: `{"paths":["@layers:core"],"packages":["@prisma/client","prisma","typeorm","sequelize","mongoose","drizzle-orm","knex","kysely","@mikro-orm/core","pg","mysql2","mongodb","express","fastify","koa","hono","@nestjs/common","@nestjs/core","next","react","vue","@angular/core"]}`.
+Default parameters: `{"paths":["@layers:core"],"exclude":["**/app/**/{route,page,layout,template,loading,error,not-found,default,global-error,actions}.{ts,tsx,js,jsx,mjs,cjs}","**/app/**/actions/**","**/pages/api/**","middleware.{ts,tsx,js,jsx,mjs,cjs}","src/middleware.{ts,tsx,js,jsx,mjs,cjs}","proxy.{ts,tsx,js,jsx,mjs,cjs}","src/proxy.{ts,tsx,js,jsx,mjs,cjs}"],"packages":["@prisma/client","prisma","typeorm","sequelize","mongoose","drizzle-orm","knex","kysely","@mikro-orm/core","pg","mysql2","mongodb","express","fastify","koa","hono","@nestjs/common","@nestjs/core","next","react","vue","@angular/core"]}`.
 
 **Repair:** Move the framework or ORM call into an adapter outside the core layers and give the core a port that speaks in domain types.
 
-**Scope and limits:** Reaching the same package through require, a literal dynamic import, a subpath or a local barrel.
+**Scope and limits:** Reaching the same package through require, a literal dynamic import, a subpath or a local barrel. App Router route, page, layout, template, loading, error, not-found, default, global-error and actions modules, a file under app/**/actions/, a Pages API route, and middleware or proxy at the project root or under src/ are delivery and are outside this rule. A server action under another file name stays in scope. A file in a core layer, including one under src/core or src/domain, is still denied.
 
 **Interactions when active together:**
 

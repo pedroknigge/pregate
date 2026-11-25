@@ -30,8 +30,9 @@ const LAYER_ROLES: Record<string, { kind: Layer["kind"]; may: string[] }> = {
 };
 // An `app` folder whose files import a web framework is the HTTP entry point, not application
 // core: it is an adapter, may import inward, and no other adapter may import it.
+// `next` includes a subpath such as `next/server`. `next-auth` does not match.
 const APP_SHELL = { kind: "adapter" as const, may: ["domain", "core", "application", "ports"] };
-const WEB_IMPORT = /(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(?\s*)["'](?:express|fastify|hono|koa|@hapi\/hapi|@nestjs\/[\w-]+)["']|^\s*(?:from|import)\s+(?:flask|fastapi|django|starlette)\b/m;
+const WEB_IMPORT = /(?:\bfrom\s*|\brequire\s*\(\s*|\bimport\s*\(?\s*)["'](?:express|fastify|hono|koa|next(?:\/[\w./-]+)?|@hapi\/hapi|@nestjs\/[\w-]+)["']|^\s*(?:from|import)\s+(?:flask|fastapi|django|starlette)\b/m;
 
 export function onboardingFile(path: string): boolean {
   return /(^|\/)(go\.(mod|work)|Cargo\.(toml|lock)|pyproject\.toml|requirements\.txt|Pipfile)$/.test(path) || path.toLowerCase().endsWith(".json") || Object.hasOwn(LANGUAGES, path.split(".").pop()!.toLowerCase());

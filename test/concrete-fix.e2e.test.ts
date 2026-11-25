@@ -126,7 +126,7 @@ function presetText(): string {
     name: "concrete-fix", version: "1.0.0", engine: pkg.version,
     sources: [
       { ns: "core", kind: "builtin", version: "0.0.1" },
-      { ns: "architecture", kind: "library", version: "1.4.0" },
+      { ns: "architecture", kind: "library", version: "1.4.1" },
       { ns: "local", kind: "path", path: ".pregate/rules" },
     ],
     methodologies: ["core/pregate-integrity", "architecture/clean-architecture", "local/imports"],
