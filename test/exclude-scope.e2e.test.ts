@@ -142,11 +142,13 @@ test("enable proposes false-positive folders and only approval writes them", () 
   const audit = run(root, ["audit"]);
   expect(audit.stdout).toContain("codegen/**");
   expect(audit.stdout).toContain("generated output");
-  expect(audit.stdout).toContain("Accept with: pregate enable");
   expect(audit.stdout).toContain("not applied");
+  expect(audit.stdout).not.toContain("pregate enable");
+  const digest = /pregate approve --yes --digest ([0-9a-f]{64})/.exec(audit.stdout);
+  expect(digest?.[1]).toMatch(/^[0-9a-f]{64}$/);
   expect(excludes(root)).not.toContain("codegen/**");
-  const again = run(root, ["enable", "--yes"], { ...baseEnv, PREGATE_UNATTENDED_APPROVAL: "1" });
-  expect(again.code, again.stdout + again.stderr).toBe(0);
+  const approved = run(root, ["approve", "--yes", "--digest", digest?.[1] ?? ""], { ...baseEnv, CI: "1", PREGATE_UNATTENDED_APPROVAL: undefined });
+  expect(approved.code, approved.stdout + approved.stderr).toBe(0);
   expect(excludes(root)).toContain("codegen/**");
   expect(paths(findings(root)).some((path) => path.startsWith("codegen/"))).toBe(false);
 });

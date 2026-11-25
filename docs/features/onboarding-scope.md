@@ -170,8 +170,10 @@ still deny creating a file there or editing one that is already there: leaving
 a folder out of analysis is not permission to hide an edit in it.
 
 `pregate audit` runs the same scan. It prints only candidates that are not
-already excluded, and the command `pregate enable`. It does not write the
-preset or the lock. Run `pregate enable` to accept the new folders.
+already excluded, and prepares a review the harness can accept with
+`pregate approve --yes --digest <sha>`. It does not write the preset or the
+lock. `pregate enable` and `pregate disable` stay on a separate terminal, so
+audit does not ask for `pregate enable`.
 
 An informational `UNVERIFIED` Stop notice does not prevent editing. The engine
 records it once per session unless the coverage notice changes. A harness can

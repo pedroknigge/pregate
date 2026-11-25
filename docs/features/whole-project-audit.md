@@ -53,8 +53,10 @@ Auditing static rules does not establish compliance with those skipped rules.
 
 The audit covers the preset scope. After the report it lists folders the
 exclusion scan found that are not already in `scope.exclude`, each with its
-reason and evidence, and the command `pregate enable`. That list is a proposal.
-Audit does not change the preset, the lock, or consent. JS/TS, Python, Go, and Rust parsing and selected
+reason and evidence, and `pregate approve --yes --digest <sha>`. That review
+is stored locally. Audit does not change the preset, the lock, or consent.
+`pregate enable` is not the way to accept a folder found later.
+JS/TS, Python, Go, and Rust parsing and selected
 static checks are supported (see
 [language boundaries](language-analysis.md)). `fileCoverage` lists the selected
 static rules applying to every parsed file. Parsed Python/Go/Rust files without an

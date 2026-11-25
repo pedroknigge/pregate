@@ -34,6 +34,30 @@ export function scanExclusions(root: string, policy: { layerGlobs: string[]; exc
   return detectExclusions(factsOf(root, policy));
 }
 
+// A review in the local proposal store, not a write to the preset or the lock. `pregate approve`
+// applies it from the harness shell. `pregate enable` stays a separate terminal.
+export function auditExclusionReview(root: string, policy: { layerGlobs: string[]; excludeGlobs: string[] }): { found: ExcludeCandidate[]; text: string; accept: string | null } {
+  const found = scanExclusions(root, policy);
+  if (found.length === 0) return { found, text: "", accept: null };
+  const preset = readPreset(root);
+  if (preset === null) return { found, text: held(found, "The preset could not be read, so no approval was prepared."), accept: null };
+  const text = JSON.stringify(withExcludes(preset, found.map((item) => item.glob)), null, 2) + "\n";
+  const pending = readProposal(root);
+  if (pending !== null && !(pending.activate === false && pending.writes.some((write) => write.after === text))) {
+    return { found, text: held(found, "A different contract review is already pending. Run pregate approve --preview. These exclusions were not prepared."), accept: null };
+  }
+  const before = readText(join(root, PRESET));
+  const compiled = validateContract({ presetText: text, filesOf: sourcesOf(root, true), versions: VERSIONS, now: clock });
+  if ("errors" in compiled) return { found, text: held(found, compiled.errors.join(" ")), accept: null };
+  const proposal = stageExclusions(root, before, text, compiled.text, false);
+  const accept = `pregate approve --yes --digest ${sha256(JSON.stringify(proposal))}`;
+  return { found, text: `\n${proposalText(found, accept)}\n`, accept };
+}
+
+function held(found: ExcludeCandidate[], why: string): string {
+  return `\n${candidateBlock(found)}\nProposed exclusions (not applied; the contract is unchanged).\n${why}\n`;
+}
+
 // null: nothing new to accept, so enable keeps recording consent only. A note means a review is
 // already pending and the contract was left alone. A code means this call finished enable.
 export async function enableWithExclusions(root: string, yes: boolean): Promise<{ code: number; text: string } | { note: string } | null> {
@@ -57,13 +81,13 @@ async function reviewExclusions(root: string, preset: Preset, found: ExcludeCand
   const text = JSON.stringify(next, null, 2) + "\n";
   const pending = readProposal(root);
   if (pending !== null && !pending.writes.some((write) => write.after === text)) {
-    return { note: `${proposalText(found)}\nA contract review is already pending, so these exclusions were not written. Finish it, then run pregate enable again.` };
+    return { note: `${candidateBlock(found)}\nA contract review is already pending, so these exclusions were not written. Finish it with pregate approve --preview, then run pregate enable in a terminal.` };
   }
   const before = readText(join(root, PRESET));
   await grammars();
   const compiled = validateContract({ presetText: text, filesOf: sourcesOf(root, true), versions: VERSIONS, now: clock });
   if ("errors" in compiled) return { code: 1, text: [...compiled.errors, "Exclusions were not written and protection was not enabled."].join("\n") };
-  const proposal = stageExclusions(root, before, text, compiled.text);
+  const proposal = stageExclusions(root, before, text, compiled.text, true);
   const diff = reviewDiff(readText(join(root, LOCK)), compiled.lock, bundledBetween(before, text));
   const code = sha256(JSON.stringify(proposal)).slice(0, 12);
   // `enable --yes` is not `pregate approve`. CI alone must not accept the globs.
@@ -75,9 +99,9 @@ async function reviewExclusions(root: string, preset: Preset, found: ExcludeCand
   return { code: 0, text: `${candidateBlock(found)}\n${applied.text}\nCommit ${PRESET} and ${LOCK} with the project.` };
 }
 
-function stageExclusions(root: string, before: string | null, text: string, lockText: string) {
+function stageExclusions(root: string, before: string | null, text: string, lockText: string, activate: boolean) {
   const baseline = sha256((before ?? "") + (readText(join(root, LOCK)) ?? ""));
-  return proposeContract({ root, baseline, lockText, activate: true, writes: [{ path: join(root, PRESET), before, after: text }] }, true);
+  return proposeContract({ root, baseline, lockText, activate, writes: [{ path: join(root, PRESET), before, after: text }] }, true);
 }
 
 function withExcludes(preset: Preset, globs: string[]): Preset {

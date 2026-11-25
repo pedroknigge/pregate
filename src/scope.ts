@@ -36,8 +36,6 @@ const DEPS = new Set(["node_modules", ".venv", "venv", "__pycache__"]);
 const FIXTURES = new Set(["fixtures", "__snapshots__", "testdata"]);
 const PROTECTED = new Set([".pregate", ".git", ".claude", ".codex", ".cursor", ".grok", ".gemini", ".agents", ".agent", ".opencode", ".local"]);
 
-export const ACCEPT_EXCLUSIONS = "pregate enable";
-
 // A directory whose own name is generated output, so the walk reads headers under it.
 export function readsGeneratedHeader(name: string): boolean {
   return GENERATED.has(name) || name.endsWith("_pb") || codegen(name);
@@ -63,8 +61,8 @@ export function candidateBlock(candidates: ExcludeCandidate[]): string {
   return ["Folders left out of analysis:", ...lines].join("\n");
 }
 
-export function proposalText(candidates: ExcludeCandidate[]): string {
-  return `${candidateBlock(candidates)}\nProposed exclusions (not applied; the contract is unchanged).\nAccept with: ${ACCEPT_EXCLUSIONS}`;
+export function proposalText(candidates: ExcludeCandidate[], command: string): string {
+  return `${candidateBlock(candidates)}\nProposed exclusions (not applied; the contract is unchanged).\nAccept with: ${command}`;
 }
 
 // Directory patterns from one .gitignore. `base` is the directory that holds the file ("" at the
