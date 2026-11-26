@@ -159,6 +159,14 @@ function denied(o: Out, needle: string): void {
   expect(said(o)).toContain(needle);
 }
 
+// A cause that leaves a call unchecked is told in one line and does not block.
+function noted(o: Out, cause: string): void {
+  expect(o.code, said(o)).toBe(0);
+  expect(said(o)).toContain(`PREGATE NOTE ${cause}`);
+  expect(said(o)).toContain("Not blocked.");
+  expect(said(o)).not.toContain("PREGATE DENY");
+}
+
 function silent(o: Out): void {
   expect({ code: o.code, stdout: o.stdout, stderr: o.stderr }).toEqual({ code: 0, stdout: "", stderr: "" });
 }
@@ -370,7 +378,7 @@ test("promote moves dirty CA-DEP-001 to enforce; the ratchet keeps the old findi
 
 // ── Trust boundaries ─────────────────────────────────────────────────────────────────────
 
-test("a lock that does not match its preset is rejected, and the hook cannot rewrite the contract", () => {
+test("a lock that does not match its preset is rejected by check and judged from the preset by the hook, which cannot rewrite the contract", () => {
   const r = fresh();
   const lock = join(r.dir, ".pregate/pregate.lock.json");
   const original = readFileSync(lock, "utf8");
@@ -380,7 +388,9 @@ test("a lock that does not match its preset is rejected, and the hook cannot rew
   blocks(r, "does not match the preset and its sources");
   const a = claude(r);
   ok(a.start(), "session");
-  denied(a.write("src/domain/note.ts", "export const note = 1;\n"), "lock-stale");
+  // The hook judges from the preset, so the rule the tampered lock dropped still denies.
+  silent(a.write("src/domain/note.ts", "export const note = 1;\n"));
+  denied(a.write("src/domain/pay.ts", swallowed("pay")), "clean-code/CC-ER-002");
   denied(a.write(".pregate/preset.json", original), "invalid contract change");
   denied(a.write(".pregate/extra.json", "{}\n"), "protected-path");
   silent(a.bash("git commit --no-verify -m tamper"));
@@ -490,15 +500,17 @@ test("a linked worktree inherits consent and a clone does not", () => {
   silent(claude({ dir: other, env: r.env }).write("src/domain/other.ts", bad));
 });
 
-test("a partial or non-matching edit is denied instead of guessed", () => {
+test("a partial or non-matching edit passes with a note instead of being guessed", () => {
   const r = fresh();
   const rel = "src/domain/note.ts";
   put(r, rel, "export const left = 1;\nexport const right = 1;\n");
   commit(r, "note");
   const a = claude(r);
   ok(a.start(), "session");
-  denied(a.edit(rel, "missing", "export const left = 2;\n"), "tool-will-fail");
-  denied(a.edit(rel, "export const ", "export const kept"), "tool-will-fail");
+  noted(a.edit(rel, "missing", "export const left = 2;\n"), "tool-will-fail src/domain/note.ts");
+  // The same cause on the same file is said once to an agent.
+  silent(a.edit(rel, "export const ", "export const kept"));
+  noted(claude(r).edit(rel, "export const ", "export const kept"), "tool-will-fail src/domain/note.ts");
   const file = join(r.dir, rel);
   const patch = (body: string) => [
     "*** Begin Patch", `*** Update File: ${file}`, "@@", body, "*** End Patch", "",
@@ -511,19 +523,20 @@ test("a partial or non-matching edit is denied instead of guessed", () => {
       tool_name: "apply_patch", tool_use_id: randomUUID(), tool_input: { command },
     }),
   );
-  denied(codex(patch("-not the line\n+export const left = 2;")), "cannot-reconstruct");
-  denied(codex(patch("+export const extra = 1;")), "cannot-reconstruct");
+  noted(codex(patch("-not the line\n+export const left = 2;")), "cannot-reconstruct");
+  noted(codex(patch("+export const extra = 1;")), "cannot-reconstruct");
   silent(a.edit(rel, "export const left = 1;\n", "export const left = 2;\n"));
 });
 
-test("a hook that dies after a checkpoint cannot publish an allow", () => {
+test("a hook that dies after a checkpoint passes with a note, publishes no allow of its own, and denies where uncertainty is closed", () => {
   const r = fresh();
   const a = claude(r, "../escape");
   const crashed = a.write("src/domain/note.ts", "export const note = 1;\n");
-  expect(crashed.code, said(crashed)).toBe(2);
+  expect(crashed.code, said(crashed)).toBe(0);
   if (process.platform === "win32") expect(crashed.stdout).not.toContain('"permissionDecision":"allow"');
   else expect(crashed.stdout).toBe("");
-  expect(crashed.stderr).toContain("the engine failed (exit 1)");
+  expect(crashed.stderr).toContain("PREGATE NOTE engine-failure: the engine failed (exit 1)");
+  expect(crashed.stderr).toContain("This call was not checked. Not blocked.");
   const stub = join(ENGINE_DATA, "9.9.9");
   mkdirSync(stub, { recursive: true });
   copyFileSync(process.execPath, join(stub, ENGINE_FILE));
@@ -533,11 +546,25 @@ test("a hook that dies after a checkpoint cannot publish an allow", () => {
     tool_name: "Write", tool_use_id: "toolu_midway", tool_input: { file_path: join(r.dir, "src/domain/note.ts"), content: "export const note = 1;\n" },
   });
   const midway = run([BIN, "--supervise", ENGINE_DATA, "9.9.9", "-e", script], r.dir, r.env, payload);
-  expect(midway.code, said(midway)).toBe(2);
-  expect(midway.stderr).toContain("the engine failed (exit 1)");
+  expect(midway.code, said(midway)).toBe(0);
+  expect(midway.stderr).toContain("PREGATE NOTE engine-failure: the engine failed (exit 1)");
   expect(midway.stderr).toContain("last engine checkpoint: rules");
-  expect(midway.stdout).toContain("deny");
+  expect(midway.stderr).toContain("Not blocked.");
+  // What the dying engine wrote is not forwarded.
   expect(midway.stdout).not.toContain('permissionDecision":"allow');
+  // Only the exact "uncertainty": "closed" in the preset keeps the deny.
+  const presetFile = join(r.dir, ".pregate/preset.json");
+  writeFileSync(presetFile, JSON.stringify({ ...JSON.parse(readFileSync(presetFile, "utf8")) as object, uncertainty: "closed" }));
+  const closedCrash = a.write("src/domain/note.ts", "export const note = 1;\n");
+  expect(closedCrash.code, said(closedCrash)).toBe(2);
+  expect(closedCrash.stderr).toContain("the engine failed (exit 1)");
+  expect(closedCrash.stderr).not.toContain("Not blocked.");
+  const closed = run([BIN, "--supervise", ENGINE_DATA, "9.9.9", "-e", script], r.dir, r.env, payload);
+  expect(closed.code, said(closed)).toBe(2);
+  expect(closed.stderr).toContain("the engine failed (exit 1)");
+  expect(closed.stderr).toContain("last engine checkpoint: rules");
+  expect(closed.stdout).toContain("deny");
+  expect(closed.stdout).not.toContain('permissionDecision":"allow');
   const empty = join(TMP, "inert");
   mkdirSync(empty, { recursive: true });
   const inert = run([BIN, "--supervise", ENGINE_DATA, "9.9.9", "-e", script], empty, r.env, claudePayload(empty, randomUUID(), {
@@ -590,7 +617,7 @@ test("a non-literal script is allowed and a literal script that runs a control c
   silent(a.bash("deploy"));
 });
 
-test("malformed or unreadable status and lock JSON is denied", () => {
+test("a malformed lock is judged from the preset; a malformed preset and an unreadable contract file pass with a note", () => {
   const r = fresh();
   const a = claude(r);
   ok(a.start(), "session");
@@ -602,10 +629,13 @@ test("malformed or unreadable status and lock JSON is denied", () => {
   const clean = "export const note = 1;\n";
   silent(a.write(note, clean));
   writeFileSync(lock, "{");
-  denied(a.write(note, clean), "lock-stale");
+  // A lock that does not parse is not what is judged: the preset compiles, and its rules still deny.
+  silent(a.write(note, clean));
+  denied(a.write("src/domain/pay.ts", swallowed("pay")), "clean-code/CC-ER-002");
   writeFileSync(lock, lockBytes);
   writeFileSync(preset, "{");
-  denied(a.write(note, clean), "lock-stale");
+  // A preset that does not parse leaves no contract to judge with: one note, no block.
+  noted(a.write(note, clean), "lock-stale src/domain/note.ts");
   writeFileSync(preset, presetBytes);
   silent(a.write(note, "export const note = 2;\n"));
   for (const path of [lock, preset]) {
@@ -613,8 +643,14 @@ test("malformed or unreadable status and lock JSON is denied", () => {
     try {
       expect(() => readFileSync(path)).toThrow();
       const blocked = a.write(note, "export const note = 3;\n");
-      expect(blocked.code, said(blocked)).toBe(2);
-      expect(said(blocked)).toMatch(/could not evaluate|lock-stale/);
+      // The engine cannot read the file. That is an engine failure or a stale lock: a note, no block.
+      expect(blocked.code, said(blocked)).toBe(0);
+      expect(said(blocked)).not.toContain("PREGATE DENY");
+      expect(blocked.stdout).not.toContain("permissionDecision");
+      if (process.platform !== "win32") {
+        expect(said(blocked)).toMatch(/PREGATE NOTE (engine-failure|lock-stale)/);
+        expect(said(blocked)).toContain("Not blocked.");
+      }
     } finally {
       restore();
     }

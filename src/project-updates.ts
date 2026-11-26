@@ -114,24 +114,6 @@ function projectRoot(path: string): { root: string } | { error: string } {
   } catch (e) { return { error: `${JSON.stringify(path)}: ${(e as Error).message}` }; }
 }
 
-// Other worktrees of the same repository whose lock pins another engine: named with the exact
-// review command, never migrated implicitly.
-export function worktreeHint(root: string): string[] {
-  const others = worktreesOf(root).filter((dir) => dir !== root && ![null, VERSIONS.engine].includes(pinnedEngine(dir)));
-  if (others.length === 0) return [];
-  return [`Other worktrees of this repository pin another engine: ${others.join(", ")}.`, `Review them together: pregate update --projects ${quotedPaths(others)} --preview`];
-}
-
-// Registered projects elsewhere on this machine that pin an older engine (the first update to a
-// release that reads the registry runs the older engine's single-project preview).
-export function registryHint(root: string): string[] {
-  const named = new Set([root, ...worktreesOf(root)]);
-  const others = staleProjects(consentedRoots().filter((entry) => entry.enabled).map((entry) => entry.root), VERSIONS.engine)
-    .filter((dir) => !named.has(dir));
-  if (others.length === 0) return [];
-  return [`${others.length} other registered projects pin older engines: ${others.join(", ")}.`, `Review them together: pregate update --projects ${quotedPaths(others)} --preview`];
-}
-
 // The given roots and their worktrees whose lock pins an engine older than `version`. A newer pin
 // (a teammate upgraded) is never proposed for a downgrade.
 export function staleProjects(roots: string[], version: string): string[] {

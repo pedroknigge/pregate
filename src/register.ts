@@ -49,12 +49,20 @@ export function sharedClaudeMatcher(): string {
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
-// The failure path only. Exact JSON "open" lets this missing-launcher call through; anything else stays denied.
-const OPEN = String.raw`uncertainty_open() { u=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${u#/}" != "$u" ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0; [ -f "$u/.pregate/preset.json" ] && return 1; [ -e "$u/.git" ] && return 1; u=\${u%/*}; done; return 1; }; `;
+// The failure path only. A missing launcher lets the call through unless the preset holds the exact JSON "closed".
+const OPEN = String.raw`uncertainty_open() { u=$(cd "\${1}" 2>/dev/null && pwd -P) || return 0; while [ "\${u#/}" != "$u" ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && return 1; [ -f "$u/.pregate/preset.json" ] && return 0; [ -e "$u/.git" ] && return 0; u=\${u%/*}; done; return 0; }; `;
 const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && printf '%s' "$records" | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && grep -hF "\"repo\":\"$g\"" @CONSENT@/*.json 2>/dev/null | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
 const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; done; exit 0`;
 // agy runs hooks from the plugin folder and sets no project variable: the payload names the root.
 const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; exit 0`;
+
+// PowerShell: a missing project launcher lets the call through unless the nearest preset at or
+// above \`start\` holds the exact JSON "uncertainty": "closed". The same rule as the POSIX commands.
+function windowsOpen(start: string, allow = ""): string {
+  return `$q=${start}; $c=$false; for($i=0;$i -lt 40 -and $q;$i++) { $pf=Join-Path $q '.pregate/preset.json'; `
+    + `if (Test-Path -LiteralPath $pf) { if ((Get-Content -LiteralPath $pf -Raw -EA 0) -match '"uncertainty"\\s*:\\s*"closed"') { $c=$true }; break }; `
+    + `if (Test-Path -LiteralPath (Join-Path $q '.git')) { break }; $q=[IO.Path]::GetDirectoryName($q) }; if (!$c) { ${allow}exit 0 }; `;
+}
 
 // The registered command: frozen across versions (test/fixtures/hook-command.ts).
 export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
@@ -88,7 +96,7 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
   const dir = h === "cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR";
   if (!windows) {
     const allow = h === "cursor" ? `printf '%s\\n' '{"permission":"allow"}'; exit 0` : "exit 0";
-    const open = `u="\${${dir}:-.}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && { ${allow}; }; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="\${${dir}:-.}"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && { ${allow}; }; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     // Cursor also runs this Claude command. The marker tells that invocation to stand aside when
     // the project's native .cursor/hooks.json owns the same event. Claude Code itself is unaffected.
@@ -96,7 +104,8 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
     const mark = h === "claude-code" ? "export PREGATE_PROJECT_HOOK=1; " : "";
     return `${mark}f="\${${dir}:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const cursorAllow = h === "cursor" ? `[Console]::Out.WriteLine('{"permission":"allow"}'); ` : "";
+  const missing = sub === "pre" ? `${windowsOpen("$d", cursorAllow)}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   const mark = h === "claude-code" ? "$env:PREGATE_PROJECT_HOOK='1'; " : "";
   return powershellCommand(mark + "$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:${dir}) { $env:${dir} } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
@@ -113,11 +122,11 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
 function projectCodexCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness codex`;
   if (!windows) {
-    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="$PWD"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const missing = sub === "pre" ? `${windowsOpen("(Get-Location).Path")}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + `$raw=[Console]::In.ReadToEnd(); $d=(Get-Location).Path; while ($d) { $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
     + `if (Test-Path -LiteralPath $f -PathType Leaf) { Set-Location -LiteralPath $d; $raw | & $f ${args}; exit $LASTEXITCODE }; `
@@ -130,13 +139,13 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
 function projectAgyCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness agy`;
   if (!windows) {
-    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="\${w:-$PWD}"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; `
-      + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `
+      + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); w=$d; `
       + `while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; if [ -x "$f" ] && [ -s "$f" ] && cd "$d"; then printf '%s' "$p" | "$f" ${args}; exit $?; fi; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const missing = sub === "pre" ? `${windowsOpen("(Get-Location).Path")}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + "$raw=[Console]::In.ReadToEnd(); $p=$raw | ConvertFrom-Json -ErrorAction SilentlyContinue; "
     + "foreach ($start in @((Get-Location).Path)+@($p.workspacePaths)) { if (!$start) { continue }; $d=$start; while ($d) { "

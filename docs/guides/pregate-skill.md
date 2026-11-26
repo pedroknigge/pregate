@@ -1,9 +1,11 @@
 # Use the pregate skill
 
-The `/pregate` skill is the agent's companion guide to PREGATE. It teaches the installed
-commands, discovery, updates, audits, pack composition, evidence adoption and
-recovery. Hooks run the gate. Loading the skill grants no consent and changes no
-contract.
+The `/pregate` skill is the agent's companion guide to PREGATE. It is one page.
+It says what blocks locally and covers six requests: set a project up, see what
+is on, check the work, understand a finding, change the rules, and update or
+switch off. Hooks run the gate. Loading the skill grants no consent and changes
+no contract. The skill does not hold the command list: every command is in
+`pregate --help --all` and the [command reference](../CLI.md).
 
 ## Install and open
 
@@ -17,7 +19,7 @@ installed `SKILL.md` with a literal `cat <path>`, alone or as one step of a `;` 
 sequence; other shell forms on that file are denied.
 
 Enter your project in the coding harness and invoke `/pregate`. If the harness does
-not offer that slash command, ask it to load the installed `tlt` skill through
+not offer that slash command, ask it to load the installed `pregate` skill through
 its normal skill discovery. A new session may be needed after installation.
 Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 
@@ -25,26 +27,31 @@ Grok has no supported SessionStart context channel; explicitly load `/pregate`.
 
 | Request | What the agent should do |
 | --- | --- |
-| “Show me what PREGATE protects” | Suggest human `pregate demo` with owned Python, Go, and Rust samples. Explain source and native-tool evidence separately; toy approval is not consumer consent. |
-| “Set up PREGATE here” | Inspect `guide --json`, `layers --json` and each instruction file, then prepare one `guide --preview` that carries the contract, the layer map and the rules that compile. Suggest useful official packs in that same review. |
-| “Make my AGENTS.md rules real” | On a new project, pass the completed proposals to `guide --preview --compile <proposals.json>` so they join the contract review. Once a contract exists, run `compile apply <proposals.json> --preview`. Say which statements became rules and which stay as guidance. |
-| “Protect my architecture” | Read `layers --json`. On a new project, pass the map with `guide --preview --layers <map.json>`. Once a contract exists, run `layers apply <map.json> --preview`. Explain each existing import the map would flag. |
-| “Is it working?” | Read the `Agent loop` line of `pregate report` and repeat it in one sentence. |
-| “Update this project and review new packs” | Compare installed and project versions, inspect the entire catalog, prepare one engine/core/official-pack update with selected additions. Preserve local packs and decisions. |
-| “Audit this repo and freeze existing debt” | Run `audit --plan`, disclose coverage gaps and unverified requirements, propose no-new policy if needed. |
-| “Repair these findings” | Explain the invariant, preserve behavior, repair a bounded change, run relevant project tests and re-audit. |
-| “This valid use case is blocked” | Inspect the rule, reproduce the valid case and a violation, then propose a tested correction or project-specific adaptation. |
-| “Help verify the core requirements” | Use `fitness plan` and its draft template, read actual assertions, name conditions and invalid controls, then prepare different verifier commands in one candidate review. |
-| “Help design this change” | Read the project's domain, relationship, unit and work-budget contract; expose missing facts and propose bounded assertions rather than guessing the architecture. |
-| “Report this tool problem” | Prepare a minimal reviewed issue draft; publish only through your explicit human approval. |
+| “Set up PREGATE here” | Tell you to run `pregate enable` in the project. It proposes an advisor contract for the stack it finds, shows a short summary and applies it on your `y`. If `pregate status` then says no harness has hooks, you run `pregate setup` once on that machine. |
+| “What is on here?” | Run `pregate status` and relay its three lines: the state, what needs attention, and the next step. `status --verbose` and `doctor` have the detail. |
+| “Check my work” | Run `pregate check` for the changed files, or `pregate check --all` for every file. CI runs the same command. |
+| “Why did this rule fire?” | Run `pregate explain <rule>` before it argues with the rule or changes code for it. |
+| “Change the rules” | Describe the change to you: switch a rule off, exclude a folder, make a rule block. The agent does not edit `.pregate/preset.json`. You edit the preset, or run `pregate guide --preview` and apply it with `pregate approve --yes`. A looser contract is reviewed in the pull request, where `pregate check --ratchet` in CI holds it. |
+| “Update it” or “Switch it off” | You run `pregate update`. Projects need nothing after it. You run `pregate disable` for one checkout, or `pregate disable --project` for every checkout. |
+| “This finding is wrong” | Say which rule, which file and why it does not apply. With your agreement, `pregate issue draft --last` prepares a report without source code, and you send it with `pregate issue submit`. |
 
-These are prompts, not new slash subcommands. The skill opens with a simple
-path for the common case: the agent inspects the repository, prepares one review
-of the contract, the layer map and the compiled instruction rules, reports in
-plain language, and leaves you one action, the approval. See [the agent proposes, the engine verifies, a human
-approves](../features/agent-proposed-contract.md). The installed command reference
-is included in the skill. Ask for one pack selection and one concrete review,
-rather than approving each suggested pack separately.
+These are prompts, not slash subcommands. The agent gives you one next action
+and keeps its summary short.
+
+## What the skill tells the agent about blocking
+
+A hook blocks two things: an edit that breaks a rule the project set to enforce,
+and the agent acting on Pregate itself (`pregate enable` or `pregate disable`,
+approving for the human, changing a harness's hooks, writing inside `.pregate/`).
+Everything else is one line that starts with `PREGATE NOTE` or `PREGATE ADVISOR`,
+and the call goes through. A note is never a reason to stop your task. Reading
+the contract is always allowed. See
+[what blocks locally](../guarantees.md#what-blocks-locally).
+
+The commands in the next section still exist. The skill no longer walks the
+agent through them; ask for them by name when you want a pack selection, a layer
+map or rules compiled from an instruction file in the first review. See [the
+agent proposes, the engine verifies, a human approves](../features/agent-proposed-contract.md).
 
 ## Review once
 
@@ -80,7 +87,7 @@ is allowed there anyway. See [approval routes](../features/approval-in-harness.m
 
 Initial approval can activate this worktree. Updates preserve its consent,
 including a disabled project. A cloned contract still needs local consent.
-Global installation does not migrate every other project automatically.
+After an engine update, no project needs a step.
 
 For a current cloned/disabled contract, plain `guide --preview` makes no activation
 proposal. Choose activation in the interactive guide, or run `pregate enable` in a

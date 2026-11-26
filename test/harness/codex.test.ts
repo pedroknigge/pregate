@@ -402,7 +402,11 @@ describe("encode", () => {
       stdout: raw({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "PREGATE is active: …" } }) + "\n", stderr: "", exit: 0,
     });
     const failed = rejected({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [] });
-    expect(enc("session-start", failed)).toEqual({ stdout: raw({ systemMessage: failed.notice }) + "\n", stderr: "", exit: 0 });
+    // A rejected SessionStart is a note on the same context channel; it never blocks.
+    expect(failed.full).toContain(`PREGATE NOTE ${BAD}`);
+    expect(enc("session-start", failed)).toEqual({
+      stdout: raw({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: failed.full } }) + "\n", stderr: "", exit: 0,
+    });
   });
 
   test("SubagentStart names its own event and omits human notices", () => {
@@ -411,14 +415,27 @@ describe("encode", () => {
     expect(encode("session-start", enabledWire({ ...context, full: "", notice: "human setup notice" }), true)).toEqual(QUIET);
   });
 
-  test("a rejected call denies through its event's channel", () => {
-    const pre = enc("pre-edit", rejected({ cause: BAD, kind: "pre-edit", reentry: false, session: null, dirs: [] }));
-    expect(pre.exit).toBe(2);
-    expect(pre.stderr).toContain("payload-unrecognized");
-    const patch = enc("pre-edit", rejected(decode("pre", "{", ENV) as Rejected));
-    expect(patch).toMatchObject({ stdout: "", exit: 2 });
-    expect(patch.stderr).not.toBe("");
-    expect(enc("stop", rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] }))).toMatchObject({ stderr: "", exit: 0 });
+  test("a rejected call passes with a note on additionalContext; a control cause denies through its event's channel", () => {
+    const noted = (d: Decision): Emission => ({
+      stdout: raw({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.full } }) + "\n", stderr: "", exit: 0,
+    });
+    const d = rejected({ cause: BAD, kind: "pre-edit", reentry: false, session: null, dirs: [] });
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: BAD });
+    expect(d.full).toContain("PREGATE NOTE payload-unrecognized");
+    expect(d.full).toContain("Not blocked.");
+    expect(enc("pre-edit", d)).toEqual(noted(d));
+    const patch = rejected(decode("pre", "{", ENV) as Rejected);
+    expect(enc("pre-edit", patch)).toEqual(noted(patch));
+    expect(patch.full).toContain("Not blocked.");
+    // Stop does not block: the human reads the note.
+    const stop = rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(enc("stop", stop)).toEqual({ stdout: raw({ systemMessage: stop.notice }) + "\n", stderr: "", exit: 0 });
+    expect(stop.notice).toContain("PREGATE NOTE payload-unrecognized");
+    const guarded = rejected({ cause: "protected-path", kind: "pre-edit", reentry: false, session: null, dirs: [] });
+    expect(enc("pre-edit", guarded)).toEqual({ stdout: "", stderr: guarded.full, exit: 2 });
+    expect(guarded.full).toContain("PREGATE DENY protected-path");
+    const held = rejected({ cause: "protected-path", kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(JSON.parse(enc("stop", held).stdout)).toEqual({ decision: "block", reason: held.full });
   });
 
   // Runs last: every emission of this file.

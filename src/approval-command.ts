@@ -38,7 +38,9 @@ function validate(proposal: Proposal): ReturnType<typeof validateContract> {
 }
 
 // `digest` is the full digest or its approval code (a prefix of at least 12 hex digits).
-export async function approvePending(root: string, yes = false, digest?: string, commit = true): Promise<{ code: number; text: string }> {
+// `brief`: the caller already showed what will be applied in a few lines (`pregate enable` on a
+// new project), so the confirmation shows those lines instead of the whole file diff.
+export async function approvePending(root: string, yes = false, digest?: string, commit = true, brief?: string): Promise<{ code: number; text: string }> {
   const proposal = readProposal(root);
   if (proposal === null) return { code: 1, text: "No pending contract change, or it expired. Ask the agent to propose it again." };
   if (digest !== undefined && !approvalCode(sha256(JSON.stringify(proposal)), digest)) return { code: 1, text: digestMismatch(root) };
@@ -51,7 +53,8 @@ export async function approvePending(root: string, yes = false, digest?: string,
   const diff = proposalDiff(proposal);
   const id = sha256(JSON.stringify(proposal));
   const shown = digest !== undefined && approvalCode(id, digest) ? digest : id.slice(0, 12);
-  if (!await approve([...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n"), diff.warning, yes, yes)) {
+  const shownText = brief ?? [...writeDiffs(root, proposal.writes, false), ...diff.summary, ...presetGlobLines(root, proposal), consentLine(proposal)].join("\n");
+  if (!await approve(shownText, diff.warning, yes, yes)) {
     return { code: 1, text: approvalRefusal({ roots: [root], command: `pregate approve ${shown}` }) };
   }
   return applyReviewedProposal(root, sha256(JSON.stringify(proposal)), { activate: proposal.activate !== false, commit });

@@ -1,13 +1,13 @@
 # Maintenance, reproducible build and rollback
 
-This page says who releases Pregate, how to build it and check a release yourself, and how to move a pinned project to a new engine and back. Each procedure names the test or workflow that runs it.
+This page says who releases Pregate, how to build it and check a release yourself, and how to move a project's lock to a new engine and back. Each procedure names the test or workflow that runs it.
 
 ## Who maintains it
 
 - Releases are cut by the owner of [`pedroknigge/pregate`](https://github.com/pedroknigge/pregate). A release is a tag `v<version>` on `main`; the [release workflow](../../.github/workflows/release.yml) builds, signs and publishes it. No other person or organization publishes Pregate. The [release checklist](../releases/CHECKLIST.md) attaches the real-repository report. The publish job does not upload it.
 - [`SECURITY.md`](../../SECURITY.md) is the support statement: the `0.0.x` line is supported, and a private vulnerability report is acknowledged within 48 hours. This page adds no other response time.
 - A fix lands on `main` and ships in the next release. No older release has been patched after a newer one was published, and there is no long-term-support branch.
-- A published release is not replaced or re-tagged. A defective release is followed by a new one. Until then, a project stays on its pinned engine or goes back to the previous one with the rollback below.
+- A published release is not replaced or re-tagged. A defective release is followed by a new one. Until then, a machine keeps the engine it has or goes back to the previous one with the rollback below.
 
 ## Build it from a clean checkout
 
@@ -44,9 +44,11 @@ Three independent checks are documented, with commands, in [Install, update and 
 
 The npm package holds only a launcher. It downloads the release archive of its own version and checks it against `SHA256SUMS` before the first run.
 
-## Upgrade a pinned project
+## Upgrade a project
 
-A project pins one engine version in its contract. A newer engine installed on the machine does not change that pin.
+The lock records the engine version that wrote it. That record does not choose the engine. The installed engine judges every project, and when another version wrote the lock it rebuilds the lock in memory from `.pregate/preset.json`. No project needs a step after `pregate update`. After an update from 0.0.13 or older, run `pregate setup` once, because the registered hook commands changed their failure path.
+
+Moving the committed lock to the installed engine is a reviewed change:
 
 ```sh
 pregate update                      # install the newer engine; it prepares the project review
@@ -55,28 +57,30 @@ pregate approve --preview           # read it: "Engine: <old> -> <new>" and the 
 pregate approve <code>              # the human approves; the contract change is committed
 ```
 
-The review states whether any effective rule changes. When it says `No effective rule changes`, the approved rules are the same and only the pin moves. The approval is one commit that touches only `.pregate/`.
+The review states whether any effective rule changes. When it says `No effective rule changes`, the approved rules are the same and only the recorded version moves. The approval is one commit that touches only `.pregate/`.
 
-## Roll back a pinned project
+In CI, `check` fails when a lock that the same engine version wrote does not match the preset: run `pregate preset compile` and commit the lock. A lock from another version is judged from the preset.
 
-The upgrade is one commit, so the rollback is its revert, run with the previous engine.
+## Roll back
+
+The contract and the engine go back separately.
 
 ```sh
 git log --oneline -3 -- .pregate      # find the commit "apply reviewed PREGATE contract <code>"
 git revert --no-edit <that commit>    # the committed contract is the earlier one again
-pregate update --engine <old>         # only when that engine is no longer installed on this machine
-pregate status                        # the project pins <old> and is enforced by it
+pregate update --version <old>        # only when you also want the older engine on this machine
+pregate status
 ```
 
 - The contract after the revert is the contract a human approved before the upgrade. No new approval is needed, and none is possible from an agent.
-- `pregate update` keeps the engine a registered project pins, so the previous engine is normally still installed. `pregate update --engine <old>` installs it again when it is not.
-- A newer engine does not propose a downgrade, and it does not judge a project that pins an older engine: the hook routes to the pinned engine or fails closed.
-- Roll back teammates the same way: they pull the revert. A clone whose pinned engine is missing fails closed and names `pregate update --engine <v>`.
+- The installed engine judges the project, whatever version the lock names. A hook does not hand the call to another engine. To judge with the older engine, install that release.
+- Roll back teammates the same way: they pull the revert. Their installed engine reads it.
+- The project launcher at `.pregate/bin/` is the exception. It runs the engine the lock names, from the cache. `pregate prepare` installs that engine.
 
 [`test/upgrade-rollback.e2e.test.ts`](../../test/upgrade-rollback.e2e.test.ts) runs this procedure on every CI run with two real engines that differ only in version. It asserts that the upgrade changes the pin and no rule, that both engines deny the same edit for the same rule, that the upgrade commit touches only `.pregate/`, and that the revert restores the first committed contract, the same Git objects, with the same verdict.
 
 ## What this page does not establish
 
 - No second person reviews a release today. That decision is open and is not made here.
-- The rollback test uses two builds of one source tree with different version numbers. It proves the procedure and the routing, not that two specific published releases judge every file the same way. A release that changes rule behavior says so in its notes and in the update review.
+- The rollback test uses two builds of one source tree with different version numbers. It proves the procedure, not that two specific published releases judge every file the same way. A release that changes rule behavior says so in its notes and in the update review.
 - Reproducibility across machines was checked once, on one target, and failed as stated above.

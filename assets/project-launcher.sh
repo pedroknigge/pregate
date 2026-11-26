@@ -27,16 +27,16 @@ installed() {
 }
 
 uncertainty_open() {
-  u=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  u=$(cd "$1" 2>/dev/null && pwd -P) || return 0
   while [ "${u#/}" != "$u" ]; do
     if [ -f "$u/.pregate/preset.json" ]; then
-      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0
-      return 1
+      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && return 1
+      return 0
     fi
-    [ -e "$u/.git" ] && return 1
+    [ -e "$u/.git" ] && return 0
     u=${u%/*}
   done
-  return 1
+  return 0
 }
 
 # Same consent records as the global launcher. 0 means this directory is enforced.
@@ -75,6 +75,7 @@ fail_closed() {
   [ -n "$active" ] || exit 0
   if uncertainty_open "$root"; then
     [ "$hook_event" = pre ] && [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
+    printf '%s\n' "PREGATE NOTE engine-failure: ${2:-the project engine did not answer}. This call was not checked. Not blocked." >&2
     exit 0
   fi
   hint=${2:-"Run pregate prepare in this project, then pregate doctor."}

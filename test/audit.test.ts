@@ -83,7 +83,11 @@ test("whole-tree audit includes committed debt, shadow and warnings, every locat
     git("status", "--porcelain");
     rmSync(join(root, ".git"), { recursive: true });
     expect(run("audit", "--json").exitCode).toBe(0);
+    // An altered lock file does not stop the audit: the tree is judged from the preset.
     writeFileSync(join(root, LOCK), before.replace('"lockVersion": 1', '"lockVersion": 2'));
+    expect(run("audit").exitCode).toBe(0);
+    // A preset that does not compile is the contract fault that does.
+    writeFileSync(join(root, ".pregate/preset.json"), "{");
     expect(run("audit").exitCode).toBe(2);
     expect(run("audit", "--unknown").exitCode).toBe(2);
   });

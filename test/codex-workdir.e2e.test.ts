@@ -171,18 +171,20 @@ test("Codex child lifecycle preserves the parent's baseline and checks only its 
   const edit = hook("pre", JSON.stringify({ ...base, agent_id: agent, hook_event_name: "PreToolUse", tool_name: "apply_patch", tool_use_id: "exec-lifecycle",
     tool_input: { command: `*** Begin Patch\n*** Add File: ${spell(file)}\n+${good.trim()}\n*** End Patch\n` } }));
   expect(edit.code, edit.text).toBe(0);
-  writeFileSync(file, "export const value = ;\n");
+  // A syntax error no longer blocks a Stop; a suppression the child added does.
+  const bad = "// eslint-disable-next-line no-console\nexport const value = 1;\n";
+  writeFileSync(file, bad);
   const parent = hook("stop", lifecycle("Stop"));
-  expect(JSON.parse(parent.stdout).decision).toBe("block");
+  expect(JSON.parse(parent.stdout).decision, parent.text).toBe("block");
   const blocked = hook("stop", lifecycle("SubagentStop", true));
   expect(blocked.stdout, blocked.text).not.toBe("");
   expect(JSON.parse(blocked.stdout).decision).toBe("block");
-  expect(blocked.stdout).toContain("syntax");
+  expect(blocked.stdout).toContain("core/EVA-SUP-001");
   writeFileSync(file, good);
   const repaired = hook("stop", lifecycle("SubagentStop", true));
   expect(repaired.code, repaired.text).toBe(0);
   expect(repaired.stdout).toBe("");
-  writeFileSync(file, "export const value = ;\n");
+  writeFileSync(file, bad);
   const finished = hook("stop", lifecycle("Stop"));
   expect(JSON.parse(finished.stdout).decision).toBe("block");
   expect(finished.stdout).toContain("lifecycle.ts");
@@ -197,19 +199,19 @@ test("an inactive Codex child receives no setup notice", () => {
 
 test("a Codex child making first contact does not adopt dirty edits as existing debt", () => {
   const id = "child-first-contact", file = join(repo, "src/dirty-before-child.ts");
-  writeFileSync(file, "export const dirty = ;\n");
+  writeFileSync(file, "// eslint-disable-next-line no-console\nexport const dirty = 1;\n");
   const base = { session_id: id, cwd: spell(repo), stop_hook_active: false };
   const started = hook("session-start", JSON.stringify({ ...base, hook_event_name: "SubagentStart", agent_id: "worker" }));
   expect(started.code, started.text).toBe(0);
   const snap = join(area, "state/pregate/sessions", process.platform === "win32" ? `codex~${id}` : `codex:${id}`, H(canonical(repo)), "snapshot.json");
   expect(JSON.parse(readFileSync(snap, "utf8"))).toMatchObject({ start: false, dirty: {} });
   const parent = hook("stop", JSON.stringify({ ...base, hook_event_name: "Stop" }));
-  expect(parent.stdout, parent.text).toContain("syntax");
+  expect(parent.stdout, parent.text).toContain("core/EVA-SUP-001");
   expect(JSON.parse(parent.stdout).decision).toBe("block");
   writeFileSync(file, "export const dirty = 1;\n");
 });
 
-test("an older engine pin retains parent Stop routing and does not receive new child events", () => {
+test("an older engine pin is not routed: this engine answers the parent and the child events", () => {
   const old = join(area, "older-pin");
   git(old);
   const ready = run(["init", "--yes", "--preset", "legacy-safe"], "", old);
@@ -220,12 +222,13 @@ test("an older engine pin retains parent Stop routing and does not receive new c
   const path = join(old, ".pregate/pregate.lock.json");
   const lock = JSON.parse(readFileSync(path, "utf8"));
   writeFileSync(path, JSON.stringify({ ...lock, engine: "0.0.1" }));
-  for (const [kind, event] of [["session-start", "SubagentStart"], ["stop", "SubagentStop"]] as const) {
-    const out = run(["hook", kind, "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: event, agent_id: "worker" }), old);
+  const child = run(["hook", "session-start", "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: "SubagentStart", agent_id: "worker" }), old);
+  expect(child.code, child.text).toBe(0);
+  expect(JSON.parse(child.stdout).hookSpecificOutput.additionalContext).toContain("PREGATE is active:");
+  for (const fields of [{ hook_event_name: "SubagentStop", agent_id: "worker" }, { hook_event_name: "Stop" }]) {
+    const out = run(["hook", "stop", "--harness", "codex"], JSON.stringify({ ...base, ...fields }), old);
     expect(out.code, out.text).toBe(0);
-    expect(out.stdout).toBe("");
+    expect(out.text).toBe("");
   }
-  const parent = run(["hook", "stop", "--harness", "codex"], JSON.stringify({ ...base, hook_event_name: "Stop" }), old);
-  expect(parent.code, parent.text).toBe(3);
-  expect(parent.stdout.trim()).toBe("0.0.1");
+  expect(JSON.parse(readFileSync(path, "utf8")).engine).toBe("0.0.1");
 });

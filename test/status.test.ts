@@ -8,7 +8,7 @@ import { enable } from "../src/consent.ts";
 import { canonical } from "../src/disk.ts";
 import { LOCK, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { merge } from "../src/register.ts";
-import { protectionStatus, statusText } from "../src/status.ts";
+import { protectionStatus, STALE_LOCK, statusText } from "../src/status.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import { fitness, fitnessFingerprint } from "../src/fitness-command.ts";
 import { discardProposal, proposeBatch, proposeContract } from "../src/proposal.ts";
@@ -43,21 +43,27 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     put(join(root, LOCK), r.text);
     expect(protectionStatus(null).state).toBe("inactive");
     expect(protectionStatus(root)).toMatchObject({ state: "inactive", consent: false, contract: { valid: true } });
+    expect(statusText(protectionStatus(root))).toBe(`Pregate is off in ${root}. Nothing is checked or blocked.\nNext: pregate enable.`);
     enable(root);
     const degraded = protectionStatus(root);
     expect(degraded.state).toBe("degraded");
     expect(degraded.git).toMatchObject({ repository: false, preCommitConfigured: false });
     expect(statusText(degraded, true)).toContain("local consent is active");
     expect(statusText(degraded, true)).toContain("Effective protection: degraded");
-    const brief = statusText(degraded).split("\n");
-    expect(brief[0]).toBe("Enforced (deny): 4.");
-    expect(brief[1]).toStartWith("Advisor or monitor only:");
-    expect(brief[2]).toBe("Unverified: not adopted (64 optional requirements have no verifier and check nothing).");
-    expect(brief.findIndex((line) => line.startsWith("Catalog:"))).toBeGreaterThan(brief.findIndex((line) => line.startsWith("Unverified:")));
-    expect(brief.some((line) => line.startsWith(`Local consent is active in ${root}. Effective protection: degraded. Mode: shadow.`) && line.endsWith(`Up to date (engine ${VERSIONS.engine}).`))).toBe(true);
-    expect(brief.at(-1)).toBe("Next: pregate setup. Details: pregate status --verbose.");
+    // The short form is three lines: the state, what needs attention, and the next step.
+    expect(statusText(degraded).split("\n")).toEqual([
+      `Pregate is on in ${root}: shadow mode. 4 rules block, 11 inform.`,
+      "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.",
+      "Next: pregate setup. Details: pregate status --verbose.",
+    ]);
+    // The counts by channel and the catalog size are in --verbose.
+    const detail = statusText(degraded, true).split("\n");
+    expect(detail[0]).toBe("Enforced (deny): 4.");
+    expect(detail[1]).toStartWith("Advisor or monitor only: 11 ");
+    expect(detail[2]).toBe("Unverified: not adopted (64 optional requirements have no verifier and check nothing).");
+    expect(detail.findIndex((line) => line.startsWith("Catalog:"))).toBeGreaterThan(detail.findIndex((line) => line.startsWith("Unverified:")));
     expect(degraded.mode).toBe("shadow");
-    expect(statusText(protectionStatus(null))).toBe("Nothing is enforced in this directory. Pregate blocks commands and edits only where `pregate enable` was run for this project.\nNext: pregate guide --preview (the human approves its review).");
+    expect(statusText(protectionStatus(null))).toBe("Pregate is not set up in this directory.\nNext: pregate enable. It proposes an advisor contract; nothing blocks.");
     expect(degraded.rules.some((rule) => rule.enforcement === "shadow")).toBe(true);
     expect(degraded.rules.some((rule) => rule.integrity && rule.enforcement === "enforce")).toBe(true);
     for (const path of [join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate"), join(data, VERSIONS.engine, ENGINE_FILE)]) { put(path, "present"); chmodSync(path, 0o755); }
@@ -69,16 +75,26 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     expect(statusText(active, true).split("\n")[0]).toBe("Enforced (deny): 4.");
     expect(statusText(active, true)).toContain("4 static deny");
     expect(statusText(active, true)).toContain("Project verification: not adopted (64 optional requirements have no verifier and check nothing).");
-    expect(statusText(active)).toContain("Enforced (deny): 4.");
-    const harness = statusText(active).split("\n").find((line) => line.startsWith("Harnesses gated:"));
+    // Nothing needs attention: two lines.
+    expect(statusText(active).split("\n")).toEqual([
+      `Pregate is on in ${root}: shadow mode. 4 rules block, 11 inform.`,
+      "Next: nothing required. pregate audit lists existing debt. Details: pregate status --verbose.",
+    ]);
+    const harness = statusText(active, true).split("\n").find((line) => line.startsWith("Harnesses gated:"));
     expect(harness?.split(". Not configured:")[0]).toContain("claude-code");
-    expect(statusText(active)).toContain("Next: pregate audit. Details: pregate status --verbose.");
-    const stale = { ...active, project: { ...active.project!, lockEngine: "0.0.0" } };
-    expect(statusText(stale)).toContain(`Update ready: project pins 0.0.0, installed ${VERSIONS.engine}.`);
-    expect(statusText(stale)).toContain("Next: pregate guide --preview (or the human runs ! pregate update).");
-    const newer = { ...active, project: { ...active.project!, lockEngine: "99.0.0" } };
-    expect(statusText(newer)).toContain("Project pins newer engine 99.0.0");
-    expect(statusText(newer)).toContain("Next: the human runs ! pregate update.");
+    expect(statusText(active, true)).toContain("  claude-code: configured;");
+    // A lock another engine version wrote is a note, not a fault: this engine judges from the preset.
+    const stale = { ...active, contract: { valid: true, errors: [STALE_LOCK] } };
+    expect(statusText(stale).split("\n")).toEqual([
+      `Pregate is on in ${root}: shadow mode. 4 rules block, 11 inform.`,
+      `Note: ${STALE_LOCK} Nothing is blocked by that.`,
+      "Next: nothing required. pregate preset compile refreshes the lock file for CI. Details: pregate status --verbose.",
+    ]);
+    const unhooked = { ...active, harnesses: active.harnesses.map((h) => ({ ...h, configured: false })) };
+    expect(statusText(unhooked).split("\n").slice(1)).toEqual([
+      "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.",
+      "Next: pregate setup. Details: pregate status --verbose.",
+    ]);
     expect(active.harnesses.find((h) => h.id === "claude-code")?.configured).toBe(true);
     expect(active.harnesses.find((h) => h.id === "grok")?.warnings).toBe(true);
     expect(active.harnesses.find((h) => h.id === "agy")?.warnings).toBe(true);
@@ -91,40 +107,33 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     rmSync(join(root, "src/main.py"));
     rmSync(join(root, "src/main.rs"));
     rmSync(join(root, "src/main.swift"));
+    // A lock file that is altered, behind the preset, or written by another engine version does not
+    // stop this engine: it judges from the preset, as the hooks do, and says so in one note.
     put(join(root, LOCK), r.text + " ");
-    expect(protectionStatus(root)).toMatchObject({ state: "degraded", contract: { valid: false }, rules: [] });
-    expect(protectionStatus(root).fitnessCoverage.complete).toBe(false);
+    const altered = protectionStatus(root);
+    expect(altered).toMatchObject({ state: "active", servedBy: null, contract: { valid: true, errors: [STALE_LOCK] } });
+    expect(altered.rules.length).toBeGreaterThan(0);
     expect(readFileSync(join(root, LOCK), "utf8")).toBe(r.text + " ");
-    // A lock pinning an older engine that is still installed keeps working through that engine.
     put(join(root, LOCK), JSON.stringify({ ...JSON.parse(r.text), engine: "0.2.5" }));
-    expect(protectionStatus(root)).toMatchObject({ state: "degraded", servedBy: null, rules: [] });
-    // The pinned engine decides admission: one that refuses the lock (stale or edited for it) serves nothing.
-    const pinned = join(data, "0.2.5", ENGINE_FILE);
-    const pinnedEngine = (valid: boolean) => { put(pinned, `#!/bin/sh\necho '{"contract":{"valid":${valid}}}'\n`); chmodSync(pinned, 0o755); };
-    if (!WINDOWS) {
-      pinnedEngine(false);
-      expect(protectionStatus(root)).toMatchObject({ state: "degraded", servedBy: null, rules: [] });
-      pinnedEngine(true);
-      const served = protectionStatus(root);
-      expect(served).toMatchObject({ state: "active", servedBy: "0.2.5", contract: { valid: false } });
-      expect(served.rules.length).toBeGreaterThan(0);
-      expect(statusText({ ...served, engine: "0.3.0" })).toContain("Update ready: project pins 0.2.5, which still answers its hooks, installed 0.3.0.");
-    }
+    const other = protectionStatus(root);
+    expect(other).toMatchObject({ state: "active", servedBy: null, contract: { valid: true, errors: [STALE_LOCK] } });
+    expect(other.rules.length).toBeGreaterThan(0);
+    expect(statusText(other)).toContain(`Note: ${STALE_LOCK} Nothing is blocked by that.`);
+    expect(statusText(other)).not.toContain("Needs attention");
+    put(join(root, LOCK), r.text);
     // A pending review names its code; a batch only while it binds this project's current review.
     const proposal = proposeContract({ root, lockText: r.text, baseline: "", writes: [] });
     const own = sha256(JSON.stringify(proposal));
     proposeBatch([{ root, digest: "d".repeat(64) }]);
-    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${own.slice(0, 12)}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
+    expect(statusText(protectionStatus(root)).split("\n").at(-1)).toBe(`Next: pregate approve ${own.slice(0, 12)} applies the pending review. Details: pregate status --verbose.`);
     const code = proposeBatch([{ root, digest: own }]).slice(0, 12);
-    expect(statusText(protectionStatus(root))).toContain(`Next: the human approves the pending review in this shell: pregate approve ${code}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`);
+    expect(code).not.toBe(own.slice(0, 12));
+    expect(statusText(protectionStatus(root)).split("\n").at(-1)).toBe(`Next: pregate approve ${code} applies the pending review. Details: pregate status --verbose.`);
     discardProposal(root);
     expect(protectionStatus(root).pendingApproval).toBeNull();
-    // A pin below FLOOR is never handed to that engine, so it serves nothing.
-    put(join(root, LOCK), JSON.stringify({ ...JSON.parse(r.text), engine: "0.0.0" }));
-    const floor = join(data, "0.0.0", ENGINE_FILE);
-    put(floor, `#!/bin/sh\necho '{"contract":{"valid":true}}'\n`); chmodSync(floor, 0o755);
-    expect(protectionStatus(root)).toMatchObject({ state: "degraded", servedBy: null });
+    // A preset this engine cannot compile is the one contract fault status reports.
     put(join(root, PRESET), "{");
+    expect(protectionStatus(root)).toMatchObject({ state: "degraded", contract: { valid: false }, rules: [] });
     expect(protectionStatus(root).contract.errors.length).toBeGreaterThan(0);
   }, () => {
     vars.forEach((n, i) => saved[i] === undefined ? delete process.env[n] : process.env[n] = saved[i]);
@@ -189,7 +198,9 @@ test("status names preset globs that match no file only because [ ] read as synt
     writeFileSync(join(root, PRESET), JSON.stringify(source));
     const status = protectionStatus(root);
     expect(status.globWarnings).toEqual(['Globs matching no project file: src/app/[view]/** (in JSON: "src/app/\\\\[view\\\\]/**"). [ ] { } are glob syntax; escape them as shown or use the exact path.']);
-    expect(statusText(status)).toContain("Globs matching no project file: src/app/[view]/**");
+    // The short form has no glob advisory, on or off: --verbose carries it.
+    expect(statusText(status)).toBe(`Pregate is off in ${root}. Nothing is checked or blocked.\nNext: pregate enable.`);
+    expect(statusText({ ...status, consent: true })).not.toContain("Globs matching");
     expect(statusText(status, true)).toContain("Globs matching no project file: src/app/[view]/**");
     // An unlistable repository (broken .git) drops the advisory; status still answers.
     writeFileSync(join(root, ".git"), "gitdir: missing\n");
@@ -213,7 +224,11 @@ test("status names rule pack folders whose files Git does not hold", () => {
     writeFileSync(join(root, PRESET), JSON.stringify(source));
     run("init", "-q");
     expect(protectionStatus(root).uncommittedSources).toEqual(["rules/team"]);
-    expect(statusText(protectionStatus(root))).toContain("Rule pack files not committed: rules/team. Commit them with the preset and lock, or teammates get a stale lock.");
+    const uncommitted = "Rule pack files not committed: rules/team. Commit them with the preset and lock, or teammates get a stale lock.";
+    // Without consent the short form says only that Pregate is off; once on, it names the folder.
+    expect(statusText(protectionStatus(root))).toBe(`Pregate is off in ${root}. Nothing is checked or blocked.\nNext: pregate enable.`);
+    expect(statusText({ ...protectionStatus(root), consent: true }).split("\n").at(-2)).toBe(uncommitted);
+    expect(statusText(protectionStatus(root), true)).toContain(uncommitted);
     run("add", "-A"); run("commit", "-qm", "pack");
     expect(protectionStatus(root).uncommittedSources).toEqual([]);
     // Files the lock does not compile from (an ignored .DS_Store, fixtures) never make it stale.

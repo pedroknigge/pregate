@@ -10,7 +10,8 @@ import { slash } from "../src/paths.ts";
 import { removeTree } from "./remove-tree.ts";
 
 // The compiled engine's Pre hook, cold (cache deleted) against warm (compiled lock reused).
-// Decisions must match. Changing the lock or a path rule must miss. A corrupt cache recompiles.
+// Decisions must match. A changed path rule must miss and is judged from the preset compiled again.
+// An altered lock file is judged from the preset. A corrupt cache recompiles.
 
 setDefaultTimeout(180_000);
 const RUNS = 25;
@@ -48,13 +49,16 @@ test("Pre hook reuses the compiled lock and reports cold versus warm latency", (
   const coldDeny = hook("syntax-cold", { kind: "syntax" }, true);
   const warmDeny = hook("syntax-warm", { kind: "syntax" }, false);
   expect(decision(coldDeny)).toEqual(decision(warmDeny));
-  expect(coldDeny.stderr).toContain("syntax");
+  // A parse failure is a note in the context line, not a deny.
+  expect(coldDeny.code).toBe(0);
+  expect(coldDeny.stdout).toContain("PREGATE WARN syntax src/domain/values/money.ts");
   const cached = readFileSync(cachePath(), "utf8");
   writeFileSync(sourcePath, SOURCE.replace("1.0.0", "9.9.9"));
   const rule = hook("rule", { kind: "allow" }, false);
-  expect(rule.code).toBe(2);
-  expect(rule.stderr).toContain("lock-stale");
-  expect(readFileSync(cachePath(), "utf8")).toBe(cached);
+  // A changed source misses the cache: the call is judged from the preset compiled again.
+  expect(decision(rule)).toEqual(decision(warmAllow[0]!));
+  const missed = readFileSync(cachePath(), "utf8");
+  expect(JSON.parse(missed).key).not.toBe(JSON.parse(cached).key);
   writeFileSync(sourcePath, SOURCE);
   const ruleRestored = hook("rule-restored", { kind: "allow" }, false);
   expect(decision(ruleRestored)).toEqual(decision(warmAllow[0]!));
@@ -63,8 +67,8 @@ test("Pre hook reuses the compiled lock and reports cold versus warm latency", (
   const lockText = readFileSync(lockPath, "utf8");
   writeFileSync(lockPath, lockText.replace(`"lockVersion": 1`, `"lockVersion": 2`));
   const lock = hook("lock", { kind: "allow" }, false);
-  expect(lock.code).toBe(2);
-  expect(lock.stderr).toContain("lock-stale");
+  // An altered lock file is not what is judged: the preset compiles to the cached lock.
+  expect(decision(lock)).toEqual(decision(warmAllow[0]!));
   expect(readFileSync(cachePath(), "utf8")).toBe(cached);
   writeFileSync(lockPath, lockText);
   writeFileSync(cachePath(), "{broken");

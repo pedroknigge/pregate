@@ -16,14 +16,18 @@ under `.pregate/packs/<namespace>/`; `pack add --path` records a relative path. 
 path to an uncommitted directory outside the project will not exist for another
 team member. Review the pack and compile the lock before committing changes.
 
-Each team member clones the project, installs the pinned engine and harness
-integration, reviews the existing contract and enables local protection. Use
-`pregate status` to check the contract, local consent and integration separately.
-Repeating `pregate init` reuses an existing valid contract; it does not recreate
-local consent. The human enables it with `pregate enable`, using the supported
-approval route. Machine state, approvals, credentials and local cache are not
-the shared contract. See [installation](installation.md) and
-[in-harness approval](../features/approval-in-harness.md).
+Each team member clones the project, installs Pregate and runs `pregate enable`
+in the checkout. Any engine version reads the contract: when the lock was written
+by another version, the engine judges from `.pregate/preset.json`. `pregate status`
+says in three lines whether Pregate is on, what needs attention and the next step.
+Machine state, credentials and local cache are not the shared contract. See
+[installation](installation.md).
+
+A change that loosens the contract is reviewed like any other change, in the pull
+request. Locally it is a note and nothing blocks. `pregate check --ratchet` in CI
+fails until a maintainer accepts that change's digest with the repository variable
+`PREGATE_ACCEPT_CONTRACT`. A repository without that CI job has nothing that holds
+a loosened contract. See [contract loosening](../guarantees.md#contract-loosening).
 
 ## Reuse a pack in several projects
 
@@ -47,7 +51,7 @@ Private sources use the consumer's Git credentials. Follow the
 
 Committed local packs travel with the project. Bundled packs require a compatible
 installed engine. External Git packs reside in a local content-addressed cache:
-cloning the consuming project does not populate it. 0.0.13 provides
+cloning the consuming project does not populate it. 0.0.14 provides
 `pregate pack restore` to fetch exactly the committed pins and validate their
 recorded content hashes and fixtures. It preserves preset, lock and local consent.
 `pack update` is not equivalent: it selects upstream HEAD and prepares a contract

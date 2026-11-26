@@ -1,11 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "./capabilities.ts";
-import { compile } from "./compile.ts";
 import { dataHome, disabledLabel, disableScope, enabled, explicitlyDisabled } from "./consent.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { projectFitness } from "./fitness-command.ts";
-import { conflictDiagnostic, conflictedContract, pinned, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
+import { compileHere, conflictDiagnostic, conflictedContract, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
 import { LOCK, PRESET, readText, VERSIONS, within } from "./admission.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
@@ -13,7 +12,6 @@ import { HARNESSES } from "./harness/profile.ts";
 import { agyRegistration, claudeRegistration, codexRegistration, cursorRegistration, gatedHarnesses } from "./machine.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { inScope, relativePath } from "./paths.ts";
-import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { grammarOf, missingLanguagePolicy, ruleLanguages } from "./languages.ts";
 import type { Lock } from "./types.ts";
 import { hasRepository, listedPaths, workspacePaths } from "./workspace.ts";
@@ -71,16 +69,25 @@ function text(path: string): string | null {
   catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return null; throw e; }
 }
 
-export function contractState(root: string): { valid: boolean; errors: string[]; lock: Lock | null } {
+// `valid`: this engine can judge the project, which it can whenever the preset compiles. A lock
+// file that is missing, behind the preset, or written by another engine version does not stop
+// that (the hooks rebuild it from the preset); it is one note, because CI compares the file.
+// `text`: the compiled contract in effect, which is what a hash of "the lock" must cover: the
+// lock file may be missing or behind.
+export function contractState(root: string): { valid: boolean; errors: string[]; lock: Lock | null; text: string | null } {
   try {
     const preset = text(join(root, PRESET));
-    if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null };
-    const result = compile(preset, sourcesOf(root), VERSIONS);
-    if ("errors" in result) return { valid: false, errors: result.errors, lock: null };
-    const valid = result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
-    return { valid, errors: valid ? [] : ["Lock missing, altered or stale; run pregate preset compile."], lock: valid ? result.lock : null };
-  } catch (e) { return { valid: false, errors: [(e as Error).message], lock: null }; }
+    if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null, text: null };
+    const result = compileHere(preset, sourcesOf(root));
+    if ("errors" in result) return { valid: false, errors: result.errors, lock: null, text: null };
+    // A preset read with this engine's versions is not the committed contract byte for byte.
+    const same = !result.rebased && result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
+    return { valid: true, errors: same ? [] : [STALE_LOCK], lock: result.lock, text: result.text };
+  } catch (e) { return { valid: false, errors: [(e as Error).message], lock: null, text: null }; }
 }
+
+export const STALE_LOCK = "The lock file is missing, behind the preset, or written by another engine version; this engine judges from the preset. pregate preset compile refreshes the file.";
+
 
 function present(path: string): boolean {
   const stat = statSync(path, { throwIfNoEntry: false });
@@ -98,6 +105,7 @@ function backstops(root: string) {
     ciProviders: detectProviders(root).map((provider) => ({ id: provider.id, detail: provider.detail, checks: provider.checks })) };
 }
 
+
 // Path-kind rule folders inside the project with files Git does not hold: teammates compile a stale lock.
 function uncommittedSources(root: string | null): string[] {
   if (root === null || !hasRepository(root)) return [];
@@ -112,41 +120,7 @@ function localConsent(root: string | null, errors: string[]): boolean {
   catch (e) { errors.push(`Cannot verify local consent: ${(e as Error).message}`); return false; }
 }
 
-// A lock pinning another engine that is still installed keeps working: the installed launcher hands
-// every hook to the pinned engine (MH-19), which admits the lock only if it is its own exact compile.
-// That engine is asked, since this one cannot recompile for it; a pin below FLOOR is never handed
-// over. Its rules are the lock as written; null when the pin is current, refused or not installed.
-function pinnedServedLock(root: string, data: string): Lock | null {
-  const pin = pinned(root);
-  const engine = pin === null ? null : join(data, pin, ENGINE_FILE);
-  return engine !== null && present(engine) && pinnedAdmits(engine, root) ? writtenLock(root) : null;
-}
 
-function writtenLock(root: string): Lock | null {
-  try { return JSON.parse(text(join(root, LOCK)) ?? "null") as Lock | null; }
-  catch (error) {
-    // A lock this process cannot read or parse is not served. Admission still denies it.
-    if (error instanceof SyntaxError || typeof (error as NodeJS.ErrnoException).code === "string") return null;
-    throw error;
-  }
-}
-
-function pinnedAdmits(engine: string, root: string): boolean {
-  try {
-    const run = Bun.spawnSync([engine, "status", "--json"], { cwd: root, stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: 10_000 });
-    return run.exitCode === 0 && validContract(run.stdout.toString());
-  } catch {
-    return false;   // an engine image that cannot be started does not admit the lock
-  }
-}
-
-function validContract(status: string): boolean {
-  try { return (JSON.parse(status) as { contract?: { valid?: unknown } }).contract?.valid === true; }
-  catch (error) {
-    if (error instanceof SyntaxError) return false;   // no status JSON: that engine cannot be shown to admit the lock
-    throw error;
-  }
-}
 
 // The code of a review waiting for the human: the batch that binds this project's current review
 // (a batch outlives a project approved on its own), else the project's own.
@@ -175,8 +149,7 @@ export function protectionStatus(root: string | null) {
   const codex = codexRegistration(root);
   const launcherPresent = present(join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate")) || claudeCode.projectLauncher || agy.projectLauncher;
   const enginePresent = present(join(data, VERSIONS.engine, ENGINE_FILE));
-  const servedLock = contract.valid || root === null ? null : pinnedServedLock(root, data);
-  const lock = contract.lock ?? servedLock;
+  const lock = contract.lock;
   const paths = root === null || lock === null ? [] : workspacePaths(root, (rel) => inScope(lock, rel));
   const unsupported = paths.filter((rel) => grammarOf(rel) === null && /\.(rs|java|kt|rb|c|cc|cpp|cs|swift|php)$/i.test(rel));
   const uncovered = lock === null ? [] : paths.filter((rel) => missingLanguagePolicy(lock, rel));
@@ -185,7 +158,7 @@ export function protectionStatus(root: string | null) {
   const harnesses = Object.entries(HARNESSES).map(([id, adapter]) => ({ id, payloadVersion: adapter.VERIFIED,
     configured: configured.has(id === "claude-code" ? "claude" : id === "cursor" ? "cursor-agent" : id),
     ...CAPABILITIES[id as keyof typeof CAPABILITIES], approvalInteractionVerified: false }));
-  const ready = (contract.valid || servedLock !== null) && launcherPresent && enginePresent && harnesses.some((h) => h.configured) && unsupported.length === 0 && uncovered.length === 0;
+  const ready = contract.valid && launcherPresent && enginePresent && harnesses.some((h) => h.configured) && unsupported.length === 0 && uncovered.length === 0;
   const fitness = root !== null && contract.lock !== null ? projectFitness(root, contract.lock, "ci") : [];
   const fitnessCoverage = { active: fitness.length, pass: fitness.filter(r => r.status === "pass").length,
     fail: fitness.filter(r => r.status === "fail").length, unverified: fitness.filter(r => r.status === "unverified").length,
@@ -195,7 +168,7 @@ export function protectionStatus(root: string | null) {
   const consentLostIn = consent || root === null ? 0 : sessionsOf(root);
   return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, disabled, disabledScope, consentLostIn, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
     engine: VERSIONS.engine, core: VERSIONS.core, project: diagnosis?.project ?? null,
-    servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
+    servedBy: null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent }, claudeCodeHooks: claudeCode.scope,
     codexHooks: codex.scope, codexProjectTrust: codex.projectTrust, codexHookReview: codex.scope === "project" || codex.scope === "both" ? "unknown" as const : null,
     cursorHooks: cursorRegistration(root),
@@ -308,47 +281,47 @@ function notEnforced(where: string): string {
   return `Nothing is enforced in ${where}. Pregate blocks commands and edits only where \`pregate enable\` was run for this project.`;
 }
 
-// The short form leads with enforced, monitored and unverified rules, then the lock size.
+// The short form is three lines: the state, what needs attention (only when something does), and
+// the next step. Counts by channel, catalog size and harness detail are in --verbose.
 function briefStatus(s: Status): string[] {
-  if (s.root === null) return [notEnforced("this directory"), "Next: pregate guide --preview (the human approves its review)."];
-  const lead = s.consent ? coverageLead(s) : [notEnforced(s.root), ...coverageLead(s)];
+  if (s.root === null) return ["Pregate is not set up in this directory.", "Next: pregate enable. It proposes an advisor contract; nothing blocks."];
+  if (!s.consent) return [`Pregate is off in ${s.root}${s.disabled ? `: disabled for ${disabledLabel(s.root)}` : ""}. Nothing is checked or blocked.`, ...consentLostLine(s), "Next: pregate enable."];
+  const b = breakdown(s);
+  const reason = attention(s);
   return [
-    ...lead,
-    `Local consent is ${s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
-    ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
+    `Pregate is on in ${s.root}: ${s.mode ?? "unknown"} mode. ${b.deny + b.ask} rules block, ${b.monitor} inform.`,
+    ...(reason === null ? [] : [reason]), ...consentLostLine(s), ...uncommittedLine(s),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
+}
+
+// The one thing that keeps this project from being checked, or null. A lock another engine version
+// wrote is not one: this engine judges from the preset.
+function attention(s: Status): string | null {
+  if (!s.harnesses.some((h) => h.configured)) return "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.";
+  // Hooks registered in the project run its own launcher, so the machine installation is not what they need.
+  const projectHooks = [s.claudeCodeHooks, s.codexHooks, s.cursorHooks, s.agyHooks].some((scope) => scope === "project" || scope === "both");
+  if (!projectHooks && (!s.installation.launcherPresent || !s.installation.enginePresent)) return "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.";
+  if (!s.contract.valid) return `Needs attention: ${s.contract.errors[0] ?? "the contract is not ready."}`;
+  return s.contract.errors.length > 0 ? `Note: ${s.contract.errors[0]} Nothing is blocked by that.` : null;
 }
 
 function uncommittedLine(s: Status): string[] {
   return s.uncommittedSources.length === 0 ? [] : [`Rule pack files not committed: ${s.uncommittedSources.join(", ")}. Commit them with the preset and lock, or teammates get a stale lock.`];
 }
 
-// Negative: the project pins an older engine than the installed one; positive: a newer one.
-function pinOrder(s: Status): number | null {
-  const pin = s.project?.lockEngine;
-  return typeof pin === "string" && ENGINE_VERSION.test(pin) ? compareVersions(pin, s.engine) : null;
-}
 
-function versionLine(s: Status): string {
-  const order = pinOrder(s), pin = s.project?.lockEngine;
-  if (order === null) return "Lock missing or unreadable.";
-  if (order < 0) return `Update ready: project pins ${pin}${s.servedBy === pin ? ", which still answers its hooks" : ""}, installed ${s.engine}.`;
-  if (order > 0) return `Project pins newer engine ${pin}; installed ${s.engine}.`;
-  return s.project?.engine === s.engine ? `Up to date (engine ${s.engine}).` : `Preset names engine ${s.project?.engine ?? "unreadable"}; lock and installation use ${s.engine}.`;
-}
 
 function nextStep(s: Status): string {
-  const order = pinOrder(s);
-  if (!s.consent) return "the human runs pregate enable in a separate terminal.";
-  if (s.pendingApproval !== null) return `the human approves the pending review in this shell: pregate approve ${s.pendingApproval}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`;
-  if (order !== null && order < 0) return "pregate guide --preview (or the human runs ! pregate update).";
-  if (order !== null && order > 0) return "the human runs ! pregate update.";
-  if (!s.contract.valid) return `${s.contract.errors[0] ?? "Contract not ready."} Inspect pregate preset diagnose.`;
-  if (!s.installation.launcherPresent || !s.installation.enginePresent) return "pregate setup.";
-  if (!s.harnesses.some((h) => h.configured)) return "pregate doctor.";
-  if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "add the language pack (pregate guide --preview).";
-  return "pregate audit.";
+  if (!s.consent) return "pregate enable.";
+  if (s.pendingApproval !== null) return `pregate approve ${s.pendingApproval} applies the pending review.`;
+  if (!s.harnesses.some((h) => h.configured)) return "pregate setup.";
+  const projectHooks = [s.claudeCodeHooks, s.codexHooks, s.cursorHooks, s.agyHooks].some((scope) => scope === "project" || scope === "both");
+  if (!projectHooks && (!s.installation.launcherPresent || !s.installation.enginePresent)) return "pregate setup.";
+  if (!s.contract.valid) return "pregate preset diagnose.";
+  if (s.contract.errors.length > 0) return "nothing required. pregate preset compile refreshes the lock file for CI.";
+  if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "nothing required. pregate guide --preview proposes a pack for the uncovered language.";
+  return "nothing required. pregate audit lists existing debt.";
 }
 
 function providerLine(providers: { id: string; detail: string; checks: string[] }[]): string {

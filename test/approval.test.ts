@@ -39,16 +39,16 @@ test("compiled approval defaults No, refuses piped stdin and preserves the exact
     expect(tty("I approve", "enable").code).toBe(1);
     expect(tty("y", "enable").code).toBe(0);
     const status = () => Bun.spawnSync([binary, "status"], { cwd: root, env }).stdout.toString();
-    expect(status()).toContain("is active");
+    expect(status()).toContain("Pregate is on in");
     expect(tty("", "disable").code).toBe(1);
-    expect(status()).toContain("is active");
+    expect(status()).toContain("Pregate is on in");
     expect(tty("y", "disable").code).toBe(0);
-    expect(status()).toContain("is inactive");
+    expect(status()).toContain("Pregate is off in");
     const automated = Bun.spawnSync([binary, "enable", "--yes"], { cwd: root, env: { ...env, CI: "1", PREGATE_UNATTENDED_APPROVAL: "1" }, stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 5_000 });
     expect(automated.exitCode).toBe(0);
     expect(automated.stdout.toString()).toContain(`Enable protection for worktree ${root}.`);
     expect(automated.stdout.toString()).not.toContain("Approve? [y/N]");
-    expect(status()).toContain("is active");
+    expect(status()).toContain("Pregate is on in");
     // uninstall removes every project's protection: the same terminal rule as disable.
     const piped = Bun.spawnSync([binary, "uninstall"], { cwd: root, env, stdin: Buffer.from("y\n"), stdout: "pipe", stderr: "pipe", timeout: 5_000 });
     expect(piped.exitCode).toBe(1);

@@ -96,14 +96,16 @@ async function runAudit(args: string[], output: Emit): Promise<{ code: number; t
   const delegated = delegate(root, ["audit", ...args]);
   if (delegated !== null) return delegated;
   const start = performance.now(), contract = contractState(root);
-  if (contract.lock === null) return { code: 2, text: contract.errors.join("\n") };
-  const lockHash = sha256(readFileSync(join(root, LOCK), "utf8"));
+  if (contract.lock === null || contract.text === null) return { code: 2, text: contract.errors.join("\n") };
+  // The contract in effect, not the lock file: the file may be missing or behind the preset.
+  const lockHash = sha256(contract.text);
   await grammars();
   const emit = jsonl ? output : null;
   emit?.({ schemaVersion: 1, type: "start", mode: "whole-tree-static-audit", root, lockHash });
   const result = scan(root, contract.lock, incremental || fresh ? { lockHash, fresh } : null, emit);
   const fitness = projectFitness(root, contract.lock, "ci");
-  result.changedDuringAudit ||= !contractState(root).valid || sha256(readFileSync(join(root, LOCK), "utf8")) !== lockHash;
+  const after = contractState(root);
+  result.changedDuringAudit ||= !after.valid || after.text === null || sha256(after.text) !== lockHash;
   const exclusion = auditExclusionReview(root, { layerGlobs: Object.values(contract.lock.layers).flatMap((layer) => layer.paths), excludeGlobs: contract.lock.scope.exclude });
   const report = { schemaVersion: 1, mode: "whole-tree-static-audit", root, versions: { engine: contract.lock.engine, core: contract.lock.core },
     preset: contract.lock.preset, lockHash, scope: contract.lock.scope, languages: LANGUAGE_COVERAGE, ...result, fitness, tsconfig: tsconfigNotice((rel) => readText(join(root, rel))),

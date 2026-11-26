@@ -88,6 +88,67 @@ beforeAll(() => {
 });
 afterAll(() => removeTree(area));
 
+type Out = { code: number | null; stdout: string; stderr: string };
+// Agy and Cursor's native hook carry a deny in stdout with exit 0; the others exit 2.
+const denyCode = (h: HarnessId): number => h === "agy" || h === "cursor" ? 0 : 2;
+const NOT_CHECKED = "This call was not checked. Not blocked.";
+
+// A payload the engine could not read is not checked and not blocked. Claude Code, Codex and Grok
+// carry the note to the agent; Agy has no channel for it, and Cursor's native hook prints its allow.
+function unchecked(h: HarnessId, out: Out): void {
+  expect(out.code, out.stdout + out.stderr).toBe(0);
+  if (h === "cursor") expect(out.stdout).toBe('{"permission":"allow"}\n');
+  else if (h === "agy") expect(out.stdout + out.stderr).toBe("");
+  else expect(out.stdout + out.stderr).toContain("PREGATE NOTE payload-unrecognized");
+  expect(out.stdout + out.stderr).not.toContain("DENY");
+}
+
+// The enabled repository with "uncertainty": "closed" in its preset: the only place an engine
+// failure still denies.
+const presetFile = join(repo, ".pregate/preset.json");
+function closedPreset(): () => void {
+  const original = readFileSync(presetFile, "utf8");
+  writeFileSync(presetFile, JSON.stringify({ ...JSON.parse(original), uncertainty: "closed" }));
+  return () => writeFileSync(presetFile, original);
+}
+function whereClosed<T>(work: () => T): T {
+  return withCleanup(work, closedPreset());
+}
+
+// A second enabled repository whose preset says closed, for a deadline that runs beside the open
+// one: both wait the same five seconds. Returns the payload of `h` aimed at `rel` inside it.
+const closedRepo = join(area, "closed repo");
+function closedPayload(h: HarnessId, rel: string): string {
+  if (!existsSync(closedRepo)) {
+    for (const folder of [join(closedRepo, ".pregate"), join(closedRepo, "src")]) mkdirSync(folder, { recursive: true });
+    expect(run(["git", "init", "-q", closedRepo]).code).toBe(0);
+    writeFileSync(join(closedRepo, ".pregate/preset.json"), JSON.stringify({ ...JSON.parse(readFileSync(presetFile, "utf8")), uncertainty: "closed" }));
+    expect(run([binary, "preset", "compile"], "", closedRepo).code).toBe(0);
+    expect(run([binary, "enable", "--yes"], "", closedRepo).code).toBe(0);
+  }
+  const inJson = (path: string): string => JSON.stringify(path).slice(1, -1);
+  return writePayload(h, join(repo, rel)).replaceAll(inJson(repo), inJson(closedRepo));
+}
+
+// An engine failure passes with one note line on stderr that names the reason.
+function noted(out: Out, reason: string): void {
+  expect(out.code, out.stdout + out.stderr).toBe(0);
+  expect(out.stderr).toStartWith("PREGATE NOTE engine-failure: ");
+  expect(out.stderr).toContain(reason);
+  expect(out.stderr).toEndWith(`. ${NOT_CHECKED}\n`);
+}
+
+// The same failure both ways: the note by default, the deny where the preset says closed.
+function engineFailure(call: () => Out, reason: string): void {
+  const open = call();
+  noted(open, reason);
+  expect(open.stdout).toBe("");
+  const denied = whereClosed(call);
+  expect(denied.code, denied.stdout + denied.stderr).toBe(2);
+  expect(denied.stdout + denied.stderr).toContain("PREGATE could not evaluate: ");
+  expect(denied.stdout + denied.stderr).toContain(reason);
+}
+
 function writePayload(h: HarnessId, target: string): string {
   const names: Record<HarnessId, string> = { "claude-code": "pre-write.json", codex: "codex/pre-apply-patch-add-update.json", cursor: "cursor/pre-write-strreplace.json", grok: "grok/pre-write.json", agy: "agy/pre-write_to_file.json", opencode: "opencode/pre-write.json" };
   const p = JSON.parse(readFileSync(join(import.meta.dir, "payloads", names[h]), "utf8"));
@@ -99,7 +160,7 @@ function writePayload(h: HarnessId, target: string): string {
   return JSON.stringify(p);
 }
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const)("compiled repository admission rejects altered locks in %s with all core requirements active", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const)("compiled repository admission judges %s from the preset when the lock is altered, with all core requirements active", (h) => {
   const root = join(area, `admission-${h}`);
   mkdirSync(join(root, ".pregate"), { recursive: true });
   mkdirSync(join(root, "src"));
@@ -118,17 +179,21 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const
   const core = JSON.parse(original).rules.filter((rule: { id: string }) => rule.id.startsWith("core/"));
   expect(core).toHaveLength(68);
   const target = join(root, "src/decide.ts");
+  const guarded = join(root, ".pregate/canary.json");
   const content = "export const value = 1;\n";
-  const payload = JSON.parse(writePayload(h, target));
   const session = crypto.randomUUID();
-  for (const key of ["session_id", "sessionId", "conversation_id", "conversationId", "generation_id"]) {
-    if (Object.hasOwn(payload, key)) payload[key] = session;
-  }
-  if (h === "agy") { payload.workspacePaths = [root]; payload.toolCall.args.CodeContent = content; }
-  else if (h === "grok") { payload.cwd = payload.workspaceRoot = root; payload.toolInput.content = content; }
-  else if (h === "codex") { payload.cwd = root; payload.tool_input.command = `*** Begin Patch\n*** Add File: ${target}\n+export const value = 1;\n*** End Patch\n`; }
-  else { payload.cwd = root; payload.workspace_roots = [root]; payload.tool_input.content = content; }
-  const hook = () => run([engine, "hook", "pre", "--harness", h], JSON.stringify(payload), root);
+  const write = (file: string): string => {
+    const payload = JSON.parse(writePayload(h, file));
+    for (const key of ["session_id", "sessionId", "conversation_id", "conversationId", "generation_id"]) {
+      if (Object.hasOwn(payload, key)) payload[key] = session;
+    }
+    if (h === "agy") { payload.workspacePaths = [root]; payload.toolCall.args.CodeContent = content; }
+    else if (h === "grok") { payload.cwd = payload.workspaceRoot = root; payload.toolInput.content = content; }
+    else if (h === "codex") { payload.cwd = root; payload.tool_input.command = `*** Begin Patch\n*** Add File: ${file}\n+export const value = 1;\n*** End Patch\n`; }
+    else { payload.cwd = root; payload.workspace_roots = [root]; payload.tool_input.content = content; }
+    return JSON.stringify(payload);
+  };
+  const hook = (file = target) => run([engine, "hook", "pre", "--harness", h], write(file), root);
   const accepted = hook();
   expect(accepted.code).toBe(0);
   expect(accepted.stdout + accepted.stderr).not.toContain("lock-stale");
@@ -137,11 +202,18 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const
     { sourcesHash: "0".repeat(64) }, { presetHash: undefined }, { coreHash: undefined }]) {
     const altered = { ...JSON.parse(original), ...changed };
     writeFileSync(lockPath, JSON.stringify(altered, null, 2) + "\n");
-    const denied = hook();
-    expect(denied.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
-    expect(denied.stdout + denied.stderr).toContain("lock-stale");
+    // The lock file no longer matches: the engine compiles the preset and judges the call with it.
+    const judged = hook();
+    expect(judged.code, judged.stdout + judged.stderr).toBe(0);
+    expect(judged.stdout + judged.stderr).not.toContain("lock-stale");
+    expect(judged.stdout + judged.stderr).not.toContain("DENY");
+    expect(judged.stdout + judged.stderr).not.toContain("TypeError");
+    const denied = hook(guarded);
+    expect(denied.code, denied.stdout + denied.stderr).toBe(denyCode(h));
+    expect(denied.stdout + denied.stderr).toContain("protected-path");
     expect(denied.stdout + denied.stderr).not.toContain("TypeError");
     expect(existsSync(target)).toBe(false);
+    expect(existsSync(guarded)).toBe(false);
   }
 });
 
@@ -158,7 +230,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("real engi
   expect(existsSync(target)).toBe(false);
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("rejected %s tool names cannot disclose secrets or expand diagnostics", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("unrecognized %s tool names cannot disclose secrets or expand diagnostics; the call passes with a note", (h) => {
   expect(cli("enable", "--yes").code).toBe(0);
   const secret = "secret-canary-CORE-INV-040";
   const payload = JSON.parse(writePayload(h, join(repo, "src/a.ts")));
@@ -168,15 +240,14 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("rejected 
   else payload.tool_name = tool;
   const raw = JSON.stringify(payload);
   for (const out of [run([binary, "hook", "pre", "--harness", h], raw), supervised(raw, "hook", "pre", "--harness", h)]) {
-    expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
-    expect(out.stdout + out.stderr).toContain("payload-unrecognized");
+    unchecked(h, out);
     expect(out.stdout + out.stderr).not.toContain(secret);
     expect(out.stdout + out.stderr).not.toContain("\u001b");
     expect(out.stdout.length + out.stderr.length).toBeLessThan(2048);
   }
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin boundary rejects malformed UTF-8 in %s while preserving valid Unicode", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin boundary passes malformed UTF-8 in %s unchecked while preserving valid Unicode", (h) => {
   expect(cli("enable", "--yes").code).toBe(0);
   const payload = { ...JSON.parse(writePayload(h, join(repo, ".pregate/canary.json"))), transportPadding: "é🧪 �" };
   const marker = "é🧪 �";
@@ -192,14 +263,16 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin bou
       expect(out.stdout + out.stderr).toContain("protected-path");
     }
     for (const cwd of [repo, join(area, "outside")]) for (const out of transports(argv, malformed, cwd)) {
-      expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
-      expect(out.stdout + out.stderr).toContain("payload-unrecognized");
+      // Unreadable bytes name no directory: only the enabled repository says the note.
+      if (cwd === repo) unchecked(h, out);
+      expect(out.code).toBe(0);
+      expect(out.stdout + out.stderr).not.toContain("DENY");
       expect(out.stdout.length + out.stderr.length).toBeLessThan(2048);
     }
   }
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin boundary admits exactly 16 MiB and rejects a larger %s payload", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin boundary admits exactly 16 MiB and passes a larger %s payload unchecked", (h) => {
   expect(cli("enable", "--yes").code).toBe(0);
   const payload = { ...JSON.parse(writePayload(h, join(repo, ".pregate/canary.json"))), transportPadding: "" };
   payload.transportPadding = "x".repeat(16 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(payload)));
@@ -212,8 +285,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin bou
       expect(out.stdout + out.stderr).toContain("protected-path");
     }
     for (const out of transports(argv, oversized)) {
-      expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
-      expect(out.stdout + out.stderr).toContain("payload-unrecognized");
+      unchecked(h, out);
       expect(out.stdout.length + out.stderr.length).toBeLessThan(2048);
     }
   }
@@ -257,7 +329,7 @@ test("stdin boundary stops reading at the byte budget instead of buffering the e
   const fd = openSync(file, "r");
   withCleanup(() => {
     const out = run([binary, "hook", "pre", "--harness", "codex"], fd);
-    expect(out.code).toBe(2); expect(out.stderr).toContain("payload-unrecognized");
+    unchecked("codex", out);
     const next = Buffer.alloc(1);
     expect(readSync(fd, next, 0, 1, null)).toBe(1);
     expect(next[0]).toBe(0x73);
@@ -270,23 +342,31 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("stdin bou
   const lock = join(repo, ".pregate/pregate.lock.json"), original = readFileSync(lock, "utf8");
   await withCleanupAsync(async () => {
     writeFileSync(lock, JSON.stringify({ ...JSON.parse(original), engine: "9.9.6" }));
-    const outputs = await Promise.all([
+    const supervisor = [binary, "--supervise", data, pkg.version, "hook", "pre", "--harness", h];
+    // Where the preset says closed, the supervisor keeps the harness's native denial.
+    const closed = closedPayload(h, "src/deadline-canary.ts");
+    const [direct, watched, denied] = await Promise.all([
       heldInput([binary, "hook", "pre", "--harness", h], raw, join(area, "outside")),
-      heldInput([binary, "--supervise", data, pkg.version, "hook", "pre", "--harness", h], raw, join(area, "outside")),
+      heldInput(supervisor, raw, join(area, "outside")),
+      heldInput(supervisor, closed, join(area, "outside")),
     ]);
-    for (const out of outputs) {
+    for (const out of [direct, watched, denied]) {
       expect(out.timedOut).toBe(false);
       expect(out.elapsed).toBeGreaterThanOrEqual(4500);
       expect(out.elapsed).toBeLessThan(8000);
-      expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
-      expect(out.stdout + out.stderr).toContain("stdin timed out before EOF");
       expect(out.stdout.length + out.stderr.length).toBeLessThan(2048);
     }
+    unchecked(h, direct);
+    noted(watched, "stdin timed out before EOF");
+    expect(watched.stdout).toBe(h === "cursor" ? '{"permission":"allow"}\n' : "");
+    expect(denied.code).toBe(denyCode(h));
+    expect(denied.stdout + denied.stderr).toContain("stdin timed out before EOF");
+    expect(denied.stdout + denied.stderr).not.toContain("PREGATE NOTE");
   }, () => { writeFileSync(lock, original); });
   expect(existsSync(join(repo, "src/deadline-canary.ts"))).toBe(false);
 });
 
-test("stdin boundary never redirects malformed input to a differently pinned engine", () => {
+test("stdin boundary passes malformed input unchecked and never hands it to a differently pinned engine", () => {
   expect(cli("enable", "--yes").code).toBe(0);
   const lock = join(repo, ".pregate/pregate.lock.json"), original = readFileSync(lock, "utf8");
   const raw = Buffer.from(JSON.stringify({ ...JSON.parse(writePayload("codex", join(repo, "src/a.ts"))), transportPadding: "é" }));
@@ -294,9 +374,11 @@ test("stdin boundary never redirects malformed input to a differently pinned eng
   withCleanup(() => {
     writeFileSync(lock, JSON.stringify({ ...JSON.parse(original), engine: "9.9.6" }));
     for (const argv of [[binary, "hook", "pre", "--harness", "codex"], [binary, "--supervise", data, pkg.version, "hook", "pre", "--harness", "codex"]]) {
-      for (const out of transports(argv, raw, join(area, "outside"))) {
-        expect(out.code).toBe(2); expect(out.stderr).toContain("payload-unrecognized");
-        expect(out.stdout).toBe("");
+      for (const cwd of [repo, join(area, "outside")]) for (const out of transports(argv, raw, cwd)) {
+        if (cwd === repo) unchecked("codex", out);
+        expect(out.code).toBe(0);
+        expect(out.stderr).toBe("");
+        expect(out.stdout + out.stderr).not.toContain("9.9.6");
       }
     }
   }, () => { writeFileSync(lock, original); });
@@ -337,19 +419,29 @@ test("stdin boundary preserves the supervisor Pre budget while receiving slow in
   const runtime = join(data, "8.8.7", ENGINE_FILE);
   mkdirSync(join(data, "8.8.7")); copyFileSync(process.execPath, runtime);
   const raw = writePayload("codex", join(repo, "src/deadline-canary.ts"));
-  const out = await heldInput([binary, "--supervise", data, "8.8.7", "-e",
-    "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0)"], raw, repo, 4000);
-  expect(out.timedOut).toBe(false); expect(out.code).toBe(2);
-  expect(out.elapsed).toBeGreaterThanOrEqual(4500); expect(out.elapsed).toBeLessThan(8000);
-  expect(out.stderr).toContain("engine timed out");
-  expect(out.stderr).not.toContain("stdin timed out");
+  const slow = (input: string, cwd: string) => heldInput([binary, "--supervise", data, "8.8.7", "-e",
+    "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0)"], input, cwd, 4000);
+  const [out, denied] = await Promise.all([slow(raw, repo), slow(closedPayload("codex", "src/deadline-canary.ts"), closedRepo)]);
+  for (const each of [out, denied]) {
+    expect(each.timedOut).toBe(false);
+    expect(each.elapsed).toBeGreaterThanOrEqual(4500); expect(each.elapsed).toBeLessThan(8000);
+    expect(each.stderr).toContain("engine timed out");
+    expect(each.stderr).not.toContain("stdin timed out");
+  }
+  noted(out, "the engine timed out");
+  expect(denied.code).toBe(2);
+  expect(denied.stderr).toContain("PREGATE could not evaluate: the engine timed out");
 });
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("supervisor engine failure preserves %s's native Pre denial", (h) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("supervisor engine failure passes %s's Pre with the note, and keeps its native denial where uncertainty is closed", (h) => {
   expect(cli("enable", "--yes").code).toBe(0);
   const raw = writePayload(h, join(repo, "src/deadline-canary.ts"));
-  const out = run([binary, "--supervise", data, "9.9.7", "hook", "pre", "--harness", h], raw, join(area, "outside"));
-  expect(out.code).toBe(h === "agy" || h === "cursor" ? 0 : 2);
+  const missing = () => run([binary, "--supervise", data, "9.9.7", "hook", "pre", "--harness", h], raw, join(area, "outside"));
+  const passed = missing();
+  noted(passed, "engine 9.9.7 is not installed");
+  expect(passed.stdout).toBe(h === "cursor" ? '{"permission":"allow"}\n' : "");
+  const out = whereClosed(missing);
+  expect(out.code).toBe(denyCode(h));
   expect(out.stdout + out.stderr).toContain("engine 9.9.7 is not installed");
   if (h === "agy") expect(JSON.parse(out.stdout).decision).toBe("deny");
   else if (h === "cursor") expect(JSON.parse(out.stdout).permission).toBe("deny");
@@ -357,48 +449,63 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("superviso
   else expect(out.stderr.length).toBeGreaterThan(0);
 });
 
-test("missing and empty pinned engines fail closed; redirects cannot loop", () => {
+test("a lock that pins a missing, empty or other installed engine is judged by this engine from the preset; nothing is redirected", () => {
   const lock = join(repo, ".pregate/pregate.lock.json");
   const original = readFileSync(lock, "utf8");
   const raw = writePayload("codex", join(repo, ".pregate/canary.json"));
+  const plain = writePayload("codex", join(repo, "src/pinned-canary.ts"));
   const pinned = join(data, "9.9.9", ENGINE_FILE);
+  const judged = () => {
+    const denied = supervised(raw, "hook", "pre", "--harness", "codex");
+    expect(denied.code, denied.stdout + denied.stderr).toBe(2);
+    expect(denied.stderr).toContain("PREGATE DENY protected-path");
+    const allowed = supervised(plain, "hook", "pre", "--harness", "codex");
+    expect(allowed.code, allowed.stdout + allowed.stderr).toBe(0);
+    for (const out of [denied, allowed]) {
+      expect(out.stdout + out.stderr).not.toContain("9.9.9");
+      expect(out.stdout + out.stderr).not.toContain("exit 3");
+      expect(out.stdout + out.stderr).not.toContain("could not evaluate");
+      expect(out.stdout + out.stderr).not.toContain("engine-failure");
+    }
+  };
   withCleanup(() => {
     const p = JSON.parse(original); p.engine = "9.9.9"; writeFileSync(lock, JSON.stringify(p));
-    const missing = supervised(raw, "hook", "pre", "--harness", "codex");
-    expect(missing.code).toBe(2); expect(missing.stderr).toContain("9.9.9");
+    judged();
     mkdirSync(join(data, "9.9.9")); writeFileSync(pinned, "");
-    expect(supervised(raw, "hook", "pre", "--harness", "codex").code).toBe(2);
+    judged();
     copyFileSync(engine, pinned);
-    const loop = supervised(raw, "hook", "pre", "--harness", "codex");
-    expect(loop.code).toBe(2); expect(loop.stderr).toContain("exit 3");
+    judged();
   }, () => { writeFileSync(lock, original); });
 });
 
-test("real engine crash is mapped to a denial; an inactive worktree stays inert", () => {
+test("real engine crash passes with the note, is a denial where uncertainty is closed, and an inactive worktree stays inert", () => {
   const bad = { ...JSON.parse(writePayload("claude-code", join(repo, ".pregate/canary.json"))), cwd: "\0" };
-  // An invalid argv makes the actual CLI exit 1; the supervisor must never forward that fail-open.
-  const out = supervised(JSON.stringify(bad), "unknown-command");
-  expect(out.code).toBe(2); expect(out.stderr).toContain("exit 1");
+  // An invalid argv makes the actual CLI exit 1; the supervisor never forwards that exit code.
+  engineFailure(() => supervised(JSON.stringify(bad), "unknown-command"), "the engine failed (exit 1)");
   expect(cli("disable", "--yes").code).toBe(0);
   expect(supervised("{}", "unknown-command")).toEqual({ code: 0, stdout: "", stderr: "" });
   expect(cli("enable", "--yes").code).toBe(0);
 });
 
-test("watchdog cuts off a real blocked runtime and rejects exit 2 without stderr", () => {
+test("watchdog cuts off a real blocked runtime and treats exit 2 without stderr as an engine failure", () => {
   const runtime = join(data, "8.8.8", ENGINE_FILE);
   mkdirSync(join(data, "8.8.8"));
   copyFileSync(process.execPath, runtime);
   const raw = writePayload("codex", join(repo, ".pregate/canary.json"));
-  const start = performance.now();
-  const hung = run([binary, "--supervise", data, "8.8.8", "-e", "process.stderr.write('PREGATE-CHECKPOINT dependency-review\\n'); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0)"], raw);
-  expect(hung.code).toBe(2); expect(hung.stderr).toContain("timed out");
-  expect(hung.stderr).toContain("last engine checkpoint: dependency-review");
-  expect(performance.now() - start).toBeLessThan(8000);
-  const empty = run([binary, "--supervise", data, "8.8.8", "-e", "process.stderr.write('PREGATE-CHECKPOINT rules\\n'); process.exit(2)"], raw);
-  expect(empty.code).toBe(2); expect(empty.stderr).toContain("without a reason");
+  const blocked = () => run([binary, "--supervise", data, "8.8.8", "-e", "process.stderr.write('PREGATE-CHECKPOINT dependency-review\\n'); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0)"], raw);
+  for (const closed of [false, true]) {
+    const start = performance.now();
+    const hung = closed ? whereClosed(blocked) : blocked();
+    expect(performance.now() - start).toBeLessThan(8000);
+    if (closed) { expect(hung.code).toBe(2); expect(hung.stderr).toContain("PREGATE could not evaluate: the engine timed out"); }
+    else noted(hung, "the engine timed out");
+    expect(hung.stderr).toContain("last engine checkpoint: dependency-review");
+  }
+  engineFailure(() => run([binary, "--supervise", data, "8.8.8", "-e", "process.stderr.write('PREGATE-CHECKPOINT rules\\n'); process.exit(2)"], raw),
+    "the engine denied without a reason");
 });
 
-test("one redirect replays the real payload through a separately versioned engine", async () => {
+test("a lock that pins a separately versioned installed engine is still judged by this engine", async () => {
   const version = "9.9.8";
   const target = join(data, version, ENGINE_FILE);
   mkdirSync(join(data, version));
@@ -465,15 +572,15 @@ if (!WINDOWS) {
       for (const shell of ["sh", "bash", "dash", "zsh"]) {
         for (const [text, active] of cases) {
           progressEngine("PREGATE-CHECKPOINT rules\n" + text, 1);
-          const out = run([shell, "-c", command], raw);
-          expect(out.code).toBe(2);
-          expect(out.stderr).toBe(`PREGATE could not evaluate: the engine failed (exit 1); last engine checkpoint: rules${active}; report it to the user\n`);
+          const why = `the engine failed (exit 1); last engine checkpoint: rules${active}`;
+          expect(run([shell, "-c", command], raw)).toEqual({ code: 0, stdout: "", stderr: `PREGATE NOTE engine-failure: ${why}. ${NOT_CHECKED}\n` });
+          expect(whereClosed(() => run([shell, "-c", command], raw))).toEqual({ code: 2, stdout: "", stderr: `PREGATE could not evaluate: ${why}; report it to the user\n` });
         }
       }
     }, () => { writeFileSync(engine, original); });
   });
 
-  test("registered POSIX NUL fallback utility failures deny", () => {
+  test("registered POSIX NUL fallback utility failures are engine failures", () => {
     const command = registeredPosixHook(), original = readFileSync(engine);
     const launcher = join(data, "bin/pregate"), originalLauncher = readFileSync(launcher);
     const raw = writePayload("claude-code", join(repo, "src/progress-canary.ts"));
@@ -483,8 +590,7 @@ if (!WINDOWS) {
         expect(originalLauncher.toString()).toContain(utility);
         writeFileSync(launcher, originalLauncher.toString().replace(utility, utility.startsWith("tail") ? "false -c" : "LC_ALL=C false"));
         for (const shell of ["sh", "bash", "dash", "zsh"]) {
-          const out = run([shell, "-c", command], raw);
-          expect(out.code).toBe(2); expect(out.stderr).toContain("engine progress could not be read");
+          engineFailure(() => run([shell, "-c", command], raw), "engine progress could not be read");
         }
       }
     }, () => { writeFileSync(engine, original); writeFileSync(launcher, originalLauncher); });
@@ -533,14 +639,13 @@ if (!WINDOWS) {
           const normal = run([shell, "-c", command], raw);
           expect(normal).toEqual({ code: 0, stdout: "", stderr: malformed.includes(text) || text.includes("\0") ? text : "" });
           writeFileSync(launcher, originalLauncher.toString().replace("LC_ALL=C awk", "LC_ALL=C false"));
-          const failed = run([shell, "-c", command], raw);
-          expect(failed.code).toBe(2); expect(failed.stderr).toContain("engine progress could not be read");
+          engineFailure(() => run([shell, "-c", command], raw), "engine progress could not be read");
         }
       }
     }, () => { writeFileSync(launcher, originalLauncher); writeFileSync(engine, original); });
   });
 
-  test("registered POSIX checkpoint fallback preserves bytes and fails closed", () => {
+  test("registered POSIX checkpoint fallback preserves bytes and reports a failed parser as an engine failure", () => {
     expect(cli("enable", "--yes").code).toBe(0);
     const settings = JSON.parse(readFileSync(join(home, ".claude/settings.json"), "utf8"));
     const command = settings.hooks.PreToolUse.flatMap((group: { hooks: { command: string }[] }) => group.hooks)
@@ -561,16 +666,13 @@ if (!WINDOWS) {
           const expected = markers === "PREGATE-CHECKPOINT input" ? "" : markers.startsWith("PREGATE-CHECKPOINT rules") ? "notice é" : markers.includes("\\r") ? "notice\r\n" : markers.replaceAll("\\n", "\n");
           expect(normal).toEqual({ code: 0, stdout: "", stderr: expected });
           writeFileSync(launcher, originalLauncher.toString().replace("LC_ALL=C awk", "LC_ALL=C false"));
-          const failed = execute(markers, 0, shell);
-          expect(failed.code).toBe(2); expect(failed.stderr).toContain("engine progress could not be read");
+          engineFailure(() => execute(markers, 0, shell), "engine progress could not be read");
         }
         for (const nul of ["PREGATE-CHECKPOINT input\\000suffix\\n", "PREGATE-CHECKPOINT input\\000"]) {
-          const fallback = execute(nul, 0, shell);
-          expect(fallback.code).toBe(2); expect(fallback.stderr).toContain("engine progress could not be read");
+          engineFailure(() => execute(nul, 0, shell), "engine progress could not be read");
         }
         for (const markers of ["", "PREGATE-CHECKPOINT rules\\n"]) {
-          const empty = execute(markers, 2, shell);
-          expect(empty.code).toBe(2); expect(empty.stderr).toContain("engine denied without a reason");
+          engineFailure(() => execute(markers, 2, shell), "the engine denied without a reason");
         }
       }
     }, () => { writeFileSync(launcher, originalLauncher); writeFileSync(engine, originalEngine); });
@@ -610,24 +712,29 @@ if (!WINDOWS) {
       const rule = "PREGATE-CHECKPOINT rules\nPREGATE-RULE started=pack/ACTUAL-001\n";
       const started = performance.now();
       const unfinished = execute(rule, "exec /bin/sleep 60");
-      expect(unfinished.code).toBe(2); expect(unfinished.stderr).toContain("executing rule: pack/ACTUAL-001");
+      noted(unfinished, "the engine timed out after 5 s; last engine checkpoint: rules; executing rule: pack/ACTUAL-001");
       expect(performance.now() - started).toBeGreaterThanOrEqual(4_900);
       expect(performance.now() - started).toBeLessThan(8_000);
+      // Where the preset says closed the same timeout denies, inside the same bounds.
+      const closedAt = performance.now();
+      const denied = whereClosed(() => execute(rule, "exec /bin/sleep 60"));
+      expect(denied.code).toBe(2);
+      expect(denied.stderr).toBe("PREGATE could not evaluate: the engine timed out after 5 s; last engine checkpoint: rules; executing rule: pack/ACTUAL-001; report it to the user\n");
+      expect(performance.now() - closedAt).toBeGreaterThanOrEqual(4_900);
+      expect(performance.now() - closedAt).toBeLessThan(8_000);
       const nested = execute(rule + "PREGATE-RESOLUTION started\n", "exec /bin/sleep 60");
-      expect(nested.code).toBe(2); expect(nested.stderr).toContain("executing shared dependency resolution");
+      noted(nested, "executing shared dependency resolution");
       expect(nested.stderr).not.toContain("executing rule");
-      const crash = execute(rule + "PREGATE-RESOLUTION started\nPREGATE-RESOLUTION completed=1.0ms\n", "exit 1");
-      expect(crash.code).toBe(2); expect(crash.stderr).toContain("exit 1");
-      expect(crash.stderr).toContain("executing rule: pack/ACTUAL-001");
+      engineFailure(() => execute(rule + "PREGATE-RESOLUTION started\nPREGATE-RESOLUTION completed=1.0ms\n", "exit 1"),
+        "the engine failed (exit 1); last engine checkpoint: rules; executing rule: pack/ACTUAL-001");
       const completed = execute(rule + "PREGATE-RULE completed=pack/ACTUAL-001 2.0ms\n", "exec /bin/sleep 60");
-      expect(completed.code).toBe(2); expect(completed.stderr).not.toContain("executing rule");
+      noted(completed, "the engine timed out after 5 s"); expect(completed.stderr).not.toContain("executing rule");
       expect(completed.stderr).not.toContain("pack/ACTUAL-001");
       const forged = `PREGATE-RULE started=pack/${"A".repeat(257)}\r\nPREGATE-RULE completed=pack/BAD badms\nPREGATE-RESOLUTION started /private/source\nnotice é`;
       for (const shell of ["sh", "dash", "bash", "zsh"]) {
         const normal = execute(rule + "PREGATE-RESOLUTION started\r\nPREGATE-RESOLUTION completed=1.0ms\r\nPREGATE-RULE completed=pack/ACTUAL-001 2.0ms\n" + forged, "exit 0", shell);
         expect(normal).toEqual({ code: 0, stdout: "", stderr: forged });
-        const noReason = execute(rule + "PREGATE-RULE completed=pack/ACTUAL-001 2.0ms\n", "exit 2", shell);
-        expect(noReason.code).toBe(2); expect(noReason.stderr).toContain("without a reason");
+        engineFailure(() => execute(rule + "PREGATE-RULE completed=pack/ACTUAL-001 2.0ms\n", "exit 2", shell), "the engine denied without a reason");
       }
     }, () => { copyFileSync(backup, engine); rmSync(backup); });
   });
@@ -649,8 +756,10 @@ if (WINDOWS) {
     const original = readFileSync(launcher, "utf8");
     withCleanup(() => {
       rmSync(launcher);
-      const missing = run(["cmd.exe", "/d", "/c", windowsHook(data, "pre", "agy")], JSON.stringify(raw), alias);
-      expect(missing.code).toBe(2);
+      // A missing launcher passes; only a preset that says closed keeps the deny.
+      const missing = () => run(["cmd.exe", "/d", "/c", windowsHook(data, "pre", "agy")], JSON.stringify(raw), alias);
+      expect(missing().code).toBe(0);
+      expect(whereClosed(missing).code).toBe(2);
     }, () => { writeFileSync(launcher, original); });
   });
   test.each(["cmd", "powershell", "bash"])("registered Windows hook through %s handles Unicode and missing launcher", (shell) => {
@@ -664,7 +773,8 @@ if (WINDOWS) {
     const original = readFileSync(launcher, "utf8");
     withCleanup(() => {
       rmSync(launcher);
-      const absent = run(argv, raw, home);
+      expect(run(argv, raw, home)).toEqual({ code: 0, stdout: "", stderr: "" });
+      const absent = whereClosed(() => run(argv, raw, home));
       expect(absent.code).toBe(2); expect(absent.stderr).toContain("launcher failed");
       expect(cli("disable", "--yes").code).toBe(0);
       expect(run(argv, raw, home)).toEqual({ code: 0, stdout: "", stderr: "" });

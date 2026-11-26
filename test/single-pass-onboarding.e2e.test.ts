@@ -98,7 +98,7 @@ test("one terminal approval activates a new repo with layers and compiled projec
     const committed = git("show", "--name-only", "--format=", "HEAD");
     for (const path of [".pregate/preset.json", ".pregate/pregate.lock.json", ".pregate/packs/project"]) expect(committed).toContain(path);
     const status = cli("status");
-    expect(status.text).toContain("Local consent is active");
+    expect(status.text).toContain("Pregate is on in");
     expect(status.text).not.toContain("pending review");
     expect(cli("approve", "--preview").text).toContain("No pending");
 

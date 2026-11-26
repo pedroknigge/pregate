@@ -10,7 +10,8 @@ export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
 ]);
 
 // Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
-export const UNCERTAINTY_OVERRIDE = " Override: set uncertainty to open in .pregate/preset.json; the human runs pregate preset compile.";
+// A hook never denies these causes; `pregate check` still reports them, and no preset key overrides that.
+export const UNCERTAINTY_OVERRIDE = "";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
@@ -63,7 +64,7 @@ const STALLED = "This edit repeats a denied one or makes no progress on the list
 const HALTED = "PREGATE stopped this turn. Do not retry: tell the user which rule blocks you (ID and line) and why.";
 const FORM_HALTED = "PREGATE stopped this turn. Do not retry: tell the user the cause and path.";
 const ASKED = "PREGATE asked the user to approve this change. If they decline, rewrite it within the rule or tell them why you cannot.";
-const ADVISOR = "Advisory finding: this edit was not blocked. Revise the code for each rule above, or keep it and tell the user why.";
+const ADVISOR = "Advisory: not blocked.";
 const ADVISOR_BESIDE_DENY = "Advisory findings: these rules do not block; only the DENY above does. Revise the code for each advisory rule, or keep it and tell the user why.";
 const STOP = `Fix them before finishing. Do not remove functionality or tests to comply; if the fix exceeds the task, stop and report it to the user.\nStop uses the retained session snapshot. Inspect it with pregate report --json; a clean CLI check against another baseline does not clear these findings. After a committed merge, prepare pregate session rebase <harness:session-id> --preview for human review. Do not delete session state to hide findings.\n${POLICY_ADAPTATION}`;
 const INFO = " (informational; no action required for this task)";
@@ -151,9 +152,12 @@ export function adviseText(vs: Violation[], lock: Lock, ctx: DenyContext, beside
   const count = hidden(sorted, ctx);
   const chosen = explainChoice("PREGATE ADVISOR", first, lock, count, ctx.launcher);
   const compact = headline("PREGATE ADVISOR", first, lock, count, chosen.end);
+  // One line per rule. The why, the fix and the origin are one `pregate explain` away, which the
+  // first line names: an advisory that fills the context is read less than one that fits a line.
+  const rest = groups(sorted).slice(1, 6).map((g) => clip(oneLine(briefGroup(g)), LINE_MAX));
   const close = besideDeny ? ADVISOR_BESIDE_DENY : ADVISOR;
   const tail = chosen.spill === "" ? close : `${close}\n${chosen.spill}`;
-  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
+  return { compact, full: clip([compact, ...rest, tail].join("\n"), ctx.max ?? TEXT_MAX), fix: ruleFix(first, lock) };
 }
 
 export function warnText(vs: Violation[], lock: Lock): Text {
@@ -182,6 +186,19 @@ export function alsoInCall(full: string, compacts: string[]): string {
 // `halt`: the turn stops here (turn cap or a run of form denies), so the agent must not resend.
 export function formText(f: Form, rel: string | null, halt = false): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const control = CONTROL_EN[f.cause];
+  if (control !== undefined) {
+    // The causes a hook blocks on. Two sentences: what the agent does not do, and what to do instead.
+    // A harness may show only the first 256 characters, so a long path yields before the instruction.
+    const detailed = (f.cause === "shell-admin" || f.cause === "request-invalid") && f.detail ? `${clip(oneLine(f.detail), 220).replace(/[.\s]+$/, "")}.` : control.what;
+    const line = (where: string) => `PREGATE DENY ${f.cause}${where}: ${detailed} ${control.instead}`;
+    const room = LINE_MAX - line("").length - 2;
+    const short = rel === null ? "" : at.length - 1 <= room ? at : room < 8 ? "" : ` …${at.slice(at.length - room + 1)}`;
+    const compact = clip(line(short), LINE_MAX);
+    // The full text starts with the first line; a path that did not fit there follows whole.
+    const full = clip(short === at ? compact : `${compact}\nPath:${at}`, TEXT_MAX);
+    return { compact, full: halt ? `${full}\n${FORM_HALTED}` : full, fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
+  }
   const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin", "shell-write"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), f.cause === "shell-admin" ? 220 : 2000) : null;
   const fix = causeFix(f.cause, rel, f.line, detail);
   const cue = f.cause === "shell-write" && detail !== null && fix.use ? `Use ${fix.use}. `
@@ -211,9 +228,7 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "approval"
     ? "\nAn agent cannot grant itself approval by setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT. A literal pregate approve with a code, or pregate approve --yes with an optional digest, is the in-harness confirmation, including a harness ! line. --yes on any other pregate command except enable and disable is accepted in that shell. enable and disable stay in a separate terminal."
     : "";
-  const uncertainty = strict
-    ? "\nWhere this project is enabled, an unclassified call is denied. That does not turn protection off."
-    : "";
+  const uncertainty = "";
   const fixAlready = help.includes("\nFix: ") || help.includes("Fix: ") || compact.includes(fix.text);
   const fixLine = fixAlready ? "" : `\nFix: ${fix.text}`;
   const carried = strict ? `${fixLine}\n${diagnosis}` : fixLine;
@@ -241,12 +256,50 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
   return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
 }
 
+// The causes a hook blocks on: the agent acting on Pregate itself. Short on purpose.
+const CONTROL_EN: Partial<Record<Cause, { what: string; instead: string }>> = {
+  "protected-path": { what: "the agent does not write Pregate's files or harness settings; reading is fine.",
+    instead: "Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <file> --preview." },
+  "request-invalid": { what: "the request file does not match schema/request.v1.json.",
+    instead: "Fix the JSON and resend it." },
+  "hook-switch": { what: "the agent does not install, remove, or switch off Pregate or the hooks of a harness.",
+    instead: "Tell the user; they run pregate disable or pregate setup." },
+  "approval": { what: "the agent does not approve for the human.",
+    instead: "Ask the user to run the approval command themselves; in a harness, on a ! line." },
+  "shell-admin": { what: "this command changes Pregate's configuration, skips its git hook, or hides a command name behind a variable.",
+    instead: "Spell the command literally, or tell the user what you need; they run it." },
+};
+
+// What a hook says about a cause it does not block on. One line; `pregate doctor` has the detail.
+const NOTE_EN: Partial<Record<Cause, string>> = {
+  "tool-will-fail": "the text to replace is not in the current file, or is not unique, so the edit was not checked.",
+  "cannot-reconstruct": "this edit could not be rebuilt, so it was not checked.",
+  "shell-write": "this command writes a project file, so the change was not checked. The edit tool gets it checked.",
+  "shell-uncertain": "this command has unfinished shell syntax, so it was not classified.",
+  "payload-unrecognized": "this call has a shape this PREGATE version does not know, so it was not checked.",
+  "lock-stale": "the lock does not match the preset or its sources, so this call was not checked. `pregate preset compile` rebuilds it.",
+  "version-mismatch": "the lock was written by another PREGATE version, so this call was not checked. `pregate update` installs the newest engine.",
+  "snapshot-missing": "this session has no starting snapshot here, so this call was not checked.",
+  "state-io": "PREGATE state is busy or unwritable, so this call was not checked. `pregate doctor` explains.",
+  "git-missing": "git is not on PATH, so this call was not checked. Install Git and open a new terminal.",
+  "git-not-repository": "this directory is not a Git repository, so this call was not checked. Run `git init` here, or restore the removed .git folder.",
+  "git-error": "git returned an error, so this call was not checked. `git status` here shows it.",
+  "regex-limit": "a rule regex hit its backtracking limit on this file, so that rule was not checked.",
+  "contract-loosened": "the contract here enforces less than at session start. Nothing is blocked locally; the pull request review and `pregate check --ratchet` in CI decide.",
+};
+
+export function notedText(f: Form, rel: string | null): Text {
+  const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const compact = clip(`PREGATE NOTE ${f.cause}${at}: ${f.said ? oneLine(f.said) : NOTE_EN[f.cause] ?? CAUSE_EN[f.cause]} Not blocked.`, LINE_MAX * 2);
+  return { compact, full: compact, fix: null };
+}
+
 // Advisor mode does not block an import it could not resolve when no enforced rule would have judged the file.
 export function unresolvedAdvisory(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const detail = f.detail ? clip(oneLine(f.detail), 2000) : null;
   const compact = clip(`PREGATE WARN unresolvable-import${at}: ${detail ?? CAUSE_EN["unresolvable-import"]}`, LINE_MAX);
-  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, detail) };
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, detail) };
 }
 
 // The literal invocation the shell guard allows (ARCHITECTURE §4.2; MH-29: `pregate` on the PATH or
@@ -297,7 +350,13 @@ export function briefing(lock: Lock, launcher: string, lead: string | null = nul
   const head = `${lead === null ? "" : `${lead}\n`}PREGATE is active: preset ${safe(lock.preset.name)} ${safe(lock.preset.version)}, ${lock.enforcement}, ratchet ${lock.ratchet}. Scope: ${scope}.`;
   const own = lock.rules.filter((r) => !lock.ownedByArkgate.includes(r.id));
   const owed = own.filter((r) => unbound(lock, r)).length;
-  const rules = own.filter((r) => !unbound(lock, r)).map((r) => briefRule(lock, r));
+  // Only a rule that can block is listed: the agent has to know it before it edits. A rule that
+  // informs is one count; it speaks for itself in one line when an edit meets it.
+  const bound = own.filter((r) => !unbound(lock, r));
+  const blockers = bound.filter((r) => enforcementOf(lock, r) === "enforce" && r.severity !== "warn");
+  const informing = bound.length - blockers.length;
+  const rules = blockers.map((r) => briefRule(lock, r));
+  if (informing > 0) rules.push(`${informing} checks inform and never block.`);
   rules.push(...Object.entries(lock.layers).map(([name, layer]) => `Layer ${name} (${layer.paths.join(",")}): may import ${layer.mayImport.join(",") || "only itself"}.`));
   // Until the project binds its first verifier it has not adopted project verification, so the
   // unbound requirements are not session context; status and audit still report them.

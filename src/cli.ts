@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { approvalRecordVia, approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
+import { approvalRecordVia, approvalRefusal, approve, testAnswer, unattendedApproval, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
@@ -8,7 +8,7 @@ import { report } from "./report-command.ts";
 import { feedback } from "./feedback-command.ts";
 import { dispute } from "./dispute-command.ts";
 import { importReviewCost, pack, projectUpdate } from "./pack-command.ts";
-import { projectUpdates, registryHint, worktreeHint } from "./project-updates.ts";
+import { projectUpdates } from "./project-updates.ts";
 import { guide } from "./guided.ts";
 import { bundledBetween, reviewDiff, validateContract } from "./contract.ts";
 import { git } from "./git.ts";
@@ -105,7 +105,19 @@ const USAGE = `usage:
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
-  pregate --version | --help | -h`;
+  pregate --version | --help [--all] | -h`;
+// What a person needs day to day. Every other command is in `pregate --help --all`.
+const EVERYDAY = `Pregate checks an agent's edits against the rules in .pregate/ before they land.
+
+  pregate enable          set this project up (advisor mode: it informs, nothing blocks)
+  pregate status          what is on here, what needs attention, and the next step
+  pregate check           check the changed files now (--all: every file; CI runs this)
+  pregate explain <rule>  why a rule exists and how to fix a finding
+  pregate update          install the newest engine
+  pregate disable         switch Pregate off for this checkout (--project: every checkout)
+  pregate doctor          verify the installation and the hooks of each agent harness
+
+All commands: pregate --help --all`;
 const BAD: Result = { code: 1, text: USAGE };
 
 export async function run(argv: string[]): Promise<number> {
@@ -116,7 +128,7 @@ export async function run(argv: string[]): Promise<number> {
 }
 
 async function command([cmd, ...args]: string[]): Promise<Result> {
-  if (cmd !== undefined && commandHelp([cmd, ...args])) return { code: 0, text: USAGE };
+  if (cmd !== undefined && commandHelp([cmd, ...args])) return { code: 0, text: (cmd === "--help" || cmd === "-h") && args.length === 0 ? EVERYDAY : USAGE };
   switch (cmd) {
     case "guide": return guide(args);
     case "status": return statusCommand(args);
@@ -125,13 +137,17 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       const flags = new Set(args);
       if (args.length !== flags.size || [...flags].some((arg) => arg !== "--yes" && arg !== "--project") || (flags.has("--project") && cmd !== "disable")) return BAD;
       const root = here();
+      if (root === null && cmd === "enable") return enableNewProject(flags.has("--yes"));
       if (root === null) return noPreset(process.cwd());
       const place = flags.has("--project") ? `project of ${root}` : `worktree ${root}`;
       const exclusions = cmd === "enable" ? await enableWithExclusions(root, flags.has("--yes")) : null;
       if (exclusions !== null && "code" in exclusions) {
         return exclusions.code === 0 ? { code: 0, text: `${exclusions.text}\n${statusText(protectionStatus(root))}` } : exclusions;
       }
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, true)) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, cmd === "disable")) return { code: 1, text: cmd === "disable"
+        // Switching protection off stays on a terminal: a command an agent hides from the shell guard cannot type y there.
+        ? "pregate disable needs your confirmation on a terminal; nothing changed. Run pregate disable in a terminal and answer y."
+        : "pregate enable needs your confirmation; nothing changed. Run pregate enable --yes (on a Claude Code ! line: ! pregate enable --yes)." };
       if (cmd === "enable") enable(root);
       else if (flags.has("--project")) disableProject(root);
       else disable(root);
@@ -173,10 +189,27 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       return uninstall(purge);
     }
     case "doctor": return args.length === 0 ? doctor() : BAD;
-    case "--help": case "-h": return args.length === 0 ? { code: 0, text: USAGE } : BAD;
+    case "--help": case "-h": return args.length === 0 ? { code: 0, text: EVERYDAY } : args.length === 1 && args[0] === "--all" ? { code: 0, text: USAGE } : BAD;
     case "--version": return args.length === 0 ? { code: 0, text: `pregate ${VERSIONS.engine} (core ${VERSIONS.core})` } : BAD;
     default: return BAD;
   }
+}
+
+// The front door for a project with no contract: one command prepares the advisor contract the
+// guide proposes, shows its summary, and applies it on the human's y (or --yes). Nothing blocks
+// in advisor, so the first run cannot stop anyone's work.
+async function enableNewProject(yes: boolean): Promise<Result> {
+  // Without a terminal there is nobody to ask: say the command that confirms, and prepare nothing.
+  if (!yes && !process.stdin.isTTY && testAnswer() === undefined && !unattendedApproval()) {
+    return { code: 1, text: "pregate enable needs your confirmation; nothing changed. Run pregate enable --yes (on a Claude Code ! line: ! pregate enable --yes)." };
+  }
+  const prepared = await guide(["--preview"]);
+  const root = prepared.code === 0 ? pendingRoot(canonical(process.cwd())) : null;
+  if (root === null) return prepared.code === 0 ? noPreset(process.cwd()) : prepared;
+  const brief = prepared.text.split("\n").filter((line) => /^(Scope includes|Packs|Rules|Mode): /.test(line) || line.startsWith("Scope includes"));
+  const summary = [`Set up Pregate in ${root}.`, ...brief, "Full contract: pregate approve --preview --full."].join("\n");
+  const applied = await approvePending(root, yes, undefined, true, summary);
+  return applied.code === 0 ? { code: 0, text: `${applied.text}\n${statusText(protectionStatus(root))}` } : applied;
 }
 
 function approveCommand(args: string[]): Result | Promise<Result> {
@@ -412,16 +445,10 @@ function prepareCommand(args: string[]): Promise<Result> | Result {
 
 function updateCommand(args: string[]): Promise<Result> | Result {
   if (args.filter(arg => arg === "--projects").length === 1) return projectUpdates(args.filter(arg => arg !== "--projects"));
-  if (args.filter((arg) => arg === "--project").length === 1) return withWorktrees(projectUpdate(args.filter((arg) => arg !== "--project")));
+  if (args.filter((arg) => arg === "--project").length === 1) return projectUpdate(args.filter((arg) => arg !== "--project"));
   const o = options(args, ["--version", "--engine"], []);
   if (o === null || o.operands.length > 0 || o.opts.size > 1) return BAD;
   return update({ version: o.opts.get("--version"), engine: o.opts.get("--engine") });
-}
-
-async function withWorktrees(pending: Promise<Result> | Result): Promise<Result> {
-  const result = await pending, root = here();
-  const hint = root === null ? [] : [...worktreeHint(root), ...registryHint(root)];
-  return hint.length === 0 ? result : { code: result.code, text: [result.text, ...hint].join("\n") };
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────────

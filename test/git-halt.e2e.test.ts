@@ -7,8 +7,9 @@ import { engineAt } from "./compiled-engine.ts";
 import { WINDOWS } from "../src/platform.ts";
 import { removeTree } from "./remove-tree.ts";
 
-// The compiled binary, on a real project: no .git, .git removed after a session started, and git
-// missing from PATH. Each denies, and the text names that failure.
+// The compiled binary, on a real project: no .git, .git removed after a session started, git
+// missing from PATH, and a failing git. Pregate cannot judge without Git, and that must not stop
+// the session: each call passes with one line that names the failure and the repair.
 
 setDefaultTimeout(120_000);
 
@@ -80,23 +81,24 @@ function init(dir: string, env: Env): void {
   ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], dir, env), "init");
 }
 
-function denied(out: Out, cause: string, fix: string): void {
+function noted(out: Out, cause: string, fix: string): void {
   const text = out.stdout + out.stderr;
-  expect(out.code, text).toBe(2);
-  const parsed = JSON.parse(out.stdout) as { hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string } };
-  expect(parsed.hookSpecificOutput.permissionDecision).toBe("deny");
-  expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(cause);
-  expect(parsed.hookSpecificOutput.permissionDecisionReason).toContain(fix);
+  expect(out.code, text).toBe(0);
+  expect(text).not.toContain('"permissionDecision":"deny"');
+  const parsed = JSON.parse(out.stdout) as { hookSpecificOutput: { additionalContext: string } };
+  expect(parsed.hookSpecificOutput.additionalContext).toStartWith(`PREGATE NOTE ${cause}`);
+  expect(parsed.hookSpecificOutput.additionalContext).toContain(fix);
+  expect(parsed.hookSpecificOutput.additionalContext).toEndWith("Not blocked.");
 }
 
-test("a project directory without .git is denied", () => {
+test("a project directory without .git passes with a note that names git init", () => {
   const { dir, env } = project();
   init(dir, env);
   expect(readFileSync(join(dir, ".pregate/preset.json"), "utf8")).toContain("integrity-only");
-  denied(hook(dir, env, "PreToolUse"), "git-not-repository", "git init");
+  noted(hook(dir, env, "PreToolUse"), "git-not-repository", "git init");
 });
 
-test(".git removed after the session started is denied", () => {
+test(".git removed after the session started passes with a note that names the removed folder", () => {
   const { dir, env } = project();
   git(dir, env, "init", "-q");
   git(dir, env, "add", "src.ts");
@@ -106,11 +108,11 @@ test(".git removed after the session started is denied", () => {
   expect(started.code, started.stdout + started.stderr).toBe(0);
   rmSync(join(dir, ".git"), { recursive: true, force: true });
   const out = hook(dir, env, "PreToolUse");
-  denied(out, "git-not-repository", "restore the removed .git");
+  noted(out, "git-not-repository", "restore the removed .git");
   expect(out.stdout).not.toContain("git-missing");
 });
 
-test("git missing from PATH is denied", () => {
+test("git missing from PATH passes with a note that says to install Git", () => {
   const empty = join(TMP, "no-git");
   mkdirSync(empty, { recursive: true });
   const path = WINDOWS && process.env.SystemRoot ? [empty, join(process.env.SystemRoot, "System32")].join(delimiter) : empty;
@@ -120,11 +122,11 @@ test("git missing from PATH is denied", () => {
   git(dir, envOf(), "commit", "-qm", "init");
   init(dir, envOf());
   const out = hook(dir, env, "PreToolUse");
-  denied(out, "git-missing", "install Git");
+  noted(out, "git-missing", "Install Git");
   expect(out.stdout).not.toContain("git-not-repository");
 });
 
-test("a git command error is denied", () => {
+test("a git command error passes with a note that names git status", () => {
   const bin = join(TMP, "fake-git");
   mkdirSync(bin, { recursive: true });
   const gitBin = join(bin, WINDOWS ? "git.cmd" : "git");
@@ -139,7 +141,7 @@ test("a git command error is denied", () => {
   git(dir, envOf(), "commit", "-qm", "init");
   init(dir, envOf());
   const out = hook(dir, env, "PreToolUse");
-  denied(out, "git-error", "pregate disable");
+  noted(out, "git-error", "git status");
   expect(out.stdout).not.toContain("git-missing");
   expect(out.stdout).not.toContain("git-not-repository");
 });

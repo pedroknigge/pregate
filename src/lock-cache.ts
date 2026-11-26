@@ -47,6 +47,20 @@ export function loadCompiledLock(root: string, presetText: string, lockText: str
   return null;
 }
 
+// The cached compile of this preset, when the lock file is missing, behind the preset, or written
+// by another engine version. The entry is this build's own output: its key binds the preset, every
+// pack and the build to that text, so a change in any of them misses and the caller recompiles.
+export function loadCompiledPreset(root: string, presetText: string): { lock: Lock; hash: string } | null {
+  const entry = readRawEntry(root);
+  if (entry === null) return null;
+  const key = compiledLockKey(root, presetText, entry.text);
+  if (key === null || key !== entry.key) return null;
+  const lock = parseLock(entry.text);
+  if (lock === null) return null;
+  lastKey.set(root, { root, key, preset: presetText, lock: entry.text });
+  return { lock, hash: sha256(entry.text) };
+}
+
 export function storeCompiledLock(root: string, presetText: string, compiledText: string): void {
   const last = lastKey.get(root);
   const key = last !== undefined && last.preset === presetText && last.lock === compiledText

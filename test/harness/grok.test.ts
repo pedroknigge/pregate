@@ -277,12 +277,22 @@ describe("encode", () => {
     expect(enc("pre-edit", d)).toEqual(denied(d.compact));
   });
 
-  test("an adapter's refusal denies through the event's channel", () => {
+  test("an adapter's refusal passes with a note on additionalContext; a control cause denies through the event's channel", () => {
     const r = decode("pre", raw({ ...json("pre-write.json"), toolInputTruncated: true }), PRE) as Rejected;
     const d = rejected(r);
-    expect(enc(r.kind, d)).toEqual(denied(d.compact));
-    expect(d.compact).toContain("cannot-reconstruct");
-    expect(enc("pre-command", rejected({ ...r, cause: BAD, kind: "pre-command" })).exit).toBe(2);
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: "cannot-reconstruct" });
+    expect(enc(r.kind, d)).toEqual({
+      stdout: `${raw({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.compact } })}\n`, stderr: "", exit: 0,
+    });
+    expect(d.compact).toContain("PREGATE NOTE cannot-reconstruct");
+    expect(d.compact).toContain("Not blocked.");
+    const unknown = enc("pre-command", rejected({ ...r, cause: BAD, kind: "pre-command" }));
+    expect(unknown).toMatchObject({ stderr: "", exit: 0 });
+    expect(unknown.stdout).toContain(`PREGATE NOTE ${BAD}`);
+    expect(unknown.stdout).not.toContain("permissionDecision");
+    const guarded = rejected({ ...r, cause: "hook-switch" });
+    expect(guarded).toMatchObject({ verdict: "deny", cause: "hook-switch" });
+    expect(enc(r.kind, guarded)).toEqual(denied(guarded.compact));
   });
 
   test("Stop block: decision block with exactly two keys, exit 0", () => {
@@ -291,7 +301,13 @@ describe("encode", () => {
     const e = enc("stop", d);
     expect(e).toEqual({ stdout: `${raw({ decision: "block", reason: d.compact })}\n`, stderr: "", exit: 0 });
     expect(Object.keys(JSON.parse(e.stdout) as object)).toEqual(["decision", "reason"]);
-    expect(enc("stop", rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] })).stdout).toContain('"decision":"block"');
+    // A control cause blocks Stop on the same channel. A muted cause does not block, and its note has no Stop channel in Grok.
+    const guarded = rejected({ cause: "hook-switch", kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(enc("stop", guarded)).toEqual({ stdout: `${raw({ decision: "block", reason: guarded.compact })}\n`, stderr: "", exit: 0 });
+    const noted = rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(noted).toMatchObject({ verdict: "none", cause: BAD });
+    expect(noted.notice).toContain(`PREGATE NOTE ${BAD}`);
+    expect(enc("stop", noted)).toEqual(NONE);
   });
 
   test("Stop past its cap, or a refused reentry: the notice has no channel in Grok", () => {

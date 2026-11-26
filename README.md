@@ -6,7 +6,7 @@ An AI agent can skip an instruction. The instruction loads in every session, and
 
 It fits any repository where an agent writes code, small or large, solo or team. It works alongside your linters, tests, CI, and review. It does not replace them.
 
-[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.13 release notes](docs/releases/0.0.13.md)
+[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.14 release notes](docs/releases/0.0.14.md)
 
 ## What it looks like
 
@@ -22,7 +22,7 @@ The agent proposes a file in `src/domain` that imports the database adapter. Bef
 
 The agent repairs the edit and writes the corrected file. `Avoid` names the shortcuts that would pass the rule without fixing the problem. While a rule is in advisor mode, the same text arrives as a warning and nothing is blocked.
 
-## Start in three steps
+## Start in two steps
 
 **1. Install.**
 
@@ -32,14 +32,13 @@ curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/insta
 
 Or `npm i -g pregate`. Windows and the details are in [Install and adopt, step by step](#install-and-adopt-step-by-step).
 
-**2. Type `/pregate` in your agent.** The skill inspects the repository, proposes the contract, the layer map and the rules from your instruction files, and reports in plain language. Without the skill, run `pregate guide --preview`.
-
-**3. Approve.** This is the only step a human must do, in a terminal. That approval applies the contract, the layers and the compiled rules together:
+**2. Turn it on in your repository.**
 
 ```sh
-pregate approve --preview     # read the change and see its code
-pregate approve <code>
+pregate enable
 ```
+
+It prepares the advisor contract that `pregate guide --preview` proposes for the stack it finds, prints a short summary (scope, packs, rules, mode), and applies it when you answer `y`. A human runs this command. A hook denies it when an agent runs it. To choose packs, a layer map, or rules from your instruction files before that approval, run `pregate guide --preview`, or type `/pregate` in your agent and say what you want.
 
 Nothing blocks on day one. Rules start in advisor mode: the agent sees each finding and decides. Violations that already exist are kept as known debt, and only new ones are reported. When a rule reports nothing for a week of real edits, Pregate says so at the start of a session and proposes to make it block. A rule that already has findings can block too: the existing ones stay as known debt and only new ones are denied. A human approves each promotion.
 
@@ -86,11 +85,13 @@ This section is written for an AI agent that reads this file to decide how to ac
 
 - Pregate is a command-line tool and a set of harness hooks. A repository uses it when `.pregate/preset.json` exists.
 - When a human has enabled it, every file write and edit in scope is checked before it is written. A denial contains `Why`, `Fix` and `Avoid`. Revise the edit to satisfy the rule. Do not route the same change through a shell command, a script, or a different file.
+- A hook blocks two things only: an edit that breaks a rule the project set to enforce, and an action on Pregate itself (`pregate enable` or `pregate disable`, approving for the human, changing a harness's hooks, writing inside `.pregate/`). Do not look for another way around the second one. Tell the user what you wanted to change.
 - An advisor finding does not block. Revise the code, or keep it and tell the user why.
+- A line that starts with `PREGATE NOTE` means Pregate could not check something. The call went through. It is not a reason to stop the user's task.
 - You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --packs <ns,ns|none>`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them. If `guide --preview` stops because one pack's nested packages cannot share a single include/exclude scope, run it again with `--packs` listing the packs to keep and omitting that pack. `guide --json` prints that scope error as JSON and exits non-zero. A project with no contract is told that none exists yet.
 - You must not run these. Only a human does, in a terminal: `pregate approve`, `pregate enable`, `pregate disable`, `pregate uninstall`.
-- Do not edit `.pregate/`, rule pack sources, or harness hook settings. Propose a change with the preview commands above.
-- When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill has the full procedure. The complete command list is in [docs/CLI.md](docs/CLI.md).
+- Do not edit `.pregate/`, rule pack sources, or harness hook settings. Reading them is allowed. Propose a change with the preview commands above.
+- When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill is a one-page guide to the common requests. The complete command list is in [docs/CLI.md](docs/CLI.md).
 - Pregate does not prove that code is correct. Do not tell the user that a passing check means the change is right.
 
 ## What Pregate does
@@ -106,13 +107,13 @@ The ratchet compares violations by rule and symbol, not arbitrary program meanin
 
 ## What Pregate does not do
 
-Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics. Where a project is enabled, syntax it cannot finish (an unclosed quote, substitution, or group) denies. A finished command it does not classify is not a deny by itself. Set `"uncertainty": "open"` in `.pregate/preset.json` and have a human run `pregate preset compile` to let only those unclassified calls through. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible.
+Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics. Locally a hook blocks only a rule the project set to enforce and an agent acting on Pregate itself. Anything else it cannot check is a one-line note, and the call goes through. An engine crash, a timeout, or a missing launcher also lets the call through, unless `.pregate/preset.json` sets `"uncertainty": "closed"`. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible. A repository without CI that runs `pregate check --ratchet` has only notes locally, and nothing holds a loosened contract there. See [what blocks locally](docs/guarantees.md#what-blocks-locally).
 
 The [guarantees](docs/guarantees.md#contract-loosening) put the boundary in CI:
 
 > This is the boundary: protect `.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews, or a pull request can rewrite the workflow that runs the check.
 
-CI's `check --ratchet` rejects contract loosening unless a maintainer accepts that exact change's digest outside the PR. Protect the Vercel build recipe the same way if you use that route.
+CI's `check --ratchet` rejects contract loosening unless a maintainer accepts that exact change's digest outside the PR. Stop does not compare contracts, and a local commit that loosens the contract gets a note and is not refused. Protect the Vercel build recipe the same way if you use that route.
 
 - Keep your linters, formatter, type checker, tests, security scans, and human review. Pregate does not replace them.
 - Pregate provides repair guidance, not source-code autofix. It has no editor diagnostics extension. Agent hook registrations, including the Antigravity plugin, are not that extension.
@@ -129,9 +130,9 @@ See [language coverage](src/capabilities.ts), [architecture and scope limits](do
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-This page describes engine 0.0.13.
+This page describes engine 0.0.14.
 
-[Release v0.0.13](https://github.com/pedroknigge/pregate/releases/tag/v0.0.13)
+[Release v0.0.14](https://github.com/pedroknigge/pregate/releases/tag/v0.0.14)
 
 Supported harnesses, from `src/capabilities.ts`. A harness that is not in this table is not supported.
 
@@ -203,7 +204,13 @@ npx pregate --version
 
 The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the GitHub release archive for that package version (about 55 MB), verifies `SHA256SUMS`, optionally verifies Sigstore bundles when `PREGATE_REQUIRE_SIGNATURE=1` and `cosign` is available, then runs the same installer as `install.sh` / `install.ps1`, which registers harness hooks and the companion skill. Later runs use the cached engine. Bun is needed only for development or builds from source, not to run the standalone binary. See [installation and signature requirements](docs/guides/installation.md).
 
-### 2. Preview an advisor contract in your Git repository
+### 2. Turn it on in your Git repository
+
+```sh
+pregate enable
+```
+
+In a repository with no contract, this prepares the advisor contract, prints a short summary, and applies it on your `y` (or `--yes`). That is the whole setup. The rest of this step is for choosing what goes into the contract before you approve it:
 
 ```sh
 pregate guide --preview
@@ -233,7 +240,7 @@ pregate audit --plan
 
 `audit` ends with a line that states its exit code. `Exit 0` and `Exit 1` are complete results: nothing blocks, or findings block. `Exit 2` is an incomplete audit, for example a file with a syntax error. It still prints a report, and it is not a count of violations.
 
-A committed contract is not local consent. For an existing cloned or disabled contract, review `status`, then use `pregate enable` in a human terminal and confirm. Advisor rules do not block edits, but explicit enforcing overrides, contract integrity failures, and bound fitness requirements can still block. Review the preview rather than assuming every rule became advisory.
+A committed contract is not local consent. For an existing cloned or disabled contract, review `status`, then use `pregate enable` in a human terminal and confirm. Advisor rules do not block edits, but explicit enforcing overrides and bound fitness requirements can still block. Review the preview rather than assuming every rule became advisory.
 
 ### 3. Calibrate, then promote
 
@@ -301,7 +308,7 @@ Use `--ci github,vercel` for both. When both providers are configured, both must
 | Linux x64 and arm64 | Experimental test builds |
 | Windows x64 | Experimental test builds |
 
-Intel Mac archives are produced but are not declared stable. Passing a CI job is not a promise of production support. 0.0.13 is this release. Windows users of 0.0.2 should upgrade. Two bugs in that release could let an edit through on Windows without a finding. 0.0.3 denies those calls. See the [0.0.13 release notes](docs/releases/0.0.13.md) and [Windows verification guide](docs/guides/windows-verification.md).
+Intel Mac archives are produced but are not declared stable. Passing a CI job is not a promise of production support. 0.0.14 is this release. Windows users of 0.0.2 should upgrade. Two bugs in that release could let an edit through on Windows without a finding. 0.0.3 denies those calls. See the [0.0.14 release notes](docs/releases/0.0.14.md) and [Windows verification guide](docs/guides/windows-verification.md).
 
 ### Measured hook latency
 
@@ -336,7 +343,8 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 
 | Task | Command |
 | --- | --- |
-| Prepare an advisor contract | `pregate guide --preview` |
+| Set a project up in advisor mode | `pregate enable` |
+| Prepare a contract with chosen packs, layers or rules | `pregate guide --preview` |
 | Review a pending contract | `pregate approve --preview` |
 | Inspect consent and installation | `pregate status` / `pregate doctor` |
 | Sort an instruction file into rules and guidance | `pregate compile <rules.md>` |
@@ -352,7 +360,7 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 | Summarize what the gate did to the agent | `pregate report` |
 | Run an isolated example | `pregate demo` |
 
-Read the [command reference](docs/CLI.md) or run `pregate --help` for the complete CLI.
+`pregate --help` prints the seven everyday commands. `pregate --help --all` and the [command reference](docs/CLI.md) have the complete CLI.
 
 ## Documentation
 
@@ -372,7 +380,7 @@ Read the [command reference](docs/CLI.md) or run `pregate --help` for the comple
 - [Guarantees and residual limits](docs/guarantees.md)
 - [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
-- [Release notes for 0.0.13](docs/releases/0.0.13.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
+- [Release notes for 0.0.14](docs/releases/0.0.14.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
 
 ## Contributing
 

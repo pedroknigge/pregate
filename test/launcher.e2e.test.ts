@@ -51,9 +51,9 @@ function run(cmd: string[], stdin: string, env: Env = {}, cwd = TMP): Out {
   return { code: p.exitCode, stdout: p.stdout.toString(), stderr: p.stderr.toString(), ms: performance.now() - t };
 }
 
-async function runAsync(cmd: string[], stdin: string, env: Env, during: (pid: number) => Promise<void> = async () => {}): Promise<Out> {
+async function runAsync(cmd: string[], stdin: string, env: Env, during: (pid: number) => Promise<void> = async () => {}, cwd = TMP): Promise<Out> {
   const t = performance.now();
-  const p = Bun.spawn(cmd, { cwd: TMP, env: { ...BASE, ...env }, stdin: Buffer.from(stdin), stdout: "pipe", stderr: "pipe" });
+  const p = Bun.spawn(cmd, { cwd, env: { ...BASE, ...env }, stdin: Buffer.from(stdin), stdout: "pipe", stderr: "pipe" });
   await during(p.pid);
   const [stdout, stderr, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
   return { code, stdout, stderr, ms: performance.now() - t };
@@ -77,6 +77,7 @@ function install(engines: Record<string, string | null>): Install {
   mkdirSync(join(data, "bin"), { recursive: true });
   enable(TMP, data);
   enable(REPO, data);
+  enable(CLOSED, data);
   const launcher = join(data, "bin/pregate");
   writeFileSync(launcher, LAUNCHER.replace("@ENGINE_VERSION@", VERSION), { mode: 0o755 });
   const engine = (v: string): string => join(data, v, "pregate");
@@ -111,8 +112,18 @@ const hook = (sh: string, i: Install, event: string, h: Harness): string[] => [s
 
 // ── What the harness reads ─────────────────────────────────────────────────────────────
 
-// MH-15: Pre fails closed alike in the six harnesses: exit 2, stdout empty, one stderr line of at
-// most 256 characters. Returns the line.
+// An engine failure passes by default: exit 0, stdout empty, one stderr line that says the call was
+// not checked. Returns the line.
+function notedPre(o: Out): string {
+  expect(o.code).toBe(0);
+  expect(o.stdout).toBe("");
+  expect(o.stderr).toMatch(/^PREGATE NOTE engine-failure: [^\n]+\. This call was not checked\. Not blocked\.\n$/);
+  return o.stderr.slice(0, -1);
+}
+const noted = (why: string): string => `PREGATE NOTE engine-failure: ${why}. This call was not checked. Not blocked.`;
+
+// MH-15: where the preset says "uncertainty": "closed", Pre fails closed alike in the six harnesses:
+// exit 2, stdout empty, one stderr line of at most 256 characters. Returns the line.
 function deniedPre(o: Out): string {
   expect(o.code).toBe(2);
   expect(o.stdout).toBe("");
@@ -153,7 +164,12 @@ test("the redirect protocol in the launcher is the one gate.ts states", () => {
 });
 
 // Each test installs once and runs every shell: macOS scans a new executable on its first run.
-const pre = (sh: string, i: Install, env: Env = {}, h = HARNESSES.codex): Out => run(hook(sh, i, "pre", h), payload(h.pre), { ...h.env, ...env });
+const pre = (sh: string, i: Install, env: Env = {}, h = HARNESSES.codex, cwd = TMP): Out => run(hook(sh, i, "pre", h), payload(h.pre), { ...h.env, ...env }, cwd);
+// One engine failure, both ways: the enabled project passes with the note, the closed one denies.
+function failedPre(sh: string, i: Install, why: string, env: Env = {}, h = HARNESSES.codex): void {
+  expect(notedPre(pre(sh, i, env, h))).toBe(noted(why));
+  expect(deniedPre(pre(sh, i, env, h, CLOSED))).toBe(evaluate(why));
+}
 const NOT_INSTALLED = `engine ${VERSION} is not installed; reinstall PREGATE`;
 
 test("the engine's exit 0 and 2 pass through byte for byte", () => {
@@ -172,8 +188,8 @@ test("shared import rule diagnostics are internal and identify a failed engine's
   const failed = install({ [VERSION]: markers + "exit 1" });
   for (const sh of SHELLS) {
     neutral(pre(sh, allow));
-    expect(deniedPre(pre(sh, denied))).toBe(evaluate("the engine denied without a reason"));
-    expect(deniedPre(pre(sh, failed))).toBe(evaluate("the engine failed (exit 1); last engine checkpoint: dependency-review; shared import review: architecture/dependencies/layers (12.3 ms)"));
+    failedPre(sh, denied, "the engine denied without a reason");
+    failedPre(sh, failed, "the engine failed (exit 1); last engine checkpoint: dependency-review; shared import review: architecture/dependencies/layers (12.3 ms)");
   }
 });
 
@@ -185,7 +201,7 @@ test("progress on fd 5 leaves an allowed call's stderr empty and still names a f
   for (const sh of SHELLS) {
     neutral(pre(sh, allow));
     expect(pre(sh, denied)).toMatchObject({ code: 2, stderr: "PREGATE DENY x\n" });
-    expect(deniedPre(pre(sh, failed))).toBe(evaluate("the engine failed (exit 1); last engine checkpoint: dependency-review; shared import review: architecture/dependencies/layers (12.3 ms)"));
+    failedPre(sh, failed, "the engine failed (exit 1); last engine checkpoint: dependency-review; shared import review: architecture/dependencies/layers (12.3 ms)");
   }
 });
 
@@ -202,22 +218,22 @@ test("the engine gets the payload intact, the arguments and the caller's PATH", 
   }
 });
 
-test("a missing, empty, failing or killed engine denies Pre, also with PATH empty", () => {
+test("a missing, empty, failing or killed engine passes Pre with a note, and denies it where uncertainty is closed, also with PATH empty", () => {
   const [absent, empty, fails, killed9] = [install({}), install({ [VERSION]: null }), install({ [VERSION]: "exit 1" }), install({ [VERSION]: "kill -s KILL $$" })];
   for (const sh of SHELLS) {
-    expect(deniedPre(pre(sh, absent))).toBe(evaluate(NOT_INSTALLED));
-    expect(deniedPre(pre(sh, empty, { PATH: "" }))).toBe(evaluate(NOT_INSTALLED));
-    expect(deniedPre(pre(sh, fails, { PATH: "" }))).toBe(evaluate("the engine failed (exit 1)"));
-    expect(deniedPre(pre(sh, killed9))).toBe(evaluate("the engine failed (exit 137)"));
+    failedPre(sh, absent, NOT_INSTALLED);
+    failedPre(sh, empty, NOT_INSTALLED, { PATH: "" });
+    failedPre(sh, fails, "the engine failed (exit 1)", { PATH: "" });
+    failedPre(sh, killed9, "the engine failed (exit 137)");
   }
 });
 
-test("an exit 2 without a reason on stderr denies (Codex would run the tool)", () => {
+test("an exit 2 without a reason on stderr is an engine failure: a note by default, a deny with a reason where uncertainty is closed (Codex would run the tool)", () => {
   const silent = install({ [VERSION]: `printf '{"decision":"deny","reason":"x"}'; exit 2` });
   const blank = install({ [VERSION]: "printf ' \\n\\t' >&2; exit 2" });
   const marker = install({ [VERSION]: "printf 'PREGATE-CHECKPOINT rules\\n' >&2; exit 2" });
   for (const sh of SHELLS) {
-    for (const i of [silent, blank, marker]) expect(deniedPre(pre(sh, i))).toBe(evaluate("the engine denied without a reason"));
+    for (const i of [silent, blank, marker]) failedPre(sh, i, "the engine denied without a reason");
   }
 });
 
@@ -232,7 +248,7 @@ test("exit 3 runs the pinned engine once, on the same stdin and arguments", () =
   }
 });
 
-test("a pinned engine that hangs denies also when the session started above the project, in a folder with no consent", () => {
+test("a pinned engine that hangs is an engine failure also when the session started above the project, in a folder with no consent", () => {
   // The session's folder is outside every consenting root; the engine found the nested project and
   // redirected to the engine its lock pins. A redirect is the launcher's evidence of a project.
   const outside = join(tmpdir(), `pregate-launcher-outside-${process.pid}`);
@@ -243,7 +259,12 @@ test("a pinned engine that hangs denies also when the session started above the 
     aimed.cwd = REPO;
     aimed.tool_input.file_path = REPO;
     const out = run(hook(SHELLS[0]!, hung, "pre", HARNESSES["claude-code"]), JSON.stringify(aimed), {}, outside);
-    expect(deniedPre(out)).toContain("timed out after 5 s");
+    expect(notedPre(out)).toContain("timed out after 5 s");
+    // The launcher reads the preset above the session's folder: one that says closed keeps the deny.
+    mkdirSync(join(outside, ".pregate"));
+    writeFileSync(join(outside, ".pregate/preset.json"), '{"uncertainty": "closed"}');
+    expect(deniedPre(run(hook(SHELLS[0]!, hung, "pre", HARNESSES["claude-code"]), JSON.stringify(aimed), {}, outside))).toContain("timed out after 5 s");
+    rmSync(join(outside, ".pregate/preset.json"));
     // Without a redirect nothing names a project, and a session outside every root stays silent.
     const alone = install({ [VERSION]: "exit 7" });
     expect(run(hook(SHELLS[0]!, alone, "pre", HARNESSES["claude-code"]), payload(HARNESSES["claude-code"].pre), {}, outside)).toMatchObject({ code: 0, stdout: "", stderr: "" });
@@ -252,7 +273,7 @@ test("a pinned engine that hangs denies also when the session started above the 
   }
 });
 
-test("exit 3 to a missing engine, to an invalid version or twice denies", () => {
+test("exit 3 to a missing engine, to an invalid version or twice is an engine failure: a note, or a deny where uncertainty is closed", () => {
   const absent = install({ [VERSION]: redirect(PINNED) });
   const empty = install({ [VERSION]: redirect(PINNED), [PINNED]: null });
   const twice = install({ [VERSION]: redirect(PINNED), [PINNED]: redirect(VERSION) });
@@ -264,27 +285,29 @@ test("exit 3 to a missing engine, to an invalid version or twice denies", () => 
     return answers;
   };
   for (const sh of SHELLS) {
-    const why = evaluate(`engine ${PINNED} is not installed: run \`pregate update --engine ${PINNED}\``);
-    expect(deniedPre(pre(sh, absent))).toBe(why);
-    expect(deniedPre(pre(sh, empty))).toBe(why);
-    expect(deniedPre(pre(sh, twice))).toBe(evaluate(`engine ${PINNED} redirected again (exit 3)`));
+    const why = `engine ${PINNED} is not installed: run \`pregate update --engine ${PINNED}\``;
+    failedPre(sh, absent, why);
+    failedPre(sh, empty, why);
+    failedPre(sh, twice, `engine ${PINNED} redirected again (exit 3)`);
     neutral(pre(sh, answer(PINNED)));
     for (const v of ["", "0.3", "v0.3.0", "0.3.0-", "0.3.0 ", `${VERSION}/../${PINNED}`]) {
-      expect(deniedPre(pre(sh, answer(v)))).toBe(evaluate("the engine named no valid version to run (exit 3)"));
+      failedPre(sh, answer(v), "the engine named no valid version to run (exit 3)");
     }
-    // A valid version of any length still fits Grok's 256 characters.
-    expect(deniedPre(pre(sh, answer(`1.2.3-${"a".repeat(300)}`)))).toStartWith("PREGATE could not evaluate: engine 1.2.3-aaa");
+    // A valid version of any length still fits Grok's 256 characters in the deny.
+    const long = answer(`1.2.3-${"a".repeat(300)}`);
+    expect(notedPre(pre(sh, long))).toStartWith("PREGATE NOTE engine-failure: engine 1.2.3-aaa");
+    expect(deniedPre(pre(sh, long, {}, HARNESSES.codex, CLOSED))).toStartWith("PREGATE could not evaluate: engine 1.2.3-aaa");
   }
 });
 
-test("Pre redirect replays large multiline Unicode input exactly and refuses missing replay", () => {
+test("Pre redirect replays large multiline Unicode input exactly; a missing replay is an engine failure", () => {
   const i = install({ [VERSION]: redirect(PINNED), [PINNED]: `${RECORD}; exit 0` });
   const missing = install({ [VERSION]: `printf '%s\\n' '${PINNED}'; exit ${REDIRECT}`, [PINNED]: "exit 0" });
   const raw = JSON.stringify({ text: "á\n😀".repeat(300_000) }, null, 2) + "\n";
   for (const sh of SHELLS) {
     neutral(run(hook(sh, i, "pre", HARNESSES.agy), raw));
     expect(recorded(i, PINNED, "stdin")).toBe(raw);
-    expect(deniedPre(pre(sh, missing))).toBe(evaluate("the engine returned no valid input to replay"));
+    failedPre(sh, missing, "the engine returned no valid input to replay");
   }
 });
 
@@ -292,18 +315,27 @@ test("Pre's deadline holds when a hung engine never reads a large stdin", () => 
   const i = install({ [VERSION]: HANG });
   const raw = JSON.stringify({ content: "x".repeat(2_000_000) });
   const out = run(hook(SHELLS[0]!, i, "pre", HARNESSES.codex), raw, { PATH: "" });
-  expect(deniedPre(out)).toContain("timed out after 5 s");
+  expect(notedPre(out)).toContain("timed out after 5 s");
   expect(out.ms).toBeLessThan(6_000);
+  const closed = run(hook(SHELLS[0]!, i, "pre", HARNESSES.codex), raw, { PATH: "" }, CLOSED);
+  expect(deniedPre(closed)).toContain("timed out after 5 s");
+  expect(closed.ms).toBeLessThan(6_000);
 });
 
-test("Stop and SessionStart fail closed only in Claude Code; Cursor and Grok are told by their environment", () => {
+test("every event passes a missing engine with the note; where uncertainty is closed, Stop and SessionStart fail closed only in Claude Code; Cursor and Grok are told by their environment", () => {
   const i = install({});
   const reason = `PREGATE could not verify this turn: ${NOT_INSTALLED}; report it to the user`;
   for (const sh of SHELLS) {
+    for (const h of Object.values(HARNESSES)) {
+      expect(notedPre(pre(sh, i, {}, h))).toBe(noted(NOT_INSTALLED));
+      expect(notedPre(run(hook(sh, i, "stop", h), payload(h.stop), h.env))).toBe(noted(NOT_INSTALLED));
+      if (h.start !== null) expect(notedPre(run(hook(sh, i, "session-start", h), payload(h.start), h.env))).toBe(noted(NOT_INSTALLED));
+    }
+    expect(notedPre(run(hook(sh, i, "stop", HARNESSES["claude-code"]), payload("stop-reentry.json")))).toBe(noted(NOT_INSTALLED));
     for (const [id, h] of Object.entries(HARNESSES)) {
-      expect(deniedPre(pre(sh, i, {}, h))).toBe(evaluate(NOT_INSTALLED));
-      const stop = run(hook(sh, i, "stop", h), payload(h.stop), h.env);
-      const start = h.start === null ? null : run(hook(sh, i, "session-start", h), payload(h.start), h.env);
+      expect(deniedPre(pre(sh, i, {}, h, CLOSED))).toBe(evaluate(NOT_INSTALLED));
+      const stop = run(hook(sh, i, "stop", h), payload(h.stop), h.env, CLOSED);
+      const start = h.start === null ? null : run(hook(sh, i, "session-start", h), payload(h.start), h.env, CLOSED);
       if (id !== "claude-code") {
         neutral(stop);
         if (start !== null) neutral(start);
@@ -314,7 +346,7 @@ test("Stop and SessionStart fail closed only in Claude Code; Cursor and Grok are
       expect(JSON.parse(start!.stdout)).toEqual({ systemMessage: `PREGATE could not prepare this session: engine ${VERSION} is not installed. Reinstall PREGATE.` });
     }
     // On re-entry the turn is let end, and the human is told.
-    const again = run(hook(sh, i, "stop", HARNESSES["claude-code"]), payload("stop-reentry.json"));
+    const again = run(hook(sh, i, "stop", HARNESSES["claude-code"]), payload("stop-reentry.json"), {}, CLOSED);
     expect(again).toMatchObject({ code: 0, stderr: "" });
     expect(JSON.parse(again.stdout)).toEqual({ systemMessage: `PREGATE could not verify this turn: engine ${VERSION} is not installed. Reinstall PREGATE.` });
   }
@@ -325,9 +357,13 @@ test("hook auto, and no arguments, read the event from a Claude Code payload", (
   const recording = install({ [VERSION]: RECORD });
   for (const sh of SHELLS) {
     for (const args of [[], ["hook", "auto"]]) {
-      expect(deniedPre(run([sh, i.launcher, ...args], payload("pre-write.json")))).toBe(evaluate(NOT_INSTALLED));
-      expect(JSON.parse(run([sh, i.launcher, ...args], payload("stop.json")).stdout)).toHaveProperty("decision", "block");
-      expect(JSON.parse(run([sh, i.launcher, ...args], payload("session-start.json")).stdout)).toHaveProperty("systemMessage");
+      // Each event has its own failure output only where uncertainty is closed: that tells them apart.
+      expect(deniedPre(run([sh, i.launcher, ...args], payload("pre-write.json"), {}, CLOSED))).toBe(evaluate(NOT_INSTALLED));
+      expect(JSON.parse(run([sh, i.launcher, ...args], payload("stop.json"), {}, CLOSED).stdout)).toHaveProperty("decision", "block");
+      expect(JSON.parse(run([sh, i.launcher, ...args], payload("session-start.json"), {}, CLOSED).stdout)).toHaveProperty("systemMessage");
+      for (const name of ["pre-write.json", "stop.json", "session-start.json"]) {
+        expect(notedPre(run([sh, i.launcher, ...args], payload(name)))).toBe(noted(NOT_INSTALLED));
+      }
     }
     neutral(run([sh, recording.launcher], payload("stop.json")));
     expect(recorded(recording, VERSION, "args")).toBe("hook auto\n");
@@ -395,17 +431,18 @@ finally:
   expect(existsSync(`${i.engine(VERSION)}.args`)).toBe(false);
 });
 
-test("SIGTERM from the harness kills the engine and still denies with a reason", async () => {
+test("SIGTERM from the harness kills the engine and still answers with a reason: the note, or the deny where uncertainty is closed", async () => {
   const i = install({ [VERSION]: HANG });
-  for (const sh of SHELLS) {
+  for (const sh of SHELLS) for (const cwd of [TMP, CLOSED]) {
     rmSync(`${i.engine(VERSION)}.pid`, { force: true });
     let at = 0;
     const o = await runAsync(hook(sh, i, "pre", HARNESSES.codex), payload(HARNESSES.codex.pre), {}, async (pid) => {
       while (!existsSync(`${i.engine(VERSION)}.pid`)) await Bun.sleep(5);
       at = performance.now();
       process.kill(pid, "SIGTERM");
-    });
-    expect(deniedPre(o)).toBe(evaluate("the harness cancelled it"));
+    }, cwd);
+    if (cwd === CLOSED) expect(deniedPre(o)).toBe(evaluate("the harness cancelled it"));
+    else expect(notedPre(o)).toBe(noted("the harness cancelled it"));
     expect(performance.now() - at).toBeLessThan(500);
     expect(await killed(i)).toBe(true);
   }
@@ -435,14 +472,16 @@ test("supervision costs a few ms over running the engine directly", () => {
   }
 });
 
-// One deadline for the three shells at once; PATH empty proves the launcher finds its own sleep.
+// One deadline for the three shells at once, in an enabled project and in a closed one; PATH empty proves the launcher finds its own sleep.
 test("a hung engine is cut at 5 s and killed, under every shell and with PATH empty", async () => {
-  const outs = await Promise.all(SHELLS.map(async (sh) => {
+  const outs = await Promise.all(SHELLS.flatMap((sh) => [TMP, CLOSED].map(async (cwd) => {
     const i = install({ [VERSION]: "printf 'PREGATE-CHECKPOINT dependency-review\\n' >&2; " + HANG });
-    return { i, o: await runAsync(hook(sh, i, "pre", HARNESSES.grok), payload(HARNESSES.grok.pre), { ...HARNESSES.grok.env, PATH: "" }) };
-  }));
-  for (const { i, o } of outs) {
-    expect(deniedPre(o)).toBe(evaluate("the engine timed out after 5 s; last engine checkpoint: dependency-review"));
+    return { i, cwd, o: await runAsync(hook(sh, i, "pre", HARNESSES.grok), payload(HARNESSES.grok.pre), { ...HARNESSES.grok.env, PATH: "" }, undefined, cwd) };
+  })));
+  for (const { i, cwd, o } of outs) {
+    const why = "the engine timed out after 5 s; last engine checkpoint: dependency-review";
+    if (cwd === CLOSED) expect(deniedPre(o)).toBe(evaluate(why));
+    else expect(notedPre(o)).toBe(noted(why));
     expect(o.ms).toBeGreaterThan(4_900);
     expect(o.ms).toBeLessThan(7_000);
     expect(await killed(i)).toBe(true);
@@ -478,7 +517,13 @@ mkdirSync(join(REPO, ".pregate"), { recursive: true });
 writeFileSync(join(REPO, ".pregate/preset.json"), "{}");
 mkdirSync(BELOW, { recursive: true });
 mkdirSync(OUTSIDE);
-for (const root of [REPO, OUTSIDE]) if (Bun.spawnSync(["git", "init", "-q", root]).exitCode !== 0) throw new Error("fixture git init failed");
+// The same shape, with a preset that says "uncertainty": "closed": the only place a failure denies.
+const CLOSED = join(TMP, "closed");
+const CLOSED_BELOW = join(CLOSED, "src/deep");
+mkdirSync(join(CLOSED, ".pregate"), { recursive: true });
+writeFileSync(join(CLOSED, ".pregate/preset.json"), '{"uncertainty": "closed"}');
+mkdirSync(CLOSED_BELOW, { recursive: true });
+for (const root of [REPO, OUTSIDE, CLOSED]) if (Bun.spawnSync(["git", "init", "-q", root]).exitCode !== 0) throw new Error("fixture git init failed");
 
 // The command setup registers for this installation: the frozen text with its <DATA>.
 const command = (i: Install, sub: string, h: string): string => HOOK_COMMAND[`${sub} ${h}`]!.replaceAll(FIXTURE_DATA, i.data);
@@ -509,7 +554,7 @@ test("with the launcher present, every command execs it with its event and harne
   }
 });
 
-test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, Pre denies only where a preset is under %s", (sh) => {
+test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, Pre passes in an enabled project and denies only where the preset says closed under %s", (sh) => {
   const absent = install({});
   rmSync(absent.launcher);
   const empty = install({});
@@ -519,28 +564,33 @@ test.each(COMMAND_SHELLS)("with the launcher missing, empty or not executable, P
   for (const i of [absent, empty, plain]) {
     for (const h of ["claude-code", "codex"]) {
       const call = (cwd: string, env: Env = {}): Out => run([sh, "-c", command(i, "pre", h)], payload(HARNESSES.codex.pre), env, cwd);
-      expect(call(BELOW)).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
-      expect(call(REPO)).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
+      // An enabled project with no "closed" in its preset: the call passes, and nothing is said.
+      neutral(call(BELOW));
+      neutral(call(REPO));
+      neutral(call(OUTSIDE, { CLAUDE_PROJECT_DIR: `${REPO}/` }));
+      expect(call(CLOSED_BELOW)).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
+      expect(call(CLOSED)).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
       neutral(call(OUTSIDE));
-      expect(call(OUTSIDE, { CLAUDE_PROJECT_DIR: `${REPO}/` }).stderr).toBe(MISSING);
-      expect(call(OUTSIDE, { CURSOR_PROJECT_DIR: BELOW }).stderr).toBe(MISSING);
-      expect(call(OUTSIDE, { GROK_WORKSPACE_ROOT: `${REPO}/` }).stderr).toBe(MISSING);
+      expect(call(OUTSIDE, { CLAUDE_PROJECT_DIR: `${CLOSED}/` }).stderr).toBe(MISSING);
+      expect(call(OUTSIDE, { CURSOR_PROJECT_DIR: CLOSED_BELOW }).stderr).toBe(MISSING);
+      expect(call(OUTSIDE, { GROK_WORKSPACE_ROOT: `${CLOSED}/` }).stderr).toBe(MISSING);
       // A relative directory is not a candidate, and the walk up ends.
-      const relative = call(OUTSIDE, { CLAUDE_PROJECT_DIR: "repo", CURSOR_PROJECT_DIR: "." });
+      const relative = call(OUTSIDE, { CLAUDE_PROJECT_DIR: "closed", CURSOR_PROJECT_DIR: "." });
       neutral(relative);
       expect(relative.ms).toBeLessThan(1_000);
-      for (const sub of ["stop", "session-start"]) neutral(run([sh, "-c", command(i, sub, h)], payload(HARNESSES.codex.stop), {}, BELOW));
+      for (const sub of ["stop", "session-start"]) neutral(run([sh, "-c", command(i, sub, h)], payload(HARNESSES.codex.stop), {}, CLOSED_BELOW));
     }
     // agy: the plugin folder is the cwd and there is no project variable; only workspacePaths[0] counts.
     const call = (raw: string): Out => run([sh, "-c", command(i, "pre", "agy")], raw, {}, OUTSIDE);
-    expect(call(agy(JSON.stringify([BELOW, OUTSIDE])))).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
-    neutral(call(agy(JSON.stringify([OUTSIDE, REPO]))));
+    expect(call(agy(JSON.stringify([CLOSED_BELOW, OUTSIDE])))).toMatchObject({ code: 2, stdout: "", stderr: MISSING });
+    neutral(call(agy(JSON.stringify([BELOW, OUTSIDE]))));
+    neutral(call(agy(JSON.stringify([OUTSIDE, CLOSED]))));
     neutral(call(agy(undefined)));
     // Named but unreadable by sed: an escaped path, or none.
     neutral(call(agy(JSON.stringify([`${OUTSIDE}/a"b`]))));
     neutral(call(agy("[]")));
-    neutral(run([sh, "-c", command(i, "stop", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
-    neutral(run([sh, "-c", command(i, "post-invocation", "agy")], payload(HARNESSES.agy.stop), {}, BELOW));
+    neutral(run([sh, "-c", command(i, "stop", "agy")], payload(HARNESSES.agy.stop), {}, CLOSED_BELOW));
+    neutral(run([sh, "-c", command(i, "post-invocation", "agy")], payload(HARNESSES.agy.stop), {}, CLOSED_BELOW));
   }
 });
 
@@ -579,15 +629,22 @@ test("a missing, crashing, or slow engine stays silent outside an enforced direc
 });
 
 // Last: whatever ran before, a deadline and a cancellation included, cleaned up after itself.
-test("standalone consent blocks a broken engine and a missing registered launcher", () => {
+test("standalone consent passes a broken engine with the note and a missing registered launcher in silence; with uncertainty closed it blocks both", () => {
   const standalone = realpathSync(mkdtempSync(join(tmpdir(), "pregate-standalone-launcher-")));
   inScratch(standalone, () => {
     const broken = install({ [VERSION]: "exit 1" });
-    enable(standalone, broken.data);
+    const gone = install({});
+    rmSync(gone.launcher);
+    for (const i of [broken, gone]) enable(standalone, i.data);
     const raw = JSON.stringify({ ...JSON.parse(payload("pre-write.json")), cwd: standalone });
-    for (const sh of SHELLS) deniedPre(run([sh, broken.launcher, "hook", "pre", "--harness", "claude-code"], raw, { CLAUDE_PROJECT_DIR: standalone }, standalone));
-    rmSync(broken.launcher);
-    for (const sh of COMMAND_SHELLS) deniedPre(run([sh, "-c", command(broken, "pre", "codex")], raw, { CLAUDE_PROJECT_DIR: standalone }, standalone));
+    const engine = (sh: string): Out => run([sh, broken.launcher, "hook", "pre", "--harness", "claude-code"], raw, { CLAUDE_PROJECT_DIR: standalone }, standalone);
+    const registered = (sh: string): Out => run([sh, "-c", command(gone, "pre", "codex")], raw, { CLAUDE_PROJECT_DIR: standalone }, standalone);
+    for (const sh of SHELLS) expect(notedPre(engine(sh))).toBe(noted("the engine failed (exit 1)"));
+    for (const sh of COMMAND_SHELLS) neutral(registered(sh));
+    mkdirSync(join(standalone, ".pregate"));
+    writeFileSync(join(standalone, ".pregate/preset.json"), '{"uncertainty": "closed"}');
+    for (const sh of SHELLS) deniedPre(engine(sh));
+    for (const sh of COMMAND_SHELLS) deniedPre(registered(sh));
   });
 });
 
@@ -602,16 +659,21 @@ function inScratch(dir: string, use: () => void): void {
 test("an unavailable Git identity cannot bypass failure protection for a consenting root", () => {
   const broken = install({ [VERSION]: "exit 1" });
   const unavailable = { GIT_CONFIG_COUNT: "invalid" };
-  for (const sh of SHELLS) deniedPre(pre(sh, broken, unavailable));
+  // The note is said only for a consenting root; the closed root keeps its deny.
+  for (const sh of SHELLS) {
+    notedPre(pre(sh, broken, unavailable));
+    deniedPre(pre(sh, broken, unavailable, HARNESSES.codex, CLOSED));
+  }
   rmSync(broken.launcher);
-  for (const sh of COMMAND_SHELLS) deniedPre(run([sh, "-c", command(broken, "pre", "codex")], "{}", unavailable));
+  for (const sh of COMMAND_SHELLS) deniedPre(run([sh, "-c", command(broken, "pre", "codex")], "{}", unavailable, CLOSED));
 });
 
 test("the launcher leaves no temporary directory behind", async () => {
   const [passes, fails] = [install({ [VERSION]: "exit 0" }), install({ [VERSION]: "exit 1" })];
   for (const sh of SHELLS) {
     neutral(pre(sh, passes));
-    deniedPre(pre(sh, fails));
+    notedPre(pre(sh, fails));
+    deniedPre(pre(sh, fails, {}, HARNESSES.codex, CLOSED));
   }
   const leftovers = () => readdirSync(SCRATCH).filter((name) => name !== "xcrun_db"); // /usr/bin/git creates this macOS cache.
   for (let t = 0; t < 100 && leftovers().length > 0; t++) await Bun.sleep(10);

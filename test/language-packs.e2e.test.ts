@@ -82,8 +82,13 @@ test("the compiled library is discoverable and its fixtures run offline before i
   for (const flag of ["--help", "-h"]) {
     const help = p.run([flag]);
     expect(help.code).toBe(0);
-    expect(help.text).toContain("--category invariants|language|pattern|library|practice|process");
-    expect(help.text).toContain("pregate audit");
+    expect(help.text).toContain("pregate enable");
+    expect(help.text).toContain("All commands: pregate --help --all");
+    expect(help.text).not.toContain("pregate audit");
+    const all = p.run([flag, "--all"]);
+    expect(all.code).toBe(0);
+    expect(all.text).toContain("--category invariants|language|pattern|library|practice|process");
+    expect(all.text).toContain("pregate audit");
   }
   expect(p.run(["--help", "--json"]).code).toBe(1);
   const listed = p.run(["pack", "list", "--library", "--json"]);
@@ -151,7 +156,7 @@ test.each([
   expect(p.run(["rules", "test"]).code).toBe(0);
   expect(p.run(["disable", "--yes"]).code).toBe(0);
   expect(p.run(["init", "--yes"]).code).toBe(0);
-  expect(p.run(["status"]).text).toContain("is inactive");
+  expect(p.run(["status"]).text).toContain("Pregate is off in");
 });
 
 test("library addition selects no rules; selective enable, update and removal are reviewed", () => {
@@ -260,8 +265,11 @@ test("mattpocock pass, fail and trap fixtures reach check and the Pre hook", () 
   expect(shown.packs[0].source.version).toBe("1.1.1");
   p.git("add", "-A");
   p.git("commit", "-qm", "contract");
-  const sid = randomUUID();
+  let sid = randomUUID();
   expect(p.hook("SessionStart", sid, { source: "startup" }).code).toBe(0);
+  // A warning is said once per session for a rule on a file, so a second failing fixture of the
+  // same rule on the same target opens a new session.
+  const told = new Set<string>();
   const aliases = new Map<string, string>();
   for (const method of ["testing", "design", "diagnosis"]) {
     const manifest = JSON.parse(readFileSync(join(repo, "packs/mattpocock/methodologies", method + ".json"), "utf8"));
@@ -283,6 +291,12 @@ test("mattpocock pass, fail and trap fixtures reach check and the Pre hook", () 
     const want = kind === "pass" ? "pass" : "fail";
     if (spec.expect.verdict !== want) throw new Error(`${rel} expects ${spec.expect.verdict}`);
     const checked = p.run(["check", "--stdin", "--path", spec.target], content);
+    if (kind !== "pass" && told.has(`${alias}\n${spec.target}`)) {
+      sid = randomUUID();
+      expect(p.hook("SessionStart", sid, { source: "startup" }).code).toBe(0);
+      told.clear();
+    }
+    if (kind !== "pass") told.add(`${alias}\n${spec.target}`);
     const warned = p.hook("PreToolUse", sid, { tool_name: "Write", tool_use_id: rel, tool_input: { file_path: join(p.root, spec.target), content } });
     const detail = `${rel}\ncheck ${checked.code}: ${checked.text}\nhook ${warned.code}: ${warned.text}\n${checked.error}${warned.error}`;
     if (kind === "pass") {

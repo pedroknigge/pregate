@@ -348,16 +348,28 @@ describe("encode", () => {
     expect(enc("session-start", { ...decide(input({})), full: "PREGATE is active: …", notice: null })).toEqual({
       stdout: raw({ additional_context: "PREGATE is active: …" }) + "\n", stderr: "", exit: 0,
     });
-    expect(enc("session-start", unrecognized("session-start", false))).toEqual(NEUTRAL);
+    // A rejected SessionStart is a note on the same context channel; it never blocks.
+    const failed = unrecognized("session-start", false);
+    expect(failed.full).toContain(`PREGATE NOTE ${BAD}`);
+    expect(enc("session-start", failed)).toEqual({ stdout: raw({ additional_context: failed.full }) + "\n", stderr: "", exit: 0 });
   });
 
-  test("an unrecognized payload denies through the event's channel; a Stop reentry by loop_count lets the turn end", () => {
+  test("an unrecognized payload passes with a note on additional_context and never holds Stop; a control cause denies through the event's channel", () => {
     const pre = unrecognized("pre-edit", false);
-    expect(enc("pre-edit", pre)).toEqual(deny(pre));
-    expect(pre.full).toContain(BAD);
-    expect(enc("stop", unrecognized("stop", false)).stdout).toContain("followup_message");
+    expect(pre).toMatchObject({ verdict: "none", halt: false, cause: BAD });
+    expect(pre.full).toContain(`PREGATE NOTE ${BAD}`);
+    expect(pre.full).toContain("Not blocked.");
+    expect(enc("pre-edit", pre)).toEqual({ stdout: raw({ additional_context: pre.full }) + "\n", stderr: "", exit: 0 });
+    // The Stop note is for the human, and Cursor's Stop has no channel for it.
+    expect(enc("stop", unrecognized("stop", false))).toEqual(NEUTRAL);
     const again = decode("stop", raw({ ...json("stop-loop1.json"), workspace_roots: [] }), ENV) as Rejected;
+    expect(again).toMatchObject({ cause: BAD, reentry: true });
     expect(enc("stop", rejected(again))).toEqual(NEUTRAL);
+    const guarded = rejected({ cause: "protected-path", kind: "pre-edit", reentry: false, session: null, dirs: [] });
+    expect(enc("pre-edit", guarded)).toEqual(deny(guarded));
+    expect(guarded.full).toContain("PREGATE DENY protected-path");
+    const stop = rejected({ cause: "protected-path", kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(JSON.parse(enc("stop", stop).stdout)).toEqual({ followup_message: stop.full });
   });
 
   // Runs last: every emission of this file.

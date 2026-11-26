@@ -66,12 +66,14 @@ function expectSample(sample: any, language: string) {
   expect(sample.baseline.debt).toBeGreaterThan(0);
   expect(sample.baseline.unverified).toBe(64);
   expect(sample.newEdit).toEqual({ decision: "deny", beforeWrite: true });
-  expect(sample.syntax).toEqual({ decision: "deny" });
+  expect(sample.syntax).toEqual({ decision: "none" });
   expect(sample.marker).toEqual({ decision: "deny", stringDecision: "none" });
   expect(sample.repair).toEqual({ decision: "none", appliedAfterGate: true, repeated: "none" });
   expect(sample.final).toEqual({ debt: 0, unverified: 64 });
   for (const phase of ["existing-debt", "valid-repair", "repeat-repair", "existing-debt-repair", "marker-in-string"]) expect(sample.receipts.find((r: any) => r.phase === phase).code).toBe(0);
-  for (const phase of ["new-boundary-violation", "invalid-syntax", "new-generated-marker"]) expect(sample.receipts.find((r: any) => r.phase === phase).code).toBe(2);
+  for (const phase of ["new-boundary-violation", "new-generated-marker"]) expect(sample.receipts.find((r: any) => r.phase === phase).code).toBe(2);
+  // A file that does not parse is let through with a warning: it is not a rule violation.
+  expect(sample.receipts.find((r: any) => r.phase === "invalid-syntax").code).toBe(0);
   expect(sample.receipts.filter((r: any) => r.phase === "whole-tree-audit").map((r: any) => r.code)).toEqual([2, 2, 2]);
   for (const receipt of sample.receipts) expect(receipt.stdoutHash).toMatch(/^[a-f0-9]{64}$/);
 }

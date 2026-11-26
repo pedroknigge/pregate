@@ -128,7 +128,7 @@ test("a brand-new directory and a fresh git repo that were never enabled allow d
     expect(harness.exitCode, harness.stderr.toString()).toBe(0);
     expect(harness.stdout.toString()).not.toContain('"deny"');
     const status = Bun.spawnSync([cli, "status"], { cwd, env: process.env, stdout: "pipe", stderr: "pipe", timeout: 30_000 });
-    expect(status.stdout.toString()).toContain("Nothing is enforced");
+    expect(status.stdout.toString()).toContain("Pregate is not set up in this directory.");
   }
   allows(cli, enabled, "ls", "shared");
   allows(cli, fresh, "npm view next version", "shared");

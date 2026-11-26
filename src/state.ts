@@ -382,8 +382,9 @@ function dirtyTexts(root: string, prefix: string, keep: (rel: string) => boolean
 export function ensureSnapshot(sid: string, root: string, start: ((rel: string) => boolean) | null): Snapshot | Cause {
   const at = Date.now();
   const found = snapshot(sid, root);
-  if (found === "missing") return "snapshot-missing";
-  if (found !== null) return found;
+  // A snapshot that was removed is made again from HEAD, the same baseline as a first contact: the
+  // session keeps being judged instead of going unchecked for the rest of its life.
+  if (found !== null && found !== "missing") return found;
   const rev = revision(root);
   if (typeof rev === "string") return rev;
   // SessionStart has time for the ref listing; a Pre's first contact keeps its latency budget and
@@ -394,7 +395,13 @@ export function ensureSnapshot(sid: string, root: string, start: ((rel: string) 
   const dir = sessionDir(sid);
   const made = io(() => withStateWrite(dir, () => {
     const dirty = Object.fromEntries(Object.entries(texts).map(([rel, text]) => [rel, text === null ? null : blob(dir, text)]));
-    return publish(sid, { root, head: rev.head, start: start !== null, dirty, ...(tips === undefined ? {} : { tips }), at });
+    const snap = { root, head: rev.head, start: start !== null, dirty, ...(tips === undefined ? {} : { tips }), at };
+    // The root's directory is still there when only its snapshot file was removed: write the file back.
+    if (found === "missing") {
+      writeFileSync(`${dir}/${H(root)}/snapshot.json`, JSON.stringify(snap));
+      return snap;
+    }
+    return publish(sid, snap);
   }));
   if (made === null || made === "missing") return "snapshot-missing";
   if (typeof made === "object") io(() => markReached());

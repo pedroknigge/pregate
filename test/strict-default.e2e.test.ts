@@ -7,9 +7,10 @@ import { canonical } from "../src/disk.ts";
 import { ENGINE_FILE, WINDOWS } from "../src/platform.ts";
 import type { HarnessId } from "../src/types.ts";
 
-// Real binary. Enabled projects deny a payload or a crash the engine cannot classify.
-// A directory that never ran pregate enable, and one that ran pregate disable, allow the same failure.
-// "uncertainty": "open" allows only that unclassified failure. A protected path still denies.
+// Real binary. Pregate failing must not stop a session: in an enabled project a payload the engine
+// cannot classify, unfinished shell, and an engine crash pass with one note line. A directory that
+// never ran pregate enable, and one that ran pregate disable, pass silently. Only the exact preset
+// value "uncertainty": "closed" makes an engine crash deny. A write to the contract denies either way.
 
 setDefaultTimeout(120_000);
 
@@ -85,12 +86,10 @@ function bash(h: Covered, cwd: string, command: string): string {
   });
 }
 
-function denied(h: Covered, out: { code: number; stdout: string; stderr: string }, cause: string, override = true) {
+function denied(h: Covered, out: { code: number; stdout: string; stderr: string }, cause: string) {
   const text = out.stdout + out.stderr;
   expect(text, text).toContain(cause);
-  expect(text).toContain(override ? "uncertainty" : cause);
-  if (!override) expect(text).not.toContain("set uncertainty to open");
-  expect(text).not.toContain("future_write");
+  expect(text).not.toContain("Not blocked.");
   if (h === "cursor") {
     expect(out.code).toBe(0);
     expect(out.stdout).toContain('"permission":"deny"');
@@ -101,6 +100,22 @@ function denied(h: Covered, out: { code: number; stdout: string; stderr: string 
     expect(out.code).toBe(2);
     expect(out.stdout).toBe("");
   }
+}
+
+// The call goes through, and one line names what was not checked.
+function noted(h: Covered, out: { code: number; stdout: string; stderr: string }, cause: string) {
+  const text = out.stdout + out.stderr;
+  expect(out.code, text).toBe(0);
+  // Cursor's native reply to a payload it cannot decode is the bare allow: it has no channel for the note there.
+  if (h === "cursor" && !text.includes("PREGATE NOTE")) expect(out.stdout).toContain('"permission":"allow"');
+  else {
+    expect(text, text).toContain(`PREGATE NOTE ${cause}`);
+    expect(text).toContain("Not blocked.");
+  }
+  expect(text).not.toContain("DENY");
+  expect(text).not.toContain('"permission":"deny"');
+  expect(text).not.toContain('"permissionDecision":"deny"');
+  expect(text).not.toContain("future_write");
 }
 
 function allowed(h: Covered, out: { code: number; stdout: string; stderr: string }) {
@@ -120,17 +135,16 @@ afterAll(() => {
   writeFileSync(join(area, "captured.txt"), capture.join("\n"));
 });
 
-test.each(HARNESSES)("enabled %s denies a malformed payload, an unknown tool, unfinished shell, and a crash", (h) => {
+test.each(HARNESSES)("enabled %s lets a malformed payload, an unknown tool, unfinished shell, and a crash through with one note", (h) => {
   const root = project(`enabled-${h}`);
   expect(run(root, ["enable", "--yes"], "").code).toBe(0);
-  denied(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
+  noted(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
   const unknown = bash(h, root, "echo ok").replace('"Bash"', '"future_write"').replace('"Shell"', '"future_write"');
-  denied(h, run(root, ["hook", "pre", "--harness", h], unknown), "payload-unrecognized");
-  denied(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')), "shell-uncertain");
+  noted(h, run(root, ["hook", "pre", "--harness", h], unknown), "payload-unrecognized");
+  noted(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')), "shell-uncertain");
   const crashed = crash(root, h);
-  expect(crashed.code).toBe(h === "cursor" ? 0 : 2);
-  expect(crashed.stdout + crashed.stderr).toContain("could not evaluate");
-  if (h === "cursor") expect(crashed.stdout).toContain('"permission":"deny"');
+  noted(h, crashed, "engine-failure");
+  if (h === "cursor") expect(crashed.stdout).toContain('"permission":"allow"');
 });
 
 test.each(HARNESSES)("never-enabled %s allows the same malformed payload and crash", (h) => {
@@ -150,18 +164,24 @@ test.each(HARNESSES)("disabled %s allows the same malformed payload and crash", 
   allowed(h, crash(root, h));
 });
 
-test.each(HARNESSES)("uncertainty open in an enabled %s project allows unclassified failures and still denies protection", (h) => {
-  const root = project(`open-${h}`);
+test.each(HARNESSES)("uncertainty closed in an enabled %s project denies a crash, and a write to the contract denies in both settings", (h) => {
+  const root = project(`closed-${h}`);
   expect(run(root, ["enable", "--yes"], "").code).toBe(0);
+  const contractWrite = bash(h, root, "echo '{}' > .pregate/preset.json");
+  denied(h, run(root, ["hook", "pre", "--harness", h], contractWrite), "protected-path");
+  preset(root, "closed");
+  expect(run(root, ["preset", "compile"], "").code).toBe(0);
+  const crashed = crash(root, h);
+  expect(crashed.code).toBe(h === "cursor" ? 0 : 2);
+  expect(crashed.stdout + crashed.stderr).toContain("could not evaluate");
+  expect(crashed.stdout + crashed.stderr).not.toContain("Not blocked.");
+  if (h === "cursor") expect(crashed.stdout).toContain('"permission":"deny"');
+  denied(h, run(root, ["hook", "pre", "--harness", h], contractWrite), "protected-path");
+  // A payload the engine cannot classify is a note in both settings: closed is about a failing engine.
+  noted(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
   preset(root, "open");
   expect(run(root, ["preset", "compile"], "").code).toBe(0);
-  allowed(h, run(root, ["hook", "pre", "--harness", h], "{"));
-  allowed(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')));
-  allowed(h, crash(root, h));
-  const admin = run(root, ["hook", "pre", "--harness", h], bash(h, root, "git commit --no-verify"));
-  allowed(h, admin);
-  preset(root, "closed");
-  denied(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
+  noted(h, crash(root, h), "engine-failure");
 });
 
 function crash(root: string, h: HarnessId) {

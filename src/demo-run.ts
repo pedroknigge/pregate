@@ -103,7 +103,9 @@ export function demoCase(c: DemoContext, sample: DemoSample) {
   demoAssert(bad.code === 2 && bad.decision === "deny" && bad.stderr.includes(sample.rule), "A new forbidden dependency was not denied by the selected architecture rule.");
   const nativeProposed = demoNativeProposal(c, sample);
   const syntax = demoWrite(c, sample.target, sample.syntax, "invalid-syntax");
-  demoAssert(syntax.code === 2 && syntax.decision === "deny" && syntax.stderr.includes("syntax"), "Invalid syntax was not denied.");
+  // A file that does not parse is not a rule violation: the edit goes through with one line that
+  // says its rules were not evaluated.
+  demoAssert(syntax.code === 0 && syntax.decision === "none" && syntax.stdout.includes("PREGATE WARN syntax"), "Invalid syntax was not reported as unchecked.");
   const marker = demoWrite(c, sample.target, `${sample.language === "python" ? "#" : "//"} @generated\n${sample.repair}`, "new-generated-marker");
   demoAssert(marker.code === 2 && marker.decision === "deny" && marker.stderr.includes("core/EVA-GEN-001"), "A new generated marker bypassed the integrity guard.");
   const literal = demoWrite(c, sample.target, sample.repair + {

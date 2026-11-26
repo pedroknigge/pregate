@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { BUILTIN } from "../src/assets.ts";
 import { compile } from "../src/compile.ts";
 import { LOCK, lockOf, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
-import { sourcesMatch } from "../src/contract-diagnostic.ts";
+import { type Loaded, sourcesMatch } from "../src/contract-diagnostic.ts";
 import { builtinContentHash, hashPolicy, libraryPackHashes } from "../src/disk.ts";
 import { librarySource } from "../src/library.ts";
 import { sha256, stateDir } from "../src/state.ts";
@@ -62,7 +62,7 @@ test("embedded pack hashes name the files compilation reads", () => {
   for (const [ns, hash] of Object.entries(hashes)) expect(hashPolicy(librarySource(ns, false)!)).toBe(hash);
 });
 
-test("compiled lock cache hits, falls back when corrupt, and misses when the lock, a rule, or the preset changes", () => {
+test("compiled lock cache hits and falls back when corrupt; a changed rule, lock file or preset is judged from the preset and the lock file is not rewritten", () => {
   const { root, preset, source } = project();
   const cold = admitted(root);
   expect(sourcesMatch(root, cold)).toBe(true);
@@ -77,9 +77,23 @@ test("compiled lock cache hits, falls back when corrupt, and misses when the loc
   const recovered = readFileSync(cacheFile(root), "utf8");
   expect(JSON.parse(recovered).digest).toHaveLength(64);
 
+  const lockPath = join(root, LOCK);
+  const lockText = readFileSync(lockPath, "utf8");
+  const fileHash = sha256(lockText);
+  expect((lockOf(root) as Loaded).hash).toBe(fileHash);
+
+  // A rule source ahead of the lock file: the entry for the old packs misses, and the preset is compiled again.
   write(join(root, "rules/local/source.json"), source.replace("1.0.0", "1.0.1"));
-  expect(lockOf(root)).toBe("lock-stale");
-  expect(readFileSync(cacheFile(root), "utf8")).toBe(recovered);
+  const ahead = lockOf(root) as Loaded;
+  expect(typeof ahead).toBe("object");
+  expect(ahead.lock.sourcesHash).not.toBe(cold.sourcesHash);
+  expect(ahead.hash).not.toBe(fileHash);
+  expect(sourcesMatch(root, ahead.lock)).toBe(true);
+  expect(readFileSync(lockPath, "utf8")).toBe(lockText);
+  const aheadCache = readFileSync(cacheFile(root), "utf8");
+  expect(JSON.parse(aheadCache).text).toContain(`"sourcesHash": ${JSON.stringify(ahead.lock.sourcesHash)}`);
+  expect(lockOf(root)).toEqual(ahead);
+  expect(readFileSync(cacheFile(root), "utf8")).toBe(aheadCache);
 
   write(join(root, "rules/local/source.json"), source);
   const restored = admitted(root);
@@ -87,19 +101,37 @@ test("compiled lock cache hits, falls back when corrupt, and misses when the loc
   const afterRule = readFileSync(cacheFile(root), "utf8");
   expect(afterRule).toBe(recovered);
 
-  const lockPath = join(root, LOCK);
-  const lockText = readFileSync(lockPath, "utf8");
+  // A lock file this engine does not admit as written: the cached compile of the preset answers.
   write(lockPath, lockText.replace(`"lockVersion": 1`, `"lockVersion": 2`));
-  expect(lockOf(root)).toBe("lock-stale");
+  expect(lockOf(root)).toEqual({ lock: cold, hash: fileHash });
+  expect(readFileSync(cacheFile(root), "utf8")).toBe(afterRule);
+
+  write(lockPath, JSON.stringify({ ...JSON.parse(lockText), engine: "0.0.1", rules: [] }));
+  expect(lockOf(root)).toEqual({ lock: cold, hash: fileHash });
+
+  removeTree(lockPath);
+  expect(lockOf(root)).toEqual({ lock: cold, hash: fileHash });
+  expect(existsSync(lockPath)).toBe(false);
   expect(readFileSync(cacheFile(root), "utf8")).toBe(afterRule);
 
   write(lockPath, lockText);
   expect(admitted(root)).toEqual(cold);
   expect(readFileSync(cacheFile(root), "utf8")).toBe(afterRule);
 
+  // A preset ahead of the lock file is the contract: its compile is what the call is judged with.
   const edited = JSON.parse(preset) as { name: string };
   edited.name = "renamed-preset";
   write(join(root, PRESET), `${JSON.stringify(edited, null, 2)}\n`);
+  const renamed = admitted(root);
+  expect(renamed.preset.name).toBe("renamed-preset");
+  expect(renamed.presetHash).not.toBe(cold.presetHash);
+  expect(renamed.rules).toEqual(cold.rules);
+  expect(readFileSync(lockPath, "utf8")).toBe(lockText);
+
+  // A preset that does not compile has no lock to rebuild.
+  write(join(root, PRESET), "{");
+  expect(lockOf(root)).toBe("lock-stale");
+  removeTree(join(root, PRESET));
   expect(lockOf(root)).toBe("lock-stale");
 });
 

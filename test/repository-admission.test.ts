@@ -9,7 +9,7 @@ import { canonical } from "../src/disk.ts";
 import { check, LOCK, lockOf, onPreEdit, onSessionStart, onStop, PRESET, sourcesOf, VERSIONS } from "../src/gate.ts";
 import { normalize } from "../src/reconstruct.ts";
 import { sha256 } from "../src/state.ts";
-import { contractState } from "../src/status.ts";
+import { contractState, STALE_LOCK } from "../src/status.ts";
 import { projectFitness } from "../src/fitness-command.ts";
 import type { Lock, Session } from "../src/types.ts";
 import { expectAdvisoryTier } from "./core-tier.ts";
@@ -78,18 +78,49 @@ async function edit(root: string, session: Session) {
     edit: { form: "full", content: "export const value = 2;\n" }, from: null }]);
 }
 
-async function rejects(root: string, session: Session) {
+// A lock file that is not what the preset compiles to never judges a call: the hook rebuilds the
+// lock from the preset, so nothing written into the file weakens or stops the session. CI still
+// refuses the altered file, and status names it.
+async function judgedFromPreset(root: string, session: Session, compiled: Lock) {
+  const loaded = lockOf(root);
+  if (typeof loaded === "string") throw new Error(loaded);
+  expect(loaded.lock).toEqual(compiled);
   const decision = await edit(root, session);
-  expect(decision.verdict).toBe("deny");
+  expect(decision.verdict).toBe("none");
+  expect(decision.cause).toBeNull();
+  expect(decision.halt).toBe(false);
+  const precheck = await check(root, { kind: "stdin", path: "src/decide.ts", text: "export const value = 2;\n" });
+  expect(precheck.code).toBe(0);
+  const tree = await check(root, { kind: "tree" });
+  expect(tree.code).toBe(1);
+  expect(tree.text).toContain("does not match the preset");
+  const stop = await onStop({ kind: "stop", session, cwd: root, reentry: false });
+  expect(stop.verdict).toBe("none");
+  expect(stop.cause).toBeNull();
+  // Status reports the same thing: the contract holds, and the file is named as behind.
+  const state = contractState(root);
+  expect(state.valid).toBe(true);
+  expect(state.errors).toEqual([STALE_LOCK]);
+  expect(state.lock).toEqual(compiled);
+}
+
+// A preset this engine cannot compile leaves no contract to judge with: the hook says so once and
+// does not block, and `check` stays strict.
+async function notesInvalidPreset(root: string, session: Session) {
+  expect(lockOf(root)).toBe("lock-stale");
+  const decision = await edit(root, session);
+  expect(decision.verdict).toBe("none");
   expect(decision.cause).toBe("lock-stale");
-  expect(decision.halt).toBe(true);
+  expect(decision.halt).toBe(false);
+  expect(decision.full).toContain("PREGATE NOTE lock-stale");
+  expect(decision.full).toContain("Not blocked.");
   const precheck = await check(root, { kind: "stdin", path: "src/decide.ts", text: "export const value = 2;\n" });
   expect(precheck.code).toBe(1);
   expect(precheck.text).toContain("lock-stale");
+  expect((await check(root, { kind: "tree" })).code).toBe(1);
   const stop = await onStop({ kind: "stop", session, cwd: root, reentry: false });
-  expect(stop.verdict).toBe("deny");
-  expect(stop.cause).toBe("lock-stale");
-  expect(lockOf(root)).toBe("lock-stale");
+  expect(stop.verdict).toBe("none");
+  expect(stop.halt).toBe(false);
   expect(contractState(root).valid).toBe(false);
 }
 
@@ -128,19 +159,21 @@ const altered: [string, (lock: Lock) => void][] = [
   ["invalid failure budget", (lock) => { lock.loop.maxDenialsPerTurn = 0; }],
   ["unknown lock field", (lock) => { Object.assign(lock, { unknownPolicy: true }); }],
 ];
-test.each(["BOM", "minified"])("repository admission boundary: rejects noncanonical %s lock formatting consistently", async (format) => {
+test.each(["BOM", "minified"])("repository admission boundary: a noncanonical %s lock is judged from the preset and refused by the tree check", async (format) => {
   const { root, session, lock } = project();
+  const compiled = structuredClone(lock);
   expect(freshness(lock, actualPreset, VERSIONS, BUILTIN)).toBeNull();
   put(join(root, LOCK), format === "BOM" ? "\uFEFF" + lockText(lock) : JSON.stringify(lock) + "\n");
-  await rejects(root, session);
+  await judgedFromPreset(root, session, compiled);
 });
-test.each(altered)("repository admission boundary: rejects metadata-preserving %s before edit, stdin and Stop evaluation", async (_name, alter) => {
+test.each(altered)("repository admission boundary: a lock with metadata-preserving %s does not change what judges edit, stdin and Stop", async (_name, alter) => {
   const { root, session, lock } = project();
+  const compiled = structuredClone(lock);
   alter(lock);
   // Existing metadata checks alone consider every one of these altered bodies fresh.
   expect(freshness(lock, actualPreset, VERSIONS, BUILTIN)).toBeNull();
   put(join(root, LOCK), lockText(lock));
-  await rejects(root, session);
+  await judgedFromPreset(root, session, compiled);
 });
 
 test.each([
@@ -150,22 +183,23 @@ test.each([
   ["source hash", { sourcesHash: "0".repeat(64) }],
   ["missing preset hash", { presetHash: undefined }],
   ["missing core hash", { coreHash: undefined }],
-])("repository admission boundary: complete compilation rejects %s", async (_name, metadata) => {
+])("repository admission boundary: a lock with altered %s is rebuilt from the preset", async (_name, metadata) => {
   const { root, session, lock } = project();
+  const compiled = structuredClone(lock);
   Object.assign(lock, metadata);
   put(join(root, LOCK), lockText(lock));
-  await rejects(root, session);
+  await judgedFromPreset(root, session, compiled);
 });
 
 test.each([
   ["unknown failure policy", { failMode: "open" }],
   ["unknown enforcement", { enforcement: "silent" }],
-] as const)("repository admission boundary: rejects %s even when the edited preset hash agrees", async (_name, policy) => {
+] as const)("repository admission boundary: a preset with %s is noted, not blocking, in the hook and refused by check even when the lock hash agrees", async (_name, policy) => {
   const { root, session, lock } = project();
   const preset = JSON.stringify({ ...JSON.parse(actualPreset), ...policy });
   lock.presetHash = sha256(normalize(preset));
   expect(freshness(lock, preset, VERSIONS, BUILTIN)).toBeNull();
   put(join(root, PRESET), preset);
   put(join(root, LOCK), lockText(lock));
-  await rejects(root, session);
+  await notesInvalidPreset(root, session);
 });

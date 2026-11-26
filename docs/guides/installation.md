@@ -1,6 +1,6 @@
 # Install, update and remove PREGATE
 
-PREGATE 0.0.13 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
+PREGATE 0.0.14 distributes standalone engines for macOS ARM64, Linux x64/ARM64 and Windows
 x64. macOS ARM64 is the stable platform. Linux and Windows are experimental
 test builds, not supported for production until native release validation passes.
 Focused source verification does not admit a final platform release.
@@ -30,7 +30,7 @@ npm i -g pregate
 npx pregate doctor
 ```
 
-The npm tarball ships only the launcher (`bin/pregate.mjs`) plus `install.sh` / `install.ps1`. The first successful command for a version downloads the matching GitHub release archive (about 55 MB for 0.0.13), verifies it against `SHA256SUMS`, verifies Sigstore bundles when `cosign` is on `PATH` and bundles exist, and fails when `PREGATE_REQUIRE_SIGNATURE=1` and a bundle is missing or invalid. It then runs the same setup path as the shell installers: engine under the user data directory, launcher on `PATH`, harness hook registration, and the `/pregate` companion skill. Later invocations call the cached engine directly.
+The npm tarball ships only the launcher (`bin/pregate.mjs`) plus `install.sh` / `install.ps1`. The first successful command for a version downloads the matching GitHub release archive (about 55 MB for 0.0.14), verifies it against `SHA256SUMS`, verifies Sigstore bundles when `cosign` is on `PATH` and bundles exist, and fails when `PREGATE_REQUIRE_SIGNATURE=1` and a bundle is missing or invalid. It then runs the same setup path as the shell installers: engine under the user data directory, launcher on `PATH`, harness hook registration, and the `/pregate` companion skill. Later invocations call the cached engine directly.
 
 Older public tags (0.0.1 through 0.0.3) were never published to npm; use the GitHub release installers for those versions.
 
@@ -43,17 +43,17 @@ npx skills add pedroknigge/pregate
 ## Manual checksum verification (macOS and Linux)
 
 Download the selected tag's installer and checksum manifest into an empty directory.
-The examples select 0.0.13 for macOS ARM64. Install a tag that has actually been published.
+The examples select 0.0.14 for macOS ARM64. Install a tag that has actually been published.
 
 ```sh
-gh release download v0.0.13 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
+gh release download v0.0.14 --repo pedroknigge/pregate --pattern install.sh --pattern SHA256SUMS
 ```
 
 Verify the installer before running it. On macOS:
 
 ```sh
 shasum -a 256 -c SHA256SUMS --ignore-missing
-sh install.sh --version 0.0.13
+sh install.sh --version 0.0.14
 ```
 
 On Linux, use `sha256sum -c SHA256SUMS --ignore-missing`, then the same installer
@@ -69,8 +69,8 @@ The release workflow signs every archive (`*.tar.gz`, `*.zip`) and `SHA256SUMS` 
 Use the published tag you are installing. The sample tag matches the checksum section above. Signature bundles are produced by the signing workflow; a historical tag that only published `SHA256SUMS` still installs on the checksum check.
 
 ```sh
-tag=v0.0.13
-asset=pregate-0.0.13-darwin-arm64.tar.gz
+tag=v0.0.14
+asset=pregate-0.0.14-darwin-arm64.tar.gz
 gh release download "$tag" --repo pedroknigge/pregate \
   --pattern "$asset" --pattern "$asset.bundle" \
   --pattern SHA256SUMS --pattern SHA256SUMS.bundle
@@ -101,11 +101,11 @@ cosign verify-blob --bundle "$dir\SHA256SUMS.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
   "$dir\SHA256SUMS"
-cosign verify-blob --bundle "$dir\pregate-0.0.13-windows-x64.zip.bundle" `
+cosign verify-blob --bundle "$dir\pregate-0.0.14-windows-x64.zip.bundle" `
   --certificate-identity-regexp '^https://github\.com/pedroknigge/pregate/\.github/workflows/release\.yml@refs/tags/v' `
   --certificate-oidc-issuer https://token.actions.githubusercontent.com `
-  "$dir\pregate-0.0.13-windows-x64.zip"
-gh attestation verify "$dir\pregate-0.0.13-windows-x64.zip" --repo pedroknigge/pregate `
+  "$dir\pregate-0.0.14-windows-x64.zip"
+gh attestation verify "$dir\pregate-0.0.14-windows-x64.zip" --repo pedroknigge/pregate `
   --signer-workflow pedroknigge/pregate/.github/workflows/release.yml
 ```
 
@@ -113,17 +113,17 @@ gh attestation verify "$dir\pregate-0.0.13-windows-x64.zip" --repo pedroknigge/p
 
 Use PowerShell (Windows PowerShell 5.1 or newer):
 
-These commands select the 0.0.13 experimental Windows archive;
+These commands select the 0.0.14 experimental Windows archive;
 they do not establish native admission. See the [Windows retry](windows-verification.md).
 
 ```powershell
 $dir = Join-Path $env:TEMP ('pregate-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $dir | Out-Null
-gh release download v0.0.13 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
+gh release download v0.0.14 --repo pedroknigge/pregate --pattern install.ps1 --pattern SHA256SUMS --dir $dir
 if ($LASTEXITCODE -ne 0) { throw 'Download failed' }
 $sum = Get-Content "$dir/SHA256SUMS" | Where-Object { $_ -match '  install.ps1$' } | Select-Object -First 1
 if (!$sum -or (Get-FileHash "$dir/install.ps1" -Algorithm SHA256).Hash -ine $sum.Substring(0,64)) { throw 'Installer checksum mismatch' }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.13
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$dir/install.ps1" -Version 0.0.14
 Remove-Item $dir -Recurse -Force
 ```
 
@@ -146,17 +146,36 @@ pregate
 ```
 
 Global setup installs owned harness registrations and `/pregate` companion instructions.
-It remains inert until you approve a contract and consent in each worktree.
+It remains inert in a project until `pregate enable` runs there.
 
 `pregate setup` exits 0 when it wired at least one harness. A detected harness that could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: `hooks.json` is left unchanged, and the next step is to approve the PREGATE hooks in Codex with `/hooks`, then rerun `pregate setup`. The command exits 1 when it wired no harness, or when it hit a real error (a config it must not rewrite, a Codex trust rollback that would drop someone else's hooks, an app-server that does not answer, a failed engine install). `install.sh` and `install.ps1` both stop when setup exits non-zero, and both finish when setup exits 0, including when it printed a warning. `pregate guide` still applies a reviewed contract after a warning-only setup, and says agent-edit protection remains degraded until a harness is wired. `pregate update` still switches the launcher and prepares project reviews in that case. Either command stops when setup prints a line that starts with `ERROR:`.
-A committed preset does not grant consent. The guide offers setup, migration or
-activation from the actual project state. In a harness, enter human
-`! pregate guide`, or load `/pregate` and ask the agent to prepare one `guide --preview`
-for your approval. Current cloned/disabled contracts need activation separately;
-choose it in the guide, or run `pregate enable` in a terminal after reviewing
-`status` and type `y`. `--yes` does not skip that question unless
-`PREGATE_UNATTENDED_APPROVAL=1` is already set. Use `status --json` to inspect contract validity, effective policy,
-capabilities and backstops. See [using the skill](pregate-skill.md).
+Turn a project on with one command:
+
+```sh
+pregate enable
+```
+
+In a project with no contract, `pregate enable` prepares the advisor contract
+that `guide --preview` proposes, prints a short summary (scope, packs, rules,
+mode) and applies it when you answer `y` or pass `--yes`. In advisor mode every
+rule informs and none blocks. In a project that already has a contract (a clone,
+or a disabled checkout), `pregate enable` turns it on after you type `y` in a
+terminal. There `--yes` does not skip the question unless
+`PREGATE_UNATTENDED_APPROVAL=1` is already set. A committed preset does not grant
+consent by itself. A human runs `pregate enable`; a hook denies it when an agent
+runs it.
+
+`pregate guide --preview` is still the way to choose packs, layers or another
+mode before the first approval. `pregate status` answers in three lines: the
+state, what needs attention, and the next step. Use `status --json` to inspect
+contract validity, effective policy, capabilities and backstops. `pregate --help`
+prints the seven everyday commands, and `pregate --help --all` prints every
+command. See [using the skill](pregate-skill.md).
+
+Locally a hook blocks only an enforced rule and an agent acting on Pregate
+itself. An engine crash, a timeout and a missing launcher let the call through.
+Set `"uncertainty": "closed"` in `.pregate/preset.json` to deny those failures
+instead. See [what blocks locally](../guarantees.md#what-blocks-locally).
 
 Optionally add repository backstops after initialization:
 
@@ -173,6 +192,8 @@ engine that runs the check is the one the base branch's lock pins, so a change
 cannot select an older engine by editing its own lock. Repository variables
 are outside the change under review; the workflow file is not, so protect
 `.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews.
+This CI check is the only place that holds a loosened contract. Locally a
+loosening is a note, and a commit is not refused for it.
 
 The same gate can run inside the Vercel build, with or without that workflow:
 
@@ -188,7 +209,7 @@ pregate install --ci vercel
 
 ## Project launcher
 
-`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher denies (exit 2) with the reason, and any other call prints the reason and exits 1. `pregate install` keeps this launcher. It removes only a `.pregate/bin/pregate` that is not a project launcher, which is the file that 0.1.0 committed.
+`pregate project launcher [--preview|--yes]` installs a launcher in the project at `.pregate/bin/pregate` (Windows: `.pregate/bin/pregate.cmd` and `project-launcher.ps1`). The launcher reads the engine pin from `.pregate/pregate.lock.json` and runs that engine from `<DATA>/<version>/`. It never uses a `pregate` found on PATH. The command needs a valid engine pin and that engine in the cache (`pregate prepare`). The files are a reviewed change: `--preview` prepares the review, and a human approves it as for any contract proposal. When the pinned engine is missing or empty, a hook call through the launcher lets the call through. It denies (exit 2) with the reason only when the preset sets `"uncertainty": "closed"`. Any other call prints the reason and exits 1. This project launcher is the one place that still needs the engine the lock pins. The global installation does not: any installed engine judges the project from its preset. `pregate install` keeps this launcher. It removes only a `.pregate/bin/pregate` that is not a project launcher, which is the file that 0.1.0 committed.
 
 ## Project-local Claude Code hooks
 
@@ -204,8 +225,8 @@ pregate enable                                         # local consent, by the h
 - **What it writes.** PreToolUse (the same tool matcher as the global registration), Stop, SubagentStop, SessionStart and SubagentStart. Each command is `"${CLAUDE_PROJECT_DIR:-.}/.pregate/bin/pregate" hook <event> --harness claude-code` behind a test that the launcher is there. It holds no path of this machine, so it can be committed.
 - **What it keeps.** Other hooks, `permissions` and unknown keys stay. Only the groups that run the project launcher are replaced. A file that already holds the registration is not rewritten: a second run changes no byte. The first write re-serializes the file with two-space indentation, so the formatting of the other entries can change; their content does not.
 - **Review.** The file is a reviewed change. `--preview` prepares the review and a human approves it, as for a contract proposal. Under the user's home, the approval rewrites this project's record in `<DATA>/contract-approvals/` and appends one line to `log.jsonl` there. Nothing else there is created or changed.
-- **Consent is separate.** The registration does not enable the project. Without `pregate enable` in the worktree the hooks run and allow. Claude Code's workspace trust is a third, independent step that Claude Code asks for. Where the project is enabled, a call this version cannot classify denies. To let only those calls through, set `"uncertainty": "open"` in `.pregate/preset.json` and have a human run `pregate preset compile`. A directory that was never enabled, and one disabled with `pregate disable`, still allows.
-- **Failure.** A missing or empty pinned engine denies the write (exit 2) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass. The project Claude PreToolUse handler sets `onFailure` to `block` (Claude Code 2.1.295 and newer). Stop and SessionStart do not. A preset with `"uncertainty": "open"` lets the missing-launcher and missing-engine failure through and still denies a protected path.
+- **Consent is separate.** The registration does not enable the project. Without `pregate enable` in the worktree the hooks run and allow. Claude Code's workspace trust is a third, independent step that Claude Code asks for. Where the project is enabled, a call this version cannot classify is a one-line note and goes through. A directory that was never enabled, and one disabled with `pregate disable`, allows without a note.
+- **Failure.** A missing or empty pinned engine, and a missing launcher, let the write through by default. When the preset sets `"uncertainty": "closed"`, they deny the write (exit 2) and the message names `pregate prepare` or `pregate project launcher`. Stop and SessionStart pass in both cases. The project Claude PreToolUse handler sets `onFailure` to `block` (Claude Code 2.1.295 and newer). Stop and SessionStart do not.
 - **Windows.** The command is `powershell.exe -EncodedCommand …`, the form of the global registration, and it runs `.pregate\bin\project-launcher.ps1`. `pregate.cmd` in the same folder only starts that script. One settings file holds one command form: a repository that Windows and POSIX machines share is not supported by this registration.
 - **With a global setup.** If `pregate setup` also registered Claude Code, Claude Code runs both registrations and every tool call is evaluated twice. `pregate doctor` reports the scope as project-local only, global only, both or neither, and `pregate status` names the project-local and the double case. In a project-local setup with no other harness, `doctor` states the missing global launcher, skills and PATH entry as information, not as errors. It checks the files; it runs no canary for the project hooks.
 - **Removal.** Delete the Pregate groups from `.claude/settings.json`, or revert the commit that added them. `pregate setup`, `pregate uninstall` and `pregate install` do not change this registration or the launcher.
@@ -237,8 +258,8 @@ pregate enable                                   # local consent, by the human
 - **What it writes.** PreToolUse with the matcher `^(apply_patch|Bash)$`, Stop, SessionStart, SubagentStart and SubagentStop, with the timeouts of the global Codex registration. It holds no path of this machine, so it can be committed.
 - **It grants no trust.** Codex runs a hook only after its own review. This command does not record that review, does not mark the project trusted, and writes no file in the Codex home (`config.toml`, `hooks.json`). The human reviews the hooks in Codex with `/hooks`. Expect a changed definition to need the review again: Codex binds trust to a hash of the definition.
 - **What it keeps.** Other hooks and unknown keys stay, and other groups keep their index, which is how Codex addresses a hook. A second run changes no byte. The first write re-serializes the file with two-space indentation.
-- **Starting below the root.** Codex gives a hook no project variable. The command walks up from its working directory to the first directory that holds `.pregate/bin`, stops at the first `.git` entry, and runs the launcher from there. A working directory outside the repository finds no launcher and the write is denied.
-- **Failure.** A missing or empty pinned engine denies the write (exit 2, one line on stderr) and names `pregate prepare`. A missing launcher denies the write and lets Stop and SessionStart pass.
+- **Starting below the root.** Codex gives a hook no project variable. The command walks up from its working directory to the first directory that holds `.pregate/bin`, stops at the first `.git` entry, and runs the launcher from there. A working directory outside the repository finds no launcher, and the write is not checked.
+- **Failure.** A missing or empty pinned engine, and a missing launcher, let the write through by default. When the preset sets `"uncertainty": "closed"`, they deny the write (exit 2, one line on stderr). Stop and SessionStart pass in both cases.
 - **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. With Codex on PATH, `doctor` uses read-only `config/read` and `hooks/list` requests for the current directory. It reports how many of the five project hooks are discovered, enabled and trusted, and rejects disabled hooks or failed discovery. It grants no trust and changes no Codex configuration. Without the binary it keeps the review state unknown and names `/hooks`. `status` remains a file-only diagnostic: it does not launch app-server, cache a live trust verdict or list Codex as gated by a project registration alone. Session-specific command-line overrides and native UI behavior remain separate checks.
 - **With a global setup.** If `pregate setup` also registered Codex, both registrations exist and, when Codex runs both, every tool call is evaluated twice. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
 
@@ -262,9 +283,9 @@ pregate enable                                    # local consent, by the human
 - **What it writes.** `version: 1` and three entries: `preToolUse` with the matcher `^(Write|Delete|Shell)$|^MCP:` (timeout 120, `failClosed: true`), `stop` (timeout 60, `loop_limit: null`) and `sessionStart` (timeout 15). The commands find the launcher through `$CURSOR_PROJECT_DIR` and hold no path of this machine, so the file can be committed. They run the engine the lock pins. They do not fall back to a global launcher or to `pregate` on PATH. Other entries and unknown keys stay, and a second run changes no byte.
 - **Native preToolUse.** A judged call answers with Cursor's permission object: `{"permission":"allow"}` when Pregate has no objection, and `{"permission":"deny","user_message","agent_message"}` when it blocks. An empty reply is not an allow. `sessionStart` is for the local IDE. A write is judged on `preToolUse` alone, which is what a cloud agent runs. Cloud agents do not run `sessionStart`.
 - **MCP tools.** Every `MCP:` tool reaches the gate. A call that names no local absolute path is not judged and answers `{"permission":"allow"}`; a call that names a protected file or a file in the contract's scope is denied, and the agent is told to write the file with its file tool instead.
-- **Missing runtime.** `failClosed` is set on `preToolUse`. On Cursor versions that honor it, a crash, a timeout, a non-zero exit or an empty reply blocks the tool. A missing or empty pinned engine already exits 2 and names `pregate prepare`. Prepare the pin with `pregate prepare` before the hooks run.
+- **Missing runtime.** `failClosed` is set on `preToolUse`. On Cursor versions that honor it, a crash, a timeout, a non-zero exit or an empty reply blocks the tool. A missing or empty pinned engine prints `{"permission":"allow"}` by default. It exits 2 and names `pregate prepare` when the preset sets `"uncertainty": "closed"`. Prepare the pin with `pregate prepare` before the hooks run, or nothing is checked.
 - **Trust.** Cursor runs project hooks only in a trusted workspace. Pregate does not read that record. Without policy consent (`pregate enable`) the native hook prints `{"permission":"allow"}`.
-- **Cloud agents.** Cursor's cloud agents load `.cursor/hooks.json` from the repository and never the user's home. On a cloud machine the hooks deny every write until the pinned engine is cached (`pregate prepare` in the environment's setup), and they enforce nothing there without a local consent record. The gate does not wait for `sessionStart`. Cloud agents were not exercised.
+- **Cloud agents.** Cursor's cloud agents load `.cursor/hooks.json` from the repository and never the user's home. On a cloud machine the hooks check nothing until the pinned engine is cached (`pregate prepare` in the environment's setup), and they enforce nothing there without a local consent record. The gate does not wait for `sessionStart`. Cloud agents were not exercised.
 - **What `doctor` and `status` say.** The scope is project-local only, global only, both or neither. When this project also has Claude hooks, Cursor loads both files, and the project Claude hook stands aside for an event the native hook owns, so that tool call is evaluated once. A Claude Code project registration alone is reported as Cursor's registration through that file.
 - **With a global setup.** If `pregate setup` also registered the machine, Cursor runs the global registration as well as the project one, and that global call is evaluated again. `pregate setup`, `pregate uninstall` and `pregate install` do not change the project file.
 
@@ -291,16 +312,18 @@ pregate enable                                 # local consent, by the human
 ## Updates and removal
 
 `pregate update` selects the latest published release. `update --version <v>` selects
-a release; `update --engine <v>` installs a required engine pin. Updates preserve
-project locks, so inspect each contract before adopting different bundled pack data.
+a release; `update --engine <v>` installs one named engine. No project needs a
+step after an engine update: any engine version reads any project, and a lock
+another version wrote is rebuilt in memory from `.pregate/preset.json`. Updates
+leave the committed locks as they are.
 `setup` refreshes global registrations and installed companion instructions from
 the running engine. `doctor` reports missing or stale skills.
 
-Update the global engine to 0.0.13 and review one or several
-project contracts together:
+Refreshing the committed lock is optional. To update the global engine to 0.0.14
+and review one or several project contracts together:
 
 ```sh
-pregate update --version 0.0.13
+pregate update --version 0.0.14
 pregate guide --projects "/path/project-a" "/path/project-b"
 ```
 
@@ -311,10 +334,11 @@ enter the same commands with `!`; the agent must not approve its own proposal.
 
 `update` prepares a [reviewed project update](../features/project-update.md) after
 global installation. `update --project --preview` or `pack update --all --preview`
-prepares registered pins with the installed engine. Do not move the lock aside,
-reset the preset or promise that global installation alone migrates a consumer.
-Initial use with an older pinned hook requires the human `! pregate update` route
-once the new release is available.
+prepares registered pins with the installed engine. That review moves the
+committed lock to the installed engine. Until it is approved the installed engine
+still judges the project, from the preset. Do not move the lock aside or reset
+the preset. After you update from 0.0.13 or older, run `pregate setup` once: the
+registered hook commands changed their failure path.
 
 `update --projects <path...> --preview` prepares one or several explicit project
 roots from any directory. Review the output, then let the human rerun the path
@@ -329,7 +353,7 @@ the guide inspects the complete installed catalog and offers a grouped pack/audi
 choice when it finds missing recommendations. Otherwise it prints the audit
 command. The catalog includes the optional Rust pack; check the
 [v0.0.1 release notes](../releases/0.0.1.md) for what the first public tag verified
-and the [changelog](../../CHANGELOG.md) for 0.0.13.
+and the [changelog](../../CHANGELOG.md) for 0.0.14.
 
 `disable` revokes consent for the current worktree. `uninstall` removes owned global
 registrations and installation files; `uninstall --purge` also removes local state.
@@ -369,8 +393,8 @@ packaged smoke tests establish and what still needs actual harness testing.
 
 ## Release line
 
-This guide describes 0.0.13. Public releases use the 0.0.x line. `pregate demo`,
+This guide describes 0.0.14. Public releases use the 0.0.x line. `pregate demo`,
 `update --projects <path...> --preview`, the optional Rust pack, and the download
-limits above (`curl -q`, TLS 1.2, redirect and size budgets) are what 0.0.13
+limits above (`curl -q`, TLS 1.2, redirect and size budgets) are what 0.0.14
 installs. See the [v0.0.1 release notes](../releases/0.0.1.md) for what the first
-public tag verified and the [changelog](../../CHANGELOG.md) for 0.0.13.
+public tag verified and the [changelog](../../CHANGELOG.md) for 0.0.14.

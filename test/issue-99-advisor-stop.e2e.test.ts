@@ -130,7 +130,7 @@ test("advisor Stop does not deny, and @/* Next.js segments plus a schema index a
   expect(warned.code, warned.text).toBe(0);
   expect(warned.text).toContain("PREGATE WARN unresolvable-import");
   expect(warned.text).toContain("src/domain/gap.ts");
-  expect(warned.text).toContain("did not block, because no enforced rule applies to this file");
+  expect(warned.text).toContain("PREGATE did not check this file for violations, and it did not block.");
   expect(warned.text).not.toContain("PREGATE DENY");
 
   put(".pregate/requests/enforce.json", JSON.stringify({

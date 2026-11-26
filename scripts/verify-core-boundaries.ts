@@ -12,7 +12,7 @@ const checks = {
   "CORE-INV-040": { files: ["test/supervisor.e2e.test.ts"], name: "tool names cannot disclose secrets or expand diagnostics", count: 5 },
   "CORE-INV-043": { files: ["test/gate.test.ts"], name: "real edit, command and Stop decisions retain correlation, classified failures and evaluation time", count: 1 },
   "CORE-INV-047": { files: ["test/fitness.test.ts"], name: "fitness output budget", count: 6 },
-  "contract-admission": { files: ["test/repository-admission.test.ts", "test/supervisor.e2e.test.ts"], name: "repository admission", count: 31 },
+  "contract-admission": { files: ["test/repository-admission.test.ts", "test/supervisor.e2e.test.ts"], name: "repository admission", count: 32 },
   "policy-ownership": { files: ["test/repository-policy.test.ts"], name: "repository policy boundary", count: 4 },
   "decision-effects": { files: ["test/repository-core.test.ts", "test/decide.test.ts"], name: "repository core boundary|repository decision boundary", count: 10 },
   "issue-transport": { files: ["test/issue-transport.test.ts"], name: "issue transport boundary", count: 11 },

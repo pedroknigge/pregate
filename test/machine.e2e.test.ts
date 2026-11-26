@@ -494,7 +494,8 @@ describe("doctor", () => {
     const out = pregate(m, "doctor");
     expect(out.code).toBe(1);
     expect(out.stdout).toContain(`ERROR: Missing launcher ${m.launcher}; run pregate setup.`);
-    expect(out.stdout).toContain("ERROR: claude-code: canary was not denied in its native dialect (exit 2;");
+    // With no launcher the registered command lets the call through, so the canary write is not denied.
+    expect(out.stdout).toContain("ERROR: claude-code: canary was not denied in its native dialect (exit 0; stdout: empty; stderr: empty).");
   });
 
   test("a direct engine hook is not admitted as supervised even when the wrapper canary passes", () => {

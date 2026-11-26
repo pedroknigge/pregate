@@ -115,7 +115,7 @@ function askAboutApproval(decision: Decision, c: ProposedCommand): Decision {
   if (decision.verdict !== "deny") return decision;
   if (decision.cause === "approval") {
     const command = c.command.replace(/\s+/g, " ").trim().slice(0, 500);
-    decision = withInstruction(decision, `An agent cannot grant itself approval. Ask the human to run this exact command in a separate terminal: ${command}`);
+    decision = withInstruction(decision, `An agent cannot grant itself approval. Ask the human to run this exact command themselves (in a harness, on a ! line): ${command}`);
   }
   if ((decision.cause !== "shell-admin" && decision.cause !== "hook-switch" && decision.cause !== "approval") || !/\bapprove\b/.test(c.command)) return decision;
   const ask = claudeNativeAsk(c.session) ? CLAUDE_PROPOSE : agyNativeAsk(c.session) ? AGY_PROPOSE : ASK_HUMAN;
@@ -136,7 +136,7 @@ function approvalCommandAsk(c: ProposedCommand, decision: Decision): Decision {
   if (!enforcedHere(c.cwd)) return decision;
   if (decision.verdict !== "none" || (!claudeNativeAsk(c.session) && !agyNativeAsk(c.session))) return decision;
   const reviews = directApprovalArgv(c.command).flatMap((argv) => {
-    const review = approvalAskReview(c.cwd, argv);
+    const review = approvalAskReview(canonical(c.cwd), argv);
     return review === null ? [] : [review];
   });
   if (reviews.length === 0) return decision;
@@ -348,7 +348,9 @@ function policyRead(sid: string, root: string | null, path: string, kind: "admit
   if (path.includes("\0") || /^\/dev\/(stdin|stdout|stderr|fd\/[0-9]+)$/.test(path)) return false;
   const actual = policyPath(path);
   if (actual === null) return false;
-  if (!names.some(rel => pathKey(actual) === pathKey(join(root, rel)))) return false;
+  // Reading the contract folder never changes it: a read-only command may name anything inside it.
+  const inside = kind === "inventory" && within(join(root, ".pregate"), actual);
+  if (!inside && !names.some(rel => pathKey(actual) === pathKey(join(root, rel)))) return false;
   return kind !== "admitted" || !isCause(verify(sid, root, load()));
 }
 

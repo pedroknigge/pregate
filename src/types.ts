@@ -330,7 +330,9 @@ export interface Analysis {        // one file in one state
   markerSites?: Record<string, { line: number; key: string }[]>;
   astHash: string | null;          // tree without comments or trivia (no-progress detection)
 }
-export type Form = { cause: Cause; line: number | null; detail?: string };   // analysis impossible ⇒ deny
+// `detail`: the diagnosis `check` prints. `said`: one sentence for the reader of a hook note, when
+// the general sentence for the cause would give the wrong advice.
+export type Form = { cause: Cause; line: number | null; detail?: string; said?: string };   // analysis impossible
 export interface Snapshot {        // sessions/<sid>/<rootHash>/snapshot.json
   root: string;                    // absolute root path (Stop needs it)
   head: string | null;             // null = repo without commits ⇒ every file is new

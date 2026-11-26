@@ -2,7 +2,13 @@
 
 ## Starting work
 
-The guided coordinator is included in 0.0.13; check `--help` for `guide`.
+A project with no contract is set up with one command, `pregate enable`. It
+prepares the advisor contract that `guide --preview` proposes, prints a short
+summary (scope, packs, rules, mode) and applies it when the human answers `y` or
+passes `--yes`. In advisor mode every rule informs and none blocks. The human
+runs that command. A hook denies it when an agent runs it.
+
+The guided coordinator is included in 0.0.14; `pregate --help --all` lists `guide`.
 Use [the pregate skill](pregate-skill.md) in your coding harness: invoke `/pregate`, then ask
 for setup, an update, an audit or a bounded repair. Setup/update installs the
 matching companion instructions. Loading them grants no approval.
@@ -21,15 +27,16 @@ protection remains degraded. A failed setup leaves the preview unapplied;
 cancelling the contract review retains completed global setup. Inspection and
 preview modes do not install anything.
 
-When inspection is permitted through explicit commands,
-run `pregate status` when entering a project and `/pregate` in the harness. Status
-leads with this repository's enforced deny rules, advisor or monitor-only rules,
-and unverified requirements. Unverified means no passing project evidence, or
-not adopted when no verifier is bound. The same summary then names which
-harnesses are gated and which channels are not covered. Lock catalog totals
-follow that breakdown. Consent, contract validity and whether protection is
-degraded come after the counts. `doctor` prints the same breakdown for the
-current repository, then checks the global installation. A disabled project
+Run `pregate status` when entering a project and `/pregate` in the harness. The
+short form is three lines. The first is the state, for example `Pregate is on in
+<root>: advisor mode. N rules block, M inform.` The second appears only when
+there is something to say and starts with `Needs attention:` or `Note:`. The
+third starts with `Next:` and names one step. `status --verbose` has the rest:
+enforced, advisor and unverified counts, which harnesses are gated, which
+channels are not covered, and the lock catalog totals. Unverified means no
+passing project evidence, or not adopted when no verifier is bound. `doctor`
+prints that breakdown for the current repository, then checks the global
+installation. A disabled project
 remains disabled when `init` is repeated. Grok cannot display SessionStart
 contract context through the currently supported protocol; load `/pregate`
 explicitly.
@@ -59,10 +66,9 @@ complete proposed file on stdin. Supply UTF-8 input no larger than 16 MiB and
 close stdin within five seconds; file redirection closes it automatically.
 Source pre-checks are for application code. Inspect PREGATE policy with
 `pregate preset show`, not `check --stdin --path .pregate/preset.json` or an arbitrary
-state read. Literal reads/diffs of this root's preset/lock and inventory listing
-are supported recovery exceptions. Stop and non-stdin checks validate the exact preset/lock
-pair as a contract before excluding those two files from source rules. Other
-files in `.pregate/` retain their protection and placement checks.
+state read. Reading files inside `.pregate/` from the shell is allowed: `cat`, `head`, `tail`,
+`grep`, `rg`, `jq`, `git diff -- .pregate`, `git log -- .pregate` and similar
+read-only commands. Writing there is denied (`protected-path`).
 
 Inspection and manual pre-checks are helpers, not prerequisites for an edit.
 If the user prohibits shell use or a helper is unavailable, the agent can use
@@ -175,7 +181,7 @@ These commands are denied:
 
 `agent-browser` and `agent-desktop` have no agent-launch or hook-off command.
 
-A screenshot or other output path is an ordinary write. The path commands are `screenshot`, `full-screenshot`, `pdf`, `record` and `download`. The path flags are `--output`, `-o`, `--out`, `--path`, `--file`, `--trace`, `--screenshot` and `--annotate`. A path inside the project is `shell-write` while consent is on. A temp path is allowed. A path that is not literal is `shell-write`. A bare `screenshot`, with no path, is a drive command. With consent inactive the scope check does not mark project paths in scope, the same as any other write.
+A screenshot or other output path is an ordinary write. The path commands are `screenshot`, `full-screenshot`, `pdf`, `record` and `download`. The path flags are `--output`, `-o`, `--out`, `--path`, `--file`, `--trace`, `--screenshot` and `--annotate`. A path inside the project is `shell-write` while consent is on. A temp path is allowed. A path that is not literal is `shell-write`. `shell-write` is a note, not a block: the command runs. A bare `screenshot`, with no path, is a drive command. With consent inactive the scope check does not mark project paths in scope, the same as any other write.
 
 See [Guarantees and limits](../guarantees.md).
 
@@ -187,27 +193,33 @@ provides `preset diagnose --json`, `preset schema` and
 active files unchanged until approval. The current guide uses the same
 repair mechanism; it displays the cause and supported next action.
 
-For `lock-stale`, distinguish an invalid preset from a missing or outdated lock.
-The unreleased source diagnostics distinguish missing inputs, malformed JSON or
-fields, changed preset/source/lock contents, and incompatible formats or pins.
-They name installed, preset and lock engine/core versions. Start with
-`pregate preset diagnose --json` and `pregate preset schema`; the human restores or
-corrects the input, reviews `pregate update --project --preview` and approves only
-its displayed digest-bound command. Preparation does not change consent or
-activate a contract. See [v0.0.1 release notes](../releases/0.0.1.md) for release state.
+A hook blocks an edit for two reasons only: a rule the project set to enforce,
+or a control cause, where the agent acts on Pregate itself. Every other cause is
+a one-line `PREGATE NOTE` and the edit is written. See
+[what blocks locally](../guarantees.md#what-blocks-locally).
+
+A lock that is missing, behind the preset, or written by another engine version
+does not stop anything. The engine rebuilds the lock in memory from
+`.pregate/preset.json` and judges with that. A `lock-stale` or `version-mismatch`
+note means the preset itself is missing or does not compile on this engine, so
+the call was not checked. Start with `pregate preset diagnose --json` and
+`pregate preset schema`; the human corrects the preset.
+`pregate update --project --preview` prepares a review that refreshes the
+committed lock. Nothing local requires it. In CI, `check` fails when a lock this
+engine version wrote does not match the preset: run `pregate preset compile` and
+commit the lock.
 An override such as `"testing/TDD-FOCUS-001": "enforce"` is invalid: the string
 form accepts severity (`deny`, `ask`, `warn`, `off`), while enforcement uses an
 object, for example `{"severity":"deny","enforcement":"enforce"}`. Preserve
 existing parameters, notes and severity when proposing that correction. The
 human reviews the contract change; `preset compile` then validates the preset
 and sources before writing its lock. Compilation errors leave the lock unchanged.
-Do not disable protection, delete the lock or reset session state to bypass this
-condition. A global update does not automatically migrate a pinned project.
+Do not disable protection, delete the lock or reset session state to remove a
+note.
 
 If compilation reports engine/core/bundled-pack mismatches, compilation alone
 cannot migrate them. The unified preview handles them together on the installed
-engine. An older hook can reject new helpers; do not repeat them or have the
-agent approve itself. Use the supported human update route to install the current release.
+engine.
 
 Read the rule ID, path, line, explanation and repair hint. Use `explain <rule>` and
 pre-check the correction. Preserve the requested behavior; renaming, suppression,
@@ -313,6 +325,10 @@ that command; the approval log records it, and the agent must not run it.
 Proposals expire after 24 hours and reject stale contracts or source data.
 See [the capability boundaries](../features/approval-in-harness.md).
 
+A change that loosens the contract needs no extra approval on the machine. The
+commit prints a `contract-loosened` note and is not refused. `check --ratchet` in
+CI holds it in the pull request until a maintainer accepts its digest.
+
 If a request preview expires, renew it with
 `pregate preset apply /absolute/path/to/request.json --preview`, then inspect
 `pregate approve --preview` again. Review the current diff and use the digest and
@@ -327,10 +343,11 @@ reason and JSON patch, then let the human approve `preset apply <file>`.
 `enforce`/`shadow` can vary per ordinary rule; `warn`/`off` are severity decisions.
 Core rules enforce independently of shadow; a human can explicitly disable them
 with reviewed `off` overrides. Disable does not establish compliance.
-If an applicable static rule is explicitly enforcing, invalid syntax blocks that
-file even when other optional rules stay in shadow. PREGATE cannot evaluate that
-rule until parsing succeeds. Scope, language, phase and rule exclusions still
-apply; an unrelated enforcing rule does not turn all files into a syntax gate.
+Invalid syntax does not block an edit in a hook. The agent gets a `syntax`
+warning, and PREGATE does not evaluate that file until it parses. `pregate check`
+fails on it when an applicable static rule is explicitly enforcing. Scope,
+language, phase and rule exclusions still apply; an unrelated enforcing rule
+does not turn all files into a syntax gate.
 
 ## Capture a tool issue
 

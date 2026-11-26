@@ -449,7 +449,7 @@ test("reaching an enabled project does not enforce a directory that was never en
   expect(held.verdict).toBe("none");
 }));
 
-test("a batch approval inside a project pinning an older engine is answered by the engine that wrote the batch", () => project(async (a) => {
+test("no command in a project whose lock names another engine is handed to that engine", () => project(async (a) => {
   const { code } = await batchOf(a);
   writeFileSync(join(a, LOCK), JSON.stringify({ ...JSON.parse(readFileSync(join(a, LOCK), "utf8")), engine: "0.2.6" }));
   const session: Session = { harness: "claude-code", id: "pinned", turnId: "one", agentId: null, interactive: true };
@@ -457,7 +457,9 @@ test("a batch approval inside a project pinning an older engine is answered by t
   expect(redirect(event(`pregate approve ${code}`))).toBeNull();
   expect(redirect(event(`pregate approve ${code} --no-commit`))).toBeNull();
   expect(redirect(event(`! pregate approve ${code}`))).toBeNull();
-  expect(redirect(event(`pregate approve ${"0".repeat(12)}`))).toBe("0.2.6");
+  // Any engine reads any lock, so an unrelated approval code is answered here too.
+  expect(redirect(event(`pregate approve ${"0".repeat(12)}`))).toBeNull();
+  expect(redirect(event("ls"))).toBeNull();
 }));
 
 // What `run` writes through fs.writeSync, where approve() prints its summary.

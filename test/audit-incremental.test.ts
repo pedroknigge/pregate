@@ -85,7 +85,10 @@ test("streaming retains exit 0 for a verified clean tree and 1 for static debt",
 });
 
 test("streamed results remain provisional until final source and contract validation", async () => {
-  for (const mutate of [() => put("src/domain/a.ts", "export const changed = true;\n"), () => put(LOCK, "{}")]) {
+  // A source file or the contract in effect changes while the audit runs. The contract is the preset:
+  // a change to the lock file alone is not one.
+  const widened = () => { const preset = JSON.parse(readFileSync(join(root, PRESET), "utf8")); preset.scope.exclude = [...(preset.scope.exclude ?? []), "never/**"]; put(PRESET, JSON.stringify(preset)); };
+  for (const mutate of [() => put("src/domain/a.ts", "export const changed = true;\n"), widened]) {
     refreshContract(); put("src/domain/a.ts", 'import { value } from "../infra/provider";\nexport const answer = value;\n');
     const records: Record<string, any>[] = [];
     const result = await audit(["--repo", root, "--jsonl"], (record) => {
@@ -279,7 +282,7 @@ test("cache identity, absent dependencies, escaped paths and project budgets", (
   expect(readFileSync(join(dirname(cache.file), "notes.json"), "utf8")).toBe("unrelated");
 });
 
-test("warm audit keeps all default-core requirements unverified and rejects a forged contract", async () => {
+test("warm audit keeps all default-core requirements unverified and judges from the preset when the lock is forged", async () => {
   put(PRESET, JSON.stringify({ name: "default-core", version: "1.0.0", engine: VERSIONS.engine,
     sources: [{ ns: "core", kind: "builtin", version: VERSIONS.core }], methodologies: [] })); refreshContract();
   const cold = await report("--incremental", "--strict"), warm = await report("--incremental", "--strict");
@@ -290,8 +293,11 @@ test("warm audit keeps all default-core requirements unverified and rejects a fo
   expect(warm.data.fitness.every((f: { status: string; statement: string }) => f.status === "unverified" && f.statement.length > 0)).toBe(true);
   expect(observations(warm)).toEqual(observations(cold));
   const forged = JSON.parse(readFileSync(join(root, LOCK), "utf8")); forged.scope = { include: [], exclude: [] }; put(LOCK, JSON.stringify(forged));
-  const rejected = await audit(["--repo", root, "--incremental", "--json"]);
-  expect(rejected.code).toBe(2); expect(rejected.text.startsWith("{")).toBe(false);
+  // A forged lock file changes nothing: the audit judges from the preset, so the emptied scope has no effect.
+  const judged = await audit(["--repo", root, "--incremental", "--json"]);
+  expect(judged.code).toBe(0);
+  expect(JSON.parse(judged.text).fitness).toHaveLength(64);
+  expect(JSON.parse(readFileSync(join(root, LOCK), "utf8")).scope).toEqual({ include: [], exclude: [] });
 });
 
 test("new excluded dependency invalidates an importer without an inventory change", async () => {

@@ -17,13 +17,13 @@ function Fail([string]$why) {
         if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate '.pregate/pregate.lock.json') -PathType Leaf)) { $active = $true; $root = $candidate; break }
     }
     if (!$active) { exit 0 }
-    $open = $false
+    $open = $true
     if ($root) {
         $q = $root
         for ($i = 0; $i -lt 40 -and $q; $i++) {
             $preset = Join-Path $q '.pregate/preset.json'
             if (Test-Path -LiteralPath $preset) {
-                if ((Get-Content -LiteralPath $preset -Raw -ErrorAction SilentlyContinue) -match '"uncertainty"\s*:\s*"open"') { $open = $true }
+                if ((Get-Content -LiteralPath $preset -Raw -ErrorAction SilentlyContinue) -match '"uncertainty"\s*:\s*"closed"') { $open = $false }
                 break
             }
             if (Test-Path -LiteralPath (Join-Path $q '.git')) { break }

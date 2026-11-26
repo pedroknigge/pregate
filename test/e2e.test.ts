@@ -283,6 +283,19 @@ function told(o: Out): string {
   return json(o).systemMessage!;
 }
 
+// A cause that no longer blocks in a hook: exit 0 and one PREGATE NOTE line for the agent. Returns the line.
+function noted(o: Out, cause: string): string {
+  expect(o.code, said(o)).toBe(0);
+  expect(o.stderr).toBe("");
+  const text = json(o).hookSpecificOutput.additionalContext!;
+  expect(json(o).hookSpecificOutput.permissionDecision).toBeUndefined();
+  expect(json(o).continue).toBeUndefined();
+  expect(text).toStartWith(`PREGATE NOTE ${cause}`);
+  expect(text).toEndWith("Not blocked.");
+  expect(text.split("\n")).toHaveLength(1);
+  return text;
+}
+
 const verdictOf = (o: Out): string => (o.code === 2 ? "deny" : o.code === 0 && o.stdout === "" ? "none" : "other");
 
 const sessionDir = (r: Repo, sid: string): string => join(r.env.XDG_STATE_HOME!, "pregate/sessions", `claude-code:${sid}`);
@@ -450,12 +463,11 @@ test("blocked edits preserve protection and offer reviewed rule adaptation in ev
   expect(JSON.parse(status.stdout).consent).toBe(true);
 });
 
-test("main rejects unknown tools inside a preset with harness context, and ignores them outside it", () => {
+test("main lets an unknown tool through with a note inside a preset, and ignores it outside it", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const a = claude(r);
-  const reason = denied(hook(a.session, "PreToolUse", tool("future_write", {})));
-  expect(reason).toContain("payload-unrecognized (claude-code)");
-  expect(reason).not.toContain("future_write");
+  const note = noted(hook(a.session, "PreToolUse", tool("future_write", {})), "payload-unrecognized");
+  expect(note).not.toContain("future_write");
   const outside = join(TMP, "unrooted-main");
   mkdirSync(outside);
   const state = join(TMP, "unrooted-main-state");
@@ -464,7 +476,7 @@ test("main rejects unknown tools inside a preset with harness context, and ignor
   expect(existsSync(state)).toBe(false);
 });
 
-test("main redirects hooks once and the CLI delegates before reading stdin; compile uses the current engine", () => {
+test("a lock another engine wrote is judged from the preset by the current engine; no call reaches the pinned engine", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const lock = JSON.parse(read(r, ".pregate/pregate.lock.json")) as { engine: string };
   lock.engine = "9.9.9";
@@ -475,16 +487,23 @@ test("main redirects hooks once and the CLI delegates before reading stdin; comp
   const a = claude(r);
   const raw = payload(a.session, "PreToolUse", tool("Write", { file_path: at(r, INVOICE_REL), content: SETTER }));
   const direct = run([ENGINE, ...PRE], r.dir, r.env, raw);
-  expect(direct).toMatchObject({ code: 3, stdout: `9.9.9\n${raw}`, stderr: "" });
-  expect(a.write(INVOICE_REL, SETTER)).toMatchObject({ code: 2, stdout: "", stderr: "pinned hook\n" });
-  const check = run(["pregate", "check", "--stdin", "--path", INVOICE_REL], r.dir, r.env, "the proposed bytes\n");
-  expect(check).toMatchObject({ code: 37, stdout: `check --stdin --path ${INVOICE_REL}\nthe proposed bytes\n`, stderr: "" });
-  ok(cli(r, "preset", "compile"), "compile must not delegate");
+  expect(denied(direct)).toStartWith(`PREGATE DENY ddd/DDD-ENT-001 ${INVOICE_REL}:`);
+  const supervised = a.write(INVOICE_REL, SETTER);
+  expect(denied(supervised)).toStartWith(`PREGATE DENY ddd/DDD-ENT-001 ${INVOICE_REL}:`);
+  expect(said(supervised)).not.toContain("pinned hook");
+  const check = run(["pregate", "check", "--stdin", "--path", INVOICE_REL], r.dir, r.env, SETTER);
+  expect(check.code).toBe(1);
+  expect(check.stdout).toContain("ddd/DDD-ENT-001");
+  expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).engine).toBe("9.9.9");
+  ok(cli(r, "preset", "compile"), "compile uses the current engine");
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).engine).toBe(pkg.version);
+  // A lock file this engine wrote that no longer matches the preset: the preset is judged, with no lock-stale.
   const fresh = JSON.parse(read(r, ".pregate/pregate.lock.json"));
   fresh.rules.push({ id: "stale" });
   put(r, ".pregate/pregate.lock.json", JSON.stringify(fresh));
-  expect(denied(a.write(INVOICE_REL, SETTER))).toContain("lock-stale");
+  const rebuilt = denied(a.write(INVOICE_REL, SETTER));
+  expect(rebuilt).toStartWith(`PREGATE DENY ddd/DDD-ENT-001 ${INVOICE_REL}:`);
+  expect(rebuilt).not.toContain("lock-stale");
 });
 
 test("demo: the same two edits get opposite verdicts under the two presets", () => {
@@ -552,7 +571,10 @@ test.each(["enforce", "shadow"] as const)("per-rule enforcement reverses %s acro
   });
   const a = claude(r);
   const start = json(ok(a.start(), "SessionStart")).hookSpecificOutput.additionalContext!;
-  expect(start).toContain(`ddd/DDD-ENT-001 (deny, ${mode === "enforce" ? "shadow" : "enforce"}`);
+  // The briefing lists only what can block; a shadow rule is counted among the checks that inform.
+  if (mode === "shadow") expect(start).toContain("ddd/DDD-ENT-001 (deny, enforce");
+  else expect(start).not.toContain("ddd/DDD-ENT-001");
+  expect(start).toMatch(/^[1-9]\d* checks inform and never block\.$/m);
   expect(cli(r, "preset", "show").stdout).toContain(`clean-code/CC-FN-002 (deny, ${mode}`);
   const content = `${SETTER}\nexport function total(a: number, b: number, c: number, d: number): number { return a + b + c + d; }\n`;
   const enforced = mode === "enforce" ? "clean-code/CC-FN-002" : "ddd/DDD-ENT-001";
@@ -631,7 +653,9 @@ test("D29: enforced native Claude permission activates only the exact tool resul
   expect(json(asked).hookSpecificOutput.additionalContext).toContain("WARNING");
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("enforce");
   put(r, ".pregate/preset.json", content + "\n");
-  expect(cli(r, "preset", "show").code).toBe(1);
+  // Other bytes than the reviewed ones: the lock file is not written. `preset show` reads the preset itself.
+  expect(cli(r, "preset", "show").code).toBe(0);
+  expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("enforce");
   put(r, ".pregate/preset.json", content);
   expect(cli(r, "preset", "show").code).toBe(0);
   expect(JSON.parse(read(r, ".pregate/pregate.lock.json")).enforcement).toBe("shadow");
@@ -791,7 +815,7 @@ test("pre-commit in shadow: an explicitly enforcing optional rule still fails th
   expect(said(failed)).not.toContain("ddd/DDD-ENT-001");
 });
 
-test("a committed lock that no longer matches its preset fails the pre-commit and CI; recompiling and committing the lock clears it", () => {
+test("a committed lock that no longer matches its preset does not refuse the next commit and fails CI; recompiling and committing the lock clears it", () => {
   const r = repo({ ".": "backend-clean-ddd" }, true);
   editPreset(r, (p) => void ((p.resolve as Record<string, { params: { max: number } }>)["fn.size"]!.params.max = 41));
   ok(git(r, "add", "-A"), "git add");
@@ -799,20 +823,24 @@ test("a committed lock that no longer matches its preset fails the pre-commit an
   put(r, "README.md", "demo\n");
   ok(git(r, "add", "README.md"), "git add");
   const pre = commit(r, "readme");
-  expect(pre.code).toBe(1);
-  expect(said(pre)).toContain("pregate.lock.json does not match the preset and its sources");
+  expect(pre.code, said(pre)).toBe(0);
+  // The contract did not change between HEAD and this commit, so there is nothing to note either.
+  expect(said(pre)).not.toContain("contract-loosened");
+  expect(said(pre)).not.toContain("pregate.lock.json does not match the preset and its sources");
   const ci = cli(r, "check", "--ratchet", "--base", "HEAD~1");
   expect(ci.code).toBe(1);
   expect(ci.stdout).toContain("pregate.lock.json does not match the preset and its sources");
   recommit(r, () => {});
   // The stale lock is gone; what remains is the loosening itself (a longer function limit), which
-  // only the maintainer's acceptance of its digest lets through.
-  const loosened = cli(r, "check", "--ratchet", "--base", "HEAD~1");
+  // only the maintainer's acceptance of its digest lets through. The base is the commit before the
+  // preset changed, as a pull request's base is: each side is the contract its own preset compiles to.
+  expect(cli(r, "check", "--ratchet", "--base", "HEAD~1").code).toBe(0);
+  const loosened = cli(r, "check", "--ratchet", "--base", "HEAD~3");
   expect(loosened.code).toBe(1);
   expect(loosened.stdout).not.toContain("pregate.lock.json does not match the preset and its sources");
   const digest = /Contract loosening digest: ([0-9a-f]{64})/.exec(loosened.stdout)?.[1];
   expect(digest, said(loosened)).toBeDefined();
-  expect(run(["pregate", "check", "--ratchet", "--base", "HEAD~1"], r.dir, { ...r.env, PREGATE_ACCEPT_CONTRACT: digest! }).code).toBe(0);
+  expect(run(["pregate", "check", "--ratchet", "--base", "HEAD~3"], r.dir, { ...r.env, PREGATE_ACCEPT_CONTRACT: digest! }).code).toBe(0);
 });
 
 test("pre-commit resolves imports against the index, not the working tree", () => {
@@ -843,6 +871,21 @@ function restoring<T>(path: string, f: () => T): T {
   try { return f(); } finally { renameSync(`${path}.held`, path); }
 }
 
+// The engine did not answer and the preset does not say "uncertainty": "closed": the call passes
+// unchecked with one stderr line. Returns the line.
+function passedUnchecked(o: Out): string {
+  expect(o.code, said(o)).toBe(0);
+  expect(o.stdout).toBe("");
+  const line = o.stderr.trim();
+  expect(line.split("\n")).toHaveLength(1);
+  expect(line).toStartWith("PREGATE NOTE engine-failure: ");
+  expect(line).toEndWith(". This call was not checked. Not blocked.");
+  return line;
+}
+
+// The opt-in that keeps the deny. The lock is now behind the preset; the failure paths only read the preset.
+const closed = (r: Repo): void => editPreset(r, (p) => void (p.uncertainty = "closed"));
+
 function failedPre(o: Out): string {
   expect(o.code).toBe(2);
   expect(o.stdout).toBe("");
@@ -851,16 +894,22 @@ function failedPre(o: Out): string {
   return o.stderr.trim();
 }
 
-test("launcher missing: the inline guard denies Pre; other events are neutral (MH-22)", () => absent(LAUNCHER, () => {
+test("launcher missing: the inline guard lets Pre through, and denies it only where uncertainty is closed; other events are neutral (MH-22)", () => absent(LAUNCHER, () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const a = claude(r);
+  silent(a.write(INVOICE_REL, SETTER_FIXED));
+  closed(r);
   expect(failedPre(a.write(INVOICE_REL, SETTER_FIXED))).toContain("launcher is missing");
   silent(a.stop());
   silent(a.start());
 }));
 
-test("engine missing: Pre denies with exit 2, Stop blocks once, SessionStart tells", () => absent(ENGINE, () => {
-  const a = claude(repo({ ".": "backend-clean-ddd" }));
+test("engine missing: every event passes with one note; with uncertainty closed Pre denies with exit 2, Stop blocks once, SessionStart tells", () => absent(ENGINE, () => {
+  const r = repo({ ".": "backend-clean-ddd" });
+  const a = claude(r);
+  for (const out of [a.write(INVOICE_REL, SETTER_FIXED), a.stop(), a.stop(true), a.start()])
+    expect(passedUnchecked(out)).toContain(`engine ${pkg.version} is not installed`);
+  closed(r);
   expect(failedPre(a.write(INVOICE_REL, SETTER_FIXED))).toContain(`engine ${pkg.version} is not installed`);
   expect(blocked(a.stop())).toContain(`engine ${pkg.version} is not installed`);
   expect(told(a.stop(true))).toContain(`engine ${pkg.version} is not installed`);
@@ -875,6 +924,7 @@ test("hook auto: the launcher with no arguments supervises the event it reads fr
   ok(auto("SessionStart", { source: "startup" }), "SessionStart");
   expect(denied(auto("PreToolUse", tool("Write", { file_path: at(r, INVOICE_REL), content: SETTER })))).toContain("ddd/DDD-ENT-001");
   absent(ENGINE, () => {
+    closed(r);
     expect(blocked(auto("Stop", { stop_hook_active: false, ...STOP }))).toContain("is not installed");
     expect(told(auto("SessionStart", { source: "startup" }))).toContain("could not prepare this session");
     expect(failedPre(auto("PreToolUse", tool("Bash", { command: "ls" })))).toContain("is not installed");
@@ -894,14 +944,19 @@ test("the engine ignores a bunfig.toml and a .env in the repo it judges (O32)", 
   expect(existsSync(join(r.dir, "elsewhere"))).toBe(false);
 });
 
-test("an engine that throws exits 1, and the launcher denies", () => {
+test("an engine that throws exits 1: the launcher lets the call through with a note, and denies where uncertainty is closed", () => {
   // A session id that would leave the data directory: state.ts refuses it with an exception.
-  const a = claude(repo({ ".": "backend-clean-ddd" }), { sid: "../escape" });
+  const r = repo({ ".": "backend-clean-ddd" });
+  const a = claude(r, { sid: "../escape" });
+  const crash = "the engine failed (exit 1); last engine checkpoint: input";
+  expect(passedUnchecked(a.write(INVOICE_REL, SETTER_FIXED))).toBe(`PREGATE NOTE engine-failure: ${crash}. This call was not checked. Not blocked.`);
+  expect(passedUnchecked(a.stop())).toContain(crash);
+  closed(r);
   expect(failedPre(a.write(INVOICE_REL, SETTER_FIXED))).toBe("PREGATE could not evaluate: the engine failed (exit 1); last engine checkpoint: input; report it to the user");
   expect(blocked(a.stop())).toBe("PREGATE could not verify this turn: the engine failed (exit 1); last engine checkpoint: input; report it to the user");
 });
 
-test("snapshot.json deleted: deny and halt", () => {
+test("snapshot.json deleted: the snapshot is made again from HEAD and edits are still judged", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const a = claude(r);
   ok(a.start(), "SessionStart");
@@ -909,9 +964,10 @@ test("snapshot.json deleted: deny and halt", () => {
   const roots = readdirSync(dir).filter((n) => /^[0-9a-f]{12}$/.test(n));
   expect(roots.length).toBe(1);
   rmSync(join(dir, roots[0]!, "snapshot.json"));
-  const { reason, notice } = halted(a.write(INVOICE_REL, SETTER_FIXED));
-  expect(reason).toStartWith("PREGATE DENY snapshot-missing");
-  expect(notice).toContain("the session snapshot is missing");
+  silent(a.write(INVOICE_REL, SETTER_FIXED));
+  expect(existsSync(join(dir, roots[0]!, "snapshot.json"))).toBe(true);
+  // The session is judged again against HEAD: a setter the agent adds is still denied.
+  expect(denied(a.write(INVOICE_REL, SETTER))).toContain("ddd/DDD-ENT-001");
 });
 
 test("sessions/<sid>/ deleted: the 'before' of every file becomes HEAD", () => {
@@ -925,32 +981,28 @@ test("sessions/<sid>/ deleted: the 'before' of every file becomes HEAD", () => {
   expect(denied(a.write(INVOICE_REL, next))).toContain("ddd/DDD-ENT-001");
 });
 
-test(".pregate/ deleted mid-session: the accepted root stays protected with the global launcher", () => {
+test(".pregate/ deleted mid-session: the edit passes with one lock-stale note", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   const a = claude(r);
   ok(a.start(), "SessionStart");
   rmSync(at(r, ".pregate/preset.json"));
   rmSync(at(r, ".pregate/pregate.lock.json"));
-  const stale = halted(a.write(INVOICE_REL, SETTER_FIXED));
-  expect(stale.reason).toStartWith("PREGATE DENY lock-stale");
-  expect(stale.notice).toContain("pregate preset diagnose --json");
+  noted(a.write(INVOICE_REL, SETTER_FIXED), "lock-stale");
   rmSync(at(r, ".pregate"), { recursive: true });
-  expect(halted(a.write(INVOICE_REL, SETTER_FIXED)).reason).toStartWith("PREGATE DENY lock-stale");
+  silent(a.write(INVOICE_REL, SETTER_FIXED));
 });
 
-test("a lock compiled against another builtin catalog of the same core version is stale until preset compile (O41)", () => {
+test("a lock compiled against another builtin catalog of the same core version is judged from the preset; CI reports it until preset compile (O41)", () => {
   const r = repo({ ".": "backend-clean-ddd" });
   // What a build of 0.1.0 before O34 and O41 left: EVA-SCOPE-001 without `extensions`, no coreHash.
-  // Placement would throw on it (exit 1, "the engine failed"); the engine must call it stale instead.
+  // Placement would throw on it (exit 1, "the engine failed"); the engine must judge the preset instead.
   const lock = JSON.parse(read(r, ".pregate/pregate.lock.json")) as { coreHash?: string; rules: { params: Record<string, unknown> }[] };
   delete lock.coreHash;
   for (const rule of lock.rules) delete rule.params.extensions;
   put(r, ".pregate/pregate.lock.json", `${JSON.stringify(lock, null, 2)}\n`);
   const a = claude(r);
   ok(a.start(), "SessionStart");
-  const stale = halted(a.write("src/domain/pricing.py", "PRICE = 1\n"));
-  expect(stale.reason).toStartWith("PREGATE DENY lock-stale");
-  expect(stale.notice).toContain("pregate preset diagnose --json");
+  expect(denied(a.write("src/domain/pricing.py", "PRICE = 1\n"))).toContain("core/EVA-SCOPE-001");
   expect(cli(r, "check", "--ratchet", "--base", "HEAD").stdout).toContain("pregate.lock.json does not match the preset and its sources");
   ok(cli(r, "preset", "compile"), "preset compile");
   expect(denied(a.write("src/domain/pricing.py", "PRICE = 1\n"))).toContain("core/EVA-SCOPE-001");
@@ -1027,35 +1079,42 @@ function withLocalRule({ regex, content }: { regex: string; content: string }): 
   return made;
 }
 
-test("regex-limit: a regex that gives up denies and stops the turn, well before the watchdog", () => {
+test("regex-limit: a regex that gives up lets the edit through with a note, well before the watchdog", () => {
   const { r, payload } = withLocalRule(GIVES_UP);
   const o = run(["sh", LAUNCHER, ...PRE], r.dir, r.env, payload);
-  const { reason, notice } = halted(o);
-  expect(reason).toStartWith("PREGATE DENY regex-limit src/domain/names.ts:1: ");
-  expect(notice).toStartWith("PREGATE cannot evaluate at src/domain/names.ts: a rule regex hit its backtracking limit");
+  expect(noted(o, "regex-limit")).toStartWith("PREGATE NOTE regex-limit src/domain/names.ts");
   expect(o.ms).toBeLessThan(1_900);
 });
 
 for (const shell of ["sh", "bash", "dash"]) {
-  test(`watchdog (${shell}): a hung engine is cut at 5 s and the call is denied`, () => {
+  test(`watchdog (${shell}): a hung engine is cut at 5 s and the call passes with a note`, () => {
     const { r, payload } = withLocalRule(HANGS);
     const o = run([shell, LAUNCHER, ...PRE], r.dir, r.env, payload);
-    const reason = failedPre(o);
-    expect(reason).toBe("PREGATE could not evaluate: the engine timed out after 5 s; last engine checkpoint: rules; executing rule: local/LOCAL-A-001; report it to the user");
+    expect(passedUnchecked(o)).toBe("PREGATE NOTE engine-failure: the engine timed out after 5 s; last engine checkpoint: rules; executing rule: local/LOCAL-A-001. This call was not checked. Not blocked.");
     expect(o.ms).toBeGreaterThan(4_900);
     expect(o.ms).toBeLessThan(7_000);
   });
 }
 
-test("watchdog: SIGKILL to the engine and the launcher denies at once", async () => {
+test("watchdog: SIGKILL to the engine and the launcher answers at once: a note, or a deny where uncertainty is closed", async () => {
   const { r, payload } = withLocalRule(HANGS);
   const pidFile = join(TMP, "engine.pid");
   renameSync(ENGINE, `${ENGINE}.held`);
   writeFileSync(ENGINE, `#!/bin/sh\nprintf '%s' "$$" > '${pidFile}'\nexec '${ENGINE}.held' "$@"\n`, { mode: 0o755 });
-  await killedEngineDenial(r, payload, pidFile);
+  try {
+    const killed = String.raw`the engine failed \(exit 137\)(; last engine checkpoint: [a-z0-9-]+(?:; executing rule: local\/LOCAL-A-001)?)?`;
+    expect(passedUnchecked(await killedEngine(r, payload, pidFile))).toMatch(new RegExp(`^PREGATE NOTE engine-failure: ${killed}\\. This call was not checked\\. Not blocked\\.$`));
+    // This is the last test on this repository: the opt-in stays in its preset.
+    closed(r);
+    expect(failedPre(await killedEngine(r, payload, pidFile))).toMatch(new RegExp(`^PREGATE could not evaluate: ${killed}; report it to the user$`));
+  } finally {
+    rmSync(ENGINE);
+    renameSync(`${ENGINE}.held`, ENGINE);
+  }
 });
 
-async function killedEngineDenial(r: Repo, payload: string, pidFile: string): Promise<void> {
+// The launcher's answer when its engine is killed while it hangs in a rule.
+async function killedEngine(r: Repo, payload: string, pidFile: string): Promise<Out> {
   try {
     const t = performance.now();
     const p = Bun.spawn(["sh", LAUNCHER, ...PRE], { cwd: r.dir, env: r.env, stdin: new TextEncoder().encode(payload), stdout: "pipe", stderr: "pipe" });
@@ -1067,12 +1126,10 @@ async function killedEngineDenial(r: Repo, payload: string, pidFile: string): Pr
     expect(engine).toMatch(/^\d+$/);
     process.kill(Number(engine), "SIGKILL");
     const [stdout, stderr, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
-    const reason = failedPre({ code, stdout, stderr, ms: 0 });
-    expect(reason).toMatch(/^PREGATE could not evaluate: the engine failed \(exit 137\)(; last engine checkpoint: [a-z0-9-]+(?:; executing rule: local\/LOCAL-A-001)?)?; report it to the user$/);
-    expect(performance.now() - t).toBeLessThan(1_900);
+    const ms = performance.now() - t;
+    expect(ms).toBeLessThan(1_900);
+    return { code, stdout, stderr, ms };
   } finally {
-    rmSync(ENGINE);
-    renameSync(`${ENGINE}.held`, ENGINE);
     rmSync(pidFile, { force: true });
   }
 }

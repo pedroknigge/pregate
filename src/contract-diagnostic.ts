@@ -9,8 +9,8 @@ import { canonical, findRoot, readTree } from "./disk.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { catFileBatch, gitFailure, indexFiles, unmerged } from "./git.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, isCause, json, launcher, LOCK, type Outcome, PRESET, readText, told, updateReady, VERSIONS, within } from "./admission.ts";
-import { librarySource } from "./library.ts";
-import { cachedSourcesMatch, loadCompiledLock, storeCompiledLock } from "./lock-cache.ts";
+import { librarySource, librarySources } from "./library.ts";
+import { cachedSourcesMatch, loadCompiledLock, loadCompiledPreset, storeCompiledLock } from "./lock-cache.ts";
 import { briefing, formText, notice, violationMessage } from "./message.ts";
 import { cachedPack } from "./packs.ts";
 import { inScope, machineGlobs, pathKey, protectedGlobs, slash } from "./paths.ts";
@@ -41,14 +41,9 @@ export function evaluationProgress() {
 
 // MH-19: the engine that must answer this call instead of this one, from the root of what the call
 // targets: each file, the cwd, or the directories of a refused envelope. main exits REDIRECT with it.
-export function redirect(e: HookEvent | Rejected): string | null {
-  if (!("cause" in e) && e.kind === "post-invocation") return null;
-  if (!("cause" in e) && e.kind === "pre-command" && (batchApproval(e.command.command, launcher()) !== null
-    || recoveryCommand(e.command.command, e.command.cwd, launcher(), engineHome()))) return null;
-  const dirs = "cause" in e ? e.dirs
-    : e.kind === "pre-edit" ? e.changes.map((c) => dirname(c.path))
-    : e.kind === "pre-command" ? [e.command.cwd] : [e.cwd];
-  return dirs.reduce<string | null>((v, dir) => v ?? (findRoot(canonical(dir), enabled) === null ? null : pinned(dir)), null);
+export function redirect(_e: HookEvent | Rejected): string | null {
+  // Any engine reads any lock (lockOf rebuilds it from the preset), so no call is handed to another one.
+  return null;
 }
 
 // MH-19, MH-20: the engine that the lock of the root at or above `dir` pins, when it is another one
@@ -63,12 +58,9 @@ export function pinned(dir: string): string | null {
 // MH-19 for the CLI (`check`, `explain`, `preset show`): the engine the lock pins answers instead,
 // with the same arguments and stdio; the caller asks before reading stdin. null: this engine answers.
 // `data` is <DATA>, whose engines are installed by version.
-export function delegate(dir: string, argv: string[], data = engineHome()): { code: number; text: string } | null {
-  const v = pinned(dir);
-  if (v === null) return null;
-  const engine = join(data, v, ENGINE_FILE);
-  if (!runnable(engine)) return { code: 1, text: `PREGATE: this repo's lock pins engine ${v}, which is not installed: run \`pregate update --engine ${v}\`.` };
-  return { code: Bun.spawnSync([engine, ...argv], { stdio: ["inherit", "inherit", "inherit"] }).exitCode ?? 1, text: "" };
+export function delegate(_dir: string, _argv: string[], _data = engineHome()): { code: number; text: string } | null {
+  // Any engine reads any lock (lockOf rebuilds it from the preset): this engine always answers.
+  return null;
 }
 
 // MH-06: a call its adapter refused denies through the event's channel when it may reach a root:
@@ -206,20 +198,45 @@ export function lockOf(root: string): Loaded | Cause {
   finishContract(root);
   const text = readText(join(root, LOCK));
   const preset = readText(join(root, PRESET));
-  const lock = text === null ? undefined : json(text);
-  if (preset === null || text === null || typeof lock !== "object" || lock === null) return "lock-stale";
-  const engine = (lock as Lock).engine;
-  // MH-20: no other engine judges a pin below the floor (pinned): the lock must be recompiled.
-  if (engine !== VERSIONS.engine && (typeof engine !== "string" || belowFloor(engine))) return "lock-stale";
-  if (engine !== VERSIONS.engine || (lock as Lock).core !== VERSIONS.core) return "version-mismatch";
-  // Reuse the compiled lock only when its stored text is the normalized lock file and the key
-  // still names this lock, preset, rules/packs and build. Corruption misses and recompiles.
-  const cached = loadCompiledLock(root, preset, text);
+  if (preset === null) return "lock-stale";
+  // The preset is the contract. A lock file that matches it is admitted as written. A lock another
+  // engine version wrote, one behind the preset, or a missing one is rebuilt in memory from the
+  // preset, so a pull, a branch switch, or an engine update never stops a call.
+  const cached = text === null ? null : loadCompiledLock(root, preset, text);
   if (cached !== null) return cached;
-  const result = compile(preset, sourcesOf(root), VERSIONS);
-  if ("errors" in result || result.text !== text.replaceAll("\r\n", "\n")) return "lock-stale";
+  const rebuilt = loadCompiledPreset(root, preset);
+  if (rebuilt !== null) return rebuilt;
+  const result = compileHere(preset, sourcesOf(root));
+  if ("errors" in result) return otherEngine(text) ? "version-mismatch" : "lock-stale";
   storeCompiledLock(root, preset, result.text);
-  return { lock: result.lock, hash: state.sha256(text) };
+  const same = text !== null && result.text === text.replaceAll("\r\n", "\n");
+  return { lock: result.lock, hash: state.sha256(same ? text : result.text) };
+}
+
+// Compile the preset as this engine reads it. A preset written for another engine version names that
+// engine, its core and its bundled pack versions; those pins are moved to what this engine carries
+// and the preset is compiled again, so any engine can judge any project. `rebased` says that
+// happened: the result is this engine's reading, not the bytes a lock file would hold.
+export function compileHere(presetText: string, filesOf: Parameters<typeof compile>[1]): ReturnType<typeof compile> & { rebased?: boolean } {
+  const exact = compile(presetText, filesOf, VERSIONS);
+  if (!("errors" in exact)) return exact;
+  const preset = json(presetText) as Preset | undefined;
+  if (typeof preset !== "object" || preset === null || !Array.isArray(preset.sources)) return exact;
+  const bundled = new Map(librarySources().map((source) => [source.ns, source.version]));
+  const moved = { ...preset, engine: VERSIONS.engine, sources: preset.sources.map((source) =>
+    source.kind === "builtin" ? { ...source, version: VERSIONS.core }
+      : source.kind === "library" && bundled.has(source.ns) ? { ...source, version: bundled.get(source.ns)! } : source) };
+  const text = JSON.stringify(moved, null, 2) + "\n";
+  if (text === presetText) return exact;
+  const again = compile(text, filesOf, VERSIONS);
+  return "errors" in again ? exact : { ...again, rebased: true };
+}
+
+// The lock file names an engine or core other than this one: a preset this engine cannot compile
+// is then a version gap, not a broken contract.
+function otherEngine(text: string | null): boolean {
+  const lock = text === null ? undefined : json(text) as { engine?: unknown; core?: unknown } | undefined;
+  return typeof lock === "object" && lock !== null && (lock.engine !== VERSIONS.engine || lock.core !== VERSIONS.core);
 }
 
 // What compile reads for each source of the preset at `root`, from the working tree.
@@ -273,7 +290,8 @@ function checkout(dir: string): string | null {
 export function locatedForm(sid: string, cause: Cause, dir: string): Form {
   const nearest = findRoot(dir, enabled);
   if (cause === "lock-stale" && nearest !== null && !accepted(sid)(nearest)) {
-    return { cause, line: null, detail: `${nearest} has its own PREGATE contract, which this session did not open: its preset appeared after the session started and is not committed at HEAD. Commit ${nearest}/.pregate/preset.json with its lock, or start a new agent session in ${nearest}.` };
+    return { cause, line: null, detail: `${nearest} has its own PREGATE contract, which this session did not open: its preset appeared after the session started and is not committed at HEAD. Commit ${nearest}/.pregate/preset.json with its lock, or start a new agent session in ${nearest}.`,
+      said: `${nearest} has its own PREGATE contract, which this session did not open, so this call was not checked. Start a new agent session in ${nearest}, or commit its .pregate folder.` };
   }
   return form(cause, nearest ?? state.roots(sid).find((r) => enabled(r) && within(r, dir)));
 }
@@ -340,9 +358,12 @@ export function recompiled(root: string, staged: boolean): Loaded | { errors: st
   const [presetText, lockText] = texts;
   if (presetText === null || presetText === undefined) return { errors: [`PREGATE: ${PRESET} is missing${staged ? " from the index" : ""}.`] };
   const filesOf = staged ? (s: Preset["sources"][number]) => (s.kind === "builtin" ? BUILTIN : s.kind === "git" ? cachedPack(s) : s.kind === "library" ? librarySource(s.ns) : indexFiles(root, s.path)) : sourcesOf(root);
-  const r = compile(presetText, filesOf, VERSIONS);
+  const r = compileHere(presetText, filesOf);
   if ("errors" in r) return r;
-  if (r.text !== lockText?.replaceAll("\r\n", "\n")) return { errors: [`PREGATE: ${LOCK} does not match the preset and its sources. Run \`pregate preset compile\` and commit the lock.`] };
+  // The byte comparison is CI's, and only for a lock this engine version wrote: a commit is not
+  // refused for a lock that is behind, and a lock another version wrote is judged from the preset.
+  const stale = r.text !== lockText?.replaceAll("\r\n", "\n");
+  if (stale && !staged && !r.rebased && !otherEngine(lockText ?? null)) return { errors: [`PREGATE: ${LOCK} does not match the preset and its sources. Run \`pregate preset compile\` and commit the lock.`] };
   return { lock: r.lock, hash: state.sha256(r.text) };
 }
 
@@ -352,8 +373,11 @@ export function settle(call: Call, o: Outcome): Decision {
   // Counters only shape a denial; an allowed call skips reading the session's history.
   const bare = inputOf(call, o);
   const allowed = decide(bare);
-  const input = allowed.verdict === "none" ? bare : counted(call, bare);
-  const d = diagnosticNotice(allowed.verdict === "none" ? allowed : decide(input), input);
+  // An allowed call with something to say reads the history too, so a note or an advisory this
+  // agent already got on this file is not repeated.
+  const silent = allowed.verdict === "none" && allowed.full === "" && allowed.notice === null;
+  const input = silent ? bare : counted(call, bare);
+  const d = diagnosticNotice(silent ? allowed : decide(input), input);
   const kept = d.verdict !== "none" || d.shadowed ? o.after : null;
   const disputed = d.verdict === "deny" && d.cause === null && kept !== null && o.lock !== null;
   const failed = state.record(state.key(call.session), {

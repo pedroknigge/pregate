@@ -390,17 +390,27 @@ describe("encode", () => {
   test("SessionStart: the briefing is plain text for the plugin's instruction entry", () => {
     expect(enc("session-start", { ...decide(input({})), full: "PREGATE is active: …", notice: null }))
       .toEqual({ stdout: "PREGATE is active: …", stderr: "", exit: 0 });
-    expect(enc("session-start", rejected({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [] }))).toEqual(QUIET);
+    // A rejected SessionStart is a note on the same plain-text channel; it never blocks.
+    const failed = rejected({ cause: BAD, kind: "session-start", reentry: false, session: null, dirs: [] });
+    expect(failed.full).toContain(`PREGATE NOTE ${BAD}`);
+    expect(enc("session-start", failed)).toEqual({ stdout: failed.full, stderr: "", exit: 0 });
   });
 
-  test("a rejected call denies through its event's channel", () => {
-    const pre = enc("pre-edit", rejected({ cause: BAD, kind: "pre-edit", reentry: false, session: null, dirs: [] }));
-    expect(pre.exit).toBe(2);
-    expect(pre.stderr).toContain("payload-unrecognized");
-    const patch = enc("pre-edit", rejected(decode("pre", "{", ENV) as Rejected));
-    expect(patch).toMatchObject({ stdout: "", exit: 2 });
-    expect(patch.stderr).not.toBe("");
-    expect(enc("stop", rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] }))).toMatchObject({ stderr: "", exit: 0 });
+  test("a rejected call passes with a note on stdout; a control cause denies through its event's channel", () => {
+    const d = rejected({ cause: BAD, kind: "pre-edit", reentry: false, session: null, dirs: [] });
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: BAD });
+    expect(d.full).toContain("PREGATE NOTE payload-unrecognized");
+    expect(d.full).toContain("Not blocked.");
+    expect(enc("pre-edit", d)).toEqual({ stdout: d.full, stderr: "", exit: 0 });
+    const patch = rejected(decode("pre", "{", ENV) as Rejected);
+    expect(enc("pre-edit", patch)).toEqual({ stdout: patch.full, stderr: "", exit: 0 });
+    expect(patch.full).toContain("Not blocked.");
+    expect(enc("stop", rejected({ cause: BAD, kind: "stop", reentry: false, session: null, dirs: [] }))).toEqual(QUIET);
+    const guarded = rejected({ cause: "protected-path", kind: "pre-edit", reentry: false, session: null, dirs: [] });
+    expect(enc("pre-edit", guarded)).toEqual({ stdout: "", stderr: guarded.full, exit: 2 });
+    expect(guarded.full).toContain("PREGATE DENY protected-path");
+    const stop = rejected({ cause: "protected-path", kind: "stop", reentry: false, session: null, dirs: [] });
+    expect(JSON.parse(enc("stop", stop).stdout)).toEqual({ decision: "block", reason: stop.full });
   });
 
   // Runs last: every emission of this file.
