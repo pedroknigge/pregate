@@ -33,6 +33,7 @@ import { issue } from "./issue-command.ts";
 import { contractDiagnosis, protectionStatus, statusText } from "./status.ts";
 import { librarySource } from "./library.ts";
 import { audit, promote } from "./audit-command.ts";
+import { enableWithExclusions } from "./exclude-scan.ts";
 import { fitness } from "./fitness-command.ts";
 import { pendingRoot } from "./pending-review.ts";
 import requestSchema from "../schema/request.v1.json" with { type: "json" };
@@ -126,11 +127,16 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       const root = here();
       if (root === null) return noPreset(process.cwd());
       const place = flags.has("--project") ? `project of ${root}` : `worktree ${root}`;
+      const exclusions = cmd === "enable" ? await enableWithExclusions(root, flags.has("--yes")) : null;
+      if (exclusions !== null && "code" in exclusions) {
+        return exclusions.code === 0 ? { code: 0, text: `${exclusions.text}\n${statusText(protectionStatus(root))}` } : exclusions;
+      }
       if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"))) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
       if (cmd === "enable") enable(root);
       else if (flags.has("--project")) disableProject(root);
       else disable(root);
-      return { code: 0, text: statusText(protectionStatus(root)) };
+      const note = exclusions !== null && "note" in exclusions ? `\n${exclusions.note}` : "";
+      return { code: 0, text: `${statusText(protectionStatus(root))}${note}` };
     }
     case "check": return checkCommand(args);
     case "audit": case "promote": return cmd === "audit" ? audit(args) : promote(args);

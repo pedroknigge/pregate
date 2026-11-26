@@ -167,6 +167,10 @@ export function protects(abs: string, globs: string[]): boolean {
   return globs.some((glob) => compiledGlob(glob).match(path));
 }
 
+// The one scope decision for analysis. `check`, the pre-write gate and `audit` all skip a path
+// `scope.exclude` names, so a folder accepted from the exclusion scan is left out of every one of
+// them. Placement still denies creating or editing that path: an excluded file is not analyzed,
+// and it is not a place to hide an edit.
 export function inScope(lock: Lock | null, rel: string): boolean {
   if (lock === null) return true;
   return lock.scope.include.some((glob) => matches(glob, rel)) && !lock.scope.exclude.some((glob) => matches(glob, rel));

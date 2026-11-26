@@ -9,6 +9,7 @@ import { canonical, findRoot } from "./disk.ts";
 import { delegate, grammars, LOCK, PRESET, readText } from "./gate.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { inScope } from "./paths.ts";
+import { auditExclusionReview } from "./exclude-scan.ts";
 import { normalize } from "./reconstruct.ts";
 import { contractState } from "./status.ts";
 import { sha256 } from "./state.ts";
@@ -103,9 +104,10 @@ async function runAudit(args: string[], output: Emit): Promise<{ code: number; t
   const result = scan(root, contract.lock, incremental || fresh ? { lockHash, fresh } : null, emit);
   const fitness = projectFitness(root, contract.lock, "ci");
   result.changedDuringAudit ||= !contractState(root).valid || sha256(readFileSync(join(root, LOCK), "utf8")) !== lockHash;
+  const exclusion = auditExclusionReview(root, { layerGlobs: Object.values(contract.lock.layers).flatMap((layer) => layer.paths), excludeGlobs: contract.lock.scope.exclude });
   const report = { schemaVersion: 1, mode: "whole-tree-static-audit", root, versions: { engine: contract.lock.engine, core: contract.lock.core },
     preset: contract.lock.preset, lockHash, scope: contract.lock.scope, languages: LANGUAGE_COVERAGE, ...result, fitness, tsconfig: tsconfigNotice((rel) => readText(join(root, rel))),
-    elapsedMs: Math.round((performance.now() - start) * 10) / 10 };
+    excludeProposals: exclusion.found, excludeAccept: exclusion.accept, elapsedMs: Math.round((performance.now() - start) * 10) / 10 };
   const ranked = plan ? refactorPlan(report) : null;
   const code = auditCode(report, strict);
   if (emit !== null) {
@@ -115,7 +117,7 @@ async function runAudit(args: string[], output: Emit): Promise<{ code: number; t
   }
   if (sarif) return { code, text: sarifReport(contract.lock, report.findings, report.errors.length === 0 && !report.changedDuringAudit) };
   return { code, text: json ? JSON.stringify({ ...report, ...(ranked ? { refactorPlan: ranked } : {}) }, null, 2)
-    : auditText(report, full) + (report.tsconfig ? `\n${report.tsconfig}` : "") + (ranked ? "\n\n" + visible(refactorPlanText(ranked)) : "") + `\n${visible(exitLine(report, code, strict))}` };
+    : auditText(report, full) + (report.tsconfig ? `\n${report.tsconfig}` : "") + (ranked ? "\n\n" + visible(refactorPlanText(ranked)) : "") + exclusion.text + `\n${visible(exitLine(report, code, strict))}` };
 }
 
 // The last human line says what this run's exit code means. Exit 2 prints a full report too, and it

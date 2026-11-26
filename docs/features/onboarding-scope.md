@@ -145,6 +145,36 @@ A new project that already has `ark.config.json` imports that config in the firs
 review instead of a hand-written map.
 See [layers with evidence](agent-proposed-contract.md#layers-with-evidence).
 
+## Folders left out of analysis
+
+`pregate enable` reads the tree before it turns protection on. It proposes
+folders that usually produce false positives: `vendor/`, `third_party/`,
+`external/`, generated output (`dist/`, `build/`, `out/`, `.next/`,
+`coverage/`, `generated/`, a `*_pb` directory, and a codegen directory whose
+files carry a generated header), dependency directories (`node_modules`,
+`.venv`, `venv`, `__pycache__`, and `target/` next to `Cargo.toml`), `fixtures/`,
+`__snapshots__/`, `testdata/`, a directory of only minified bundles, a git
+submodule, and a directory named by `.gitignore`. Each line gives the glob, the
+reason, and the evidence, for example `contains 312 files with a @generated header`.
+
+The proposal is a normal contract review. Typed `y` on a terminal, or
+`pregate approve <code>`, appends those globs to `scope.exclude` and compiles
+the lock. `pregate enable --yes` accepts them only when
+`PREGATE_UNATTENDED_APPROVAL=1` is already set. `CI` alone does not. A folder
+the layer map names, including an ancestor of that folder, is not proposed.
+`.pregate/`, `.git/`, and the other protected trees are not proposed.
+
+`check`, the pre-write analysis and `audit` consult one predicate, `inScope`.
+A file under an accepted glob is not analyzed. The existing placement rules
+still deny creating a file there or editing one that is already there: leaving
+a folder out of analysis is not permission to hide an edit in it.
+
+`pregate audit` runs the same scan. It prints only candidates that are not
+already excluded, and prepares a review the harness can accept with
+`pregate approve --yes --digest <sha>`. It does not write the preset or the
+lock. `pregate enable` and `pregate disable` stay on a separate terminal, so
+audit does not ask for `pregate enable`.
+
 An informational `UNVERIFIED` Stop notice does not prevent editing. The engine
 records it once per session unless the coverage notice changes. A harness can
 display that message alongside other Stop hooks. Acknowledge the coverage gap
