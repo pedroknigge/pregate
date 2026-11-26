@@ -226,11 +226,12 @@ test("an enabled project names the path and the replacement for each block kind"
   expect(outside).toContain("src/core/");
   expect(outside).toContain(".ts");
 
-  const shell = reason(installedHook(s, "PreToolUse", {
+  const shell = installedHook(s, "PreToolUse", {
     tool_name: "Bash", tool_use_id: `toolu_fix_${++calls}`,
     tool_input: { command: "echo x > src/core/written.ts" },
-  }));
-  expect(shell).not.toContain("PREGATE DENY");
+  });
+  expect(shell.code, shell.stdout + shell.stderr).toBe(0);
+  expect(shell.stdout + shell.stderr).not.toContain("PREGATE DENY");
 
   const locked = reason(write(s, ".pregate/pregate.lock.json", "{}\n"));
   expect(locked).toContain("protected-path");

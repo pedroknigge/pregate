@@ -242,7 +242,7 @@ test("scripts that compile, apply or approve contracts and reviews are control c
   for (const [name, text] of Object.entries(scripts)) {
     put(r, name, text);
     const out = a.bash(`bash ${name}`);
-    expect(out.code, name).toBe(name === "unattended.sh" || name === "accept.sh" ? 2 : 0);
+    expect(out.code, `${name}\n${said(out)}`).toBe(name === "apply.sh" || name === "unattended.sh" || name === "accept.sh" ? 2 : 0);
   }
   put(r, "preview.sh", "#!/bin/sh\npregate preset apply .pregate/requests/x.json --preview\npregate init --preview\npregate promote --preview\n");
   silent(a.bash("bash preview.sh"));
@@ -385,7 +385,7 @@ test("a line continuation does not split a control command from its verb", () =>
   put(r, "Makefile", "off:\n\tpregate \\\n\t  disable --yes\n");
   denied(a.bash("make off"), "shell-admin");
   put(r, "var.sh", "#!/bin/sh\nverb=disable\npregate \"$verb\" --yes\n");
-  silent(a.bash("sh var.sh"));
+  denied(a.bash("sh var.sh"), "hook-switch");
 });
 
 test("padding past the first MiB does not hide a control command", () => {
