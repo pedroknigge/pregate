@@ -261,7 +261,7 @@ export const PROJECT_CODEX_HOOKS = ".codex/hooks.json";
 export const PROJECT_CURSOR_HOOKS = ".cursor/hooks.json";
 export const PROJECT_AGY_HOOKS = ".agents/hooks.json";
 const CODEX_REVIEW = "No Codex trust is recorded and the Codex home is not written. Codex runs a hook only after its own review: start Codex in this project and review the hooks with /hooks. A changed definition needs that review again. Until then, treat Codex as not gated in this project.";
-const CURSOR_REVIEW = "Cursor runs project hooks only in a trusted workspace. Its cloud agents load this file from the repository too: there the hooks deny every write until the pinned engine is cached (pregate prepare), and enforce nothing without a local consent record on that machine.";
+const CURSOR_REVIEW = "Cursor runs project hooks only in a trusted workspace. Its cloud agents load this file from the repository too: there the hooks check nothing until an engine is cached (pregate prepare) and a local consent record exists on that machine; a call is let through meanwhile.";
 const PROJECT_HOOKS: Record<string, { target: "project" | "project-codex" | "project-cursor" | "project-agy"; file: string; name: string; note: string }> = {
   "claude-code": { target: "project", file: PROJECT_SETTINGS, name: "Claude Code", note: "" },
   codex: { target: "project-codex", file: PROJECT_CODEX_HOOKS, name: "Codex", note: ` ${CODEX_REVIEW}` },

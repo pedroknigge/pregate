@@ -511,16 +511,27 @@ describe("encode", () => {
     });
   });
 
-  test("a refused call denies through the event's channel; a Stop on reentry lets the turn end", () => {
+  test("a muted cause passes and its note has no channel; a control cause denies through the event's channel", () => {
     const refusal = (r: Partial<Rejected>): Decision => rejected({ cause: BAD, kind: "pre-edit", reentry: false, session: null, dirs: [], ...r });
     const pre = refusal({});
-    expect(enc("pre-edit", pre)).toEqual(deny(pre.full));
-    expect(pre.full).toContain("payload-unrecognized");
+    expect(pre).toMatchObject({ verdict: "none", halt: false, cause: BAD });
+    expect(pre.full).toContain("PREGATE NOTE payload-unrecognized");
+    expect(pre.full).toContain("Not blocked.");
+    expect(enc("pre-edit", pre)).toEqual(NEUTRAL);
     const write = refusal({ cause: "shell-write", kind: "pre-command" });
-    expect(enc("pre-command", write)).toEqual(deny(write.full));
-    const stop = refusal({ kind: "stop" });
-    expect(JSON.parse(enc("stop", stop).stdout)).toEqual({ decision: "continue", reason: stop.full });
+    expect(write).toMatchObject({ verdict: "none", cause: "shell-write" });
+    expect(enc("pre-command", write)).toEqual(NEUTRAL);
+    // A muted cause does not hold the turn at Stop, on the first Stop or on reentry.
+    expect(enc("stop", refusal({ kind: "stop" }))).toEqual(NEUTRAL);
     expect(enc("stop", refusal({ kind: "stop", reentry: true }))).toEqual(NEUTRAL);
+    const guarded = refusal({ cause: "protected-path" });
+    expect(guarded.verdict).toBe("deny");
+    expect(enc("pre-edit", guarded)).toEqual(deny(guarded.full));
+    expect(guarded.full).toContain("PREGATE DENY protected-path");
+    const admin = refusal({ cause: "shell-admin", kind: "pre-command" });
+    expect(enc("pre-command", admin)).toEqual(deny(admin.full));
+    const stop = refusal({ cause: "protected-path", kind: "stop" });
+    expect(JSON.parse(enc("stop", stop).stdout)).toEqual({ decision: "continue", reason: stop.full });
   });
 
   // Runs last: every emission of this file. An empty stdout lets the write through, so every

@@ -153,6 +153,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.11.md](releases/0.0.11.md) | Product/reference |
 | [releases/0.0.12.md](releases/0.0.12.md) | Product/reference |
 | [releases/0.0.13.md](releases/0.0.13.md) | Product/reference |
+| [releases/0.0.14.md](releases/0.0.14.md) | Product/reference |
 | [releases/0.0.3-windows-report-2026-11-03.md](releases/0.0.3-windows-report-2026-11-03.md) | Product/reference |
 | [releases/0.0.3.md](releases/0.0.3.md) | Product/reference |
 | [releases/0.0.4.md](releases/0.0.4.md) | Product/reference |

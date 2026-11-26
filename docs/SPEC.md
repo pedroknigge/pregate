@@ -1,6 +1,8 @@
 # PREGATE: The Last Tool For AI
 ### Product and technical specification, v2.1 (2026-10-01)
 
+> **Note, as of 0.0.14.** A local hook blocks only on a rule the project set to enforce and on the control causes (`protected-path`, `request-invalid`, `shell-admin`, `hook-switch`, `approval`). Every other cause is a one-line note and the call goes through. An engine crash or a timeout also lets the call through unless the preset sets `"uncertainty": "closed"`. See [what blocks locally](guarantees.md#what-blocks-locally). Sections below that describe fail-closed admission in a hook, the redirect to a pinned engine (MH-19, MH-20), and Stop comparing the session-start contract with the current one describe the earlier design. `pregate check` in CI is still strict.
+
 **Design history, with later implementation notes.** Current behavior and options
 are documented in [the command reference](CLI.md), [pack inventory](packs.md),
 [feature guides](README.md) and [v0.0.1 release notes](releases/0.0.1.md). The original absolute

@@ -56,7 +56,10 @@ function ev(change: Partial<CallEvent>): CallEvent {
 
 const denied = (rules: string[], astHash: string | null = null): CallEvent =>
   ev({ violations: rules.map((r, k) => v(r, 10 + k)), ...(astHash === null ? {} : { astHash }) });
-const formDenied = (form: Cause = "syntax"): CallEvent => ev({ form, astHash: null });
+const formDenied = (form: Cause = "protected-path"): CallEvent => ev({ form, astHash: null });
+// A cause a hook does not block on is recorded with the call it let through.
+const noted = (form: Cause): CallEvent => ev({ verdict: "none", form, shadowed: true, astHash: null });
+const NOTE = (cause: Cause, at = ` ${FILE.replaceAll("/", "\\/").replaceAll(".", "\\.")}`): RegExp => new RegExp(`^PREGATE NOTE ${cause}${at}: .* Not blocked\\.$`);
 
 function input(change: Partial<DecideInput>): DecideInput {
   return {
@@ -106,8 +109,10 @@ const CASES: [string, DecideInput, Expect][] = [
     { verdict: "deny", halt: false }],
   ["turn cap exceeded: deny + halt, severity never relaxed", input({ introduced: [v("core/CC-FN-001", 42)], turnDenials: 15 }),
     { verdict: "deny", halt: true, notice: /denial limit for this turn/ }],
-  ["turn cap counts for form denies", input({ form: { cause: "syntax", line: 7 }, turnDenials: 15 }),
-    { verdict: "deny", halt: true, cause: "syntax", notice: /denial limit/ }],
+  ["turn cap counts for control-cause denies", input({ form: { cause: "protected-path", line: null }, turnDenials: 15 }),
+    { verdict: "deny", halt: true, cause: "protected-path", notice: /denial limit/ }],
+  ["a file that does not parse at the turn cap is warned, not denied", input({ form: { cause: "syntax", line: 7 }, turnDenials: 15 }),
+    { verdict: "none", halt: false, cause: "syntax", notice: null, full: /^PREGATE WARN syntax / }],
   ["subagent has its own budget", input({
     session: { id: "s1", harness: "claude-code", agentId: "a0000000000000001", turnId: "turn-1", interactive: false },
     introduced: [v("core/CC-FN-001", 42)], history: [denied(["core/CC-FN-001"]), denied(["core/CC-FN-001"])],
@@ -117,15 +122,21 @@ const CASES: [string, DecideInput, Expect][] = [
     introduced: [v("core/CC-FN-001", 42)],
     history: [{ ...denied(["core/CC-FN-001"]), agentId: "a1" }, { ...denied(["core/CC-FN-001"]), agentId: "a1" }],
   }), { verdict: "deny", halt: true, attempt: 3 }],
-  ["one form deny", input({ form: { cause: "syntax", line: 7 } }),
-    { verdict: "deny", halt: false, cause: "syntax", attempt: 1, violations: 0, notice: null }],
-  ["three form denies in a row halt", input({ form: { cause: "tool-will-fail", line: null }, history: [formDenied(), formDenied()] }),
-    { verdict: "deny", halt: true, attempt: 3, notice: /three consecutive edits[\s\S]*text to replace/, full: /Do not retry: tell the user the cause/ }],
+  ["a file that does not parse is warned, not denied", input({ form: { cause: "syntax", line: 7 } }),
+    { verdict: "none", halt: false, cause: "syntax", attempt: 0, violations: 0, notice: null, full: /^PREGATE WARN syntax src\/billing\/invoice\.ts:7: / }],
+  ["an edit that cannot apply is a note, also after two control-cause denies", input({ form: { cause: "tool-will-fail", line: null }, history: [formDenied(), formDenied()] }),
+    { verdict: "none", halt: false, cause: "tool-will-fail", attempt: 0, notice: null, full: NOTE("tool-will-fail") }],
+  ["a cause already told to this agent for this file is not said again", input({ form: { cause: "syntax", line: 7 }, history: [noted("syntax")] }),
+    { verdict: "none", halt: false, cause: "syntax", notice: null, full: /^$/ }],
+  ["a cause told to another agent is still said to this one", input({ form: { cause: "syntax", line: 7 }, history: [{ ...noted("syntax"), agentId: "a1" }] }),
+    { verdict: "none", halt: false, cause: "syntax", full: /^PREGATE WARN syntax / }],
+  ["three control-cause denies in a row halt", input({ form: { cause: "protected-path", line: null }, history: [formDenied(), formDenied()] }),
+    { verdict: "deny", halt: true, cause: "protected-path", attempt: 3, notice: /three consecutive edits/, full: /Do not retry: tell the user the cause/ }],
   ["a rule deny breaks the form run", input({
-    form: { cause: "syntax", line: 7 }, history: [formDenied(), denied(["core/CC-FN-001"]), formDenied()],
+    form: { cause: "protected-path", line: null }, history: [formDenied(), denied(["core/CC-FN-001"]), formDenied()],
   }), { verdict: "deny", halt: false, attempt: 2 }],
-  ["human cause: deny + halt + notice, without a lock", input({ lock: null, form: { cause: "lock-stale", line: null } }),
-    { verdict: "deny", halt: true, cause: "lock-stale", notice: /pregate preset diagnose --json[\s\S]*pregate update --project --preview/ }],
+  ["a stale lock is a note, not a halt, without a lock", input({ lock: null, form: { cause: "lock-stale", line: null } }),
+    { verdict: "none", halt: false, cause: "lock-stale", violations: 0, notice: null, full: NOTE("lock-stale") }],
   ["protected path without a lock is a form deny", input({ lock: null, form: { cause: "protected-path", line: null } }),
     { verdict: "deny", halt: false, cause: "protected-path", notice: null }],
   ["ask when interactive, allowed and not protected", input({ introduced: [v("core/TDD-DEL-001", 12)] }),
@@ -153,20 +164,34 @@ const CASES: [string, DecideInput, Expect][] = [
   }), { verdict: "none", halt: false, cause: "syntax" }],
   ["shadow keeps protected paths", input({ lock: lock({ enforcement: "shadow" }), form: { cause: "protected-path", line: null } }),
     { verdict: "deny", cause: "protected-path" }],
-  ["shadow keeps shell writes: the target may be protected", input({
+  ["a shell write is a note in enforce", input({ event: "pre-command", path: null, form: { cause: "shell-write", line: null } }),
+    { verdict: "none", halt: false, cause: "shell-write", notice: null, full: NOTE("shell-write", "") }],
+  ["shadow records a shell write and says nothing", input({
     lock: lock({ enforcement: "shadow" }), event: "pre-command", path: null, form: { cause: "shell-write", line: null },
-  }), { verdict: "deny", cause: "shell-write" }],
-  ["shadow keeps unresolvable imports: integrity cannot be evaluated", input({
+  }), { verdict: "none", halt: false, cause: "shell-write", notice: null, full: /^$/ }],
+  ["shadow records an unresolvable import and says nothing", input({
     lock: lock({ enforcement: "shadow" }), form: { cause: "unresolvable-import", line: 2 },
-  }), { verdict: "deny", cause: "unresolvable-import" }],
+  }), { verdict: "none", halt: false, cause: "unresolvable-import", notice: null, full: /^$/ }],
   ["shadow keeps shell admin commands", input({
     lock: lock({ enforcement: "shadow" }), event: "pre-command", path: null, form: { cause: "shell-admin", line: null },
   }), { verdict: "deny", cause: "shell-admin" }],
-  ["shadow keeps human causes", input({ lock: lock({ enforcement: "shadow" }), form: { cause: "state-io", line: null } }),
-    { verdict: "deny", halt: true, cause: "state-io" }],
-  ["a regex that gave up is a human cause, in shadow too: its no match is not an allow (O27)", input({
+  ["shadow keeps invalid requests", input({ lock: lock({ enforcement: "shadow" }), form: { cause: "request-invalid", line: null } }),
+    { verdict: "deny", cause: "request-invalid" }],
+  ["shadow keeps hook switches", input({
+    lock: lock({ enforcement: "shadow" }), event: "pre-command", path: null, form: { cause: "hook-switch", line: null },
+  }), { verdict: "deny", cause: "hook-switch" }],
+  ["shadow keeps self-approval", input({
+    lock: lock({ enforcement: "shadow" }), event: "pre-command", path: null, form: { cause: "approval", line: null },
+  }), { verdict: "deny", cause: "approval" }],
+  ["a state failure is a note, not a halt", input({ form: { cause: "state-io", line: null } }),
+    { verdict: "none", halt: false, cause: "state-io", notice: null, full: NOTE("state-io") }],
+  ["shadow records a state failure and says nothing", input({ lock: lock({ enforcement: "shadow" }), form: { cause: "state-io", line: null } }),
+    { verdict: "none", halt: false, cause: "state-io", notice: null, full: /^$/ }],
+  ["a regex that gave up is a note: that rule was not checked (O27)", input({ form: { cause: "regex-limit", line: 3 } }),
+    { verdict: "none", halt: false, cause: "regex-limit", notice: null, full: /^PREGATE NOTE regex-limit src\/billing\/invoice\.ts:3: .*that rule was not checked\. Not blocked\.$/ }],
+  ["shadow records a regex that gave up and says nothing", input({
     lock: lock({ enforcement: "shadow" }), form: { cause: "regex-limit", line: 3 },
-  }), { verdict: "deny", halt: true, cause: "regex-limit", notice: /repeated groups/, full: /Only the user can fix this/ }],
+  }), { verdict: "none", halt: false, cause: "regex-limit", notice: null, full: /^$/ }],
   ["stop with nothing pending", input({ event: "stop", path: null, stop: { blocks: 0, reentry: false, approved: [] } }),
     { verdict: "none", notice: null }],
   ["stop blocks on introduced violations", input({
@@ -182,15 +207,21 @@ const CASES: [string, DecideInput, Expect][] = [
     event: "stop", path: null, introduced: [v("core/CC-FN-001", 42)],
     stop: { blocks: 2, reentry: true, approved: [v("core/TDD-DEL-001", 12)] },
   }), { verdict: "none", notice: /Stop limit[\s\S]*core\/CC-FN-001[\s\S]*you approved[\s\S]*core\/TDD-DEL-001/ }],
-  ["stop blocks an agent form cause", input({
+  ["stop blocks a control cause", input({
+    event: "stop", path: FILE, form: { cause: "protected-path", line: null }, stop: { blocks: 0, reentry: false, approved: [] },
+  }), { verdict: "deny", halt: false, cause: "protected-path", attempt: 1 }],
+  ["stop does not block a file that does not parse", input({
     event: "stop", path: FILE, form: { cause: "syntax", line: 9 }, stop: { blocks: 0, reentry: false, approved: [] },
-  }), { verdict: "deny", cause: "syntax" }],
-  ["stop blocks a human cause once", input({
+  }), { verdict: "none", halt: false, cause: "syntax", notice: null, full: /^PREGATE WARN syntax src\/billing\/invoice\.ts:9: / }],
+  ["stop does not block a directory that is not a repository and tells the human", input({
     event: "stop", path: null, lock: null, form: { cause: "git-not-repository", line: null }, stop: { blocks: 0, reentry: false, approved: [] },
-  }), { verdict: "deny", halt: false, cause: "git-not-repository", notice: /git init/ }],
-  ["stop does not block a human cause on reentry", input({
+  }), { verdict: "none", halt: false, cause: "git-not-repository", notice: NOTE("git-not-repository", ""), full: NOTE("git-not-repository", "") }],
+  ["stop on reentry does not block a directory that is not a repository either", input({
     event: "stop", path: null, lock: null, form: { cause: "git-not-repository", line: null }, stop: { blocks: 1, reentry: true, approved: [] },
-  }), { verdict: "none", cause: null, notice: /cannot evaluate/ }],
+  }), { verdict: "none", halt: false, cause: "git-not-repository", notice: NOTE("git-not-repository", "") }],
+  ["stop in shadow says nothing to the human about a state failure", input({
+    event: "stop", path: null, lock: lock({ enforcement: "shadow" }), form: { cause: "state-io", line: null }, stop: { blocks: 0, reentry: false, approved: [] },
+  }), { verdict: "none", halt: false, cause: "state-io", notice: null, full: /^$/ }],
   ["stop reports approved asks to the human", input({
     event: "stop", path: null, stop: { blocks: 0, reentry: false, approved: [v("core/TDD-DEL-001", 12)] },
   }), { verdict: "none", notice: /you approved[\s\S]*core\/TDD-DEL-001/ }],
@@ -263,11 +294,19 @@ describe("decide: invariants over every case", () => {
     expect(capped.stopIncomplete).toEqual({ reason: "limit", cause: null });
     expect(capped.notice).toContain("pregate report --json");
     expect(capped.notice).toContain("pregate check --all");
+    const control = decide(input({ event: "stop", form: { cause: "protected-path", line: null }, stop }));
+    expect(control.verdict).toBe("none");
+    expect(control.stopIncomplete).toEqual({ reason: "limit", cause: "protected-path" });
+    // A cause Stop does not block on never makes the Stop incomplete: nothing was pending on it.
     const syntax = decide(input({ event: "stop", form: { cause: "syntax", line: 7 }, stop }));
-    expect(syntax.stopIncomplete).toEqual({ reason: "limit", cause: "syntax" });
+    expect(syntax).toMatchObject({ verdict: "none", cause: "syntax" });
+    expect(syntax.stopIncomplete).toBeUndefined();
     const human = decide(input({ event: "stop", lock: null, form: { cause: "state-io", line: null },
       stop: { ...stop, blocks: 1 } }));
-    expect(human.stopIncomplete).toEqual({ reason: "human-cause", cause: "state-io" });
+    expect(human).toMatchObject({ verdict: "none", cause: "state-io" });
+    expect(human.stopIncomplete).toBeUndefined();
+    expect(human.notice).toStartWith("PREGATE NOTE state-io");
+    expect(human.notice).toEndWith("Not blocked.");
     for (const introduced of [[], [v("core/CC-ER-002", 1)]]) {
       expect(decide(input({ event: "stop", introduced, stop })).stopIncomplete).toBeUndefined();
     }
@@ -332,7 +371,7 @@ describe("blocking: the enforcement check shares with decide", () => {
   }
 });
 
-test("mixed enforcement keeps syntax failures only for the applicable static policy and phase", () => {
+test("mixed enforcement keeps syntax failures for check only for the applicable static policy and phase, and a hook never blocks on them", () => {
   const policy: LockRule = { ...rule("python/PY-LAYER-001", "python/imports/layers@1.0.0", "deny", false),
     impl: { kind: "primitive", primitive: "layer-edge" }, languages: ["python"], enforcement: "enforce",
     params: { paths: ["src/**"], exclude: ["src/ignored/**"], within: ["src/domain/**"] } };
@@ -353,12 +392,15 @@ test("mixed enforcement keeps syntax failures only for the applicable static pol
   expect(blocking(contract, [], "syntax", { rel: null, phase: "pre" }).cause).toBeNull();
   const form = { cause: "syntax" as const, line: 1 };
   for (const event of ["pre-edit", "stop"] as const) {
-    expect(decide(input({ lock: contract, path: "src/domain/price.py", event, form })).verdict).toBe("deny");
-    expect(decide(input({ lock: contract, path: "src/infra/store.py", event, form })).verdict).toBe("none");
+    for (const path of ["src/domain/price.py", "src/infra/store.py"]) {
+      expect(decide(input({ lock: contract, path, event, form }))).toMatchObject({ verdict: "none", halt: false, cause: "syntax", shadowed: true, full: "" });
+    }
+    expect(decide(input({ lock: { ...contract, enforcement: "advisor" }, path: "src/domain/price.py", event, form })))
+      .toMatchObject({ verdict: "none", halt: false, cause: "syntax", compact: expect.stringMatching(/^PREGATE WARN syntax src\/domain\/price\.py:1: /) });
   }
 });
 
-test("advisor mode warns on a file it could not parse, and enforce still denies that file", () => {
+test("a hook warns on a file it could not parse in advisor and in enforce, says nothing in shadow, and check still fails on it", () => {
   const warned = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "syntax", line: 4 } }));
   expect(warned.verdict).toBe("none");
   expect(warned.halt).toBe(false);
@@ -378,20 +420,28 @@ test("advisor mode warns on a file it could not parse, and enforce still denies 
   expect(shadow.verdict).toBe("none");
   expect(shadow.compact).toBe("");
   expect(shadow.full).toBe("");
-  const enforced = decide(input({ form: { cause: "syntax", line: 4 } }));
-  expect(enforced.verdict).toBe("deny");
-  expect(enforced.cause).toBe("syntax");
-  expect(enforced.compact).toContain("PREGATE DENY syntax");
-  expect(enforced.full).not.toContain("parse failure");
   const promoted = lock({ enforcement: "advisor", rules: lock().rules.map((r) => r.id === "core/CC-FN-001" ? { ...r, enforcement: "enforce" } : r) });
-  const denied = decide(input({ lock: promoted, form: { cause: "syntax", line: 4 } }));
-  expect(denied.verdict).toBe("deny");
-  expect(denied.cause).toBe("syntax");
-  expect(denied.compact).toContain("PREGATE DENY syntax");
-  expect(denied.full).not.toContain("parse failure");
+  for (const contract of [lock(), promoted]) {
+    const told = decide(input({ lock: contract, form: { cause: "syntax", line: 4 } }));
+    expect(told.verdict).toBe("none");
+    expect(told.halt).toBe(false);
+    expect(told.cause).toBe("syntax");
+    expect(told.shadowed).toBe(true);
+    expect(told.compact).toBe(warned.compact);
+    expect(told.full).toBe(warned.full);
+    expect(told.full).not.toContain("PREGATE DENY");
+    // `check` stays strict: the same file fails there.
+    expect(blocking(contract, [], "syntax", { rel: FILE, phase: "pre" }).cause).toBe("syntax");
+  }
+  // An enforced rule the same call violates still blocks, and the warning follows the deny.
+  const both = decide(input({ form: { cause: "syntax", line: 4 }, introduced: [v("core/CC-FN-001", 42)] }));
+  expect(both.verdict).toBe("deny");
+  expect(both.cause).toBeNull();
+  expect(both.compact).toStartWith("PREGATE DENY core/CC-FN-001");
+  expect(both.full).toContain(warned.compact);
 });
 
-test("advisor mode warns and does not block an unresolvable import, and an enforced static rule still denies it", () => {
+test("a hook warns and never blocks on an unresolvable import, and check still fails on it where a static rule is enforced", () => {
   const warned = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "unresolvable-import", line: 2 } }));
   expect(warned.verdict).toBe("none");
   expect(warned.halt).toBe(false);
@@ -399,7 +449,7 @@ test("advisor mode warns and does not block an unresolvable import, and an enfor
   expect(warned.shadowed).toBe(true);
   expect(warned.compact).toStartWith("PREGATE WARN unresolvable-import src/billing/invoice.ts:2:");
   expect(warned.full.startsWith(warned.compact)).toBe(true);
-  expect(warned.full).toContain("This is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.");
+  expect(warned.full).toContain("This is not a clean result. PREGATE did not check this file for violations, and it did not block.");
   expect(warned.full).not.toContain("PREGATE DENY");
   expect(warned.full).not.toContain("no introduced violations");
   const mixed = decide(input({ lock: lock({ enforcement: "advisor" }), form: { cause: "unresolvable-import", line: 2 }, introduced: [v("core/CC-FN-001", 42)] }));
@@ -415,18 +465,25 @@ test("advisor mode warns and does not block an unresolvable import, and an enfor
   expect(stopped.cause).toBe("unresolvable-import");
   expect(stopped.compact).toBe(warned.compact);
   const shadow = decide(input({ lock: lock({ enforcement: "shadow" }), form: { cause: "unresolvable-import", line: 2 } }));
-  expect(shadow.verdict).toBe("deny");
+  expect(shadow.verdict).toBe("none");
   expect(shadow.cause).toBe("unresolvable-import");
-  expect(shadow.compact).toContain("PREGATE DENY unresolvable-import");
+  expect(shadow.shadowed).toBe(true);
+  expect(shadow.compact).toBe("");
+  expect(shadow.full).toBe("");
   const enforced = decide(input({ form: { cause: "unresolvable-import", line: 2 } }));
-  expect(enforced.verdict).toBe("deny");
+  expect(enforced.verdict).toBe("none");
+  expect(enforced.halt).toBe(false);
   expect(enforced.cause).toBe("unresolvable-import");
+  expect(enforced.compact).toBe(warned.compact);
+  expect(enforced.full).not.toContain("PREGATE DENY");
   const promoted = lock({ enforcement: "advisor", rules: lock().rules.map((r) => r.id === "core/CC-FN-001" ? { ...r, enforcement: "enforce" } : r) });
-  const denied = decide(input({ lock: promoted, event: "stop", form: { cause: "unresolvable-import", line: 2 }, stop: { blocks: 0, reentry: false, approved: [] } }));
-  expect(denied.verdict).toBe("deny");
-  expect(denied.cause).toBe("unresolvable-import");
-  expect(denied.compact).toContain("PREGATE DENY unresolvable-import");
-  expect(denied.full).not.toContain("did not block");
+  const atStop = decide(input({ lock: promoted, event: "stop", form: { cause: "unresolvable-import", line: 2 }, stop: { blocks: 0, reentry: false, approved: [] } }));
+  expect(atStop.verdict).toBe("none");
+  expect(atStop.halt).toBe(false);
+  expect(atStop.cause).toBe("unresolvable-import");
+  expect(atStop.compact).toBe(warned.compact);
+  expect(atStop.full).not.toContain("PREGATE DENY");
+  expect(atStop.stopIncomplete).toBeUndefined();
   const advisor = lock({ enforcement: "advisor" });
   expect(blocking(advisor, [], "unresolvable-import", { rel: FILE, phase: "stop" }).cause).toBeNull();
   expect(blocking(advisor, [], "unresolvable-import").cause).toBeNull();
@@ -452,7 +509,7 @@ test("an enforcing project requirement is not a source syntax policy", () => {
   expect(blocking(lock({ enforcement: "shadow", rules: [policy] }), [], "syntax", { rel: FILE, phase: "pre" }).cause).toBeNull();
 });
 
-test("advisor mode never blocks ordinary or core rules, emits PREGATE ADVISOR with full rule guidance, and enforces rules promoted to enforce", () => {
+test("advisor mode never blocks ordinary or core rules, emits PREGATE ADVISOR with one line per rule not yet told, and enforces rules promoted to enforce", () => {
   const advisorLock = lock({ enforcement: "advisor" });
   const advised = decide(input({ lock: advisorLock, introduced: [v("core/EVA-SUP-001", 9), v("core/CC-FN-001", 42), v("core/TDD-DEL-001", 7)] }));
   expect(advised.verdict).toBe("none");
@@ -460,9 +517,26 @@ test("advisor mode never blocks ordinary or core rules, emits PREGATE ADVISOR wi
   expect(advised.violations).toEqual([]);
   expect(advised.warnings.map((x) => x.rule)).toEqual(["core/EVA-SUP-001", "core/CC-FN-001", "core/TDD-DEL-001"]);
   expect(advised.compact).toStartWith("PREGATE ADVISOR core/EVA-SUP-001");
-  expect(advised.full).toContain("Why:");
-  expect(advised.full).toContain("Fix:");
-  expect(advised.full).toContain("Advisory finding: this edit was not blocked.");
+  expect(advised.full.split("\n")).toEqual([
+    advised.compact, "core/CC-FN-001 src/billing/invoice.ts:42 71/40", "core/TDD-DEL-001 src/billing/invoice.ts:7 71/40", "Advisory: not blocked.",
+  ]);
+  expect(advised.full).not.toContain("Why:");
+  expect(advised.full).not.toContain("Advisory finding: this edit was not blocked.");
+  // A rule this agent was already told about on this file is left out; another agent's record does not count.
+  const introduced = [v("core/EVA-SUP-001", 9), v("core/CC-FN-001", 42), v("core/TDD-DEL-001", 7)];
+  const earlier = ev({ verdict: "none", warnings: [v("core/EVA-SUP-001", 9)] });
+  const again = decide(input({ lock: advisorLock, introduced, history: [earlier] }));
+  expect(again.verdict).toBe("none");
+  expect(again.warnings.map((x) => x.rule)).toEqual(["core/EVA-SUP-001", "core/CC-FN-001", "core/TDD-DEL-001"]);
+  expect(again.compact).toStartWith("PREGATE ADVISOR core/CC-FN-001");
+  expect(again.full).not.toContain("core/EVA-SUP-001");
+  expect(again.full).toEndWith("\nAdvisory: not blocked.");
+  expect(decide(input({ lock: advisorLock, introduced, history: [{ ...earlier, agentId: "a1" }] })).compact).toBe(advised.compact);
+  const silent = decide(input({ lock: advisorLock, introduced, history: [ev({ verdict: "none", warnings: introduced })] }));
+  expect(silent).toMatchObject({ verdict: "none", compact: "", full: "" });
+  const warnTold = decide(input({ introduced: [v("core/CC-ER-002", 4)], history: [ev({ verdict: "none", warnings: [v("core/CC-ER-002", 4)] })] }));
+  expect(warnTold).toMatchObject({ verdict: "none", compact: "", full: "" });
+  expect(warnTold.warnings).toHaveLength(1);
   const stop = decide(input({ lock: advisorLock, event: "stop", introduced: [v("core/EVA-SUP-001", 9), v("core/CC-FN-001", 42)], stop: { blocks: 0, reentry: false, approved: [] } }));
   expect(stop.verdict).toBe("none");
   const promotedLock = lock({ enforcement: "advisor", rules: advisorLock.rules.map((r) => r.id === "core/EVA-SUP-001" ? { ...r, enforcement: "enforce" } : r) });
@@ -476,10 +550,12 @@ describe("merge: one decision per multi-file call", () => {
   const clean = decide(input({ introduced: [] }));
   const ask = decide(input({ introduced: [v("core/TDD-DEL-001", 3)] }));
   const deny = decide(input({ introduced: [v("core/CC-FN-001", 4)] }));
-  const halted = decide(input({ form: { cause: "lock-stale", line: null } }));
+  const halted = decide(input({ form: { cause: "protected-path", line: null }, turnDenials: 15 }));
+  const note = decide(input({ form: { cause: "lock-stale", line: null }, path: "src/stale.ts" }));
 
   test("halt wins, then the first deny, then ask", () => {
-    expect(merge([clean, ask, deny, halted]).cause).toBe("lock-stale");
+    expect(halted.halt).toBe(true);
+    expect(merge([clean, ask, deny, halted]).cause).toBe("protected-path");
     expect(merge([clean, ask, deny]).verdict).toBe("deny");
     expect(merge([clean, ask]).verdict).toBe("ask");
     expect(merge([clean, clean])).toEqual(clean);
@@ -495,8 +571,20 @@ describe("merge: one decision per multi-file call", () => {
     expect(result.notice).toBeNull();
   });
 
+  test("a note never outranks a block, and it is the text of a call that has nothing else to say", () => {
+    expect(note).toMatchObject({ verdict: "none", halt: false, cause: "lock-stale" });
+    const blocked = merge([note, clean, deny]);
+    expect(blocked.verdict).toBe("deny");
+    expect(blocked.compact).toBe(deny.compact);
+    expect(blocked.full).not.toContain("PREGATE NOTE");
+    const passed = merge([clean, note]);
+    expect(passed.verdict).toBe("none");
+    expect(passed.compact).toBe(note.compact);
+    expect(passed.compact).toStartWith("PREGATE NOTE lock-stale src/stale.ts: ");
+  });
+
   test("single-file decisions remain identical, including notices and warnings", () => {
-    for (const d of [clean, ask, deny, halted, decide(input({ introduced: [v("core/CC-ER-002", 1)] }))]) {
+    for (const d of [clean, ask, deny, halted, note, decide(input({ introduced: [v("core/CC-ER-002", 1)] }))]) {
       expect(merge([d])).toEqual(d);
     }
   });

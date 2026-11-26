@@ -1,5 +1,7 @@
 # PREGATE on six harnesses, installed once
 
+> **Note, as of 0.0.14.** A local hook blocks only on a rule the project set to enforce and on the control causes (`protected-path`, `request-invalid`, `shell-admin`, `hook-switch`, `approval`). Every other cause is a one-line note and the call goes through. An engine crash or a timeout also lets the call through unless the preset sets `"uncertainty": "closed"`. See [what blocks locally](guarantees.md#what-blocks-locally). Sections below that describe fail-closed admission in a hook, the redirect to a pinned engine (MH-19, MH-20), and Stop comparing the session-start contract with the current one describe the earlier design. `pregate check` in CI is still strict.
+
 **Current implementation references:** [commands/options](CLI.md),
 [approval routes](features/approval-in-harness.md), [capability guarantees](features/harness-and-shell-guarantees.md)
 and [v0.0.1 release notes](releases/0.0.1.md). The dated protocol/design and acceptance records

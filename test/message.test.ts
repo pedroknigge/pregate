@@ -48,36 +48,54 @@ test("concrete stale diagnosis retains pins and human recovery when the compact 
   expect(text.full).toContain("approve only the displayed digest-bound command");
   expect(text.full).toContain("Only the user can fix this");
 });
-test("blocked request review explains absolute paths in both compact and full guidance", () => {
+test("a protected-path block is one line, and a rule deny still explains absolute paths for a request", () => {
   const protectedRequest = formText({ cause: "protected-path", line: null }, null);
-  expect(protectedRequest.compact).toContain("preset diagnose --json");
+  expect(protectedRequest.compact).toStartWith("PREGATE DENY protected-path: the agent does not write");
+  expect(protectedRequest.compact).toContain("reading them is fine.");
+  expect(protectedRequest.compact).toContain("Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview.");
   expect(protectedRequest.compact.length).toBeLessThanOrEqual(256);
-  for (const text of [protectedRequest.full, denyText([v(1, 1)], LOCK, 1, "retry", CTX).full]) {
-    expect(text).toContain("name a file outside that directory with an absolute path");
-    expect(text).toContain("Codex 0.166");
-    expect(text).toContain("pregate preset apply <request.json> --preview");
-  }
+  expect(protectedRequest.full).toBe(protectedRequest.compact);
+  const text = denyText([v(1, 1)], LOCK, 1, "retry", CTX).full;
+  expect(text).toContain("name a file outside that directory with an absolute path");
+  expect(text).toContain("Codex 0.166");
+  expect(text).toContain("pregate preset apply <request.json> --preview");
 });
-test("protected-path guidance survives a long path without suggesting a policy pre-check", () => {
+test("a protected-path block names a long path in one line without a pre-check or a report paragraph", () => {
   const text = formText({ cause: "protected-path", line: null }, "nested/".repeat(80) + ".pregate/preset.json");
   expect(text.compact.length).toBeLessThanOrEqual(256);
-  expect(text.full).toContain("pregate preset show");
-  expect(text.full).toContain("pregate preset request-schema");
-  expect(text.full).toContain("pregate preset show --json");
-  expect(text.full).toContain("pregate preset apply <request.json> --preview");
-  expect(text.full).toContain("this does not activate it. Only the human approves.");
-  expect(text.full).toContain("do not run a source pre-check on policy files");
-  expect(text.full).toContain(".pregate/requests/<name>.json for human review");
+  expect(text.compact).toStartWith("PREGATE DENY protected-path ");
+  // The path yields so the instruction survives in the first line; the whole path follows it.
+  expect(text.compact).toContain(".pregate/preset.json: the agent does not write");
+  expect(text.compact).toContain("reading them is fine. Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview.");
+  expect(text.full).toStartWith(`${text.compact}\nPath: `);
+  expect(text.full).toEndWith("nested/.pregate/preset.json");
+  expect(text.full).not.toContain("check --stdin");
+  expect(text.full).not.toContain("false positive");
+  expect(text.full).not.toContain("issue draft");
+  const halted = formText({ cause: "protected-path", line: null }, ".pregate/preset.json", true);
+  expect(halted.full).toBe(`${halted.compact}\nPREGATE stopped this turn. Do not retry: tell the user the cause and path.`);
 });
-test("session briefing is bounded, names checks and policies, and points to pre-check and /pregate", () => {
+test("session briefing is bounded, lists only the checks that block, counts the rest, and points to pre-check and /pregate", () => {
   const lock = { ...LOCK, rules: LOCK.rules.map((r, i) => ({ ...r, enforcement: i === 1 ? "shadow" as const : "enforce" as const })) };
   const text = briefing(lock, LAUNCHER);
-  expect(text).toContain("core/CC-FN-001 (deny, shadow): fn-max-lines (max=3; packages=@prisma/client)");
+  expect(text).toContain("\nChecks:\n- core/CC-FN-002 (deny, enforce): fn-max-params (max=3; packages=@prisma/client)");
+  expect(text).toContain("- core/TDD-DEL-001 (ask, enforce): assertions-no-decrease");
+  // A shadow rule and a warn rule inform: neither is listed, both are counted.
+  expect(text).not.toContain("core/CC-FN-001");
+  expect(text).not.toContain("core/CC-ER-002");
+  expect(text).toContain("\n2 checks inform and never block.\n");
+  expect(text.split("\n").filter((l) => l.startsWith("- "))).toHaveLength(3);
   expect(text).toContain("check --stdin --path <file> --format agent");
   expect(text).toContain("/pregate");
-  const large = briefing({ ...lock, rules: Array.from({ length: 200 }, (_, i) => ({ ...lock.rules[0]!, id: `pack/RULE-${i}` })) }, LAUNCHER);
+  const informing = briefing({ ...lock, rules: Array.from({ length: 200 }, (_, i) => ({ ...lock.rules[0]!, id: `pack/RULE-${i}` })) }, LAUNCHER);
+  expect(informing).toContain("\nChecks:\n200 checks inform and never block.\n");
+  expect(informing).not.toContain("pack/RULE-");
+  const large = briefing({ ...lock, rules: Array.from({ length: 200 }, (_, i) => ({ ...lock.rules[2]!, id: `pack/RULE-${i}` })) }, LAUNCHER);
   expect(large.length).toBeLessThanOrEqual(4000);
+  expect(large).toContain("- pack/RULE-0 (deny, enforce)");
   expect(large).toContain("preset show lists full details when inspection is permitted");
+  const layered = briefing({ ...lock, layers: { core: { paths: ["src/core/**"], mayImport: [], kind: "core" } } }, LAUNCHER);
+  expect(layered).toContain("2 checks inform and never block.\nLayer core (src/core/**): may import only itself.");
   const broad = { ...lock, scope: { include: Array.from({ length: 200 }, (_, i) => `packages/service-${i}/src/**`), exclude: [] } };
   expect(briefing(broad, LAUNCHER).length).toBeLessThanOrEqual(4000);
 });
@@ -163,7 +181,8 @@ const SAFE_SPAN = /^[A-Za-z0-9@/._$[\]-]{0,80}$/;
 const COMMAND_SPAN =
   /^(git init|git status|pregate disable|(\/home\/user\/project\/\.pregate\/bin\/pregate|pregate) (check --stdin --path ([A-Za-z0-9@/._-]{1,300}|<file>) --format agent|explain [A-Za-z0-9@/._$-]{1,80}|preset (compile|show(?: --json)?|diagnose --json|request-schema|apply <request.json> --preview)|update --project --preview|update --engine <version>|dispute --last|issue draft --last|storage inspect|storage recover --preview|check))$/;
 
-function checkText(out: string, max: number): void {
+// `fixed`: the same text built without any input. Product sentences may hold an apostrophe; input must add none.
+function checkText(out: string, max: number, fixed: string | null = null): void {
   expect(out.length).toBeLessThanOrEqual(max);
   const spans = out.split("`");
   expect(spans.length % 2).toBe(1);
@@ -171,15 +190,16 @@ function checkText(out: string, max: number): void {
     const span = spans[k] ?? "";
     if (!SAFE_SPAN.test(span)) expect(span).toMatch(COMMAND_SPAN);
   }
-  for (const leak of ['"', "'", "/*", "IGNORE ALL", "rm -rf", "$(", "{", "}", "\t", "\r", "💥"]) expect(out).not.toContain(leak);
+  for (const leak of ['"', "/*", "IGNORE ALL", "rm -rf", "$(", "{", "}", "\t", "\r", "💥"]) expect(out).not.toContain(leak);
+  expect(out.split("'").length).toBeLessThanOrEqual((fixed ?? "").split("'").length);
   for (const line of out.split("\n")) expect(line).not.toMatch(/^(INJECTED|PREGATE DENY fake)/);
 }
 
-function checkPair(t: Text): void {
+function checkPair(t: Text, fixed: string | null = null): void {
   expect(t.compact.length).toBeLessThanOrEqual(256);
   expect(t.compact).not.toContain("\n");
   expect(t.full.startsWith(t.compact)).toBe(true);
-  checkText(t.full, 4000);
+  checkText(t.full, 4000, fixed);
 }
 
 function listed(full: string): number {
@@ -227,7 +247,7 @@ describe("message properties over hostile input", () => {
     for (const cause of Object.keys(FIXABLE_BY) as Cause[]) {
       for (const rel of [...HOSTILE, null]) {
         const t = formText({ cause, line: rel === null ? null : 12 }, rel, rel === null);
-        checkPair(t);
+        checkPair(t, formText({ cause, line: null }, null, rel === null).full);
         expect(t.compact.startsWith(`PREGATE DENY ${cause}`)).toBe(true);
       }
     }
@@ -273,10 +293,14 @@ describe("message content", () => {
     const named = formText({ cause: "shell-admin", line: null, detail: "orca frob is not a read-only orca inventory or drive command." }, null);
     expect(named.full).toContain("orca frob is not a read-only orca inventory or drive command.");
     expect(named.full).not.toContain("skips git hooks");
-    expect(named.full).toContain("`pregate issue draft --last`");
+    expect(named.full).not.toContain("skips its git hook");
+    expect(named.full).toContain("Spell the command literally, or tell the user what you need; they run it.");
+    expect(named.full).toBe(named.compact);
+    expect(named.full).not.toContain("issue draft");
     const generic = formText({ cause: "shell-admin", line: null }, null);
-    expect(generic.full).toContain("skips git hooks");
-    expect(generic.full).toContain("ungated agent harness");
+    expect(generic.full).toContain("skips its git hook");
+    expect(generic.full).toContain("hides a command name behind a variable");
+    expect(generic.full).toBe(generic.compact);
   });
 
   test("a directory with no preset does not offer issue draft --last", () => {
@@ -378,17 +402,31 @@ describe("message content", () => {
     expect(denyText(vs, LOCK, 1, "retry", CTX).full).toContain("\n   Also at: src/billing/invoice.ts:90\n");
   });
 
-  test("advisor text names every rule, details each rule once and ends with one line", () => {
+  test("advisor text names the first rule, then one line for each of at most five more, and ends with one line", () => {
     const vs = [v(1, 15), v(1, 16), v(0, 3), v(2, 4), v(4, 9), v(3, 20, "x", "src/other.ts")];
-    const full = adviseText(vs, LOCK, CTX).full;
-    checkPair(adviseText(vs, LOCK, CTX));
-    for (const r of RULES) expect(full).toContain(`) ${r.id} `);
-    expect(full.split("core/CC-FN-001 → ").length).toBe(2);
-    expect(full).toContain("Also at: src/billing/invoice.ts:16");
-    expect(full).not.toContain("issue draft");
-    expect(full).not.toContain("bounded rule/pack change");
-    expect(full).not.toContain("more findings not shown");
-    expect(full.endsWith("\n\nAdvisory finding: this edit was not blocked. Revise the code for each rule above, or keep it and tell the user why.")).toBe(true);
+    const text = adviseText(vs, LOCK, CTX);
+    const full = text.full;
+    checkPair(text);
+    expect(text.compact).toStartWith("PREGATE ADVISOR core/CC-FN-002 src/billing/invoice.ts:4 ");
+    expect(text.compact).toContain(" +5 more Details: ");
+    expect(full.split("\n")).toEqual([
+      text.compact,
+      "core/CC-FN-001 src/billing/invoice.ts:15,16",
+      "core/EVA-SUP-001 src/other.ts:20 5/3",
+      "core/TDD-DEL-001 src/billing/invoice.ts:9 5/3",
+      "core/CC-ER-002 src/billing/invoice.ts:3 5/3",
+      "Advisory: not blocked.",
+    ]);
+    for (const gone of ["Why:", "Fix: Group", "Avoid:", " → ", "Preset ", "issue draft", "bounded rule/pack change", "more findings not shown", "Advisory finding: this edit was not blocked"]) {
+      expect(full.slice(text.compact.length)).not.toContain(gone);
+    }
+    const rules = Array.from({ length: 9 }, (_, k) => rule(`pack/R-${k}`, "core/complexity/fn-max-lines@1.0.0", "deny", "{symbol} is long."));
+    const many = adviseText(rules.map((r, k) => ({ ...v(1, k + 1), rule: r.id })), { ...LOCK, rules }, CTX);
+    checkPair(many);
+    expect(many.compact).toStartWith("PREGATE ADVISOR pack/R-0 ");
+    expect(many.full.split("\n").slice(1)).toEqual([
+      ...[1, 2, 3, 4, 5].map((k) => `pack/R-${k} src/billing/invoice.ts:${k + 1} 5/3`), "Advisory: not blocked.",
+    ]);
   });
 
   test("brief lines group locations of one rule and the unbounded pre-check lists every rule", () => {
@@ -481,12 +519,17 @@ describe("message content", () => {
     expect(formText({ cause: "git-not-repository", line: null }, null).full).toContain("restore the removed .git");
     expect(formText({ cause: "git-error", line: null }, null).full).toContain("pregate disable");
     const approval = formText({ cause: "approval", line: null }, null);
-    expect(approval.compact).toContain("PREGATE DENY approval");
-    expect(approval.full).toContain("cannot grant itself approval");
-    expect(approval.full).toContain("separate terminal");
-    expect(approval.full).not.toContain("rule adaptation");
-    expect(approval.full).not.toContain("propose a bounded rule/pack change");
-    expect(formText({ cause: "hook-switch", line: null }, null).full).toContain("rule adaptation");
+    expect(approval.compact).toBe("PREGATE DENY approval: the agent does not approve for the human. Ask the user to run the approval command themselves; in a harness, on a ! line.");
+    expect(approval.fix).not.toBeNull();
+    const hookSwitch = formText({ cause: "hook-switch", line: null }, null);
+    expect(hookSwitch.compact).toBe("PREGATE DENY hook-switch: the agent does not install, remove, or switch off Pregate or the hooks of a harness. Tell the user; they run pregate disable or pregate setup.");
+    // The causes a hook blocks on with a short text: one line, the same in both forms, with no report or dispute paragraph.
+    for (const cause of ["protected-path", "shell-admin", "hook-switch", "approval"] as const) {
+      const text = formText({ cause, line: null }, null);
+      expect(text.full).toBe(text.compact);
+      for (const gone of ["false positive", "issue draft", "propose a bounded rule/pack change", "rule adaptation", "separate terminal"]) expect(text.full).not.toContain(gone);
+      expect(formText({ cause, line: null }, null, true).full).toBe(`${text.compact}\nPREGATE stopped this turn. Do not retry: tell the user the cause and path.`);
+    }
   });
 
   test("advisor parse failure names the file and is not a clean result", () => {
@@ -554,7 +597,7 @@ describe("message content", () => {
   });
 });
 
-test("advisor text: layer edges are named, a repeated why is dropped, the preset line keeps whole names", () => {
+test("layer edges are named in advisor and deny text; in the deny detail a repeated why is dropped and the preset line keeps whole names", () => {
   const dep = rule("architecture/CA-DEP-001", "architecture/layers/layer-edge@1.0.0", "deny", "The import reaches a layer this layer may not depend on.");
   dep.text.why = dep.text.message;
   const methodologies = Array.from({ length: 12 }, (_, k) => `pack-${k}/methodology-with-a-long-name`);
@@ -563,13 +606,18 @@ test("advisor text: layer edges are named, a repeated why is dropped, the preset
     edge: { from: "domain", to: "infra", spec: "../infra/db" } };
   const all = adviseText([edge, v(1, 3)], lock, { ...CTX, max: Infinity }, true);
   checkPair(all);
-  expect(all.full).toContain("Layer `domain` imports layer `infra` via `../infra/db`.");
-  expect(all.full).not.toContain("Why: The import reaches");
-  expect(all.full).toContain("Source: Clean Code");
+  expect(all.compact).toStartWith("PREGATE ADVISOR core/CC-FN-001 src/billing/invoice.ts:3 ");
   expect(all.compact).not.toContain("+1 more");
   expect(adviseText([edge, v(1, 3)], lock, CTX).compact).toContain("+1 more");
-  const preset = all.full.split("\n").find((line) => line.startsWith("Preset "))!;
-  expect(preset).toMatch(/ \+ \d+ more\) · lock 3f9a1c$/);
-  expect(all.full.endsWith("only the DENY above does. Revise the code for each advisory rule, or keep it and tell the user why.")).toBe(true);
+  expect(all.full.split("\n")).toEqual([all.compact, "architecture/CA-DEP-001 src/domain/order.ts:1",
+    "Advisory findings: these rules do not block; only the DENY above does. Revise the code for each advisory rule, or keep it and tell the user why."]);
+  expect(adviseText([edge], lock, { ...CTX, launcher: "pregate" }).compact).toContain("Layer `domain` imports layer `infra` via `../infra/db`.");
   expect(adviseText([{ ...edge, edge: { ...edge.edge, to: null } }], lock, CTX).full).toContain("imports code outside every layer via");
+  // The why, the source and the preset line are in the deny detail, not in an advisory.
+  const denied = denyText([edge, v(1, 3)], lock, 1, "retry", { ...CTX, max: Infinity });
+  expect(denied.full).toContain("Layer `domain` imports layer `infra` via `../infra/db`.");
+  expect(denied.full).not.toContain("Why: The import reaches");
+  expect(denied.full).toContain("Source: Clean Code");
+  const preset = denied.full.split("\n").find((line) => line.startsWith("Preset "))!;
+  expect(preset).toMatch(/ \+ \d+ more\) · attempt 1 · lock 3f9a1c$/);
 });

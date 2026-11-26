@@ -66,7 +66,7 @@ export function causeFix(cause: Cause, rel: string | null, line: number | null, 
     case "shell-admin":
       return side(null, "a literal command name", "No deterministic path or replacement is declared for this command. Spell every command name literally and do not run it.");
     case "approval":
-      return side(null, "pregate approve <code> in a separate terminal", "No code path is declared for this approval. Ask the human to run pregate approve <code> in a separate terminal.");
+      return side(null, "the human runs pregate approve <code>", "No code path is declared for this approval. Ask the human to run pregate approve <code> themselves; in a harness, on a ! line.");
     case "git-missing":
       return side(null, "install Git and open a new terminal so git is on PATH", "No code path is declared for this cause. Install Git and open a new terminal so git is on PATH.");
     case "git-not-repository":

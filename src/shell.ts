@@ -1577,7 +1577,7 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
     const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
     if (cause === "shell-admin" && ctx.shellDetail && ctx.shellDetail.text === null) {
       const sub = args.find((w) => w.literal && !w.text.startsWith("-"));
-      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is human-only. The human runs pregate ${sub.text} in a separate terminal.`;
+      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is the user's command; in a harness they type ! pregate ${sub.text} --yes`;
     }
     return cause;
   }

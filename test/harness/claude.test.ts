@@ -402,28 +402,45 @@ describe("encode", () => {
     });
   });
 
-  test("an unrecognized payload denies and stops the turn through the event's channel", () => {
-    const pre = enc("pre-edit", unrecognized("pre-edit", false));
-    expect(pre.exit).toBe(2);
-    expect(out(pre)).toMatchObject({ hookSpecificOutput: { permissionDecision: "deny" }, continue: false });
-    expect(pre.stderr).toContain("payload-unrecognized");
-    const stop = enc("stop", unrecognized("stop", false));
-    expect(stop.exit).toBe(2);
-    expect(out(stop)).toMatchObject({ decision: "block" });
-    // On reentry Stop lets the turn end and tells the human, as the launcher's own fail-closed does.
-    const again = enc("stop", unrecognized("stop", true));
-    expect(again.exit).toBe(0);
-    expect(Object.keys(out(again))).toEqual(["systemMessage"]);
+  test("an unrecognized payload passes with a note through the event's channel, exit 0", () => {
+    const d = unrecognized("pre-edit", false);
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: BAD });
+    expect(d.full).toContain("PREGATE NOTE payload-unrecognized");
+    expect(d.full).toContain("Not blocked.");
+    expect(enc("pre-edit", d)).toEqual({
+      stdout: raw({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: d.full } }), stderr: "", exit: 0,
+    });
+    // Stop does not block, on the first Stop or on reentry: the human reads the note.
+    for (const reentry of [false, true]) {
+      const s = unrecognized("stop", reentry);
+      expect(s.notice).toContain("PREGATE NOTE payload-unrecognized");
+      expect(enc("stop", s)).toEqual({ stdout: raw({ systemMessage: s.notice }), stderr: "", exit: 0 });
+    }
     const start = enc("session-start", unrecognized("session-start", false));
     expect(start.exit).toBe(0);
-    expect(Object.keys(out(start))).toEqual(["systemMessage"]);
+    expect(out(start)).toMatchObject({ hookSpecificOutput: { hookEventName: "SessionStart" } });
+    expect(start.stdout).not.toContain("permissionDecision");
   });
 
-  test("an extra key in Write or Edit ends in deny + halt", () => {
+  test("a control cause denies through the event's channel: exit 2 before the call, decision block at Stop", () => {
+    const guarded = (kind: HookEvent["kind"]): Decision => rejected({ cause: "protected-path", kind, reentry: false, session: null, dirs: [] });
+    const d = guarded("pre-edit");
+    const pre = enc("pre-edit", d);
+    expect(pre.exit).toBe(2);
+    expect(out(pre)).toMatchObject({ hookSpecificOutput: { permissionDecision: "deny", permissionDecisionReason: d.full } });
+    expect(pre.stderr).toContain("PREGATE DENY protected-path");
+    const s = guarded("stop");
+    expect(out(enc("stop", s))).toMatchObject({ decision: "block", reason: s.full });
+  });
+
+  test("an extra key in Write or Edit is an unrecognized payload: a note, no deny and no halt", () => {
     const p = json("pre-write.json");
     const e = decode("pre", raw({ ...p, tool_input: { ...(p.tool_input as object), mode: "append" } }), ENV);
     expect(causeOf(e)).toBe(BAD);
-    expect(out(enc("pre-edit", unrecognized("pre-edit", false)))).toMatchObject({ continue: false });
+    const o = out(enc("pre-edit", rejected(e as Rejected)));
+    expect(Object.keys(o)).toEqual(["hookSpecificOutput"]);
+    expect(Object.keys(o.hookSpecificOutput as object)).toEqual(["hookEventName", "additionalContext"]);
+    expect((o.hookSpecificOutput as { additionalContext: string }).additionalContext).toContain("PREGATE NOTE payload-unrecognized");
   });
 
   test("claude --version below 2.1.295 is a semver, and a line with none is unknown", () => {

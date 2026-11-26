@@ -5,7 +5,7 @@ import { compile } from "./compile.ts";
 import { dataHome, disabledLabel, disableScope, enabled, explicitlyDisabled } from "./consent.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { projectFitness } from "./fitness-command.ts";
-import { conflictDiagnostic, conflictedContract, pinned, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
+import { conflictDiagnostic, conflictedContract, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
 import { LOCK, PRESET, readText, VERSIONS, within } from "./admission.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
@@ -13,7 +13,6 @@ import { HARNESSES } from "./harness/profile.ts";
 import { agyRegistration, claudeRegistration, codexRegistration, cursorRegistration, gatedHarnesses } from "./machine.ts";
 import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { inScope, relativePath } from "./paths.ts";
-import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { grammarOf, missingLanguagePolicy, ruleLanguages } from "./languages.ts";
 import type { Lock } from "./types.ts";
 import { hasRepository, listedPaths, workspacePaths } from "./workspace.ts";
@@ -71,16 +70,22 @@ function text(path: string): string | null {
   catch (e) { if ((e as NodeJS.ErrnoException).code === "ENOENT") return null; throw e; }
 }
 
+// `valid`: this engine can judge the project, which it can whenever the preset compiles. A lock
+// file that is missing, behind the preset, or written by another engine version does not stop
+// that (the hooks rebuild it from the preset); it is one note, because CI compares the file.
 export function contractState(root: string): { valid: boolean; errors: string[]; lock: Lock | null } {
   try {
     const preset = text(join(root, PRESET));
     if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null };
     const result = compile(preset, sourcesOf(root), VERSIONS);
     if ("errors" in result) return { valid: false, errors: result.errors, lock: null };
-    const valid = result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
-    return { valid, errors: valid ? [] : ["Lock missing, altered or stale; run pregate preset compile."], lock: valid ? result.lock : null };
+    const same = result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
+    return { valid: true, errors: same ? [] : [STALE_LOCK], lock: result.lock };
   } catch (e) { return { valid: false, errors: [(e as Error).message], lock: null }; }
 }
+
+export const STALE_LOCK = "The lock file is missing, behind the preset, or written by another engine version; this engine judges from the preset. pregate preset compile refreshes the file.";
+
 
 function present(path: string): boolean {
   const stat = statSync(path, { throwIfNoEntry: false });
@@ -98,6 +103,7 @@ function backstops(root: string) {
     ciProviders: detectProviders(root).map((provider) => ({ id: provider.id, detail: provider.detail, checks: provider.checks })) };
 }
 
+
 // Path-kind rule folders inside the project with files Git does not hold: teammates compile a stale lock.
 function uncommittedSources(root: string | null): string[] {
   if (root === null || !hasRepository(root)) return [];
@@ -112,41 +118,7 @@ function localConsent(root: string | null, errors: string[]): boolean {
   catch (e) { errors.push(`Cannot verify local consent: ${(e as Error).message}`); return false; }
 }
 
-// A lock pinning another engine that is still installed keeps working: the installed launcher hands
-// every hook to the pinned engine (MH-19), which admits the lock only if it is its own exact compile.
-// That engine is asked, since this one cannot recompile for it; a pin below FLOOR is never handed
-// over. Its rules are the lock as written; null when the pin is current, refused or not installed.
-function pinnedServedLock(root: string, data: string): Lock | null {
-  const pin = pinned(root);
-  const engine = pin === null ? null : join(data, pin, ENGINE_FILE);
-  return engine !== null && present(engine) && pinnedAdmits(engine, root) ? writtenLock(root) : null;
-}
 
-function writtenLock(root: string): Lock | null {
-  try { return JSON.parse(text(join(root, LOCK)) ?? "null") as Lock | null; }
-  catch (error) {
-    // A lock this process cannot read or parse is not served. Admission still denies it.
-    if (error instanceof SyntaxError || typeof (error as NodeJS.ErrnoException).code === "string") return null;
-    throw error;
-  }
-}
-
-function pinnedAdmits(engine: string, root: string): boolean {
-  try {
-    const run = Bun.spawnSync([engine, "status", "--json"], { cwd: root, stdin: "ignore", stdout: "pipe", stderr: "ignore", timeout: 10_000 });
-    return run.exitCode === 0 && validContract(run.stdout.toString());
-  } catch {
-    return false;   // an engine image that cannot be started does not admit the lock
-  }
-}
-
-function validContract(status: string): boolean {
-  try { return (JSON.parse(status) as { contract?: { valid?: unknown } }).contract?.valid === true; }
-  catch (error) {
-    if (error instanceof SyntaxError) return false;   // no status JSON: that engine cannot be shown to admit the lock
-    throw error;
-  }
-}
 
 // The code of a review waiting for the human: the batch that binds this project's current review
 // (a batch outlives a project approved on its own), else the project's own.
@@ -175,8 +147,7 @@ export function protectionStatus(root: string | null) {
   const codex = codexRegistration(root);
   const launcherPresent = present(join(data, "bin", WINDOWS ? "pregate.cmd" : "pregate")) || claudeCode.projectLauncher || agy.projectLauncher;
   const enginePresent = present(join(data, VERSIONS.engine, ENGINE_FILE));
-  const servedLock = contract.valid || root === null ? null : pinnedServedLock(root, data);
-  const lock = contract.lock ?? servedLock;
+  const lock = contract.lock;
   const paths = root === null || lock === null ? [] : workspacePaths(root, (rel) => inScope(lock, rel));
   const unsupported = paths.filter((rel) => grammarOf(rel) === null && /\.(rs|java|kt|rb|c|cc|cpp|cs|swift|php)$/i.test(rel));
   const uncovered = lock === null ? [] : paths.filter((rel) => missingLanguagePolicy(lock, rel));
@@ -185,7 +156,7 @@ export function protectionStatus(root: string | null) {
   const harnesses = Object.entries(HARNESSES).map(([id, adapter]) => ({ id, payloadVersion: adapter.VERIFIED,
     configured: configured.has(id === "claude-code" ? "claude" : id === "cursor" ? "cursor-agent" : id),
     ...CAPABILITIES[id as keyof typeof CAPABILITIES], approvalInteractionVerified: false }));
-  const ready = (contract.valid || servedLock !== null) && launcherPresent && enginePresent && harnesses.some((h) => h.configured) && unsupported.length === 0 && uncovered.length === 0;
+  const ready = contract.valid && launcherPresent && enginePresent && harnesses.some((h) => h.configured) && unsupported.length === 0 && uncovered.length === 0;
   const fitness = root !== null && contract.lock !== null ? projectFitness(root, contract.lock, "ci") : [];
   const fitnessCoverage = { active: fitness.length, pass: fitness.filter(r => r.status === "pass").length,
     fail: fitness.filter(r => r.status === "fail").length, unverified: fitness.filter(r => r.status === "unverified").length,
@@ -195,7 +166,7 @@ export function protectionStatus(root: string | null) {
   const consentLostIn = consent || root === null ? 0 : sessionsOf(root);
   return { root, state: !consent ? "inactive" : ready ? "active" : "degraded", consent, disabled, disabledScope, consentLostIn, mode: lock?.enforcement ?? diagnosis?.preset?.enforcement ?? null,
     engine: VERSIONS.engine, core: VERSIONS.core, project: diagnosis?.project ?? null,
-    servedBy: servedLock?.engine ?? null, pendingApproval: root === null ? null : pendingApprovalCode(root),
+    servedBy: null, pendingApproval: root === null ? null : pendingApprovalCode(root),
     contract: { valid: contract.valid, errors: contract.errors }, installation: { launcherPresent, enginePresent }, claudeCodeHooks: claudeCode.scope,
     codexHooks: codex.scope, codexProjectTrust: codex.projectTrust, codexHookReview: codex.scope === "project" || codex.scope === "both" ? "unknown" as const : null,
     cursorHooks: cursorRegistration(root),
@@ -325,41 +296,25 @@ function briefStatus(s: Status): string[] {
 // The one thing that keeps this project from being checked, or null. A lock another engine version
 // wrote is not one: this engine judges from the preset.
 function attention(s: Status): string | null {
-  const order = pinOrder(s), pin = s.project?.lockEngine;
   if (!s.installation.launcherPresent || !s.installation.enginePresent) return "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.";
   if (!s.harnesses.some((h) => h.configured)) return "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.";
-  if (order !== null && order !== 0) return `Note: the lock was written by engine ${pin}; this engine (${s.engine}) judges from the preset. Nothing is blocked by that.`;
   if (!s.contract.valid) return `Needs attention: ${s.contract.errors[0] ?? "the contract is not ready."}`;
-  return null;
+  return s.contract.errors.length > 0 ? `Note: ${s.contract.errors[0]} Nothing is blocked by that.` : null;
 }
 
 function uncommittedLine(s: Status): string[] {
   return s.uncommittedSources.length === 0 ? [] : [`Rule pack files not committed: ${s.uncommittedSources.join(", ")}. Commit them with the preset and lock, or teammates get a stale lock.`];
 }
 
-// Negative: the project pins an older engine than the installed one; positive: a newer one.
-function pinOrder(s: Status): number | null {
-  const pin = s.project?.lockEngine;
-  return typeof pin === "string" && ENGINE_VERSION.test(pin) ? compareVersions(pin, s.engine) : null;
-}
 
-function versionLine(s: Status): string {
-  const order = pinOrder(s), pin = s.project?.lockEngine;
-  if (order === null) return "Lock missing or unreadable.";
-  if (order < 0) return `Update ready: project pins ${pin}${s.servedBy === pin ? ", which still answers its hooks" : ""}, installed ${s.engine}.`;
-  if (order > 0) return `Project pins newer engine ${pin}; installed ${s.engine}.`;
-  return s.project?.engine === s.engine ? `Up to date (engine ${s.engine}).` : `Preset names engine ${s.project?.engine ?? "unreadable"}; lock and installation use ${s.engine}.`;
-}
 
 function nextStep(s: Status): string {
-  const order = pinOrder(s);
   if (!s.consent) return "pregate enable.";
   if (s.pendingApproval !== null) return `pregate approve ${s.pendingApproval} applies the pending review.`;
   if (!s.installation.launcherPresent || !s.installation.enginePresent) return "pregate setup.";
   if (!s.harnesses.some((h) => h.configured)) return "pregate setup.";
-  if (order !== null && order < 0) return "nothing required. pregate update --project --preview refreshes the lock.";
-  if (order !== null && order > 0) return "pregate update installs the newest engine.";
   if (!s.contract.valid) return "pregate preset diagnose.";
+  if (s.contract.errors.length > 0) return "nothing required. pregate preset compile refreshes the lock file for CI.";
   if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "nothing required. pregate guide --preview proposes a pack for the uncovered language.";
   return "nothing required. pregate audit lists existing debt.";
 }

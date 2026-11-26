@@ -189,9 +189,15 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
   const control = CONTROL_EN[f.cause];
   if (control !== undefined) {
     // The causes a hook blocks on. Two sentences: what the agent does not do, and what to do instead.
-    const said = f.cause === "shell-admin" && f.detail ? `${clip(oneLine(f.detail), 220)}.` : control.what;
-    const compact = clip(`PREGATE DENY ${f.cause}${at}: ${said} ${control.instead}`, LINE_MAX);
-    return { compact, full: halt ? `${compact}\n${FORM_HALTED}` : compact, fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
+    // A harness may show only the first 256 characters, so a long path yields before the instruction.
+    const detailed = (f.cause === "shell-admin" || f.cause === "request-invalid") && f.detail ? `${clip(oneLine(f.detail), 220).replace(/[.\s]+$/, "")}.` : control.what;
+    const line = (where: string) => `PREGATE DENY ${f.cause}${where}: ${detailed} ${control.instead}`;
+    const room = LINE_MAX - line("").length - 2;
+    const short = rel === null ? "" : at.length - 1 <= room ? at : room < 8 ? "" : ` …${at.slice(at.length - room + 1)}`;
+    const compact = clip(line(short), LINE_MAX);
+    // The full text starts with the first line; a path that did not fit there follows whole.
+    const full = clip(short === at ? compact : `${compact}\nPath:${at}`, TEXT_MAX);
+    return { compact, full: halt ? `${full}\n${FORM_HALTED}` : full, fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
   }
   const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin", "shell-write"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), f.cause === "shell-admin" ? 220 : 2000) : null;
   const fix = causeFix(f.cause, rel, f.line, detail);
@@ -252,12 +258,14 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
 
 // The causes a hook blocks on: the agent acting on Pregate itself. Short on purpose.
 const CONTROL_EN: Partial<Record<Cause, { what: string; instead: string }>> = {
-  "protected-path": { what: "the agent does not write Pregate's contract, its state, or a harness's settings. Reading them is allowed.",
+  "protected-path": { what: "the agent does not write Pregate's contract, its state, or a harness's settings; reading them is fine.",
     instead: "Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview." },
+  "request-invalid": { what: "the request file does not match schema/request.v1.json.",
+    instead: "Fix the JSON and resend it." },
   "hook-switch": { what: "the agent does not install, remove, or switch off Pregate or the hooks of a harness.",
     instead: "Tell the user; they run pregate disable or pregate setup." },
   "approval": { what: "the agent does not approve for the human.",
-    instead: "Ask the user to run the approval command themselves (in a harness, on a ! line)." },
+    instead: "Ask the user to run the approval command themselves; in a harness, on a ! line." },
   "shell-admin": { what: "this command changes Pregate's configuration, skips its git hook, or hides a command name behind a variable.",
     instead: "Spell the command literally, or tell the user what you need; they run it." },
 };
@@ -291,7 +299,7 @@ export function unresolvedAdvisory(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
   const detail = f.detail ? clip(oneLine(f.detail), 2000) : null;
   const compact = clip(`PREGATE WARN unresolvable-import${at}: ${detail ?? CAUSE_EN["unresolvable-import"]}`, LINE_MAX);
-  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block, because no enforced rule applies to this file.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, detail) };
+  return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations, and it did not block.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, detail) };
 }
 
 // The literal invocation the shell guard allows (ARCHITECTURE §4.2; MH-29: `pregate` on the PATH or

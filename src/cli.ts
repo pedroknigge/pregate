@@ -144,7 +144,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       if (exclusions !== null && "code" in exclusions) {
         return exclusions.code === 0 ? { code: 0, text: `${exclusions.text}\n${statusText(protectionStatus(root))}` } : exclusions;
       }
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, true)) return { code: 1, text: `pregate ${cmd} is a human-only command: ${approvalRefusal({ roots: [root], command: `pregate ${cmd}` })}` };
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, false)) return { code: 1, text: `pregate ${cmd} needs your confirmation; nothing changed. Run pregate ${cmd} --yes (in a harness: ! pregate ${cmd} --yes).` };
       if (cmd === "enable") enable(root);
       else if (flags.has("--project")) disableProject(root);
       else disable(root);
