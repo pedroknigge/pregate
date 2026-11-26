@@ -56,7 +56,7 @@ function project() {
   const write = (rel: string, content: string) => hook("pre", { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: `toolu_${randomUUID()}`, tool_input: { file_path: join(root, rel), content } });
   const bash = (command: string) => hook("pre", { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: `toolu_${randomUUID()}`, tool_input: { command } });
   const stop = () => hook("stop", { hook_event_name: "Stop", stop_hook_active: false });
-  return { root, cli, git, write, bash, stop };
+  return { root, machine, cli, git, write, bash, stop };
 }
 
 test("a merge that brings a looser contract does not block the end of the turn", () => {
@@ -186,5 +186,48 @@ test("a command that reads the contract folder through a program-running option 
   for (const command of ["git log --oneline -3 -- .pregate", "rg -n uncertainty .pregate/preset.json", "head -5 .pregate/preset.json", "jq .enforcement .pregate/preset.json"]) {
     const out = p.bash(command);
     expect(out.code, `${command}\n${out.text}`).toBe(0);
+  }
+});
+
+test("a plain check notes a looser contract and only the ratchet refuses it", () => {
+  const p = project();
+  // The user widened the scope in the working tree and compiled it; nothing is committed yet.
+  const presetFile = join(p.root, ".pregate/preset.json");
+  const preset = JSON.parse(readFileSync(presetFile, "utf8")) as { scope: { exclude?: string[] } };
+  preset.scope.exclude = [...(preset.scope.exclude ?? []), "backups/**"];
+  writeFileSync(presetFile, `${JSON.stringify(preset, null, 2)}\n`);
+  expect(p.cli("preset", "compile", "--yes").code).toBe(0);
+
+  const plain = p.cli("check");
+  expect(plain.code, plain.text).toBe(0);
+  expect(plain.text).toContain("PREGATE NOTE contract-loosened");
+  expect(plain.text).toContain("Not blocked.");
+  const ratchet = p.cli("check", "--ratchet", "--base", "HEAD");
+  expect(ratchet.code, ratchet.text).toBe(1);
+  expect(ratchet.text).toContain("PREGATE DENY contract-loosened");
+});
+
+test("the agent runs git and the check itself, also when a command names the contract folder or the launcher", () => {
+  const p = project();
+  const presetFile = join(p.root, ".pregate/preset.json");
+  const preset = JSON.parse(readFileSync(presetFile, "utf8")) as { scope: { exclude?: string[] } };
+  preset.scope.exclude = [...(preset.scope.exclude ?? []), "backups/**"];
+  writeFileSync(presetFile, `${JSON.stringify(preset, null, 2)}\n`);
+  expect(p.cli("preset", "compile", "--yes").code).toBe(0);
+  const launcher = join(p.machine, "data/pregate/bin/pregate");
+  for (const command of [
+    `${launcher} check`,
+    `${launcher} status --verbose`,
+    "pregate check",
+    "git add .pregate/preset.json .pregate/pregate.lock.json",
+    'git commit -m "apply the reviewed contract"',
+    "git fetch origin",
+    "git merge origin/dev",
+    "git pull --ff-only",
+    "git push",
+  ]) {
+    const out = p.bash(command);
+    expect(out.code, `${command}\n${out.text}`).toBe(0);
+    expect(out.text, command).not.toContain("PREGATE DENY");
   }
 });

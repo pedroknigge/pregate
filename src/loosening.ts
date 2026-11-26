@@ -70,7 +70,7 @@ export function approvedLocally(root: string, lockHash: string): boolean {
 // only names this exact base-to-head change for the workflow that may accept it.
 export function looseningText(l: Loosening, where: "staged" | "base"): string {
   if (where === "staged") return [
-    "PREGATE NOTE contract-loosened: this commit loosens the contract compared with the last commit. Not blocked.",
+    "PREGATE NOTE contract-loosened: this change loosens the contract compared with the last commit. Not blocked.",
     ...l.lines.map((line) => `  ${line}`),
     "The pull request review accepts or rejects it; `pregate check --ratchet` in CI fails until a maintainer accepts this digest.",
     `Contract loosening digest: ${l.digest}`].join("\n");

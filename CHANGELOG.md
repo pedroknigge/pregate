@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A plain `pregate check` no longer refuses a looser contract or asks for `PREGATE_ACCEPT_CONTRACT`. It prints the `contract-loosened` note and judges the rules, like the pre-commit check. Only `check --ratchet --base <sha>`, which CI runs, refuses it.
+- The shell guard allows a read-only pregate command run by the launcher's absolute path, such as `<launcher> check` and `<launcher> status --verbose`. Before, only `check --stdin` was allowed by that path, and a plain `check` was denied as `protected-path`.
+- The `/pregate` skill says that git is the agent's to run, including `git add` and `git commit` of `.pregate/` files the user changed or approved. An agent that read the earlier text handed those commands to the user.
+
 ## [0.0.14] - 2026-11-26
 
 The local hooks are now as light as an advisory skill. In an enabled project a hook blocks on two things only: a rule the project set to enforce, and an agent acting on Pregate itself. Everything else a hook could not check is one `PREGATE NOTE` line, and the call goes through. A looser contract is held in the pull request by `check --ratchet` and nowhere on the machine. Any engine version reads any project. An engine crash or a timeout lets the call through by default. `pregate enable` sets a new project up in one step. After you update, run `pregate setup` once: the registered hook commands changed their failure path, and the commands an older setup registered still deny when the launcher is missing. A repository without CI that runs `pregate check --ratchet` has only notes locally, and nothing holds a loosened contract there. See the [0.0.14 notes](docs/releases/0.0.14.md) and [what blocks locally](docs/guarantees.md#what-blocks-locally).

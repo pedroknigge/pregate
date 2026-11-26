@@ -1071,7 +1071,7 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
   const head = words.find((w) => !ASSIGNMENT.test(w.text));
   const precheck = head !== undefined && ctx.launcher !== null && head.literal
     && pathKey(resolve(cwd, head.text) ?? "") === pathKey(ctx.launcher)
-    && readOnlyPregate(words.slice(words.indexOf(head) + 1), true);
+    && readOnlyPregate(words.slice(words.indexOf(head) + 1), false);
   const enginePath = head?.literal ? resolve(cwd, head.text) : null;
   const engineRoot = ctx.engines === undefined ? null : pathKey(ctx.engines) + "/";
   const engineRelative = enginePath !== null && engineRoot !== null && pathKey(enginePath).startsWith(engineRoot)

@@ -286,7 +286,10 @@ test("read-only checks admit a literal launcher variable in single commands and 
   expect(guard('PREGATE=pregate; "$PREGATE" status --json && $PREGATE explain CC-FN-001', ROOT, ctx)).toBeNull();
   expect(guard("BIN=/repo/.pregate/bin/pregate", ROOT, ctx)).toBe("protected-path");
   expect(guard('BIN=/repo/.pregate/bin/pregate; cat "$BIN"', ROOT, ctx)).toBe("protected-path");
-  expect(guard('BIN=/repo/.pregate/bin/pregate; "$BIN" check --all', ROOT, ctx)).toBe("protected-path");
+  // Every read-only pregate command runs by the launcher's path: a check of the tree reads, it does not write.
+  expect(guard('BIN=/repo/.pregate/bin/pregate; "$BIN" check --all', ROOT, ctx)).toBeNull();
+  expect(guard(".pregate/bin/pregate check --staged", ROOT, ctx)).toBeNull();
+  expect(guard("/repo/.pregate/bin/pregate check", ROOT, ctx)).toBeNull();
   expect(guard('BIN=/repo/.pregate/bin/pregate; "$BIN" uninstall', ROOT, ctx)).toBe("protected-path");
   expect(guard('BIN=pregate; BIN=rm; "$BIN" src/a.ts', ROOT, ctx)).toBeNull();
 });
@@ -940,8 +943,7 @@ const denied: [string, Cause | null][] = [
   ["rm -rf .ag*/plugins", "protected-path"],
   ["rm -rf ~/.local/state/pregate", "protected-path"],
   ["cat ${HOME}/.local/share/pregate/0.1.0/pregate", "protected-path"],
-  // the launcher is allowed only for the read-only pre-check
-  [".pregate/bin/pregate check --staged", "protected-path"],
+  // the launcher is allowed only for read-only commands
   [".pregate/bin/pregate preset compile", "protected-path"],
   ["/repo/.pregate/bin/pregate check --stdin --path .pregate/preset.json", "protected-path"],
   ["sh .pregate/bin/pregate check --stdin", "protected-path"],

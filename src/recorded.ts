@@ -47,7 +47,7 @@ export function unifyRoot(records: Recorded[], root: string): Recorded[] {
     return { ...record, event: { ...record.event, root } };
   });
 }
-export type CheckMode = { kind: "stdin"; path: string; text: string } | { kind: "staged" } | { kind: "base"; sha: string } | { kind: "tree" };
+export type CheckMode = { kind: "stdin"; path: string; text: string } | { kind: "staged" } | { kind: "base"; sha: string; ratchet?: boolean } | { kind: "tree" };
 export interface JudgeContext { beforeRead?: BaselineRead; importsOf?: ImportMemo; changed?: readonly string[]; commits?: (rel: string) => number | null; list?: () => readonly string[] }
 export type JudgedFile = Omit<FileState, "before"> & { before: string | null | BaselineRead };
 export interface Review { violations: Violation[]; form: Form | null; astHash: string | null; before?: string | null }
@@ -220,9 +220,12 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   reviews.push({ rel: ".pregate/preset.json", ...CLEAN, violations: fitnessViolations(loaded.lock, fitness) });
   // A looser contract fails the check against the base revision only: that is the pull request,
   // where a reviewer accepts it. A local commit carries it there and is told, not refused.
-  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(root, m.kind, loaded, before, read) : null;
-  const result = report(loaded, reviews, phase, format, m.kind === "base" ? contract : null);
-  return m.kind === "staged" && contract !== null && format === "agent" ? { code: result.code, text: `${result.text}${result.text === "" ? "" : "\n\n"}${contract}` } : result;
+  // Only the ratchet holds a looser contract: `check --ratchet --base <sha>`, which CI runs. A plain
+  // `check` and the pre-commit check say it in a note and judge the rules.
+  const ratchet = m.kind === "base" && m.ratchet === true;
+  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(root, ratchet ? "base" : "staged", loaded, before, read) : null;
+  const result = report(loaded, reviews, phase, format, ratchet ? contract : null);
+  return !ratchet && contract !== null && format === "agent" ? { code: result.code, text: `${result.text}${result.text === "" ? "" : "\n\n"}${contract}` } : result;
 }
 
 // A contract loosened since the last commit (staged) or the base revision (CI), unless the exact
