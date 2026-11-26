@@ -78,11 +78,8 @@ test("status and doctor lead with enforced, advisor and unverified rules on a mi
   const idle = `Nothing is enforced in ${canonical(root)}. Pregate blocks commands and edits only where \`pregate enable\` was run for this project.`;
   const status = run(["status"]);
   expect(status.code).toBe(0);
-  const lines = status.stdout.trimEnd().split("\n");
-  expect(lines[0]).toBe(idle);
-  expect(lines.slice(1, lead.length + 1)).toEqual(lead);
-  expect(lines.findIndex((line) => line.startsWith("Catalog:"))).toBeGreaterThan(lines.findIndex((line) => line.startsWith("Unverified:")));
-  expect(lines.some((line) => line.includes("Local consent is inactive"))).toBe(true);
+  // The short form says the state and the next step. The counts by channel lead the verbose form and doctor.
+  expect(status.stdout.trimEnd().split("\n")).toEqual([`Pregate is off in ${canonical(root)}. Nothing is checked or blocked.`, "Next: pregate enable."]);
   const verbose = run(["status", "--verbose"]);
   expect(verbose.code).toBe(0);
   expect(verbose.stdout.trimEnd().split("\n").slice(0, lead.length + 1)).toEqual([idle, ...lead]);

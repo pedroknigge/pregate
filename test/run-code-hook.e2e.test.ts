@@ -186,7 +186,7 @@ test("running code is allowed before enable, after enable, and after disable", (
       const text = `${blocked.stdout.toString()}\n${blocked.stderr.toString()}`;
       expect(denied(text), `${harness} enabled ${command}\n${text}`).toBe(true);
       if (command.includes(".pregate/preset.json")) expect(text, command).toContain("protected-path");
-      if (command.startsWith("pregate enable") || command.startsWith("pregate disable")) expect(text).toContain("separate terminal");
+      if (command.startsWith("pregate enable") || command.startsWith("pregate disable")) expect(text).toContain("is the user's command");
       for (const root of [fresh, off]) {
         const open = hook(cli, harness, root, command, `open-${harness}`);
         const openText = `${open.stdout.toString()}\n${open.stderr.toString()}`;
