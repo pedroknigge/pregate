@@ -64,7 +64,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **pattern**. Version: `1.4.0`. 25 distinct check IDs.
+Category: **pattern**. Version: `1.4.1`. 25 distinct check IDs.
 
 Methodologies: `architecture/anti-corruption` (complete), `architecture/clean-architecture` (complete), `architecture/cqrs` (complete), `architecture/dependency-rule` (complete), `architecture/functional-core-imperative-shell` (preview), `architecture/hexagonal` (complete), `architecture/layered` (complete), `architecture/modular-monolith` (complete), `architecture/repository` (complete), `architecture/structure` (complete), `architecture/vertical-slice` (complete).
 

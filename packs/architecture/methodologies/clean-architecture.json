@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schema/methodology.v1.json",
   "id": "architecture/clean-architecture",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "status": "complete",
   "conflicts": [
     {
@@ -61,6 +61,15 @@
         "paths": [
           "@layers:core"
         ],
+        "exclude": [
+          "**/app/**/{route,page,layout,template,loading,error,not-found,default,global-error,actions}.{ts,tsx,js,jsx,mjs,cjs}",
+          "**/app/**/actions/**",
+          "**/pages/api/**",
+          "middleware.{ts,tsx,js,jsx,mjs,cjs}",
+          "src/middleware.{ts,tsx,js,jsx,mjs,cjs}",
+          "proxy.{ts,tsx,js,jsx,mjs,cjs}",
+          "src/proxy.{ts,tsx,js,jsx,mjs,cjs}"
+        ],
         "packages": [
           "@prisma/client",
           "prisma",
@@ -94,7 +103,7 @@
       },
       "why": "A framework or ORM type in the core ties business rules to a vendor's lifecycle and to infrastructure every test must then start.",
       "fixHint": "Move the framework or ORM call into an adapter outside the core layers and give the core a port that speaks in domain types.",
-      "avoid": "Reaching the same package through require, a literal dynamic import, a subpath or a local barrel.",
+      "avoid": "Reaching the same package through require, a literal dynamic import, a subpath or a local barrel. App Router route, page, layout, template, loading, error, not-found, default, global-error and actions modules, a file under app/**/actions/, a Pages API route, and middleware or proxy at the project root or under src/ are delivery and are outside this rule. A server action under another file name stays in scope. A file in a core layer, including one under src/core or src/domain, is still denied.",
       "examples": {
         "pass": "pass/domain-without-frameworks",
         "fail": "fail/orm-in-domain"

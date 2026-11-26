@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "paths": ["@layers:core"],
+    "exclude": [
+      "**/app/**/{route,page,layout,template,loading,error,not-found,default,global-error,actions}.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/app/**/actions/**",
+      "**/pages/api/**",
+      "middleware.{ts,tsx,js,jsx,mjs,cjs}",
+      "src/middleware.{ts,tsx,js,jsx,mjs,cjs}",
+      "proxy.{ts,tsx,js,jsx,mjs,cjs}",
+      "src/proxy.{ts,tsx,js,jsx,mjs,cjs}"
+    ],
+    "packages": ["@prisma/client", "prisma", "typeorm", "sequelize", "mongoose", "drizzle-orm", "knex", "kysely", "@mikro-orm/core", "pg", "mysql2", "mongodb", "express", "fastify", "koa", "hono", "@nestjs/common", "@nestjs/core", "next", "react", "vue", "@angular/core"]
+  },
+  "context": {
+    "layers": {
+      "domain": { "paths": ["src/domain/**"], "mayImport": [], "kind": "core" },
+      "app": { "paths": ["src/app/**"], "mayImport": ["domain"], "kind": "core" },
+      "core": { "paths": ["src/core/**"], "mayImport": [], "kind": "core" }
+    }
+  },
+  "target": "src/core/policy.ts",
+  "before": null,
+  "expect": { "verdict": "fail", "violations": [{ "line": 1 }] }
+}
