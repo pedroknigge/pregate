@@ -1,8 +1,8 @@
 # PREGATE documentation
 
-Use this index for the current product contract. 0.0.13 is the published release.
+Use this index for the current product contract. 0.0.14 is the published release.
 [v0.0.1 release notes](releases/0.0.1.md) record the first public tag, and the
-[changelog](../CHANGELOG.md) records 0.0.13. Historical research is evidence for
+[changelog](../CHANGELOG.md) records 0.0.14. Historical research is evidence for
 its recorded candidate, not proof that a later candidate passes.
 
 ## Start and use the tool

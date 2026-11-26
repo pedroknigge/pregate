@@ -8,7 +8,7 @@ summary (scope, packs, rules, mode) and applies it when the human answers `y` or
 passes `--yes`. In advisor mode every rule informs and none blocks. The human
 runs that command. A hook denies it when an agent runs it.
 
-The guided coordinator is included in 0.0.13; `pregate --help --all` lists `guide`.
+The guided coordinator is included in 0.0.14; `pregate --help --all` lists `guide`.
 Use [the pregate skill](pregate-skill.md) in your coding harness: invoke `/pregate`, then ask
 for setup, an update, an audit or a bounded repair. Setup/update installs the
 matching companion instructions. Loading them grants no approval.

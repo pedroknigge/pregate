@@ -69,7 +69,6 @@ src/status.ts	catch (e) { errors.push(`Cannot read lock: ${(e as Error).message}
 src/status.ts	catch (e) { errors.push(`Cannot read preset: ${(e as Error).message}`); return null; }
 src/status.ts	catch (e) { errors.push(`Cannot verify local consent: ${(e as Error).message}`); return false; }
 src/status.ts	catch (e) { return { valid: false, errors: [(e as Error).message], lock: null }; }
-src/status.ts	catch { return false; // an engine image that cannot be started does not admit the lock }
 src/status.ts	catch { return null; // an unreadable pending record is reported by approve itself }
 src/storage-command.ts	catch (error) { return { code: 1, text: "Storage operation failed: " + (error as Error).message + ". Inspect storage before retrying; an interrupted apply may have completed part of the approved operation." }; }
 src/storage-recovery.ts	catch (error) { return (error as NodeJS.ErrnoException).code === "ESRCH" ? "dead" : "unknown"; }
