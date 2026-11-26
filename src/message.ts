@@ -258,8 +258,8 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
 
 // The causes a hook blocks on: the agent acting on Pregate itself. Short on purpose.
 const CONTROL_EN: Partial<Record<Cause, { what: string; instead: string }>> = {
-  "protected-path": { what: "the agent does not write Pregate's contract, its state, or a harness's settings; reading them is fine.",
-    instead: "Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview." },
+  "protected-path": { what: "the agent does not write Pregate's contract, state, or harness settings; reading is fine.",
+    instead: "Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview." },
   "request-invalid": { what: "the request file does not match schema/request.v1.json.",
     instead: "Fix the JSON and resend it." },
   "hook-switch": { what: "the agent does not install, remove, or switch off Pregate or the hooks of a harness.",
@@ -290,7 +290,7 @@ const NOTE_EN: Partial<Record<Cause, string>> = {
 
 export function notedText(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
-  const compact = clip(`PREGATE NOTE ${f.cause}${at}: ${NOTE_EN[f.cause] ?? CAUSE_EN[f.cause]} Not blocked.`, LINE_MAX);
+  const compact = clip(`PREGATE NOTE ${f.cause}${at}: ${f.said ? oneLine(f.said) : NOTE_EN[f.cause] ?? CAUSE_EN[f.cause]} Not blocked.`, LINE_MAX * 2);
   return { compact, full: compact, fix: null };
 }
 

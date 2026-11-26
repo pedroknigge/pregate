@@ -133,3 +133,25 @@ test("a contract Pregate cannot read is one note at the end of a turn, said once
   expect(second.code, second.text).toBe(0);
   expect(second.text).not.toContain("PREGATE NOTE");
 });
+
+test("at the end of a turn a file that does not parse is a note and does not hide an enforced rule in another file", () => {
+  const p = project();
+  const promotion = p.cli("promote", "--rule", "architecture/CA-DEP-001", "--preview");
+  expect(promotion.code, promotion.text).toBe(0);
+  expect(p.cli("approve", "--yes", "--digest", promotion.text.match(/Digest: ([0-9a-f]{64})/)![1]!).code).toBe(0);
+  p.git("add", "-A"); p.git("commit", "-qm", "enforce the layer rule");
+  expect(p.write("src/infra/note.ts", "export const note = 1;\n").code).toBe(0);
+  // Files a shell command left behind: Stop judges what is on disk.
+  writeFileSync(join(p.root, "src/domain/a.ts"), "export const broken = (;\n");
+  writeFileSync(join(p.root, "src/domain/z.ts"), BREAKS_THE_LAYER);
+
+  const blocked = p.stop();
+  expect(blocked.stdout, blocked.text).toContain('"decision":"block"');
+  expect(blocked.text).toContain("architecture/CA-DEP-001");
+
+  writeFileSync(join(p.root, "src/domain/z.ts"), "export const price = 1;\n");
+  const released = p.stop();
+  expect(released.code, released.text).toBe(0);
+  expect(released.stdout).not.toContain('"decision":"block"');
+  expect(released.text).toContain("syntax");
+});

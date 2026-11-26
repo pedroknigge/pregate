@@ -383,7 +383,9 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   for (const r of reviews) {
     const f = { rel: r.rel, after: read(r.rel) };
     if (r.form !== null) {
-      if (blocking(loaded.lock, [], r.form.cause, { rel: f.rel, phase: "stop" }).cause !== null) return { ...known, rel: f.rel, form: r.form };
+      // Only a control cause ends the review of this root. Any other cause is a note, and the
+      // files after it are still judged: a file that does not parse must not hide an enforced rule.
+      if (CONTROL.has(r.form.cause) && blocking(loaded.lock, [], r.form.cause, { rel: f.rel, phase: "stop" }).cause !== null) return { ...known, rel: f.rel, form: r.form };
       muted ??= { rel: f.rel, form: r.form };
     }
     const asked = f.after === null ? [] : askedFor(sid, join(root, f.rel), f.after);

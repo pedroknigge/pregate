@@ -210,9 +210,9 @@ const CASES: [string, DecideInput, Expect][] = [
   ["stop blocks a control cause", input({
     event: "stop", path: FILE, form: { cause: "protected-path", line: null }, stop: { blocks: 0, reentry: false, approved: [] },
   }), { verdict: "deny", halt: false, cause: "protected-path", attempt: 1 }],
-  ["stop does not block a file that does not parse", input({
+  ["stop does not block a file that does not parse and tells the human", input({
     event: "stop", path: FILE, form: { cause: "syntax", line: 9 }, stop: { blocks: 0, reentry: false, approved: [] },
-  }), { verdict: "none", halt: false, cause: "syntax", notice: null, full: /^PREGATE WARN syntax src\/billing\/invoice\.ts:9: / }],
+  }), { verdict: "none", halt: false, cause: "syntax", notice: /^PREGATE WARN syntax src\/billing\/invoice\.ts:9: /, full: /^PREGATE WARN syntax src\/billing\/invoice\.ts:9: / }],
   ["stop does not block a directory that is not a repository and tells the human", input({
     event: "stop", path: null, lock: null, form: { cause: "git-not-repository", line: null }, stop: { blocks: 0, reentry: false, approved: [] },
   }), { verdict: "none", halt: false, cause: "git-not-repository", notice: NOTE("git-not-repository", ""), full: NOTE("git-not-repository", "") }],

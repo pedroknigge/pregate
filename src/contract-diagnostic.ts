@@ -271,7 +271,8 @@ function checkout(dir: string): string | null {
 export function locatedForm(sid: string, cause: Cause, dir: string): Form {
   const nearest = findRoot(dir, enabled);
   if (cause === "lock-stale" && nearest !== null && !accepted(sid)(nearest)) {
-    return { cause, line: null, detail: `${nearest} has its own PREGATE contract, which this session did not open: its preset appeared after the session started and is not committed at HEAD. Commit ${nearest}/.pregate/preset.json with its lock, or start a new agent session in ${nearest}.` };
+    return { cause, line: null, detail: `${nearest} has its own PREGATE contract, which this session did not open: its preset appeared after the session started and is not committed at HEAD. Commit ${nearest}/.pregate/preset.json with its lock, or start a new agent session in ${nearest}.`,
+      said: `${nearest} has its own PREGATE contract, which this session did not open, so this call was not checked. Start a new agent session in ${nearest}, or commit its .pregate folder.` };
   }
   return form(cause, nearest ?? state.roots(sid).find((r) => enabled(r) && within(r, dir)));
 }

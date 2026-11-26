@@ -51,8 +51,8 @@ test("concrete stale diagnosis retains pins and human recovery when the compact 
 test("a protected-path block is one line, and a rule deny still explains absolute paths for a request", () => {
   const protectedRequest = formText({ cause: "protected-path", line: null }, null);
   expect(protectedRequest.compact).toStartWith("PREGATE DENY protected-path: the agent does not write");
-  expect(protectedRequest.compact).toContain("reading them is fine.");
-  expect(protectedRequest.compact).toContain("Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview.");
+  expect(protectedRequest.compact).toContain("reading is fine.");
+  expect(protectedRequest.compact).toContain("Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview.");
   expect(protectedRequest.compact.length).toBeLessThanOrEqual(256);
   expect(protectedRequest.full).toBe(protectedRequest.compact);
   const text = denyText([v(1, 1)], LOCK, 1, "retry", CTX).full;
@@ -63,10 +63,11 @@ test("a protected-path block is one line, and a rule deny still explains absolut
 test("a protected-path block names a long path in one line without a pre-check or a report paragraph", () => {
   const text = formText({ cause: "protected-path", line: null }, "nested/".repeat(80) + ".pregate/preset.json");
   expect(text.compact.length).toBeLessThanOrEqual(256);
-  expect(text.compact).toStartWith("PREGATE DENY protected-path ");
+  // The instruction fills the first line, so the long path moves whole to the second.
+  expect(text.compact).toStartWith("PREGATE DENY protected-path");
   // The path yields so the instruction survives in the first line; the whole path follows it.
-  expect(text.compact).toContain(".pregate/preset.json: the agent does not write");
-  expect(text.compact).toContain("reading them is fine. Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview.");
+  expect(text.compact).toContain("the agent does not write");
+  expect(text.compact).toContain("reading is fine. Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview.");
   expect(text.full).toStartWith(`${text.compact}\nPath: `);
   expect(text.full).toEndWith("nested/.pregate/preset.json");
   expect(text.full).not.toContain("check --stdin");

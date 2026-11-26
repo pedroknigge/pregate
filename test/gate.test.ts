@@ -91,33 +91,68 @@ function session(harness: Session["harness"] = "claude-code", id = "session"): S
   return { id, harness, turnId: "turn", agentId: null, interactive: false };
 }
 
-test.each(["missing lock", "malformed lock", "changed preset", "incompatible pins", "missing preset"] as const)("Pre, Stop and SessionStart identify %s without changing consent", async kind => {
+// A public setter in the domain layer: ddd/DDD-ENT-001 is deny and enforce in the fixture preset.
+const SETTER = "export class Invoice {\n  constructor(readonly id: string, private customer: string) {}\n  setCustomer(c: string): void { this.customer = c; }\n}\n";
+
+test.each(["missing lock", "malformed lock", "changed preset", "incompatible pins"] as const)("%s: Pre, Stop and SessionStart judge from the preset without blocking or changing consent", async kind => {
   const root = repo(), s = session("claude-code", kind.replaceAll(" ", "-"));
   onSessionStart({ kind: "session-start", session: s, cwd: root });
   const original = readFileSync(join(root, LOCK), "utf8");
   if (kind === "missing lock") rmSync(join(root, LOCK));
-  else if (kind === "missing preset") rmSync(join(root, PRESET));
   else if (kind === "malformed lock") put(join(root, LOCK), "{");
   else if (kind === "changed preset") put(join(root, PRESET), JSON.stringify({ ...JSON.parse(readFileSync(join(root, PRESET), "utf8")), name: "changed" }));
   else put(join(root, LOCK), JSON.stringify({ ...JSON.parse(original), engine: "0.2.5", core: "0.2.0" }));
-  const expected = kind.startsWith("missing") ? "Missing contract" : kind === "malformed lock" ? "Malformed contract" : kind === "changed preset" ? "Changed contract" : "Incompatible contract";
   const pre = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)]);
   const stop = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
   const start = onSessionStart({ kind: "session-start", session: s, cwd: root });
-  for (const text of [pre.full, pre.notice, stop.full, start.notice]) {
-    expect(text).toContain(expected);
-    expect(text).toContain(`Installed engine ${VERSIONS.engine}, core ${VERSIONS.core}`);
-    expect(text).toContain("pregate update --project --preview");
-    expect(text).toContain("displayed digest-bound command");
+  for (const d of [pre, stop]) {
+    expect(d.verdict).toBe("none");
+    expect(d.halt).toBe(false);
+    expect(d.cause).toBeNull();
+    expect(d.full).toBe("");
+    expect(d.notice).toBeNull();
   }
-  expect(pre.verdict).toBe("deny");
-  expect(stop.verdict).toBe("deny");
-  expect(pre.halt).toBe(true);
+  expect(start.full).toContain(`PREGATE is active: preset ${kind === "changed preset" ? "changed" : "backend-clean-ddd"}`);
+  expect(start.notice).toBeNull();
+  // The lock in use is the preset compiled by this engine, so an enforced rule still denies.
+  const loaded = lockOf(root);
+  if (typeof loaded === "string") throw new Error(loaded);
+  expect(loaded.lock.engine).toBe(VERSIONS.engine);
+  expect(loaded.lock.core).toBe(VERSIONS.core);
+  const breach = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: SETTER }, s), callId: "breach" }]);
+  expect(breach.verdict).toBe("deny");
+  expect(breach.violations).toContainEqual(expect.objectContaining({ rule: "ddd/DDD-ENT-001" }));
   expect(enabled(root)).toBe(true);
   expect(readFileSync(join(root, "src/domain/a.ts"), "utf8")).toBe("export const a = 1;\n");
 });
 
-test("a lock left with merge conflict markers denies Pre, Stop and SessionStart with the merge recovery", async () => {
+test("a missing preset is a note on Pre and Stop, and SessionStart tells the human how to recover", async () => {
+  const root = repo(), s = session("claude-code", "missing-preset");
+  onSessionStart({ kind: "session-start", session: s, cwd: root });
+  rmSync(join(root, PRESET));
+  const pre = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)]);
+  const stop = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+  const start = onSessionStart({ kind: "session-start", session: s, cwd: root });
+  for (const d of [pre, stop]) {
+    expect(d.verdict).toBe("none");
+    expect(d.halt).toBe(false);
+    expect(d.cause).toBe("lock-stale");
+    expect(d.full).toContain("PREGATE NOTE lock-stale");
+    expect(d.full).toContain("Not blocked.");
+    expect(d.stopIncomplete).toBeUndefined();
+  }
+  expect(pre.full).toContain("src/domain/a.ts");
+  // Stop has no agent turn left, so the human gets the note.
+  expect(stop.notice).toContain("PREGATE NOTE lock-stale");
+  expect(start.notice).toContain("Missing contract");
+  expect(start.notice).toContain(`Installed engine ${VERSIONS.engine}, core ${VERSIONS.core}`);
+  expect(start.notice).toContain("pregate update --project --preview");
+  expect(start.notice).toContain("displayed digest-bound command");
+  expect(enabled(root)).toBe(true);
+  expect(readFileSync(join(root, "src/domain/a.ts"), "utf8")).toBe("export const a = 1;\n");
+});
+
+test("a lock left with merge conflict markers is rebuilt from the preset: Pre, Stop and SessionStart do not block", async () => {
   const root = repo("conflicted-lock"), s = session("claude-code", "conflicted-lock");
   onSessionStart({ kind: "session-start", session: s, cwd: root });
   const original = readFileSync(join(root, LOCK), "utf8");
@@ -125,17 +160,23 @@ test("a lock left with merge conflict markers denies Pre, Stop and SessionStart 
   const pre = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)]);
   const stop = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
   const start = onSessionStart({ kind: "session-start", session: s, cwd: root });
-  for (const text of [pre.full, pre.notice, stop.full, start.notice]) {
-    expect(text).toContain(`Merge conflict: git left ${LOCK} unmerged or with conflict markers`);
-    expect(text).toContain("pregate update --project --preview");
-    expect(text).toContain("displayed digest-bound command");
+  for (const d of [pre, stop]) {
+    expect(d.verdict).toBe("none");
+    expect(d.halt).toBe(false);
+    expect(d.cause).toBeNull();
+    expect(d.full).toBe("");
   }
-  expect(pre.verdict).toBe("deny");
-  expect(stop.verdict).toBe("deny");
+  expect(start.full).toContain("PREGATE is active: preset backend-clean-ddd");
+  expect(start.notice).toBeNull();
+  // The preset is still enforced while the lock file stays conflicted.
+  const breach = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: SETTER }, s), callId: "breach" }]);
+  expect(breach.verdict).toBe("deny");
+  expect(breach.violations).toContainEqual(expect.objectContaining({ rule: "ddd/DDD-ENT-001" }));
+  expect(readFileSync(join(root, LOCK), "utf8")).toContain("<<<<<<< HEAD");
   expect(enabled(root)).toBe(true);
 });
 
-test("explicit static enforcement keeps syntax on Pre, check and Stop without a shadow form hiding another file", async () => {
+test("explicit static enforcement keeps syntax strict in check; Pre and Stop record it and do not block", async () => {
   const root = repo("mixed-syntax"), s = session("claude-code", "mixed-syntax");
   put(join(root, "src/infra/unrelated.ts"), "export const unrelated = 1;\n");
   const next = JSON.parse(readFileSync(join(root, PRESET), "utf8"));
@@ -148,16 +189,21 @@ test("explicit static enforcement keeps syntax on Pre, check and Stop without a 
   await onSessionStart({ kind: "session-start", session: s, cwd: root });
   const invalid = "export const broken = ;\n";
   const edit = (rel: string): ProposedChange => ({ session: s, callId: rel, from: null, path: join(root, rel), tool: "Write", edit: { form: "full", content: invalid } });
-  expect((await onPreEdit([edit("src/domain/a.ts")])).verdict).toBe("deny");
-  expect((await onPreEdit([edit("src/infra/unrelated.ts")])).verdict).toBe("none");
+  // Shadow says nothing: the cause is recorded, and the call passes.
+  for (const rel of ["src/domain/a.ts", "src/infra/unrelated.ts"]) {
+    const pre = await onPreEdit([edit(rel)]);
+    expect(pre).toMatchObject({ verdict: "none", halt: false, cause: "syntax", full: "" });
+    expect(events(s, join(root, rel)).at(-1)).toMatchObject({ verdict: "none", form: "syntax" });
+  }
   expect((await check(root, { kind: "stdin", path: "src/domain/a.ts", text: invalid })).code).toBe(1);
   expect((await check(root, { kind: "stdin", path: "src/infra/unrelated.ts", text: invalid })).code).toBe(0);
   put(join(root, "src/infra/unrelated.ts"), invalid);
   expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), invalid);
   const stopped = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
-  expect(stopped.verdict).toBe("deny"); expect(stopped.cause).toBe("syntax"); expect(stopped.full).toContain("src/domain/a.ts");
-  expect((await check(root, { kind: "base", sha: "HEAD" })).code).toBe(1);
+  expect(stopped).toMatchObject({ verdict: "none", halt: false, cause: "syntax" }); expect(stopped.stopIncomplete).toBeUndefined();
+  const based = await check(root, { kind: "base", sha: "HEAD" });
+  expect(based.code).toBe(1); expect(based.text).toContain("PREGATE DENY syntax src/domain/a.ts");
   git(root, "add", "src");
   expect((await check(root, { kind: "staged" })).code).toBe(1);
   put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
@@ -224,7 +270,7 @@ test("production hooks allow normalized guide calls from a directory that was ne
   expect(existsSync(join(process.env.XDG_DATA_HOME!, "pregate", "consent"))).toBe(false);
 }, 120_000);
 
-test("git add can stage the exact admitted policy pair but cannot stage invalid policy or write it", () => {
+test("git add can stage the admitted policy pair but cannot stage a preset that does not compile, or write policy", () => {
   const root = repo(), s = session();
   const command = (text: string) => onPreCommand({ session: s, callId: text, tool: "Bash", cwd: root, command: text });
   const files = `git add -- ${PRESET} ${LOCK} && git commit -m 'admitted policy'`;
@@ -241,10 +287,14 @@ test("git add can stage the exact admitted policy pair but cannot stage invalid 
   expect(command("ls .pregate/").verdict).toBe("none");
   expect(command(`git diff --output=${LOCK} -- ${PRESET}`).cause).toBe("protected-path");
   expect(command(`cat ${PRESET} > ${LOCK}`).cause).toBe("protected-path");
-  expect(command("ls .pregate/private-state/").cause).toBe("protected-path");
+  // A read-only command may name anything inside .pregate/; a write or a redirection into it may not.
+  for (const read of ["ls .pregate/private-state/", `head ${PRESET}`, `wc -l ${LOCK}`, "git log -- .pregate/"]) expect(command(read).verdict, read).toBe("none");
+  for (const write of ["ls .pregate/private-state/ > .pregate/listing", `sed -i s/a/b/ ${PRESET}`, "tee .pregate/x < /dev/null"]) expect(command(write).cause, write).toBe("protected-path");
   put(join(root, PRESET), text);
+  // A lock file behind a valid preset does not stop the staging: the preset is what is judged.
   put(join(root, LOCK), "{}");
-  expect(command(files).cause).toBe("protected-path");
+  expect(command(files)).toMatchObject({ verdict: "none", cause: null });
+  expect(command(`git add ${PRESET} > ${LOCK}`).cause).toBe("protected-path");
 });
 
 test("doctor inspection reads fixed global, configured and project settings while preserving mutation gates", () => {
@@ -505,7 +555,11 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s inspec
     expect(onPreCommand({ session: s, callId: "write", tool: "Bash", cwd: root,
       command: `echo changed > '${join(root, "src/domain/a.ts")}'` }).verdict).toBe("none");
     expect(traced).toHaveBeenCalledTimes(1);
-    expect(lockOf(root)).toBe("lock-stale");
+    // A lock file that does not match the preset is not admitted: the preset is compiled instead.
+    const loaded = lockOf(root);
+    if (typeof loaded === "string") throw new Error(loaded);
+    expect(loaded.lock.scope).toEqual(JSON.parse(readFileSync(join(root, PRESET), "utf8")).scope);
+    expect(loaded.lock.scope).not.toEqual(["unrelated/**"]);
   });
 });
 
@@ -565,7 +619,7 @@ test.each(["codex", "agy", "cursor"] as const)("%s pending review without enable
   const write = change(root, PRESET, { form: "full", content: "{}" }, s);
   expect(inert({ kind: "pre-edit", changes: [write] })).toBe(true);
   expect((await onPreEdit([write])).verdict).toBe("none");
-  expect((await onPreEdit([change(root, "src/a.ts", { form: "full", content: "export const a = ;" }, s)])).verdict).toBe("none");
+  expect(await onPreEdit([change(root, "src/a.ts", { form: "full", content: "export const a = ;" }, s)])).toMatchObject({ verdict: "none", cause: null });
   expect(readProposal(root)).toEqual(proposal);
   expect(enabled(root)).toBe(false);
   expect(existsSync(join(root, PRESET))).toBe(false);
@@ -655,7 +709,7 @@ test("initial review discovery stops at a nested repository and expires without 
   });
 });
 
-test("a directory without git denies the hook, Stop and check", async () => {
+test("a directory without git fails check; the hook and Stop note it and do not block", async () => {
   const root = canonical(join(area, "standalone"));
   put(join(root, "src/domain/a.ts"), "export const a = 1;\n");
   preset(root); enable(root);
@@ -666,12 +720,14 @@ test("a directory without git denies the hook, Stop and check", async () => {
   expect(checked.code).toBe(1);
   expect(checked.text).toContain("git init");
   const pre = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)]);
-  expect(pre.verdict).toBe("deny");
-  expect(pre.cause).toBe("git-not-repository");
+  expect(pre).toMatchObject({ verdict: "none", halt: false, cause: "git-not-repository" });
+  expect(pre.full).toContain("PREGATE NOTE git-not-repository src/domain/a.ts");
+  expect(pre.full).toContain("Not blocked.");
   expect(inert({ kind: "stop", session: s, cwd: root, reentry: false })).toBe(false);
   const stop = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
-  expect(stop.verdict).toBe("deny");
-  expect(stop.cause).toBe("git-not-repository");
+  expect(stop).toMatchObject({ verdict: "none", halt: false, cause: "git-not-repository" });
+  expect(stop.notice).toContain("PREGATE NOTE git-not-repository");
+  expect(stop.notice).toContain("Not blocked.");
 });
 
 test.each([{ exclude: [] }, { exclude: [".pregate/**"] }])("Stop does not treat an admitted untracked contract as source code (excludes %j)", async ({ exclude }) => {
@@ -698,8 +754,9 @@ test.each([{ exclude: [] }, { exclude: [".pregate/**"] }])("Stop does not treat 
   const blocked = onPreCommand({ session: s, callId: "policy-precheck", tool: "Bash", cwd: root,
     command: `${launcher()} check --stdin --path .pregate/preset.json --format agent < .pregate/preset.json` });
   expect(blocked.cause).toBe("protected-path");
-  expect(blocked.full).toContain("pregate preset show");
-  expect(blocked.full).toContain("do not run a source pre-check on policy files");
+  expect(blocked.verdict).toBe("deny");
+  expect(blocked.full).toContain("PREGATE DENY protected-path");
+  expect(blocked.full).toContain("Tell the user the change you want");
   expect(onPreCommand({ session: s, callId: "policy-show", tool: "Bash", cwd: root, command: "pregate preset show" }).verdict).toBe("none");
 
   // No folder-wide exception: source still has the suppression/placement guard.
@@ -711,15 +768,24 @@ test.each([{ exclude: [] }, { exclude: [".pregate/**"] }])("Stop does not treat 
     rule: exclude.length ? "core/EVA-SCOPE-001" : "core/EVA-SUP-001" }));
   rmSync(join(root, source));
 
-  // Complete compilation still rejects modified contract bytes before the exception.
+  // Modified lock bytes are not admitted: Stop judges from the preset, and check still rejects them.
   put(join(root, LOCK), result.text.replace("eslint-disable", "eslint-allow"));
-  expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).cause).toBe("lock-stale");
-  expect((await check(root, { kind: "tree" })).code).toBe(1);
+  expect(await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).toMatchObject({ verdict: "none", cause: null, violations: [] });
+  const modified = lockOf(root);
+  if (typeof modified === "string") throw new Error(modified);
+  expect(lockText(modified.lock)).toBe(result.text);
+  const strict = await check(root, { kind: "tree" });
+  expect(strict.code).toBe(1);
+  expect(strict.text).toContain("does not match the preset");
   put(join(root, LOCK), result.text);
   put(join(root, PRESET), text.replace('"include":["**"]', '"include":["src/**"]'));
   const stale = session("agy", "stale-preset");
   onPreCommand({ session: stale, callId: "inspect-stale", tool: "Bash", cwd: root, command: "git status" });
-  expect((await onStop({ kind: "stop", session: stale, cwd: root, reentry: false })).cause).toBe("lock-stale");
+  expect(await onStop({ kind: "stop", session: stale, cwd: root, reentry: false })).toMatchObject({ verdict: "none", cause: null });
+  // A lock behind the preset is replaced by the preset's compile.
+  const behind = lockOf(root);
+  if (typeof behind === "string") throw new Error(behind);
+  expect(behind.lock.scope.include).toEqual(["src/**"]);
 });
 
 test("a default-core session reports unbound requirements without blocking a valid edit or Stop", async () => {
@@ -756,8 +822,8 @@ test("real edit, command and Stop decisions retain correlation, classified failu
   expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)])).verdict).toBe("none");
   expect(onPreCommand({ session: s, callId: "command", tool: "Bash", cwd: root, command: "git status" }).verdict).toBe("none");
   const invalid = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: "export const a = ;\n" }, s), callId: "invalid-edit" }]);
-  expect(invalid.verdict).toBe("deny");
-  expect(invalid.cause).not.toBeNull();
+  expect(invalid).toMatchObject({ verdict: "none", halt: false, cause: "syntax" });
+  expect(invalid.full).toContain("PREGATE WARN syntax src/domain/a.ts");
   const blocked = onPreCommand({ session: s, callId: "blocked-command", tool: "Bash", cwd: root, command: "echo x > .pregate/preset.json" });
   expect(blocked.verdict).toBe("deny");
   expect(blocked.cause).toBe("protected-path");
@@ -768,7 +834,7 @@ test("real edit, command and Stop decisions retain correlation, classified failu
     expect(event.root).toBe(root);
     expect(event.turn).toBe("turn");
     expect(event.callId).not.toBe("");
-    expect(event.verdict).toBe(["invalid-edit", "blocked-command"].includes(event.callId) ? "deny" : "none");
+    expect(event.verdict).toBe(event.callId === "blocked-command" ? "deny" : "none");
     expect(event.form).toBe(event.callId === "invalid-edit" ? invalid.cause : event.callId === "blocked-command" ? blocked.cause : null);
     expect(Number.isFinite(event.evaluationMs)).toBe(true);
     expect(event.evaluationMs!).toBeGreaterThanOrEqual(0);
@@ -819,7 +885,7 @@ test.each(["null batch", "missing importer", "deadline"] as const)("affected bas
   });
 });
 
-test("affected baseline snapshot batch causes deny and halt without permitting importers", async () => {
+test("a missing importer baseline does not halt the turn, and the layer rule still denies the edit", async () => {
   const root = repo(), s = session();
   put(join(root, "src/domain/value.ts"), "export const value = 1;\n");
   put(join(root, "src/infra/value.ts"), "export const value = 2;\n");
@@ -830,7 +896,9 @@ test("affected baseline snapshot batch causes deny and halt without permitting i
   const original = state.beforeTexts, traced = spyOn(state, "beforeTexts").mockImplementation((sid, snapshot, rels) => rels.includes("src/domain/use.ts") ? "snapshot-missing" : original(sid, snapshot, rels));
   await whileSpiedAsync(traced, async () => {
     const decision = await onPreEdit([change(root, "src/domain/barrel.ts", { form: "full", content: 'export * from "../infra/value";\n' }, s)]);
-    expect(decision.verdict).toBe("deny"); expect(decision.halt).toBe(true); expect(decision.cause).toBe("snapshot-missing");
+    expect(traced.mock.calls.some(([, , rels]) => rels.includes("src/domain/use.ts"))).toBe(true);
+    expect(decision.verdict).toBe("deny"); expect(decision.halt).toBe(false); expect(decision.cause).toBeNull();
+    expect(decision.violations).toContainEqual(expect.objectContaining({ rule: "architecture/CA-DEP-001" }));
   });
 });
 
@@ -863,7 +931,7 @@ test("first-touch Pre batches its own immutable baseline with discovered depende
   });
 });
 
-test.each(["export const a = 3;\n", "export const a = ;\n"])("a lost dirty baseline still halts deferred Pre before permitting %s", async (content) => {
+test.each(["export const a = 3;\n", "export const a = ;\n"])("a lost dirty baseline is a snapshot-missing note on deferred Pre, not a halt, for %s", async (content) => {
   const root = repo();
   put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
   const s = session();
@@ -872,7 +940,10 @@ test.each(["export const a = 3;\n", "export const a = ;\n"])("a lost dirty basel
   if (snap === null || snap === "missing") throw new Error("Missing test snapshot");
   rmSync(join(state.sessionDir(state.key(s)), "blobs", snap.dirty["src/domain/a.ts"]!));
   const d = await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content }, s)]);
-  expect(d.verdict).toBe("deny"); expect(d.halt).toBe(true); expect(d.cause).toBe("snapshot-missing");
+  expect(d.verdict).toBe("none"); expect(d.halt).toBe(false); expect(d.cause).toBe("snapshot-missing");
+  expect(d.full).toContain("PREGATE NOTE snapshot-missing src/domain/a.ts");
+  expect(d.full).toContain("Not blocked.");
+  expect(events(s, join(root, "src/domain/a.ts")).at(-1)).toMatchObject({ verdict: "none", form: "snapshot-missing" });
 });
 
 test("ordinary check baselines that match a cause name remain source text", async () => {
@@ -966,15 +1037,15 @@ test("D28: a clone is inert until locally enabled; a worktree of a consenting re
     const c = change(dir, "src/domain/bad.ts", { form: "full", content: "export const bad = ;" }, session("claude-code", state.H(dir)));
     expect(enabled(dir)).toBe(dir === worktree);
     if (dir === clone) {
-      expect((await onPreEdit([c])).verdict).toBe("none");
+      expect(await onPreEdit([c])).toMatchObject({ verdict: "none", cause: null });
       expect(onPreCommand({ session: c.session, callId: "shell", tool: "Bash", cwd: dir, command: "pregate uninstall" }).verdict).toBe("none");
       enable(dir);
     }
     expect(enabled(dir)).toBe(true);
-    expect((await onPreEdit([c])).cause).toBe("syntax");
+    expect(await onPreEdit([c])).toMatchObject({ verdict: "none", cause: "syntax" });
     disable(dir);
     expect(enabled(dir)).toBe(false);
-    expect((await onPreEdit([c])).verdict).toBe("none");
+    expect(await onPreEdit([c])).toMatchObject({ verdict: "none", cause: null });
   }
   // A worktree disable withdraws repository consent. The checkout enabled by name stays enabled,
   // and a worktree added afterwards does not inherit. Project disable turns those off too.
@@ -1063,14 +1134,14 @@ test("an agent's isolated worktree inside the project is protected by its own co
   expect((await onPreEdit([change(tree, "src/domain/b.ts", { form: "full", content: "export const b = ;\n" }, agent)])).cause).toBe("syntax");
   expect(onPreCommand({ session: agent, callId: "ls", tool: "Bash", cwd: tree, command: "git status" }).verdict).toBe("none");
   disable(tree);
-  expect((await onPreEdit([change(tree, "src/domain/b.ts", { form: "full", content: "export const b = ;\n" }, agent)])).verdict).toBe("none");
+  expect(await onPreEdit([change(tree, "src/domain/b.ts", { form: "full", content: "export const b = ;\n" }, agent)])).toMatchObject({ verdict: "none", cause: null });
   expect(onPreCommand({ session: agent, callId: "ls-2", tool: "Bash", cwd: tree, command: "git status" }).verdict).toBe("none");
   put(join(tree, "src/domain/b.ts"), "export const b = ;\n");
   git(root, "worktree", "remove", "--force", tree);
-  expect((await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).verdict).toBe("none");
+  expect(await onStop({ kind: "stop", session: s, cwd: root, reentry: false })).toMatchObject({ verdict: "none", cause: null });
 });
 
-test.each(["claude-code", "codex"] as const)("%s subagents: child checks are scoped and the parent's existing backstop is retained", async (harness) => {
+test.each(["claude-code", "codex"] as const)("%s subagents: child checks are scoped and the parent's existing backstop is retained, as notes", async (harness) => {
   const root = repo(`subagents-${harness}`);
   const parent = session(harness, `subagents-${harness}`);
   const agent = { ...parent, agentId: "worker" };
@@ -1079,19 +1150,23 @@ test.each(["claude-code", "codex"] as const)("%s subagents: child checks are sco
   onSessionStart({ kind: "session-start", session: parent, cwd: root });
   expect((await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, agent)])).verdict).toBe("none");
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
-  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
-  expect((await stop({ ...parent, agentId: "reader" })).verdict).toBe("none");
-  expect((await stop(agent)).cause).toBe("syntax");
-  expect((await stop(parent)).verdict).toBe(harness === "codex" ? "deny" : "none");
-  if (harness === "codex") put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
+  // Nothing blocks: the cause tells whose Stop judged the file. Claude Code leaves a running child's file to the child.
+  expect(await stop(parent)).toMatchObject({ verdict: "none", cause: harness === "codex" ? "syntax" : null });
+  expect(await stop({ ...parent, agentId: "reader" })).toMatchObject({ verdict: "none", cause: null });
+  const child = await stop(agent);
+  expect(child).toMatchObject({ verdict: "none", halt: false, cause: "syntax" });
+  expect(child.full).toContain("PREGATE WARN syntax src/domain/a.ts");
+  // The child's Stop did not block, so the child is finished and the parent's Stop is the backstop for its file.
+  expect(await stop(parent)).toMatchObject({ verdict: "none", cause: "syntax" });
+  put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
+  expect(await stop(parent)).toMatchObject({ verdict: "none", cause: null });
   expect((await onPreEdit([change(root, "src/domain/c.ts", { form: "full", content: "export const c = 1;\n" }, parent)])).verdict).toBe("none");
   put(join(root, "src/domain/c.ts"), "export const c = ;\n");
-  const own = await stop(parent);
-  expect(own.cause).toBe("syntax");
-  expect(own.full).toContain("src/domain/c.ts");
+  // c.ts is the only file that does not parse: the parent is charged for its own edit.
+  expect(await stop(parent)).toMatchObject({ verdict: "none", cause: "syntax" });
+  expect(await stop(agent)).toMatchObject({ verdict: "none", cause: null });
   put(join(root, "src/domain/c.ts"), "export const c = 1;\n");
-  put(join(root, "src/domain/a.ts"), "export const a = 2;\n");
-  expect((await stop(agent)).verdict).toBe("none");
+  expect(await stop(agent)).toMatchObject({ verdict: "none", cause: null });
   put(join(root, "src/domain/a.ts"), "export const a = ;\n");
   expect((await stop(parent)).cause).toBe("syntax");
   // Harnesses without a verified SubagentStop still judge all files at the parent's Stop.
@@ -1115,7 +1190,7 @@ test("Codex child commands review unattributed runtime changes without charging 
   expect(blocked.full).toContain("runtime.ts");
   expect(blocked.full).not.toContain("src/domain/a.ts");
   put(join(root, "src/domain/runtime.ts"), "export const runtime = 1;\n");
-  expect((await onStop({ kind: "stop", session: child, cwd: root, reentry: false })).verdict).toBe("none");
+  expect(await onStop({ kind: "stop", session: child, cwd: root, reentry: false })).toMatchObject({ verdict: "none", cause: null });
   expect((await onStop({ kind: "stop", session: parent, cwd: root, reentry: false })).cause).toBe("syntax");
 });
 
@@ -1129,18 +1204,20 @@ test("Stop does not charge the session for a branch that existed before it; comm
   git(root, "checkout", "-q", "-");
   onSessionStart({ kind: "session-start", session: s, cwd: root });
   git(root, "checkout", "-q", "theirs");
-  expect((await stop()).verdict).toBe("none");
+  expect(await stop()).toMatchObject({ verdict: "none", cause: null });
   git(root, "checkout", "-q", "-");
   git(root, "merge", "-q", "--ff-only", "theirs");
-  expect((await stop()).verdict).toBe("none");
+  expect(await stop()).toMatchObject({ verdict: "none", cause: null });
   put(join(root, "src/domain/theirs.ts"), "export const theirs = ;\nexport const more = 1;\n");
-  expect((await stop()).cause).toBe("syntax");
+  const changed = await stop();
+  expect(changed.cause).toBe("syntax");
+  expect(changed.full).toContain("src/domain/theirs.ts");
   git(root, "checkout", "-q", "src/domain/theirs.ts");
+  expect(await stop()).toMatchObject({ verdict: "none", cause: null });
   put(join(root, "src/domain/mine.ts"), "export const mine = ;\n");
   git(root, "add", "."); git(root, "commit", "-qm", "my work through the shell");
-  const mine = await stop();
-  expect(mine.cause).toBe("syntax");
-  expect(mine.full).toContain("src/domain/mine.ts");
+  // mine.ts is the only file charged now. The note text was already given once in this session.
+  expect(await stop()).toMatchObject({ verdict: "none", cause: "syntax" });
 });
 
 describe("#62: merge attribution", () => {
@@ -1167,16 +1244,17 @@ describe("#62: merge attribution", () => {
     commit(root, "src/domain/b.ts", "export const b = 1;\n", "main moves");
     onSessionStart({ kind: "session-start", session: s, cwd: root });
     git(root, "merge", "-q", "--no-ff", "--no-edit", "theirs");
-    expect((await stopOf(root, s)).verdict).toBe("none");
+    expect(await stopOf(root, s)).toMatchObject({ verdict: "none", cause: null });
     git(root, "merge", "-q", "--no-ff", "--no-commit", "later");
-    expect((await stopOf(root, s)).verdict).toBe("none");
+    expect(await stopOf(root, s)).toMatchObject({ verdict: "none", cause: null });
     put(join(root, "src/domain/later.ts"), "export const later = ;\n");
     const evil = await stopOf(root, s);
     expect(evil.cause).toBe("syntax");
     expect(evil.full).toContain("src/domain/later.ts");
     git(root, "add", ".");
     git(root, "commit", "-q", "--no-edit");
-    expect((await stopOf(root, s)).full).toContain("src/domain/later.ts");
+    // Still charged after the merge commit; the note text is given once per session.
+    expect((await stopOf(root, s)).cause).toBe("syntax");
   });
 
   test("a branch created during the session is charged when merged, in progress or committed", async () => {
@@ -1187,9 +1265,11 @@ describe("#62: merge attribution", () => {
     commit(root, "src/domain/side.ts", broken, "side");
     git(root, "checkout", "-q", "-");
     git(root, "merge", "-q", "--no-ff", "--no-commit", "side");
-    expect((await stopOf(root, s)).full).toContain("src/domain/side.ts");
+    const merging = await stopOf(root, s);
+    expect(merging.cause).toBe("syntax");
+    expect(merging.full).toContain("src/domain/side.ts");
     git(root, "commit", "-q", "--no-edit");
-    expect((await stopOf(root, s)).full).toContain("src/domain/side.ts");
+    expect((await stopOf(root, s)).cause).toBe("syntax");
   });
 
   test("a take-theirs conflict resolution that weakens a test is charged", async () => {
@@ -1392,23 +1472,33 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s report
   expect(state.snapshot(state.key(s), root)).toEqual(before);
 });
 
-test("incomplete Stop persists the evaluation failure when a human must repair the contract", async () => {
+test("a contract only a human can repair does not block Stop or record an incomplete Stop", async () => {
   const root = repo();
   const s = session();
   onSessionStart({ kind: "session-start", session: s, cwd: root });
-  put(join(root, LOCK), "invalid lock");
   const stop = (reentry: boolean) => onStop({ kind: "stop", session: s, cwd: root, reentry });
-  expect((await stop(false)).verdict).toBe("deny");
-  const last = await stop(true);
-  expect(last.stopIncomplete).toEqual({ reason: "human-cause", cause: "lock-stale" });
-  const result = JSON.parse(report(["--repo", root, "--json"]).text);
-  expect(result.incompleteStops[0]).toMatchObject({ cause: "lock-stale", reason: "human-cause", violations: [] });
-  expect(result.incompleteStops[0].message).toContain("preset diagnose --json");
-  expect(result.incompleteStops[0].message).toContain("update --project --preview");
+  // An unreadable lock: Stop judges from the preset.
+  put(join(root, LOCK), "invalid lock");
+  for (const reentry of [false, true]) {
+    const judged = await stop(reentry);
+    expect(judged).toMatchObject({ verdict: "none", halt: false, cause: null });
+    expect(judged.stopIncomplete).toBeUndefined();
+  }
+  // No preset: nothing can be judged. Stop says so once and lets the turn end.
+  rmSync(join(root, PRESET));
+  const first = await stop(false);
+  expect(first).toMatchObject({ verdict: "none", halt: false, cause: "lock-stale" });
+  expect(first.notice).toContain("PREGATE NOTE lock-stale");
+  expect(first.notice).toContain("Not blocked.");
+  expect(first.stopIncomplete).toBeUndefined();
+  const again = await stop(true);
+  expect(again).toMatchObject({ verdict: "none", halt: false, cause: "lock-stale", notice: null });
+  expect(again.stopIncomplete).toBeUndefined();
+  expect(JSON.parse(report(["--repo", root, "--json"]).text).incompleteStops).toEqual([]);
 });
 
 describe("multi-file overlay", () => {
-  test("one edit call admits each root once, while the next call revalidates changed lock bytes", async () => {
+  test("one edit call admits each root once; lock bytes changed afterwards are not admitted, and the preset's compile answers", async () => {
     const first = repo("first"), second = repo("second");
     const s = session();
     onSessionStart({ kind: "session-start", session: s, cwd: first });
@@ -1427,11 +1517,15 @@ describe("multi-file overlay", () => {
       const altered = JSON.parse(old);
       altered.rules[0].severity = "warn";
       put(join(first, LOCK), lockText(altered));
-      expect((await onPreEdit([changes[0]!])).cause).toBe("lock-stale");
-      expect(traced).toHaveBeenCalledTimes(1);
-      traced.mockClear();
+      // The altered lock is not the preset's compile: the cached compile of the preset answers, without a new one.
+      expect(await onPreEdit([changes[0]!])).toMatchObject({ verdict: "none", cause: null, full: "" });
+      expect(traced).toHaveBeenCalledTimes(0);
+      const loaded = lockOf(first);
+      if (typeof loaded === "string") throw new Error(loaded);
+      expect(lockText(loaded.lock)).toBe(old);
+      expect(loaded.lock.rules[0]!.severity).not.toBe("warn");
+      // The altered lock never reached the cache, so restoring the admitted bytes is a cache hit.
       put(join(first, LOCK), old);
-      // The stale lock never reached the cache, so restoring the admitted bytes is a cache hit.
       expect((await onPreEdit([changes[0]!])).verdict).toBe("none");
       expect(traced).toHaveBeenCalledTimes(0);
     });
@@ -1460,8 +1554,8 @@ describe("multi-file overlay", () => {
       change(root, "tsconfig.json", { form: "delete" }),
       change(root, "src/application/use.ts", { form: "full", content: "import { a } from '#a';\nexport const used = a;\n" }),
     ]);
-    expect(d.verdict).toBe("deny");
-    expect(d.cause).toBe("unresolvable-import");
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: "unresolvable-import" });
+    expect(d.full).toContain("PREGATE WARN unresolvable-import src/application/use.ts");
   });
 
   test("a move reconstructs from the source and exposes the destination", async () => {
@@ -1477,16 +1571,16 @@ describe("multi-file overlay", () => {
     expect(readFileSync(join(root, "src/domain/a.ts"), "utf8")).toBe("export const a = 1;\n");
   });
 
-  test("every blocked file is recorded and contributes to the merged reason", async () => {
+  test("every file that does not parse is recorded and contributes to the merged advisory", async () => {
     const root = repo();
     const d = await onPreEdit([
       change(root, "src/domain/bad.ts", { form: "full", content: "export const bad = ;\n" }),
       change(root, "src/domain/also-bad.ts", { form: "full", content: "export const other = ;\n" }),
     ]);
-    expect(d.verdict).toBe("deny");
-    expect(d.full).toContain("bad.ts");
-    expect(d.full).toContain("also-bad.ts");
-    for (const rel of ["bad.ts", "also-bad.ts"]) expect(events(session(), join(root, "src/domain", rel))[0]!.verdict).toBe("deny");
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: "syntax" });
+    expect(d.full).toContain("PREGATE WARN syntax src/domain/bad.ts");
+    expect(d.full).toContain("PREGATE WARN syntax src/domain/also-bad.ts");
+    for (const rel of ["bad.ts", "also-bad.ts"]) expect(events(session(), join(root, "src/domain", rel))[0]).toMatchObject({ verdict: "none", form: "syntax" });
   });
 
   test("Delete only applies protections; Stop evaluates the resulting tree", async () => {
@@ -1577,12 +1671,16 @@ describe("rejected envelopes", () => {
     expect(rejected(refusal([area])).verdict).toBe("none");
     expect(existsSync(state.stateDir())).toBe(false);
   });
-  test("a root in any directory, or a previously registered root, denies", () => {
+  test("a root in any directory, or a previously registered root, is noted and not denied", () => {
     const root = repo();
-    expect(rejected(refusal([area, root])).verdict).toBe("deny");
+    const noted = { verdict: "none", halt: false, cause: "payload-unrecognized" };
+    const reached = rejected(refusal([area, root]));
+    expect(reached).toMatchObject(noted);
+    expect(reached.full).toContain("PREGATE NOTE payload-unrecognized");
+    expect(reached.full).toContain("Not blocked.");
     onSessionStart({ kind: "session-start", session: session(), cwd: root });
-    expect(rejected(refusal([area])).verdict).toBe("deny");
-    expect(rejected(refusal([area], session("codex"))).verdict).toBe("none");
+    expect(rejected(refusal([area]))).toMatchObject(noted);
+    expect(rejected(refusal([area], session("codex")))).toMatchObject({ verdict: "none", cause: null, full: "" });
   });
   test("missing directories deny; a rejected Stop respects human-cause reentry", () => {
     expect(rejected(refusal([], null)).verdict).toBe("none");
@@ -1652,14 +1750,16 @@ describe("MH-33: preset ctime against the first root contact", () => {
       clock.mockRestore();
     }
   });
-  test("an enabled preset the session has not accepted is denied, not skipped", async () => {
+  test("an enabled preset the session has not accepted is not judged: lock-stale is noted, not denied", async () => {
     const root = repo("unaccepted", false);
     const ctime = statSync(join(root, PRESET)).ctimeMs;
     const clock = spyOn(Date, "now").mockReturnValue(ctime - 10_000);
     try {
       const d = await onPreEdit([change(root, "src/domain/bad.ts", { form: "full", content: "export const bad = ;" })]);
-      expect(d.verdict).toBe("deny");
-      expect(d.cause).toBe("lock-stale");
+      expect(d).toMatchObject({ verdict: "none", halt: false, cause: "lock-stale" });
+      expect(d.full).toContain("PREGATE NOTE lock-stale");
+      expect(d.full).toContain("Not blocked.");
+      expect(d.full).not.toContain("PREGATE WARN syntax");
     } finally {
       clock.mockRestore();
     }
@@ -1694,7 +1794,7 @@ describe("MH-33: preset ctime against the first root contact", () => {
     await onPreEdit([change(tracked, "src/domain/bad.ts", { form: "full", content: "export const bad = ;" })]);
     expect(state.roots(state.key(session()))).toEqual([root, older, tracked].map(canonical).sort());
   });
-  test("#42: an unaccepted nested checkout is named itself, not the outer root's contract", async () => {
+  test("#42: an unaccepted nested checkout is noted by its own path and not judged by the outer root's contract", async () => {
     const root = repo();
     onSessionStart({ kind: "session-start", session: session(), cwd: root });
     await Bun.sleep(10);
@@ -1703,9 +1803,10 @@ describe("MH-33: preset ctime against the first root contact", () => {
     preset(worktree);
     enable(worktree);
     const d = await onPreEdit([change(worktree, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" })]);
-    expect(d.cause).toBe("lock-stale");
-    expect(d.full).toContain(`${canonical(worktree)} has its own PREGATE contract, which this session did not open`);
-    expect(d.full).toContain(`start a new agent session in ${canonical(worktree)}`);
+    expect(d).toMatchObject({ verdict: "none", halt: false, cause: "lock-stale" });
+    expect(d.full).toContain("PREGATE NOTE lock-stale");
+    expect(d.full).toContain("worktrees/feature/src/domain/a.ts");
+    expect(d.full).toContain("Not blocked.");
     expect(d.full).not.toContain("lock contents differ");
   });
   test("out-of-scope first contact establishes the same boundary", async () => {
@@ -1732,12 +1833,14 @@ describe("engine selection", () => {
     expect(engineHome()).not.toBe(join(process.env.XDG_DATA_HOME!, "pregate"));
     expect(REDIRECT).toBe(3);
   });
-  test("pins below FLOOR, prereleases of FLOOR and invalid versions are stale, never redirected", () => {
+  test("a lock pinned below FLOOR, to a prerelease or to an invalid version is judged from the preset; pinned names only a valid other engine", () => {
     const root = repo();
     for (const v of ["0.0.0", `${FLOOR}-rc.1`, "garbage", "../../outside", "0.0.1\n", null]) {
       pin(root, v);
       expect(pinned(root)).toBeNull();
-      expect(lockOf(root)).toBe("lock-stale");
+      const loaded = lockOf(root);
+      if (typeof loaded === "string") throw new Error(`${String(v)}: ${loaded}`);
+      expect(loaded.lock.engine).toBe(VERSIONS.engine);
     }
     pin(root, FLOOR);
     expect(pinned(root)).toBe(FLOOR === VERSIONS.engine ? null : FLOOR);
@@ -1746,41 +1849,56 @@ describe("engine selection", () => {
     pin(root, VERSIONS.engine);
     expect(pinned(root)).toBeNull();
   });
-  test("redirection uses edit targets, commands' cwd, event cwd and rejected directories", () => {
+  test("no call is redirected to a pinned engine: edit targets, a command's cwd, event cwd and rejected directories stay with this engine", () => {
     const root = repo();
     pin(root, "9.9.9");
+    expect(pinned(root)).toBe("9.9.9");
     const edit: HookEvent = { kind: "pre-edit", changes: [change(area, "outside.ts", { form: "full", content: "x" }), change(root, "src/a.ts", { form: "full", content: "x" })] };
-    expect(redirect(edit)).toBe("9.9.9");
-    expect(redirect({ kind: "pre-command", command: { session: session(), callId: "c", tool: "Bash", command: "pwd", cwd: root } })).toBe("9.9.9");
-    expect(redirect({ kind: "stop", cwd: root, session: session(), reentry: false })).toBe("9.9.9");
-    expect(redirect({ kind: "session-start", cwd: root, session: session() })).toBe("9.9.9");
-    expect(redirect({ kind: "pre-edit", cause: "payload-unrecognized", dirs: [root], session: null, reentry: false })).toBe("9.9.9");
+    expect(redirect(edit)).toBeNull();
+    expect(redirect({ kind: "pre-command", command: { session: session(), callId: "c", tool: "Bash", command: "pwd", cwd: root } })).toBeNull();
+    expect(redirect({ kind: "stop", cwd: root, session: session(), reentry: false })).toBeNull();
+    expect(redirect({ kind: "session-start", cwd: root, session: session() })).toBeNull();
+    expect(redirect({ kind: "pre-edit", cause: "payload-unrecognized", dirs: [root], session: null, reentry: false })).toBeNull();
     expect(existsSync(state.stateDir())).toBe(false);
   });
-  test("old locks cannot delegate the installed engine's recovery previews to an old guard", () => {
+  test("a lock another engine wrote is judged from the preset: an enforced rule denies, Stop blocks, and check stays strict", async () => {
+    const root = repo(), s = session("claude-code", "other-engine");
+    pin(root, "9.9.9");
+    onSessionStart({ kind: "session-start", session: s, cwd: root });
+    expect(await onPreEdit([change(root, "src/domain/a.ts", { form: "full", content: "export const a = 2;\n" }, s)])).toMatchObject({ verdict: "none", cause: null, full: "" });
+    const breach = await onPreEdit([{ ...change(root, "src/domain/a.ts", { form: "full", content: SETTER }, s), callId: "breach" }]);
+    expect(breach.verdict).toBe("deny");
+    expect(breach.violations).toContainEqual(expect.objectContaining({ rule: "ddd/DDD-ENT-001" }));
+    expect((await check(root, { kind: "stdin", path: "src/domain/a.ts", text: "export const a = 2;\n" })).code).toBe(0);
+    expect((await check(root, { kind: "stdin", path: "src/domain/a.ts", text: SETTER })).code).toBe(1);
+    put(join(root, "src/domain/a.ts"), SETTER);
+    const stopped = await onStop({ kind: "stop", session: s, cwd: root, reentry: false });
+    expect(stopped.verdict).toBe("deny");
+    expect(stopped.violations).toContainEqual(expect.objectContaining({ rule: "ddd/DDD-ENT-001" }));
+    expect(JSON.parse(readFileSync(join(root, LOCK), "utf8")).engine).toBe("9.9.9");
+  });
+  test("with an old lock every command stays with this engine: recovery previews pass, and a write into the contract is still denied", () => {
     const root = repo();
     pin(root, "0.2.6");
     for (const harness of ["claude-code", "codex", "grok", "agy", "cursor"] as const) {
       const command = (text: string): HookEvent => ({ kind: "pre-command", command: { session: session(harness), callId: "recovery", tool: "shell", command: text, cwd: root } });
+      const decided = (text: string) => onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command);
       for (const args of ["update --project --preview", "pack update --all --preview", "preset diagnose --json", "preset schema", "update --help", "guide --json", "guide --preview", "guide --preview --packs typescript --enforcement shadow"]) {
         const text = `'${launcher()}' ${args}`;
         expect(redirect(command(text))).toBeNull();
-        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("none");
-        for (const suffix of [" > .pregate/preset.json", "; echo x > src/a.ts", " --yes"]) expect(redirect(command(text + suffix))).toBe("0.2.6");
+        expect(decided(text).verdict).toBe("none");
+        for (const suffix of [" > .pregate/preset.json", "; echo x > src/a.ts", " --yes"]) expect(redirect(command(text + suffix))).toBeNull();
+        expect(decided(text + " > .pregate/preset.json"), `${harness}: ${args}`).toMatchObject({ verdict: "deny", cause: "protected-path" });
       }
-      expect(redirect(command("pregate check --all"))).toBe("0.2.6");
-      expect(redirect(command("pregate approve --yes"))).toBe("0.2.6");
-      for (const text of ["pregate guide", "pregate guide --yes", "pregate guide --json --preview", "pregate guide --preview --unknown"]) {
-        expect(redirect(command(text))).toBe("0.2.6");
-        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("none");
-      }
-      for (const text of ["env pregate guide --json", "sh -c 'pregate guide --preview'"]) {
-        expect(redirect(command(text))).toBe("0.2.6");
-        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("none");
+      expect(redirect(command("pregate check --all"))).toBeNull();
+      expect(redirect(command("pregate approve --yes"))).toBeNull();
+      for (const text of ["pregate guide", "pregate guide --yes", "pregate guide --json --preview", "pregate guide --preview --unknown", "env pregate guide --json", "sh -c 'pregate guide --preview'"]) {
+        expect(redirect(command(text))).toBeNull();
+        expect(decided(text).verdict).toBe("none");
       }
     }
   });
-  test("CLI delegation explains missing, empty and non-executable pinned engines", () => {
+  test("a pinned engine need not be installed: missing, empty or non-executable, nothing is delegated to it", () => {
     const root = repo();
     pin(root, "9.9.9");
     const data = join(area, "install");
@@ -1790,43 +1908,41 @@ describe("engine selection", () => {
         put(engine, mode === "empty" ? "" : "not an executable");
         chmodSync(engine, mode === "empty" ? 0o755 : 0o644);
       }
-      const d = delegate(root, ["check", "--staged"], data);
-      expect(d?.code).toBe(1);
-      expect(d?.text).toContain("pregate update --engine 9.9.9");
+      expect(delegate(root, ["check", "--staged"], data), mode).toBeNull();
     }
+    expect(pinned(root)).toBe("9.9.9");
   });
-  test("CLI delegation preserves argv, stdin, stdout, stderr and the real engine's exit code", async () => {
+  test("the installed engine answers the CLI and the hook itself for a root whose lock pins another engine", () => {
     const root = repo();
-    pin(root, VERSIONS.engine);
+    pin(root, "9.9.9");
     const data = join(area, "install");
     const engine = join(data, VERSIONS.engine, ENGINE_FILE);
     engineAt(engine);
-    const driver = join(area, "delegate.ts");
-    put(driver, `import { delegate, VERSIONS } from ${JSON.stringify(join(import.meta.dir, "../src/gate.ts"))};\nVERSIONS.engine = "0.0.0";\nconst r = delegate(process.argv[2]!, process.argv.slice(4), process.argv[3]!);\nif (r?.text) console.error(r.text);\nprocess.exit(r?.code ?? 42);\n`);
-    const built = await Bun.build({ entrypoints: [driver], target: "bun", outdir: area, naming: "delegate.js" });
-    expect(built.success).toBe(true);
     const raw = JSON.parse(readFileSync(join(import.meta.dir, "payloads/pre-write.json"), "utf8"));
     raw.cwd = root;
     raw.tool_input.file_path = join(root, "src/domain/bad.ts");
     const env = { ...process.env };
     const run = (argv: string[], input: string) => {
-      const child = spawnSync(argv[0]!, argv.slice(1), { cwd: root, env, input, stdio: ["pipe", "pipe", "pipe"], timeout: 5_000 });
+      const child = spawnSync(engine, argv, { cwd: root, env, input, stdio: ["pipe", "pipe", "pipe"], timeout: 5_000 });
       expect(child.error).toBeUndefined(); expect(child.signal).toBeNull();
       return { exitCode: child.status, stdout: child.stdout.toString(), stderr: child.stderr.toString() };
     };
-    const commands = [["--version"], ["unknown-command"], ["check", "--stdin", "--path", join(root, "src/domain/a.ts")], ["hook", "pre", "--harness", "claude-code"]];
-    for (const argv of commands) {
-      const direct = await run([engine, ...argv], JSON.stringify(raw));
-      const through = await run([process.execPath, join(area, "delegate.js"), root, data, ...argv], JSON.stringify(raw));
-      expect({ argv, exitCode: through.exitCode }).toEqual({ argv, exitCode: direct.exitCode });
-      expect(through.stdout).toBe(direct.stdout);
-      expect(through.stderr).toBe(direct.stderr);
-    }
+    const stdin = ["check", "--stdin", "--path", join(root, "src/domain/a.ts")], hook = ["hook", "pre", "--harness", "claude-code"];
+    for (const argv of [["--version"], ["unknown-command"], stdin, hook]) expect(delegate(root, argv, data), argv.join(" ")).toBeNull();
     expect(delegate(area, ["--version"], data)).toBeNull();
-    pin(root, VERSIONS.engine);
+    expect(run(["--version"], "")).toMatchObject({ exitCode: 0, stdout: `pregate ${VERSIONS.engine} (core ${VERSIONS.core})\n` });
+    expect(run(stdin, "export const a = 2;\n")).toMatchObject({ exitCode: 0, stdout: "PREGATE: no introduced violations.\n" });
+    const breach = run(stdin, SETTER);
+    expect(breach.exitCode).toBe(1);
+    expect(breach.stdout + breach.stderr).toContain("PREGATE DENY ddd/DDD-ENT-001");
+    expect(run(hook, JSON.stringify(raw))).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+    raw.tool_input.content = SETTER;
+    const denied = run(hook, JSON.stringify(raw));
+    expect(denied.stdout + denied.stderr).toContain("ddd/DDD-ENT-001");
+    expect(denied.stdout + denied.stderr).not.toContain("9.9.9");
     const start = JSON.parse(readFileSync(join(import.meta.dir, "payloads/session-start.json"), "utf8"));
     start.cwd = root;
-    const context = await run([engine, "hook", "session-start", "--harness", "claude-code"], JSON.stringify(start));
+    const context = run(["hook", "session-start", "--harness", "claude-code"], JSON.stringify(start));
     expect(context.exitCode).toBe(0);
     expect(JSON.parse(context.stdout).hookSpecificOutput.additionalContext).toContain(join(data, WINDOWS ? "bin/pregate.cmd" : "bin/pregate"));
   }, 30_000);

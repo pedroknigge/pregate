@@ -37,7 +37,7 @@ Reading is always allowed: `git status -- .pregate`, `cat .pregate/preset.json`,
 ## The six things people ask for
 
 **Set it up.** The user runs `pregate enable` in the project (in a harness:
-`! pregate enable`). It proposes an advisor contract for the stack it finds,
+`! pregate enable --yes`). It proposes an advisor contract for the stack it finds,
 shows a short summary, and applies it on the user's `y`. If `pregate status`
 then says no harness has hooks, the user runs `pregate setup` once on that
 machine.
@@ -56,16 +56,18 @@ for it.
 
 **Change the rules.** The contract is `.pregate/preset.json`, committed with
 the project. The agent does not edit it. Describe the change to the user
-(switch a rule off, exclude a folder, make a rule block). The user edits the
-preset or runs `pregate guide --preview` and applies it with `pregate approve
---yes`. A change that makes the contract looser is reviewed like any other
+(switch a rule off, exclude a folder, make a rule block), or write it as a
+request in `.pregate/requests/<name>.json` (`pregate preset request-schema`
+prints the format) and run `pregate preset apply <request.json> --preview`.
+The user applies the review with `pregate approve --yes`. A change that makes the contract looser is reviewed like any other
 code: it goes in the pull request, and `pregate check --ratchet` in CI holds
 it until a maintainer accepts it.
 
 **Update or switch off.** `pregate update` installs the newest engine. Projects
 need nothing after it: any engine version reads any project's contract. The
 user runs `pregate disable` to switch Pregate off for a checkout, or `pregate
-disable --project` for every checkout of the repository.
+disable --project` for every checkout of the repository (in a harness, with
+`!` and `--yes`).
 
 ## Branches, worktrees, subagents and teammates
 
@@ -73,7 +75,7 @@ None of these needs a step. The contract is the one in the checkout, so a
 branch switch, a pull, a merge or a new worktree brings its own. Enabling one
 checkout enables every worktree of the repository. A subagent inherits the
 session's contract. A teammate without Pregate is not affected; a teammate
-with another engine version gets the same rules.
+with another engine version is judged from the same preset.
 
 ## When a finding is wrong
 

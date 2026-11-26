@@ -51,11 +51,13 @@ export function decide(i: DecideInput): Decision {
 function withHeldAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
   const held = s.mutedForm;
   if (s.form !== null || held === null || i.lock?.enforcement === "shadow") return d;
-  if (i.history.some((e) => e.agentId === i.session.agentId && e.form === held.cause)) return d;
   const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path)
     : held.cause === "unresolvable-import" ? unresolvedAdvisory(held, i.path) : notedText(held, i.path);
+  // Before a call the history is this file's. A Stop's history is the session's earlier Stops, so
+  // the same cause on another file is a new line there.
+  if (i.history.some((e) => e.agentId === i.session.agentId && e.form === held.cause && (i.event !== "stop" || e.message === warning.compact))) return d;
   // Stop has no agent turn left to read a context line, so the human gets the note.
-  if (i.event === "stop" && held.cause !== "syntax" && held.cause !== "unresolvable-import") d = { ...d, notice: [d.notice, warning.compact].filter((n) => n !== null).join("\n\n") };
+  if (i.event === "stop") d = { ...d, notice: [d.notice, warning.compact].filter((n) => n !== null).join("\n\n") };
   if (d.full === "") return { ...d, compact: warning.compact, full: warning.full, fix: d.fix ?? warning.fix };
   const body = d.verdict === "none" ? `${warning.full}\n\n${d.full}` : `${d.full}\n\n${warning.full}`;
   const full = body.length <= 4000 ? body : body.slice(0, 4000);
