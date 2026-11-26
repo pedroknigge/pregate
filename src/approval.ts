@@ -449,7 +449,10 @@ exit 0
     const result = spawnSync("powershell.exe", [
       "-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded,
     ], { encoding: "utf8", timeout: 5000, windowsHide: true });
-    if (result.error || result.status !== 0) return "";
+    // A query that does not run has not found an agy parent. Saved settings decide,
+    // as they do on Linux where this walk does not exist. An agy process whose
+    // command line cannot be read still returns UNREADABLE above.
+    if (result.error || result.status !== 0) return null;
     const line = String(result.stdout ?? "").trim();
     if (line === "UNREADABLE") return "";
     return line === "" ? null : line;
