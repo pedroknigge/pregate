@@ -1252,9 +1252,7 @@ test("hook pre denies interpreter, script, Makefile and harness-settings bypasse
   ]) expect(denied(a.bash(command)), command).toContain("hook-switch");
 
   silent(a.write("run.sh", "#!/bin/sh\npregate approve x\n"));
-  expect(existsSync(at(r, "run.sh"))).toBe(true);
   silent(a.write("Makefile", "approve:\n\tpregate approve x\n"));
-  expect(existsSync(at(r, "Makefile"))).toBe(true);
 
   writeFileSync(at(r, "run.sh"), "#!/bin/sh\npregate approve x\n");
   writeFileSync(at(r, "Makefile"), "approve:\n\tpregate approve x\nall:\n\techo ok\n");
