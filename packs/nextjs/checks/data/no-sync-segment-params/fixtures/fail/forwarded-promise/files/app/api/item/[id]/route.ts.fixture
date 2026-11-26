@@ -1,0 +1,4 @@
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const read = (params: Promise<{ id: string }>) => params.id;
+  return Response.json({ id: read(params) });
+}

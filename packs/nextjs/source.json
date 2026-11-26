@@ -2,5 +2,5 @@
   "$schema": "../../schema/source.v1.json",
   "ns": "nextjs",
   "category": "library",
-  "version": "1.5.0"
+  "version": "1.5.1"
 }

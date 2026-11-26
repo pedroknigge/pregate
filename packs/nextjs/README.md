@@ -1,6 +1,6 @@
 # nextjs
 
-App Router pack for Next.js TypeScript projects. Source version **1.5.0**. Data-only rule pack: syntax checks are patterns, and NEXT-PIN-001 uses the dependency-pin primitive. The pack ships no executable code.
+App Router pack for Next.js TypeScript projects. Source version **1.5.1**. Data-only rule pack: syntax checks are patterns, and NEXT-PIN-001 uses the dependency-pin primitive. The pack ships no executable code.
 
 ## Stance
 
@@ -34,7 +34,7 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 | `NEXT-META-001` | Exported `metadata` or `generateMetadata` (including `export { x as metadata }`) from a page or layout whose leading directive is `'use client'`. | Metadata exports are only supported in Server Components. | deny |
 | `NEXT-ASYNC-001` | A member read directly on `cookies()`, `headers()` or `draftMode()` imported from `next/headers`, aliases included. | These APIs return Promises. Warning below Next.js 16; denial when `next` is entirely 16 or newer. | warn, deny on Next >= 16 |
 | `NEXT-PARAMS-001` | Synchronous `params` or `searchParams`. A local of that name in the same block, including `await`, `useParams`, or `useSearchParams`, is left alone. | Next.js 16 makes both props Promises. Does not run below 16. | deny on Next >= 16 |
-| `NEXT-SEGMENT-001` | Synchronous `params`. A local of that name in the same block, including `URLSearchParams`, is left alone. | The same Promise change. `generateImageMetadata` stays synchronous. Does not run below 16. | deny on Next >= 16 |
+| `NEXT-SEGMENT-001` | Synchronous `params`. A local of that name in the same block, including `URLSearchParams`, is left alone. A `defineRoute(...)` handler and a `params` binding destructured from `await` are left alone. | The same Promise change. `generateImageMetadata` stays synchronous. Does not run below 16. | deny on Next >= 16 |
 | `NEXT-SITEMAP-001` | A sitemap `id` used in arithmetic without `await`. | Next.js 16 passes `id` as a Promise. Does not run below 16. | deny on Next >= 16 |
 | `NEXT-IMAGE-001` | An image `id` stored or read without `await` or `use()`. | `opengraph-image`, `twitter-image`, `icon`, and `apple-icon` receive `id` as a Promise. Does not run below 16. | deny on Next >= 16 |
 | `NEXT-REVALTAG-001` | `revalidateTag` from `next/cache` with fewer than two arguments. | Next.js 16 requires a cacheLife profile or `{ expire }`. The one-argument form is a TypeScript error. Does not run below 16. | deny on Next >= 16 |
@@ -50,7 +50,7 @@ The contract is the repository preset, not this pack. Take every pack, some pack
 
 ## Fixture coverage and limits
 
-`pregate rules test packs/nextjs` runs **157** real fixtures. Every check has two passing and two failing cases plus a failing trap with exact lines. NEXT-PIN-001 warns when a manifest or lockfile can install `next` at <=15.5.28 or from 16.0.0 through 16.4.4. `15.5.29`, `^15.5.29`, and `16.4.5` stay quiet. A nested lockfile pin warns when the root `next` pin is already patched and `eslint-config-next` carries the old number. Regression cases preserve next/headers, exported module-name notes, import options, CMS HTML strings and unrelated attribute text; an arrow-rendered internal anchor still reports. External anchors, `next/image`, icon and local stylesheet links, explicit cache options, template-literal pushes, and numeric `revalidate` values remain pass guards. Next.js 16 fixtures also keep awaited props, `{ expire }` and a cacheLife profile, Edge middleware, a default export named `middleware`, and synchronous `params` inside `generateImageMetadata`. Cache Components fixtures cover a literal `cacheComponents: true` in the root Next config and the previous model without it.
+`pregate rules test packs/nextjs` runs **163** real fixtures. Every check has two passing and two failing cases plus a failing trap with exact lines. NEXT-PIN-001 warns when a manifest or lockfile can install `next` at <=15.5.28 or from 16.0.0 through 16.4.4. `15.5.29`, `^15.5.29`, and `16.4.5` stay quiet. A nested lockfile pin warns when the root `next` pin is already patched and `eslint-config-next` carries the old number. Regression cases preserve next/headers, exported module-name notes, import options, CMS HTML strings and unrelated attribute text; an arrow-rendered internal anchor still reports. External anchors, `next/image`, icon and local stylesheet links, explicit cache options, template-literal pushes, and numeric `revalidate` values remain pass guards. Next.js 16 fixtures also keep awaited props, `{ expire }` and a cacheLife profile, Edge middleware, a default export named `middleware`, and synchronous `params` inside `generateImageMetadata`. A `defineRoute` handler that reads `params.kind`, and a `params` binding destructured from `await`, stay quiet. A sync read in the same file as that handler still reports. Cache Components fixtures cover a literal `cacheComponents: true` in the root Next config and the previous model without it.
 
 Fixtures only prove the sample syntax. The [fetch reference](https://nextjs.org/docs/app/api-reference/functions/fetch) documents default `auto no cache`. With [Cache Components](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents), fetch stays uncached unless it runs inside `use cache`. NEXT-LINK-001 now identifies actual anchor/attribute structure anywhere in JSX and remains advisory because navigation intent is unknown. Other JSX rules still have their documented expression limits. Open cross-file questions are catalogued in [BACKLOG.md](BACKLOG.md).
 
@@ -68,7 +68,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.5.0`. 22 distinct check IDs.
+Category: **library**. Version: `1.5.1`. 22 distinct check IDs.
 
 Methodologies: `nextjs/rendering` (complete), `nextjs/routing` (complete).
 
