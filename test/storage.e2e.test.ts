@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { engineAt } from "./compiled-engine.ts";
@@ -240,10 +240,19 @@ test("active writers and an exclusive cleanup marker prevent unsafe source remov
   mkdirSync(join(p.folder, ".pruning"));
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(1);
   expect(existsSync(join(p.folder, ".pruning"))).toBe(true);
+  // Shadow says nothing, so the project enforces: the call passes and the note names the busy state.
+  put(join(p.root, ".pregate/requests/enforce.json"), JSON.stringify({ why: "Hear the note of a busy state.", patch: [{ op: "add", path: "/enforcement", value: "enforce" }] }));
+  const enforced = p.run(["preset", "apply", ".pregate/requests/enforce.json", "--yes"]);
+  expect(enforced.code, enforced.text + enforced.error).toBe(0);
+  const events = () => (readdirSync(join(p.folder, "events"), { recursive: true }) as string[]).sort().join("\n");
+  const recorded = events();
   const hook = p.run(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "shared", cwd: p.root, tool_name: "Write", tool_use_id: "busy",
     tool_input: { file_path: join(p.root, "src/a.ts"), content: "export const changed = 2;\n" } });
-  expect(hook.code).toBe(2); expect(hook.text + hook.error).toContain("state-io");
-  expect(hook.text + hook.error).toContain("storage inspect");
+  expect(hook.code, hook.text + hook.error).toBe(0);
+  expect(hook.text + hook.error).toContain("PREGATE NOTE state-io");
+  expect(hook.text + hook.error).toContain("Not blocked.");
+  expect(events()).toBe(recorded);
+  expect(existsSync(join(p.folder, ".pruning"))).toBe(true);
 });
 
 test("cleanup approval from the parent, a child, and a wrapper is allowed; the hook does not apply it", () => {

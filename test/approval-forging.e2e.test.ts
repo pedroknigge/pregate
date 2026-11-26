@@ -116,7 +116,8 @@ test("the codex pre hook denies approval forging and keeps a real hook switch", 
     expect(denied.code, `${command}\n${denied.text}`).toBe(2);
     expect(denied.stderr, command).toContain("PREGATE DENY approval");
     expect(denied.stderr, command).toContain("cannot grant itself approval");
-    expect(denied.stderr, command).toContain("separate terminal");
+    expect(denied.stderr, command).toContain("the agent does not approve for the human");
+    expect(denied.stderr, command).toContain("on a ! line");
     expect(denied.stderr, command).toContain(shown);
     expect(denied.stderr, command).not.toContain("rule adaptation");
     expect(denied.stderr, command).not.toContain("propose a bounded rule/pack change");

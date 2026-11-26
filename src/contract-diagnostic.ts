@@ -9,7 +9,7 @@ import { canonical, findRoot, readTree } from "./disk.ts";
 import { ruleEnforcements } from "./enforcement.ts";
 import { catFileBatch, gitFailure, indexFiles, unmerged } from "./git.ts";
 import { type Call, clock, ENGINE_VERSION, engineHome, FLOOR, isCause, json, launcher, LOCK, type Outcome, PRESET, readText, told, updateReady, VERSIONS, within } from "./admission.ts";
-import { librarySource } from "./library.ts";
+import { librarySource, librarySources } from "./library.ts";
 import { cachedSourcesMatch, loadCompiledLock, loadCompiledPreset, storeCompiledLock } from "./lock-cache.ts";
 import { briefing, formText, notice, violationMessage } from "./message.ts";
 import { cachedPack } from "./packs.ts";
@@ -206,11 +206,30 @@ export function lockOf(root: string): Loaded | Cause {
   if (cached !== null) return cached;
   const rebuilt = loadCompiledPreset(root, preset);
   if (rebuilt !== null) return rebuilt;
-  const result = compile(preset, sourcesOf(root), VERSIONS);
+  const result = compileHere(preset, sourcesOf(root));
   if ("errors" in result) return otherEngine(text) ? "version-mismatch" : "lock-stale";
   storeCompiledLock(root, preset, result.text);
   const same = text !== null && result.text === text.replaceAll("\r\n", "\n");
   return { lock: result.lock, hash: state.sha256(same ? text : result.text) };
+}
+
+// Compile the preset as this engine reads it. A preset written for another engine version names that
+// engine, its core and its bundled pack versions; those pins are moved to what this engine carries
+// and the preset is compiled again, so any engine can judge any project. `rebased` says that
+// happened: the result is this engine's reading, not the bytes a lock file would hold.
+export function compileHere(presetText: string, filesOf: Parameters<typeof compile>[1]): ReturnType<typeof compile> & { rebased?: boolean } {
+  const exact = compile(presetText, filesOf, VERSIONS);
+  if (!("errors" in exact)) return exact;
+  const preset = json(presetText) as Preset | undefined;
+  if (typeof preset !== "object" || preset === null || !Array.isArray(preset.sources)) return exact;
+  const bundled = new Map(librarySources().map((source) => [source.ns, source.version]));
+  const moved = { ...preset, engine: VERSIONS.engine, sources: preset.sources.map((source) =>
+    source.kind === "builtin" ? { ...source, version: VERSIONS.core }
+      : source.kind === "library" && bundled.has(source.ns) ? { ...source, version: bundled.get(source.ns)! } : source) };
+  const text = JSON.stringify(moved, null, 2) + "\n";
+  if (text === presetText) return exact;
+  const again = compile(text, filesOf, VERSIONS);
+  return "errors" in again ? exact : { ...again, rebased: true };
 }
 
 // The lock file names an engine or core other than this one: a preset this engine cannot compile
@@ -339,12 +358,12 @@ export function recompiled(root: string, staged: boolean): Loaded | { errors: st
   const [presetText, lockText] = texts;
   if (presetText === null || presetText === undefined) return { errors: [`PREGATE: ${PRESET} is missing${staged ? " from the index" : ""}.`] };
   const filesOf = staged ? (s: Preset["sources"][number]) => (s.kind === "builtin" ? BUILTIN : s.kind === "git" ? cachedPack(s) : s.kind === "library" ? librarySource(s.ns) : indexFiles(root, s.path)) : sourcesOf(root);
-  const r = compile(presetText, filesOf, VERSIONS);
+  const r = compileHere(presetText, filesOf);
   if ("errors" in r) return r;
   // The byte comparison is CI's, and only for a lock this engine version wrote: a commit is not
   // refused for a lock that is behind, and a lock another version wrote is judged from the preset.
   const stale = r.text !== lockText?.replaceAll("\r\n", "\n");
-  if (stale && !staged && !otherEngine(lockText ?? null)) return { errors: [`PREGATE: ${LOCK} does not match the preset and its sources. Run \`pregate preset compile\` and commit the lock.`] };
+  if (stale && !staged && !r.rebased && !otherEngine(lockText ?? null)) return { errors: [`PREGATE: ${LOCK} does not match the preset and its sources. Run \`pregate preset compile\` and commit the lock.`] };
   return { lock: r.lock, hash: state.sha256(r.text) };
 }
 

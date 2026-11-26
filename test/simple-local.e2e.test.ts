@@ -81,10 +81,19 @@ test("a merge that brings a looser contract does not block the end of the turn",
   expect(stopped.stdout).not.toContain('"decision":"block"');
 });
 
-test("a lock another engine version wrote is judged from the preset instead of stopping the call", () => {
+test("a contract another engine version wrote is judged by this engine instead of stopping the call", () => {
   const p = project();
-  const lockFile = join(p.root, ".pregate/pregate.lock.json");
+  // A teammate on an older engine wrote both files: the lock and the preset name that engine, and
+  // the preset pins the pack versions that engine bundled.
+  const lockFile = join(p.root, ".pregate/pregate.lock.json"), presetFile = join(p.root, ".pregate/preset.json");
   writeFileSync(lockFile, readFileSync(lockFile, "utf8").replace(/"engine": ?"[^"]+"/, '"engine":"0.0.2"'));
+  const preset = JSON.parse(readFileSync(presetFile, "utf8")) as { engine: string; sources: { kind: string; version: string }[] };
+  preset.engine = "0.0.2";
+  for (const source of preset.sources) if (source.kind === "library") source.version = "0.9.9";
+  writeFileSync(presetFile, `${JSON.stringify(preset, null, 2)}\n`);
+  const status = p.cli("status");
+  expect(status.text).toMatch(/advisor mode\. 0 rules block, [1-9]\d* inform\./);
+  expect(status.text).not.toContain("does not match this binary");
   const edit = p.write("src/domain/price.ts", BREAKS_THE_LAYER);
   expect(edit.code, edit.text).toBe(0);
   expect(edit.text).not.toContain("version-mismatch");

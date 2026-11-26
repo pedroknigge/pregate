@@ -193,7 +193,12 @@ test("the hook blocks, allows, and warns the MongoDB OIDC rules only after prega
   allowed(ok, "mongodb/MONGO-OIDC-001");
   const advisory = p.hook(sid, "package.json", ADVISORY);
   warned(advisory, "mongodb/MONGO-OIDC-002");
-  const previous = p.hook(sid, "package.json", PREVIOUS_FLOOR);
+  // A warning already told to this agent for this file is not said again in the same session.
+  const repeated = p.hook(sid, "package.json", PREVIOUS_FLOOR);
+  allowed(repeated, "mongodb/MONGO-OIDC-002");
+  const later = randomUUID();
+  expect(p.hookStart(later).code, "later session").toBe(0);
+  const previous = p.hook(later, "package.json", PREVIOUS_FLOOR);
   warned(previous, "mongodb/MONGO-OIDC-002");
   const fixed = p.hook(sid, "package.json", FIXED_DRIVER);
   allowed(fixed, "mongodb/MONGO-OIDC-002");

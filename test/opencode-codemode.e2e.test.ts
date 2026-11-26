@@ -82,6 +82,14 @@ function denied(out: { code: number; stdout: string; stderr: string }, cause: st
   expect(out.stderr, text).toContain(`PREGATE DENY ${cause}`);
 }
 
+function noted(out: { code: number; stdout: string; stderr: string }, cause: string) {
+  const text = `${out.stdout}\n${out.stderr}`;
+  expect(out.code, text).toBe(0);
+  expect(text).toContain(`PREGATE NOTE ${cause}`);
+  expect(text).toContain("Not blocked.");
+  expect(text).not.toContain("PREGATE DENY");
+}
+
 function allowed(out: { code: number; stdout: string; stderr: string }) {
   const text = `${out.stdout}\n${out.stderr}`;
   expect(out.code, text).toBe(0);
@@ -94,7 +102,7 @@ beforeAll(() => {
   engineAt(binary);
 });
 
-test("an enabled project judges each code-mode child and still denies a shell automation", () => {
+test("an enabled project judges each code-mode child, denies a shell automation and notes an execute it cannot rebuild", () => {
   const root = project("enabled");
   expect(run(root, ["enable", "--yes"]).code).toBe(0);
   allowed(hook(root, "child-shell.json"));
@@ -102,8 +110,9 @@ test("an enabled project judges each code-mode child and still denies a shell au
   allowed(hook(root, "execute-script.json"));
   allowed(hook(root, "child-shell-src.json"));
   denied(hook(root, "child-automation-shell.json"), "shell-admin");
-  denied(hook(root, "execute-script.json", "2.2.7"), "cannot-reconstruct");
-  denied(hook(root, "execute-script.json", "2.3.1"), "cannot-reconstruct");
+  // An execute script from a version that does not report its children is not checked: a note, no block.
+  noted(hook(root, "execute-script.json", "2.2.7"), "cannot-reconstruct");
+  noted(hook(root, "execute-script.json", "2.3.1"), "cannot-reconstruct");
 });
 
 test("a project that never ran pregate enable allows the same calls", () => {

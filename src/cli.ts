@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { approvalRecordVia, approvalRefusal, approve, withholdApprovalCode } from "./approval.ts";
+import { approvalRecordVia, approvalRefusal, approve, testAnswer, unattendedApproval, withholdApprovalCode } from "./approval.ts";
 import { approveBatch, approvePending, applyPreset, pendingReview } from "./approval-command.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { init } from "./init.ts";
@@ -196,6 +196,10 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
 // guide proposes, shows its summary, and applies it on the human's y (or --yes). Nothing blocks
 // in advisor, so the first run cannot stop anyone's work.
 async function enableNewProject(yes: boolean): Promise<Result> {
+  // Without a terminal there is nobody to ask: say the command that confirms, and prepare nothing.
+  if (!yes && !process.stdin.isTTY && testAnswer() === undefined && !unattendedApproval()) {
+    return { code: 1, text: "pregate enable needs your confirmation; nothing changed. Run pregate enable --yes (on a Claude Code ! line: ! pregate enable --yes)." };
+  }
   const prepared = await guide(["--preview"]);
   const root = prepared.code === 0 ? pendingRoot(canonical(process.cwd())) : null;
   if (root === null) return prepared.code === 0 ? noPreset(process.cwd()) : prepared;

@@ -152,29 +152,29 @@ function silent(o: Out): void {
   expect({ code: o.code, stdout: o.stdout, stderr: o.stderr }).toEqual({ code: 0, stdout: "", stderr: "" });
 }
 
-function blocked(o: Out, needle: string): void {
-  expect(o.code, said(o)).toBe(2);
-  expect(JSON.parse(o.stdout).decision).toBe("block");
-  expect(said(o)).toContain(needle);
-}
-
 // ── P0: a loosened contract ─────────────────────────────────────────────────────────────
 
-test("a script that loosens the contract is caught by Stop, pre-commit and the CI ratchet", () => {
+test("a script that loosens the contract passes Stop, gets a note at pre-commit and is caught by the CI ratchet", () => {
   const r = fresh();
   const a = claude(r);
   ok(a.start(), "session");
   silent(a.write("src/domain/note.ts", "export const note = 1;\n"));
   const baseLock = readFileSync(join(r.dir, LOCK), "utf8");
   loosen(r);
-  // The loosened contract now admits what it denied, so only the contract comparison can see it.
+  // The loosened contract now admits what it denied. Stop does not compare contracts, and
+  // pre-commit says the loosening in one note; only the CI ratchet refuses it.
   expect(a.write("src/domain/pay.ts", swallowed("pay")).code).toBe(0);
   put(r, "src/domain/pay.ts", "export const pay = 1;\n");
-  blocked(a.stop(), "contract-loosened");
+  const stop = a.stop();
+  expect(stop.code, said(stop)).toBe(0);
+  expect(said(stop)).not.toContain("\"decision\":\"block\"");
+  expect(said(stop)).not.toContain("contract-loosened");
   ok(git(r, "add", "-A"), "git add");
   const staged = cli(r, ["check", "--staged"]);
-  expect(staged.code, said(staged)).toBe(1);
+  expect(staged.code, said(staged)).toBe(0);
+  expect(said(staged)).toContain("PREGATE NOTE contract-loosened");
   expect(said(staged)).toContain("loosens");
+  expect(said(staged)).toContain("Not blocked.");
   ok(git(r, "commit", "-q", "--no-verify", "-m", "loosen"), "commit");
   const ratchet = cli(r, ["check", "--ratchet", "--base", "HEAD~1"]);
   expect(ratchet.code, said(ratchet)).toBe(1);
@@ -318,18 +318,23 @@ test("history commands that rewrite the worktree are writes, denied when .pregat
 
 // ── P1-3: CI is not an approval channel ─────────────────────────────────────────────────
 
-test("CI in the environment neither approves nor reveals codes; the dedicated opt-in does", () => {
+test("CI in the environment neither confirms nor reveals codes; --yes confirms and the dedicated opt-in reveals", () => {
   const r = fresh();
   const status = () => JSON.parse(cli(r, ["status", "--json"]).stdout).consent as boolean;
-  const refused = cli(r, ["disable", "--yes"], { CI: "1" });
+  const refused = cli(r, ["disable"], { CI: "1" });
   expect(refused.code, said(refused)).toBe(1);
+  expect(said(refused)).toContain("pregate disable needs your confirmation; nothing changed.");
   expect(status()).toBe(true);
   put(r, "loosen.json", JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
   const preview = cli(r, ["preset", "apply", "loosen.json", "--preview"], { CI: "1" });
   expect(preview.code, said(preview)).toBe(0);
   expect(said(preview)).toContain("pregate approve <withheld>");
-  const opted = cli(r, ["disable", "--yes"], { PREGATE_UNATTENDED_APPROVAL: "1" });
-  expect(opted.code, said(opted)).toBe(0);
+  const revealed = cli(r, ["preset", "apply", "loosen.json", "--preview"], { PREGATE_UNATTENDED_APPROVAL: "1" });
+  expect(revealed.code, said(revealed)).toBe(0);
+  expect(said(revealed)).toMatch(/pregate approve [0-9a-f]{12}/);
+  // --yes is the confirmation where there is no terminal; CI adds nothing to it.
+  const applied = cli(r, ["disable", "--yes"], { CI: "1" });
+  expect(applied.code, said(applied)).toBe(0);
   expect(status()).toBe(false);
   // The agent cannot set it for a command or a script it runs.
   const s = fresh();

@@ -87,7 +87,7 @@ export function approvalDeadline(): void {
   if (pid !== undefined && Number(pid) === process.ppid) process.kill(process.ppid, "SIGUSR2");
 }
 
-function testAnswer(): string | undefined {
+export function testAnswer(): string | undefined {
   return TEST_BUILD && process.env.PREGATE_TESTING === "1" ? process.env.PREGATE_TEST_ANSWER : undefined;
 }
 

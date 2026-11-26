@@ -1,11 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { CAPABILITIES, LANGUAGE_COVERAGE } from "./capabilities.ts";
-import { compile } from "./compile.ts";
 import { dataHome, disabledLabel, disableScope, enabled, explicitlyDisabled } from "./consent.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { projectFitness } from "./fitness-command.ts";
-import { conflictDiagnostic, conflictedContract, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
+import { compileHere, conflictDiagnostic, conflictedContract, sourceDirs, sourcesOf } from "./contract-diagnostic.ts";
 import { LOCK, PRESET, readText, VERSIONS, within } from "./admission.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { git, uncommittedPackFiles } from "./git.ts";
@@ -77,7 +76,7 @@ export function contractState(root: string): { valid: boolean; errors: string[];
   try {
     const preset = text(join(root, PRESET));
     if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null };
-    const result = compile(preset, sourcesOf(root), VERSIONS);
+    const result = compileHere(preset, sourcesOf(root));
     if ("errors" in result) return { valid: false, errors: result.errors, lock: null };
     const same = result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
     return { valid: true, errors: same ? [] : [STALE_LOCK], lock: result.lock };
