@@ -177,12 +177,14 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
     if (r.code === 2 && r.stderr.trim() === "") throw new Error("the engine denied without a reason");
     return { exit: r.code, stdout: r.stdout, stderr: r.stderr };
   } catch (e) {
-    // fail-closed: any engine failure in a call that reached a project denies. Only a call with no
-    // redirect and no consenting directory, which is no project's call, passes.
+    // A call with no redirect and no consenting directory is no project's call: it passes silently.
     if (!routed && !active(run.raw, run.data)) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
-    // An explicit uncertainty opt-out lets a crash through. It does not run outside an enabled project:
-    // that case already returned above. A preset that does not say "open" stays denied.
-    if (uncertaintyAllows(activeDirs(run.raw))) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
+    // Pregate failing must not stop the session: the call passes with one line that says it was not
+    // checked. Only a preset that says "uncertainty": "closed" keeps the deny below.
+    if (uncertaintyAllows(activeDirs(run.raw))) {
+      const passed = cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0 as const, stdout: "", stderr: "" };
+      return { ...passed, stderr: `PREGATE NOTE engine-failure: ${(e as Error).message}. This call was not checked. Not blocked.\n` };
+    }
     return launcherFailure(run.kind, run.harness === "claude-code", run.raw, (e as Error).message, run.harness, cursorNativePre(run.argv));
   } finally {
     rmSync(run.dir, { recursive: true, force: true });

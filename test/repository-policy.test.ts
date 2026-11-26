@@ -30,7 +30,7 @@ function contract(loop?: object): Lock {
 function input(lock: Lock | null, event: "pre-edit" | "stop" = "stop"): DecideInput {
   return { lock, lockHash: lock === null ? null : "a".repeat(64), launcher: "/repo/pregate",
     session: { id: "policy", harness: "codex", agentId: null, turnId: "turn", interactive: false },
-    event, path: null, introduced: [], form: { cause: "state-io", line: null }, protectedPath: false,
+    event, path: null, introduced: [], form: { cause: "protected-path", line: null }, protectedPath: false,
     history: [], turnDenials: 0, astHash: null,
     stop: event === "stop" ? { blocks: 2, reentry: false, approved: [] } : null };
 }
@@ -47,13 +47,15 @@ test("repository policy boundary: shared default mutation cannot change a later 
   });
 });
 
-test("repository policy boundary: shared failure-class mutation cannot turn a human halt into an agent retry", () => {
+// A hook blocks on a control cause, which the agent can act on: it is a deny without a halt. The
+// shared failure-class table cannot be changed to turn that into a human halt, or back.
+test("repository policy boundary: shared failure-class mutation cannot change how a control cause is denied", () => {
   const before = decide(input(null, "pre-edit"));
   expect(before.verdict).toBe("deny");
-  expect(before.halt).toBe(true);
-  const mutation: Mutation = { target: FIXABLE_BY, key: "state-io", original: FIXABLE_BY["state-io"], changed: false };
+  expect(before.halt).toBe(false);
+  const mutation: Mutation = { target: FIXABLE_BY, key: "protected-path", original: FIXABLE_BY["protected-path"], changed: false };
   restoringMutation(mutation, () => {
-    mutation.changed = Reflect.set(FIXABLE_BY, "state-io", "agent");
+    mutation.changed = Reflect.set(FIXABLE_BY, "protected-path", "human");
     expect({ changed: mutation.changed, decision: decide(input(null, "pre-edit")) }).toEqual({ changed: false, decision: before });
   });
 });

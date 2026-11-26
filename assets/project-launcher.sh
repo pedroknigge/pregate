@@ -75,6 +75,7 @@ fail_closed() {
   [ -n "$active" ] || exit 0
   if uncertainty_open "$root"; then
     [ "$hook_event" = pre ] && [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
+    printf '%s\n' "PREGATE NOTE engine-failure: the project engine did not answer. This call was not checked. Not blocked." >&2
     exit 0
   fi
   hint=${2:-"Run pregate prepare in this project, then pregate doctor."}
