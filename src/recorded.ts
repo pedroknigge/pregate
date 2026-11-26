@@ -8,7 +8,7 @@ import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
 import { scriptControlCause } from "./control.ts";
-import { acceptedByEnvironment, approvedLocally, loosening, looseningText } from "./loosening.ts";
+import { acceptedByEnvironment, loosening, looseningText } from "./loosening.ts";
 import { canonical, escapedRoot, findRoot, readTree, samePlace } from "./disk.ts";
 import { analyze, placement } from "./evaluate.ts";
 import { causeFix } from "./fix.ts";
@@ -218,17 +218,18 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   const fitness = phase === "pre" ? [] : projectFitness(root, loaded.lock, phase,
     m.kind === "staged" ? (rel) => catFileBytesBatch(root, [`:./${rel}`])?.[0] ?? null : undefined, m.kind === "staged" ? paths : undefined);
   reviews.push({ rel: ".pregate/preset.json", ...CLEAN, violations: fitnessViolations(loaded.lock, fitness) });
-  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(root, m.kind, loaded, before, read) : null;
-  return report(loaded, reviews, phase, format, contract);
+  // A looser contract fails the check against the base revision only: that is the pull request,
+  // where a reviewer accepts it. A local commit carries it there and is told, not refused.
+  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(m.kind, loaded, before, read) : null;
+  const result = report(loaded, reviews, phase, format, m.kind === "base" ? contract : null);
+  return m.kind === "staged" && contract !== null && format === "agent" ? { code: result.code, text: `${result.text}${result.text === "" ? "" : "\n\n"}${contract}` } : result;
 }
 
-// A contract loosened since the last commit (staged) or the base revision (CI), unless accepted:
-// by the exact digest in PREGATE_ACCEPT_CONTRACT, or, for a commit, by a human approval recorded
-// on this machine. CI ignores local records, which a same-user process could write.
-function refusedLoosening(root: string, where: "staged" | "base", loaded: Loaded, before: Read, read: Read): string | null {
+// A contract loosened since the last commit (staged) or the base revision (CI), unless the exact
+// digest is in PREGATE_ACCEPT_CONTRACT. No record on this machine accepts or refuses one.
+function refusedLoosening(where: "staged" | "base", loaded: Loaded, before: Read, read: Read): string | null {
   const found = loosening({ lockText: before(LOCK), presetText: before(PRESET) }, { lock: loaded.lock, hash: loaded.hash, presetText: read(PRESET) });
   if (found === null || acceptedByEnvironment(found.digest)) return null;
-  if (where === "staged" && approvedLocally(root, loaded.hash)) return null;
   return looseningText(found, where);
 }
 

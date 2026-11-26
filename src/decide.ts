@@ -3,7 +3,7 @@ import { enforcementOf, LOOP_DEFAULTS, ruleEnforcements } from "./enforcement.ts
 import { staticRulesFor } from "./languages.ts";
 import { inScope } from "./paths.ts";
 import type { CallEvent, Cause, Decision, DecideInput, Form, Lock, Loop, Phase, Violation } from "./types.ts";
-import { adviseText, denyText, formText, notice, stopText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
+import { adviseText, denyText, formText, notedText, notice, stopText, syntaxAdvisory, unresolvedAdvisory, warnText } from "./message.ts";
 import type { Close, Halt, Text } from "./message.ts";
 
 // Policy: severity × enforcement × counters × no-progress × ask → Decision (SPEC §11.3,
@@ -20,6 +20,11 @@ const FORM_RUN_MAX = 3;
 const GUARDS: ReadonlySet<Cause> = new Set<Cause>([
   "protected-path", "request-invalid", "shell-admin", "shell-write", "shell-uncertain", "hook-switch", "approval",
 ]);
+
+// The only causes a hook blocks on: the agent acting on Pregate itself (its contract and state,
+// its hooks, its consent, or a human's approval). Every other cause is a one-line note in a
+// hook. `check` in CI stays strict and still fails on them through `blocking`.
+export const CONTROL: ReadonlySet<Cause> = new Set<Cause>(["protected-path", "request-invalid", "shell-admin", "hook-switch", "approval"]);
 
 const NO_STOP: NonNullable<DecideInput["stop"]> = { blocks: 0, reentry: false, approved: [] };
 
@@ -41,11 +46,16 @@ export function decide(i: DecideInput): Decision {
   return withHeldAdvisory(i, s, { ...d, shadowed: s.muted.length > 0 || s.mutedForm !== null });
 }
 
-// An advisor parse failure or unresolved import stays non-blocking. Its text replaces a clean result, and it follows a real deny.
+// A cause that does not block is still told: its text replaces a clean result, and it follows a real deny.
+// A cause this agent already met on this path is not repeated.
 function withHeldAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
   const held = s.mutedForm;
-  if (i.lock?.enforcement !== "advisor" || s.form !== null || held === null || (held.cause !== "syntax" && held.cause !== "unresolvable-import")) return d;
-  const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path) : unresolvedAdvisory(held, i.path);
+  if (s.form !== null || held === null || i.lock?.enforcement === "shadow") return d;
+  if (i.history.some((e) => e.agentId === i.session.agentId && e.form === held.cause)) return d;
+  const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path)
+    : held.cause === "unresolvable-import" ? unresolvedAdvisory(held, i.path) : notedText(held, i.path);
+  // Stop has no agent turn left to read a context line, so the human gets the note.
+  if (i.event === "stop" && held.cause !== "syntax" && held.cause !== "unresolvable-import") d = { ...d, notice: [d.notice, warning.compact].filter((n) => n !== null).join("\n\n") };
   if (d.full === "") return { ...d, compact: warning.compact, full: warning.full, fix: d.fix ?? warning.fix };
   const body = d.verdict === "none" ? `${warning.full}\n\n${d.full}` : `${d.full}\n\n${warning.full}`;
   const full = body.length <= 4000 ? body : body.slice(0, 4000);
@@ -102,24 +112,33 @@ function enforced(lock: Lock): (v: Violation) => boolean {
 }
 
 function classify(i: DecideInput): Sorted {
-  if (i.lock === null) return { form: i.form, block: [], advised: [], warnings: [], muted: [], mutedForm: null };
+  const control = i.form !== null && CONTROL.has(i.form.cause);
+  if (i.lock === null) return { form: control ? i.form : null, block: [], advised: [], warnings: [], muted: [], mutedForm: control ? null : i.form };
   const policies = ruleEnforcements(i.lock);
   const policyOf = (v: Violation) => policies[v.rule] ?? i.lock!.enforcement;
   const b = blocking(i.lock, i.introduced, i.form?.cause ?? null, { rel: i.path, phase: i.event === "stop" ? "stop" : "pre" });
   return {
-    form: b.cause === null ? null : i.form,
+    form: b.cause !== null && control ? i.form : null,
     block: b.violations,
     advised: i.introduced.filter((v) => policyOf(v) === "advisor"),
     warnings: i.introduced.filter((v) => v.severity === "warn" && policyOf(v) === "enforce"),
     muted: i.introduced.filter((v) => v.severity !== "warn" && policyOf(v) === "shadow"),
-    mutedForm: b.cause === null ? i.form : null,
+    mutedForm: b.cause !== null && control ? null : i.form,
   };
 }
 
+// A rule this agent was already told about on this file is not said again in the session.
+function untold(i: DecideInput, vs: Violation[]): Violation[] {
+  const told = new Set(i.history.filter((e) => e.agentId === i.session.agentId)
+    .flatMap((e) => [...e.violations, ...(e.warnings ?? [])].map((v) => v.rule)));
+  return vs.filter((v) => !told.has(v.rule));
+}
+
 function quiet(i: DecideInput, s: Sorted): Decision {
+  const advised = untold(i, s.advised), warnings = untold(i, s.warnings);
   const text = i.lock === null ? { compact: "", full: "", fix: null }
-    : s.advised.length > 0 ? adviseText([...s.advised, ...s.warnings], i.lock, i)
-    : s.warnings.length > 0 ? warnText(s.warnings, i.lock) : { compact: "", full: "", fix: null };
+    : advised.length > 0 ? adviseText([...advised, ...warnings], i.lock, i)
+    : warnings.length > 0 ? warnText(warnings, i.lock) : { compact: "", full: "", fix: null };
   return {
     verdict: "none", halt: false, cause: s.mutedForm?.cause ?? null, violations: s.muted,
     warnings: [...s.advised, ...s.warnings], attempt: 0, ...text, notice: null, lockHash: i.lockHash,

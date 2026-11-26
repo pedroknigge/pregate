@@ -5,7 +5,7 @@ import { approve, humanApprovalInstructions, PENDING_MS } from "./approval.ts";
 import { dataHome, enabled } from "./consent.ts";
 import { pathLabel, sourceDiff, visible } from "./contract.ts";
 import { diagnosticNotice, evaluationProgress, form, grammars, inputOf, locate, lockOf, recordedChecks, settle, turnOf, verify } from "./contract-diagnostic.ts";
-import { blocking, decide } from "./decide.ts";
+import { blocking, CONTROL, decide } from "./decide.ts";
 import { dependencyReviews, dependencyRules, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
 import { canonical, findRoot, writeAtomic } from "./disk.ts";
@@ -20,7 +20,6 @@ import { review } from "./recorded.ts";
 import * as state from "./state.ts";
 import { beforeTexts, H, sessionDir, sha256, snapshot } from "./state.ts";
 import { lockPrune } from "./state-lease.ts";
-import { approvedLocally, loosening } from "./loosening.ts";
 import { contractState } from "./status.ts";
 import { usesPrimitive } from "./proxy-checks.ts";
 import { commitCounts } from "./proxy-diff.ts";
@@ -298,9 +297,10 @@ function stopOrder(sid: string, roots: string[], turn: string, cwd: string, carr
 }
 
 function rootBlocks(result: RootResult): boolean {
-  if (result.lock === null) return result.form !== null;
+  const control = result.form !== null && CONTROL.has(result.form.cause);
+  if (result.lock === null) return control;
   const kept = blocking(result.lock, result.introduced, result.form?.cause ?? null, { rel: result.rel, phase: "stop" });
-  return kept.cause !== null || kept.violations.length > 0;
+  return (kept.cause !== null && control) || kept.violations.length > 0;
 }
 
 // A new turn alone is not progress. Hash admitted tree/context bytes, every judged root's
@@ -355,8 +355,6 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   // Project fitness belongs to the turn, not to one subagent's files.
   const fitness = scope.agent ? null : projectFitness(root, loaded.lock, "stop");
   const known = { ...none, lock: loaded.lock, lockHash: loaded.hash };
-  const loosened = sessionLoosening(sid, root, snap, loaded);
-  if (loosened !== null) return { ...known, form: loosened };
   if (fitness !== null) known.introduced.push(...fitnessViolations(loaded.lock, fitness));
   checkpoint("stop-inventory");
   const all = stopFiles(sid, snap);
@@ -390,17 +388,6 @@ function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
     for (const v of r.violations) (v.severity === "ask" && asked.includes(v.rule) ? known.approved : known.introduced).push(v);
   }
   return rootBlocks(known) ? known : { ...known, ...muted };
-}
-
-// The contract the session started with, loosened since without a human approval recorded on
-// this machine: a script can rewrite the preset and recompile the lock without any hook seeing it.
-function sessionLoosening(sid: string, root: string, snap: Snapshot, loaded: { lock: Lock; hash: string }): Form | null {
-  const lockText = state.beforeText(sid, snap, LOCK), presetText = state.beforeText(sid, snap, PRESET);
-  if (isCause(lockText)) return form(lockText);
-  if (isCause(presetText)) return form(presetText);
-  const found = loosening({ lockText, presetText }, { ...loaded, presetText: readText(join(root, PRESET)) });
-  if (found === null || approvedLocally(root, loaded.hash)) return null;
-  return { cause: "contract-loosened", line: null, detail: found.lines.join("\n") };
 }
 
 // §4.3 step 3: the rules the human approved through an ask whose result is exactly the file on disk.

@@ -63,7 +63,7 @@ const STALLED = "This edit repeats a denied one or makes no progress on the list
 const HALTED = "PREGATE stopped this turn. Do not retry: tell the user which rule blocks you (ID and line) and why.";
 const FORM_HALTED = "PREGATE stopped this turn. Do not retry: tell the user the cause and path.";
 const ASKED = "PREGATE asked the user to approve this change. If they decline, rewrite it within the rule or tell them why you cannot.";
-const ADVISOR = "Advisory finding: this edit was not blocked. Revise the code for each rule above, or keep it and tell the user why.";
+const ADVISOR = "Advisory: not blocked.";
 const ADVISOR_BESIDE_DENY = "Advisory findings: these rules do not block; only the DENY above does. Revise the code for each advisory rule, or keep it and tell the user why.";
 const STOP = `Fix them before finishing. Do not remove functionality or tests to comply; if the fix exceeds the task, stop and report it to the user.\nStop uses the retained session snapshot. Inspect it with pregate report --json; a clean CLI check against another baseline does not clear these findings. After a committed merge, prepare pregate session rebase <harness:session-id> --preview for human review. Do not delete session state to hide findings.\n${POLICY_ADAPTATION}`;
 const INFO = " (informational; no action required for this task)";
@@ -151,9 +151,12 @@ export function adviseText(vs: Violation[], lock: Lock, ctx: DenyContext, beside
   const count = hidden(sorted, ctx);
   const chosen = explainChoice("PREGATE ADVISOR", first, lock, count, ctx.launcher);
   const compact = headline("PREGATE ADVISOR", first, lock, count, chosen.end);
+  // One line per rule. The why, the fix and the origin are one `pregate explain` away, which the
+  // first line names: an advisory that fills the context is read less than one that fits a line.
+  const rest = groups(sorted).slice(1, 6).map((g) => clip(oneLine(briefGroup(g)), LINE_MAX));
   const close = besideDeny ? ADVISOR_BESIDE_DENY : ADVISOR;
   const tail = chosen.spill === "" ? close : `${close}\n${chosen.spill}`;
-  return { compact, full: assemble(`${compact}\n\n${origin(lock, ctx, null)}`, sorted, lock, tail, ctx.max), fix: ruleFix(first, lock) };
+  return { compact, full: clip([compact, ...rest, tail].join("\n"), ctx.max ?? TEXT_MAX), fix: ruleFix(first, lock) };
 }
 
 export function warnText(vs: Violation[], lock: Lock): Text {
@@ -241,6 +244,30 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
   return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
 }
 
+// What a hook says about a cause it does not block on. One line; `pregate doctor` has the detail.
+const NOTE_EN: Partial<Record<Cause, string>> = {
+  "tool-will-fail": "the text to replace is not in the current file, or is not unique, so the edit was not checked.",
+  "cannot-reconstruct": "this edit could not be rebuilt, so it was not checked.",
+  "shell-write": "this command writes a project file, so the change was not checked. The edit tool gets it checked.",
+  "shell-uncertain": "this command has unfinished shell syntax, so it was not classified.",
+  "payload-unrecognized": "this call has a shape this PREGATE version does not know, so it was not checked.",
+  "lock-stale": "the lock does not match the preset or its sources, so this call was not checked. `pregate preset compile` rebuilds it.",
+  "version-mismatch": "the lock was written by another PREGATE version, so this call was not checked. `pregate update` installs the newest engine.",
+  "snapshot-missing": "this session has no starting snapshot here, so this call was not checked.",
+  "state-io": "PREGATE state is busy or unwritable, so this call was not checked. `pregate doctor` explains.",
+  "git-missing": "git is not on PATH, so this call was not checked.",
+  "git-not-repository": "this directory is not a Git repository, so this call was not checked.",
+  "git-error": "git returned an error, so this call was not checked.",
+  "regex-limit": "a rule regex hit its backtracking limit on this file, so that rule was not checked.",
+  "contract-loosened": "the contract here enforces less than at session start. Nothing is blocked locally; the pull request review and `pregate check --ratchet` in CI decide.",
+};
+
+export function notedText(f: Form, rel: string | null): Text {
+  const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const compact = clip(`PREGATE NOTE ${f.cause}${at}: ${NOTE_EN[f.cause] ?? CAUSE_EN[f.cause]} Not blocked.`, LINE_MAX);
+  return { compact, full: compact, fix: null };
+}
+
 // Advisor mode does not block an import it could not resolve when no enforced rule would have judged the file.
 export function unresolvedAdvisory(f: Form, rel: string | null): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
@@ -297,7 +324,13 @@ export function briefing(lock: Lock, launcher: string, lead: string | null = nul
   const head = `${lead === null ? "" : `${lead}\n`}PREGATE is active: preset ${safe(lock.preset.name)} ${safe(lock.preset.version)}, ${lock.enforcement}, ratchet ${lock.ratchet}. Scope: ${scope}.`;
   const own = lock.rules.filter((r) => !lock.ownedByArkgate.includes(r.id));
   const owed = own.filter((r) => unbound(lock, r)).length;
-  const rules = own.filter((r) => !unbound(lock, r)).map((r) => briefRule(lock, r));
+  // Only a rule that can block is listed: the agent has to know it before it edits. A rule that
+  // informs is one count; it speaks for itself in one line when an edit meets it.
+  const bound = own.filter((r) => !unbound(lock, r));
+  const blockers = bound.filter((r) => enforcementOf(lock, r) === "enforce" && r.severity !== "warn");
+  const informing = bound.length - blockers.length;
+  const rules = blockers.map((r) => briefRule(lock, r));
+  if (informing > 0) rules.push(`${informing} checks inform and never block.`);
   rules.push(...Object.entries(lock.layers).map(([name, layer]) => `Layer ${name} (${layer.paths.join(",")}): may import ${layer.mayImport.join(",") || "only itself"}.`));
   // Until the project binds its first verifier it has not adopted project verification, so the
   // unbound requirements are not session context; status and audit still report them.

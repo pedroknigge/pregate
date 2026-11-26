@@ -69,9 +69,12 @@ export function approvedLocally(root: string, lockHash: string): boolean {
 // What check prints for a loosening it does not accept. The digest is not an approval code: it
 // only names this exact base-to-head change for the workflow that may accept it.
 export function looseningText(l: Loosening, where: "staged" | "base"): string {
-  const how = where === "base"
-    ? `To accept it, a maintainer sets PREGATE_ACCEPT_CONTRACT=${l.digest} for this workflow run (a repository variable or a workflow_dispatch input). Commits cannot set it.`
-    : "Only a human approval recorded on this machine accepts it here: the human applies the change with `pregate preset apply <request> --preview` and then `pregate approve <code>` in this shell. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. The agent must not run the approval command in any other session. Or restore the previous contract.";
-  return [`PREGATE DENY contract-loosened: this change loosens the contract compared with the ${where === "base" ? "base revision" : "last commit"}.`,
-    ...l.lines.map((line) => `  ${line}`), `Contract loosening digest: ${l.digest}`, how].join("\n");
+  if (where === "staged") return [
+    "PREGATE NOTE contract-loosened: this commit loosens the contract compared with the last commit. Not blocked.",
+    ...l.lines.map((line) => `  ${line}`),
+    "The pull request review accepts or rejects it; `pregate check --ratchet` in CI fails until a maintainer accepts this digest.",
+    `Contract loosening digest: ${l.digest}`].join("\n");
+  return ["PREGATE DENY contract-loosened: this change loosens the contract compared with the base revision.",
+    ...l.lines.map((line) => `  ${line}`), `Contract loosening digest: ${l.digest}`,
+    `To accept it, a maintainer sets PREGATE_ACCEPT_CONTRACT=${l.digest} for this workflow run (a repository variable or a workflow_dispatch input). Commits cannot set it.`].join("\n");
 }

@@ -49,8 +49,8 @@ export function sharedClaudeMatcher(): string {
 // The tail of a Codex trust key (<file>:<event>:<group>:<hook>) names the event in snake case.
 const CODEX_EVENT: Record<string, string> = { PreToolUse: "pre_tool_use", Stop: "stop", SessionStart: "session_start", SubagentStart: "subagent_start", SubagentStop: "subagent_stop" };
 const MISSING = "printf '%s\\n' 'PREGATE could not evaluate: its launcher is missing; report it to the user' >&2; exit 2";
-// The failure path only. Exact JSON "open" lets this missing-launcher call through; anything else stays denied.
-const OPEN = String.raw`uncertainty_open() { u=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${u#/}" != "$u" ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0; [ -f "$u/.pregate/preset.json" ] && return 1; [ -e "$u/.git" ] && return 1; u=\${u%/*}; done; return 1; }; `;
+// The failure path only. A missing launcher lets the call through unless the preset holds the exact JSON "closed".
+const OPEN = String.raw`uncertainty_open() { u=$(cd "\${1}" 2>/dev/null && pwd -P) || return 0; while [ "\${u#/}" != "$u" ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && return 1; [ -f "$u/.pregate/preset.json" ] && return 0; [ -e "$u/.git" ] && return 0; u=\${u%/*}; done; return 0; }; `;
 const CONSENT = String.raw`consented() { d=$(cd "\${1}" 2>/dev/null && pwd -P) || return 1; while [ "\${d#/}" != "$d" ]; do unknown=1; g=$(git -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); if [ -n "$g" ]; then g=$(cd "$g" 2>/dev/null && pwd -P); [ -n "$g" ] && unknown=; else g=$d; fi; r=$(printf '%s' "$d" | sed 's/\\/\\\\/g;s/"/\\"/g'); g=$(printf '%s' "$g" | sed 's/\\/\\\\/g;s/"/\\"/g'); records=$(grep -hF "\"root\":\"$r\"," @CONSENT@/*.json 2>/dev/null) 2>/dev/null; [ -n "$records" ] && printf '%s' "$records" | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && grep -hF "\"repo\":\"$g\"" @CONSENT@/*.json 2>/dev/null | grep -qF "\"disabled\":true" && return 1; [ -n "$records" ] && { [ -n "$unknown" ] || printf '%s' "$records" | grep -qF "\"common\":\"$g\""; } && return 0; reviews=$(grep -hF "\"root\":\"$r\"," @PROPOSALS@/*.json 2>/dev/null) 2>/dev/null; [ -n "$reviews" ] && return 0; [ -e "$d/.git" ] && return 1; d=\${d%/*}; done; return 1; }; `;
 const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" "\${GROK_WORKSPACE_ROOT:-}" "$PWD"; do consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; done; exit 0`;
 // agy runs hooks from the plugin folder and sets no project variable: the payload names the root.
@@ -88,7 +88,7 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
   const dir = h === "cursor" ? "CURSOR_PROJECT_DIR" : "CLAUDE_PROJECT_DIR";
   if (!windows) {
     const allow = h === "cursor" ? `printf '%s\\n' '{"permission":"allow"}'; exit 0` : "exit 0";
-    const open = `u="\${${dir}:-.}"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && { ${allow}; }; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="\${${dir}:-.}"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && { ${allow}; }; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     // Cursor also runs this Claude command. The marker tells that invocation to stand aside when
     // the project's native .cursor/hooks.json owns the same event. Claude Code itself is unaffected.
@@ -113,7 +113,7 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
 function projectCodexCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness codex`;
   if (!windows) {
-    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="$d"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
@@ -130,7 +130,7 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
 function projectAgyCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness agy`;
   if (!windows) {
-    const open = `u="$d"; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && exit 0; [ -f "$u/.pregate/preset.json" ] && break; [ -e "$u/.git" ] && break; u=\${u%/*}; done; `;
+    const open = `u="$d"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; `
       + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `

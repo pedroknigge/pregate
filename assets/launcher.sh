@@ -192,18 +192,18 @@ exec 3<&0 4>&2 2>/dev/null
 # check (default: the installation). Prints the event's fail-closed output and exits. Pre is the same
 # in the six harnesses: exit 2 with stdout empty and one stderr line (Grok shows only the first one,
 # cut at 256 characters).
-# Failure path only. The exact JSON string "open" lets an unclassified crash through.
+# Failure path only. A crash passes unless the preset holds the exact JSON string "closed".
 uncertainty_open() {
-  u=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  u=$(cd "$1" 2>/dev/null && pwd -P) || return 0
   while [ "${u#/}" != "$u" ]; do
     if [ -f "$u/.pregate/preset.json" ]; then
-      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"open"' "$u/.pregate/preset.json" && return 0
-      return 1
+      grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && return 1
+      return 0
     fi
-    [ -e "$u/.git" ] && return 1
+    [ -e "$u/.git" ] && return 0
     u=${u%/*}
   done
-  return 1
+  return 0
 }
 
 fail_closed() {

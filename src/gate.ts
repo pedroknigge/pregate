@@ -348,7 +348,9 @@ function policyRead(sid: string, root: string | null, path: string, kind: "admit
   if (path.includes("\0") || /^\/dev\/(stdin|stdout|stderr|fd\/[0-9]+)$/.test(path)) return false;
   const actual = policyPath(path);
   if (actual === null) return false;
-  if (!names.some(rel => pathKey(actual) === pathKey(join(root, rel)))) return false;
+  // Reading the contract folder never changes it: a read-only command may name anything inside it.
+  const inside = kind === "inventory" && within(join(root, ".pregate"), actual);
+  if (!inside && !names.some(rel => pathKey(actual) === pathKey(join(root, rel)))) return false;
   return kind !== "admitted" || !isCause(verify(sid, root, load()));
 }
 
