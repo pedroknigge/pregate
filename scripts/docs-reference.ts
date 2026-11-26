@@ -192,10 +192,8 @@ section("packs/COVERAGE.md", ["## Current manifest inventory", "",
   "| Default severity | Aliases |", "| --- | ---: |",
   ...["deny", "ask", "warn", "off"].map((s) => `| ${s} | ${aliases.filter((a) => a.severity === s).length} |`), "",
   "These are declarations, not effective project policy or verification of complete semantic requirements. [All defaults, scope, phases and rule limits](../docs/packs.md)."].join("\n"));
-const skillTemplate = section("assets/pregate/SKILL.md", ["## All public command forms", "", "```text", usage, "```", "",
-  "## Bundled categories and methodology IDs", "", `Categories: ${categories.map((c) => `\`${c}\``).join(", ")}. Filter with \`pack list --library --category <category>\`. Core is an invariant source with all ${core.checks} requirements active by default; optional packs are selected independently.`, "",
-  ...packs.map((p) => `- \`${p.source.ns}@${p.source.version}\` — ${p.source.category}: ${methods(p)}`), "",
-  "Inspect live defaults and scope with `pack show --library <ns> --json`; effective policy comes from `preset show`/`explain`. Check availability on the installed version before proposing a command."].join("\n"));
+// The skill is one page for the agent. Every command form is in docs/CLI.md and `pregate --help --all`.
+const skillTemplate = readFileSync(join(root, "assets/pregate/SKILL.md"), "utf8").replaceAll("\r\n", "\n");
 emit("skills/pregate/SKILL.md", skillTemplate.replaceAll("@ENGINE_VERSION@", engine));
 
 const readmeFactsBegin = "<!-- BEGIN generated reference -->";

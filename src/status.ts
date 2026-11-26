@@ -308,16 +308,29 @@ function notEnforced(where: string): string {
   return `Nothing is enforced in ${where}. Pregate blocks commands and edits only where \`pregate enable\` was run for this project.`;
 }
 
-// The short form leads with enforced, monitored and unverified rules, then the lock size.
+// The short form is three lines: the state, what needs attention (only when something does), and
+// the next step. Counts by channel, catalog size and harness detail are in --verbose.
 function briefStatus(s: Status): string[] {
-  if (s.root === null) return [notEnforced("this directory"), "Next: pregate guide --preview (the human approves its review)."];
-  const lead = s.consent ? coverageLead(s) : [notEnforced(s.root), ...coverageLead(s)];
+  if (s.root === null) return ["Pregate is not set up in this directory.", "Next: pregate enable. It proposes an advisor contract; nothing blocks."];
+  if (!s.consent) return [`Pregate is off in ${s.root}${s.disabled ? ` (disabled for ${disabledLabel(s.root)})` : ""}. Nothing is checked or blocked.`, ...consentLostLine(s), "Next: pregate enable."];
+  const b = breakdown(s);
+  const reason = attention(s);
   return [
-    ...lead,
-    `Local consent is ${s.disabled ? `inactive (disabled for ${disabledLabel(s.root)})` : s.consent ? "active" : "inactive"} in ${s.root}. Effective protection: ${s.state}. Mode: ${s.mode ?? "unknown"}. ${versionLine(s)}`,
-    ...consentLostLine(s), ...uncommittedLine(s), ...s.globWarnings, ...(s.tsconfig ? [s.tsconfig] : []),
+    `Pregate is on in ${s.root}: ${s.mode ?? "unknown"} mode. ${b.deny + b.ask} rules block, ${b.monitor} inform.`,
+    ...(reason === null ? [] : [reason]), ...consentLostLine(s), ...uncommittedLine(s),
     `Next: ${nextStep(s)} Details: pregate status --verbose.`,
   ];
+}
+
+// The one thing that keeps this project from being checked, or null. A lock another engine version
+// wrote is not one: this engine judges from the preset.
+function attention(s: Status): string | null {
+  const order = pinOrder(s), pin = s.project?.lockEngine;
+  if (!s.installation.launcherPresent || !s.installation.enginePresent) return "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.";
+  if (!s.harnesses.some((h) => h.configured)) return "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.";
+  if (order !== null && order !== 0) return `Note: the lock was written by engine ${pin}; this engine (${s.engine}) judges from the preset. Nothing is blocked by that.`;
+  if (!s.contract.valid) return `Needs attention: ${s.contract.errors[0] ?? "the contract is not ready."}`;
+  return null;
 }
 
 function uncommittedLine(s: Status): string[] {
@@ -340,15 +353,15 @@ function versionLine(s: Status): string {
 
 function nextStep(s: Status): string {
   const order = pinOrder(s);
-  if (!s.consent) return "the human runs pregate enable in a separate terminal.";
-  if (s.pendingApproval !== null) return `the human approves the pending review in this shell: pregate approve ${s.pendingApproval}. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command so the human gets the permission prompt. Elsewhere the agent must not run it.`;
-  if (order !== null && order < 0) return "pregate guide --preview (or the human runs ! pregate update).";
-  if (order !== null && order > 0) return "the human runs ! pregate update.";
-  if (!s.contract.valid) return `${s.contract.errors[0] ?? "Contract not ready."} Inspect pregate preset diagnose.`;
+  if (!s.consent) return "pregate enable.";
+  if (s.pendingApproval !== null) return `pregate approve ${s.pendingApproval} applies the pending review.`;
   if (!s.installation.launcherPresent || !s.installation.enginePresent) return "pregate setup.";
-  if (!s.harnesses.some((h) => h.configured)) return "pregate doctor.";
-  if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "add the language pack (pregate guide --preview).";
-  return "pregate audit.";
+  if (!s.harnesses.some((h) => h.configured)) return "pregate setup.";
+  if (order !== null && order < 0) return "nothing required. pregate update --project --preview refreshes the lock.";
+  if (order !== null && order > 0) return "pregate update installs the newest engine.";
+  if (!s.contract.valid) return "pregate preset diagnose.";
+  if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "nothing required. pregate guide --preview proposes a pack for the uncovered language.";
+  return "nothing required. pregate audit lists existing debt.";
 }
 
 function providerLine(providers: { id: string; detail: string; checks: string[] }[]): string {

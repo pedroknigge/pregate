@@ -105,7 +105,19 @@ const USAGE = `usage:
   pregate setup | update [--version <v> | --engine <v>] | uninstall [--purge] [--yes] | doctor
   pregate update --project [--preview|--yes]
   pregate update --projects <path...> [--preview|--yes [--no-commit]]
-  pregate --version | --help | -h`;
+  pregate --version | --help [--all] | -h`;
+// What a person needs day to day. Every other command is in `pregate --help --all`.
+const EVERYDAY = `Pregate checks an agent's edits against the rules in .pregate/ before they land.
+
+  pregate enable          set this project up (advisor mode: it informs, nothing blocks)
+  pregate status          what is on here, what needs attention, and the next step
+  pregate check           check the changed files now (--all: every file; CI runs this)
+  pregate explain <rule>  why a rule exists and how to fix a finding
+  pregate update          install the newest engine
+  pregate disable         switch Pregate off for this checkout (--project: every checkout)
+  pregate doctor          verify the installation and the hooks of each agent harness
+
+All commands: pregate --help --all`;
 const BAD: Result = { code: 1, text: USAGE };
 
 export async function run(argv: string[]): Promise<number> {
@@ -116,7 +128,7 @@ export async function run(argv: string[]): Promise<number> {
 }
 
 async function command([cmd, ...args]: string[]): Promise<Result> {
-  if (cmd !== undefined && commandHelp([cmd, ...args])) return { code: 0, text: USAGE };
+  if (cmd !== undefined && commandHelp([cmd, ...args])) return { code: 0, text: (cmd === "--help" || cmd === "-h") && args.length === 0 ? EVERYDAY : USAGE };
   switch (cmd) {
     case "guide": return guide(args);
     case "status": return statusCommand(args);
@@ -125,6 +137,7 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       const flags = new Set(args);
       if (args.length !== flags.size || [...flags].some((arg) => arg !== "--yes" && arg !== "--project") || (flags.has("--project") && cmd !== "disable")) return BAD;
       const root = here();
+      if (root === null && cmd === "enable") return enableNewProject(flags.has("--yes"));
       if (root === null) return noPreset(process.cwd());
       const place = flags.has("--project") ? `project of ${root}` : `worktree ${root}`;
       const exclusions = cmd === "enable" ? await enableWithExclusions(root, flags.has("--yes")) : null;
@@ -173,10 +186,23 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       return uninstall(purge);
     }
     case "doctor": return args.length === 0 ? doctor() : BAD;
-    case "--help": case "-h": return args.length === 0 ? { code: 0, text: USAGE } : BAD;
+    case "--help": case "-h": return args.length === 0 ? { code: 0, text: EVERYDAY } : args.length === 1 && args[0] === "--all" ? { code: 0, text: USAGE } : BAD;
     case "--version": return args.length === 0 ? { code: 0, text: `pregate ${VERSIONS.engine} (core ${VERSIONS.core})` } : BAD;
     default: return BAD;
   }
+}
+
+// The front door for a project with no contract: one command prepares the advisor contract the
+// guide proposes, shows its summary, and applies it on the human's y (or --yes). Nothing blocks
+// in advisor, so the first run cannot stop anyone's work.
+async function enableNewProject(yes: boolean): Promise<Result> {
+  const prepared = await guide(["--preview"]);
+  const root = prepared.code === 0 ? pendingRoot(canonical(process.cwd())) : null;
+  if (root === null) return prepared.code === 0 ? noPreset(process.cwd()) : prepared;
+  const brief = prepared.text.split("\n").filter((line) => /^(Scope includes|Packs|Rules|Mode): /.test(line) || line.startsWith("Scope includes"));
+  const summary = [`Set up Pregate in ${root}.`, ...brief, "Full contract: pregate approve --preview --full."].join("\n");
+  const applied = await approvePending(root, yes, undefined, true, summary);
+  return applied.code === 0 ? { code: 0, text: `${applied.text}\n${statusText(protectionStatus(root))}` } : applied;
 }
 
 function approveCommand(args: string[]): Result | Promise<Result> {

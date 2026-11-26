@@ -185,6 +185,13 @@ export function alsoInCall(full: string, compacts: string[]): string {
 // `halt`: the turn stops here (turn cap or a run of form denies), so the agent must not resend.
 export function formText(f: Form, rel: string | null, halt = false): Text {
   const at = rel === null ? "" : ` ${safe(rel)}${f.line === null ? "" : `:${f.line}`}`;
+  const control = CONTROL_EN[f.cause];
+  if (control !== undefined) {
+    // The causes a hook blocks on. Two sentences: what the agent does not do, and what to do instead.
+    const said = f.cause === "shell-admin" && f.detail ? `${clip(oneLine(f.detail), 220)}.` : control.what;
+    const compact = clip(`PREGATE DENY ${f.cause}${at}: ${said} ${control.instead}`, LINE_MAX);
+    return { compact, full: halt ? `${compact}\n${FORM_HALTED}` : compact, fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
+  }
   const detail = ["lock-stale", "version-mismatch", "unresolvable-import", "shell-admin", "shell-write"].includes(f.cause) && f.detail ? clip(oneLine(f.detail), f.cause === "shell-admin" ? 220 : 2000) : null;
   const fix = causeFix(f.cause, rel, f.line, detail);
   const cue = f.cause === "shell-write" && detail !== null && fix.use ? `Use ${fix.use}. `
@@ -243,6 +250,18 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
   const compact = clip(`PREGATE WARN syntax${at}: parse failure. This file does not parse, so its rules were not evaluated. Fix the syntax error and resend.`, LINE_MAX);
   return { compact, full: clip(`${compact}\n\nThis is not a clean result. PREGATE did not check this file for violations.`, TEXT_MAX), fix: causeFix(f.cause, rel, f.line, f.detail ?? null) };
 }
+
+// The causes a hook blocks on: the agent acting on Pregate itself. Short on purpose.
+const CONTROL_EN: Partial<Record<Cause, { what: string; instead: string }>> = {
+  "protected-path": { what: "the agent does not write Pregate's contract, its state, or a harness's settings. Reading them is allowed.",
+    instead: "Tell the user the change you want; they edit .pregate/preset.json or run pregate guide --preview." },
+  "hook-switch": { what: "the agent does not install, remove, or switch off Pregate or the hooks of a harness.",
+    instead: "Tell the user; they run pregate disable or pregate setup." },
+  "approval": { what: "the agent does not approve for the human.",
+    instead: "Ask the user to run the approval command themselves (in a harness, on a ! line)." },
+  "shell-admin": { what: "this command changes Pregate's configuration, skips its git hook, or hides a command name behind a variable.",
+    instead: "Spell the command literally, or tell the user what you need; they run it." },
+};
 
 // What a hook says about a cause it does not block on. One line; `pregate doctor` has the detail.
 const NOTE_EN: Partial<Record<Cause, string>> = {
