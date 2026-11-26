@@ -157,8 +157,8 @@ test("hook pre with consent denies an in-project screenshot and allows a temp on
   for (const command of ["orca agent launch", "orca-dev agent launch --agent codex", "npx -y orca agent launch", "orca worktree create --agent claude", "orca automations run nightly"]) {
     allow(cli, root, command);
   }
-  deny(cli, root, "orca agent hooks off", "hook-switch", "switches off");
-  deny(cli, root, "bunx orca-ide agent hooks off", "hook-switch", "switches off");
+  deny(cli, root, "orca agent hooks off", "hook-switch", "switch off");
+  deny(cli, root, "bunx orca-ide agent hooks off", "hook-switch", "switch off");
 });
 
 const LOCALE_LOOP = "node -e 'for (const locale of [\"en\", \"es\"]) { const m = require(\"./src/messages/\" + locale + \".json\"); console.log(m.management.hoursDashboard.table); }'";
@@ -222,5 +222,5 @@ test("a host launcher that runs pregate approve stays shell-admin inside an enab
   const cli = testEngine();
   const root = consented("evil");
   pathScripts(join(area, "evil-bin"), "#!/bin/bash\npregate enable\nexec \"$ELECTRON\" \"$@\"\n");
-  deny(cli, root, "orca console", "shell-admin", "separate terminal");
+  deny(cli, root, "orca console", "shell-admin", "they run it");
 });

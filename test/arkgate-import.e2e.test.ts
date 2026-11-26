@@ -151,7 +151,7 @@ test("import preview, human approval, and a rule ArkGate owns is not reported tw
   const explained = repo.run(["explain", "architecture/CA-DEP-001"]);
   expect(explained.code, explained.text).toBe(0);
   expect(explained.stdout).toContain("owned by ArkGate, not evaluated");
-  const status = repo.run(["status"]);
+  const status = repo.run(["status", "--verbose"]);
   expect(status.code, status.text).toBe(0);
   expect(status.stdout).toContain("owned by ArkGate");
 

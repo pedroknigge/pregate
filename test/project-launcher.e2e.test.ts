@@ -218,7 +218,7 @@ describe("project launcher", () => {
       const out = hookPre(i, repo, payload);
       expect(out.code, `${out.stdout}\n${out.stderr}`).toBe(0);
       expect(out.stdout).toBe("");
-      if (!WINDOWS) expect(out.stderr).toBe("PREGATE NOTE engine-failure: the project engine did not answer. This call was not checked. Not blocked.\n");
+      if (!WINDOWS) expect(out.stderr).toMatch(/^PREGATE NOTE engine-failure: .+\. This call was not checked\. Not blocked\.\n$/);
       expect(readFileSync(target, "utf8")).toBe(before);
     };
     passes();

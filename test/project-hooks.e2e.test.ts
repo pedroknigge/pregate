@@ -131,7 +131,8 @@ function closeUncertainty(project: string): () => void {
   writeFileSync(file, JSON.stringify({ ...(JSON.parse(original) as Json), uncertainty: "closed" }));
   return () => writeFileSync(file, original);
 }
-const ENGINE_NOTE = "PREGATE NOTE engine-failure: the project engine did not answer. This call was not checked. Not blocked.";
+// The reason names what failed (the engine that is not installed, and the command that installs it).
+const ENGINE_NOTE = /^PREGATE NOTE engine-failure: .+\. This call was not checked\. Not blocked\.\n$/;
 
 function registered(i: Isolated, name: string, settings?: string): string {
   const project = gitProject(i, name, settings === undefined ? {} : { settings });
@@ -343,7 +344,7 @@ describe("pregate project hooks", () => {
     expect(passedEngine.code, `${passedEngine.stdout}\n${passedEngine.stderr}`).toBe(0);
     expect(passedEngine.stdout).toBe("");
     // The PowerShell launcher passes without the note line.
-    if (!WINDOWS) expect(passedEngine.stderr).toBe(`${ENGINE_NOTE}\n`);
+    if (!WINDOWS) expect(passedEngine.stderr).toMatch(ENGINE_NOTE);
     const reopen = closeUncertainty(project);
     const noEngine = hook(i, pre, project, payload, project);
     expect(noEngine.code, `${noEngine.stdout}\n${noEngine.stderr}`).toBe(2);
@@ -717,7 +718,7 @@ describe("pregate project hooks --harness codex", () => {
     expect(passedEngine.code, `${passedEngine.stdout}\n${passedEngine.stderr}`).toBe(0);
     expect(passedEngine.stdout).toBe("");
     // The PowerShell launcher passes without the note line.
-    if (!WINDOWS) expect(passedEngine.stderr).toBe(`${ENGINE_NOTE}\n`);
+    if (!WINDOWS) expect(passedEngine.stderr).toMatch(ENGINE_NOTE);
     const reopen = closeUncertainty(project);
     const noEngine = hook(i, pre, below, payload, null);
     expect(noEngine.code, `${noEngine.stdout}\n${noEngine.stderr}`).toBe(2);
@@ -1015,7 +1016,7 @@ describe("pregate project hooks --harness cursor", () => {
     expect(passed.code, `${passed.stdout}\n${passed.stderr}`).toBe(0);
     expect(nativeReply(passed)).toEqual({ permission: "allow" });
     // The PowerShell launcher passes without the note line.
-    if (!WINDOWS) expect(passed.stderr).toBe(`${ENGINE_NOTE}\n`);
+    if (!WINDOWS) expect(passed.stderr).toMatch(ENGINE_NOTE);
     closeUncertainty(project);
     const out = call();
     expect(out.code).toBe(2);
