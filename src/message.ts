@@ -10,7 +10,8 @@ export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
 ]);
 
 // Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
-export const UNCERTAINTY_OVERRIDE = " Override: set uncertainty to open in .pregate/preset.json; the human runs pregate preset compile.";
+// A hook never denies these causes; `pregate check` still reports them, and no preset key overrides that.
+export const UNCERTAINTY_OVERRIDE = "";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
@@ -221,9 +222,7 @@ export function formText(f: Form, rel: string | null, halt = false): Text {
     : f.cause === "approval"
     ? "\nAn agent cannot grant itself approval by setting PREGATE_UNATTENDED_APPROVAL, PREGATE_TESTING, PREGATE_TEST_ANSWER or PREGATE_ACCEPT_CONTRACT. A literal pregate approve with a code, or pregate approve --yes with an optional digest, is the in-harness confirmation, including a harness ! line. --yes on any other pregate command except enable and disable is accepted in that shell. enable and disable stay in a separate terminal."
     : "";
-  const uncertainty = strict
-    ? "\nWhere this project is enabled, an unclassified call is denied. That does not turn protection off."
-    : "";
+  const uncertainty = "";
   const fixAlready = help.includes("\nFix: ") || help.includes("Fix: ") || compact.includes(fix.text);
   const fixLine = fixAlready ? "" : `\nFix: ${fix.text}`;
   const carried = strict ? `${fixLine}\n${diagnosis}` : fixLine;

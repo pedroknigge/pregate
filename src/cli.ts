@@ -8,7 +8,7 @@ import { report } from "./report-command.ts";
 import { feedback } from "./feedback-command.ts";
 import { dispute } from "./dispute-command.ts";
 import { importReviewCost, pack, projectUpdate } from "./pack-command.ts";
-import { projectUpdates, registryHint, worktreeHint } from "./project-updates.ts";
+import { projectUpdates } from "./project-updates.ts";
 import { guide } from "./guided.ts";
 import { bundledBetween, reviewDiff, validateContract } from "./contract.ts";
 import { git } from "./git.ts";
@@ -438,16 +438,10 @@ function prepareCommand(args: string[]): Promise<Result> | Result {
 
 function updateCommand(args: string[]): Promise<Result> | Result {
   if (args.filter(arg => arg === "--projects").length === 1) return projectUpdates(args.filter(arg => arg !== "--projects"));
-  if (args.filter((arg) => arg === "--project").length === 1) return withWorktrees(projectUpdate(args.filter((arg) => arg !== "--project")));
+  if (args.filter((arg) => arg === "--project").length === 1) return projectUpdate(args.filter((arg) => arg !== "--project"));
   const o = options(args, ["--version", "--engine"], []);
   if (o === null || o.operands.length > 0 || o.opts.size > 1) return BAD;
   return update({ version: o.opts.get("--version"), engine: o.opts.get("--engine") });
-}
-
-async function withWorktrees(pending: Promise<Result> | Result): Promise<Result> {
-  const result = await pending, root = here();
-  const hint = root === null ? [] : [...worktreeHint(root), ...registryHint(root)];
-  return hint.length === 0 ? result : { code: result.code, text: [result.text, ...hint].join("\n") };
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────────

@@ -11,8 +11,6 @@ import { literalPaths } from "./shell.ts";
 import type { Decision, HarnessId, HookEnv, HookEvent, HookKind, Rejected } from "./types.ts";
 import { homeDir } from "./platform.ts";
 import { dormantNotice, inert, told } from "./admission.ts";
-import { UNCERTAINTY_CAUSES } from "./message.ts";
-import { uncertaintyAllows } from "./uncertainty.ts";
 import { canonical, readStdin, STDIN_TIMEOUT } from "./disk.ts";
 import { slash } from "./paths.ts";
 import { checkpoint } from "./progress.ts";
@@ -85,7 +83,7 @@ async function main(argv: string[]): Promise<number> {
   // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
   const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
   const decision = "cause" in e ? rejection(e, harness, gate, input.timedOut) : await dispatch(e, gate);
-  const out = adapter.encode(e.kind, wireOf(relax(decision, eventDirs(e)), scopeDirs(e), place), replyFlag);
+  const out = adapter.encode(e.kind, wireOf(decision, scopeDirs(e), place), replyFlag);
   // One write per channel: the launcher captures them to files.
   if (out.stdout !== "") writeAll(1, out.stdout);
   if (out.stderr !== "") writeAll(2, out.stderr);
@@ -200,12 +198,6 @@ function place(dir: string): Place {
     if (error instanceof Error && error.message.endsWith(": no existing ancestor")) return "off";
     throw error;
   }
-}
-
-// An explicit "uncertainty": "open" lets an unclassified call through. A rule deny is not one of these.
-function relax(d: Decision, dirs: string[]): Decision {
-  if (d.verdict === "none" || d.cause === null || !UNCERTAINTY_CAUSES.has(d.cause)) return d;
-  return uncertaintyAllows(dirs) ? told(null) : d;
 }
 
 function rejection(e: Rejected, harness: HarnessId, gate: Gate, timedOut: boolean): Decision {
