@@ -119,6 +119,10 @@ test.skipIf(!WINDOWS)("a hidden consent record cannot bypass either the launcher
     writeFileSync(record, JSON.stringify({ root: slash(root), common: slash(join(root, ".git")) }));
     expect(Bun.spawnSync(["attrib.exe", "+H", record], { stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
     writeFileSync(launcher, "exit 2\n");
+    // A missing launcher passes unless the project says closed. With closed, the deny proves the
+    // hidden record was read as consent: without consent the fallback exits 0 before this check.
+    mkdirSync(join(root, ".pregate"));
+    writeFileSync(join(root, ".pregate/preset.json"), '{"uncertainty":"closed"}\n');
     for (const installed of [true, false]) {
       if (!installed) rmSync(launcher);
       const result = Bun.spawnSync(["cmd.exe", "/d", "/c", windowsHook(data, "pre", "agy")], {

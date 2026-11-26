@@ -451,7 +451,7 @@ describe("doctor and status name the scope of the Claude Code registration", () 
     expect(local.code, local.stdout).toBe(0);
     expect(statusScope(i, project)).toBe("project");
     // The short form is three lines; the harness and scope detail is in --verbose.
-    expect(pregate(i, project, "status").stdout).toStartWith(`Pregate is on in ${project}: `);
+    expect(pregate(i, project, "status").stdout.replaceAll("\\", "/")).toStartWith(`Pregate is on in ${project.replaceAll("\\", "/")}: `);
     const status = pregate(i, project, "status", "--verbose");
     expect(status.stdout).toContain("Harnesses gated: claude-code.");
     expect(status.stdout).toContain("Claude Code hooks are project-local");
@@ -968,7 +968,8 @@ describe("pregate project hooks --harness cursor", () => {
     rmSync(join(project, ".pregate/bin"), { recursive: true, force: true });
     // A missing launcher passes with the native allow; only a preset that says closed denies.
     const passed = cursorHook(i, command, project, write(QUERY));
-    expect(passed, `${passed.stdout}\n${passed.stderr}`).toEqual({ code: 0, stdout: '{"permission":"allow"}\n', stderr: "" });
+    // PowerShell ends the line with CRLF.
+    expect({ ...passed, stdout: passed.stdout.replaceAll("\r\n", "\n") }, `${passed.stdout}\n${passed.stderr}`).toEqual({ code: 0, stdout: '{"permission":"allow"}\n', stderr: "" });
     closeUncertainty(project);
     const noLauncher = cursorHook(i, command, project, write(QUERY));
     expect(noLauncher.code).toBe(2);

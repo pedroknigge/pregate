@@ -193,9 +193,11 @@ function activeCanary(repo: Repo): void {
   const invalid = repo.harness === "codex" ? codexPatch(repo.dir, ["src/domain/canary.ts"], true) : tool("Write", { file_path: join(repo.dir, "src/domain/canary.ts"), content: "export const invalid = ;\n" });
   const payload = envelope(repo.dir, "bench-canary", invalid, repo.harness);
   const r = Bun.spawnSync(hookArgv(repo.pre), { cwd: repo.dir, env: repo.env, stdin: Buffer.from(JSON.stringify(payload)), stdout: "pipe", stderr: "pipe" });
-  // A file that does not parse is let through with a warning. An inactive gate prints nothing at all.
+  // A file that does not parse is let through with a warning. The reference engine of the ratio
+  // gate may be an older release that denied it. An inactive gate prints nothing at all.
   const said = r.stdout.toString() + r.stderr.toString();
-  if (r.exitCode !== 0 || !said.includes("PREGATE WARN syntax")) throw new Error("Benchmark gate is inactive or broken: invalid syntax was not reported.");
+  const warned = r.exitCode === 0 && said.includes("PREGATE WARN syntax"), denied = r.exitCode === 2 && said.includes("syntax");
+  if (!warned && !denied) throw new Error("Benchmark gate is inactive or broken: invalid syntax was not reported.");
 }
 
 // test/demo-repo under backend-clean-ddd, plus the generated ledgers.
