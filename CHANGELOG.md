@@ -13,6 +13,7 @@ The local hooks are now as light as an advisory skill. In an enabled project a h
 
 ### Changed
 
+- A preset written for another engine version names that engine, its core, and the bundled pack versions of that engine. A hook, `pregate status`, and `pregate check` read it with the versions this engine carries instead of failing with "does not match this binary". No file is changed. `pregate update --project --preview` still prepares the review that moves the committed pins.
 - `pregate enable --yes` and `pregate disable --yes` apply without a terminal, including on a harness line the hook does not see, such as a Claude Code `!` line. Without `--yes` and without a terminal they change nothing and print the command to run. A hook still denies both when an agent runs them.
 - A session snapshot file that was removed is made again from `HEAD`, the same baseline as a first contact. The session keeps being judged, and `snapshot-missing` no longer follows it for the rest of its life.
 - At the end of a turn, a file whose cause is a note no longer ends the review of its project. The files after it are still judged, so a file that does not parse cannot hide an enforced rule in another file. The same note is said once per file in a session, and it also reaches the human channel of the harness.
