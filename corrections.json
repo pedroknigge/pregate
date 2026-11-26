@@ -46,7 +46,7 @@
       "id": "timeout-engine-is-dead-before-deny",
       "summary": "When a supervised engine passed its deadline, the deny could return while that process was still alive.",
       "source": "CHANGELOG 0.0.11, Fixed.",
-      "test": "a timed-out engine is dead before the deny returns"
+      "test": "a timed-out engine is dead before the call is let through"
     },
     {
       "id": "atomic-write-removes-temporary-file",

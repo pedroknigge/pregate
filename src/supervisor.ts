@@ -177,7 +177,8 @@ async function engineEmission(run: EngineRun): Promise<Emission> {
     if (r.code === 2 && r.stderr.trim() === "") throw new Error("the engine denied without a reason");
     return { exit: r.code, stdout: r.stdout, stderr: r.stderr };
   } catch (e) {
-    // A call with no redirect and no consenting directory is no project's call: it passes silently.
+    // fail-closed: only for a project whose preset says "uncertainty": "closed". A call with no
+    // redirect and no consenting directory is no project's call: it passes silently.
     if (!routed && !active(run.raw, run.data)) return cursorNativePre(run.argv) ? nativePreAllow() : { exit: 0, stdout: "", stderr: "" };
     // Pregate failing must not stop the session: the call passes with one line that says it was not
     // checked. Only a preset that says "uncertainty": "closed" keeps the deny below.

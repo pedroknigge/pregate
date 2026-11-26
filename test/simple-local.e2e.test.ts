@@ -118,3 +118,18 @@ test("an advisory is one short text, and it is not repeated for the same file in
   expect(again.code, again.text).toBe(0);
   expect(again.text).not.toContain("PREGATE ADVISOR");
 });
+
+test("a contract Pregate cannot read is one note at the end of a turn, said once, and the turn ends", () => {
+  const p = project();
+  expect(p.write("src/infra/note.ts", "export const note = 1;\n").code).toBe(0);
+  // A person broke the preset by hand. Pregate cannot judge until it is repaired.
+  writeFileSync(join(p.root, ".pregate/preset.json"), "{}\n");
+  const first = p.stop();
+  expect(first.code, first.text).toBe(0);
+  expect(first.stdout).not.toContain('"decision":"block"');
+  expect(first.text).toContain("PREGATE NOTE lock-stale");
+  expect(first.text).toContain("Not blocked.");
+  const second = p.stop();
+  expect(second.code, second.text).toBe(0);
+  expect(second.text).not.toContain("PREGATE NOTE");
+});

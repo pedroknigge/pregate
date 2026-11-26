@@ -253,6 +253,8 @@ function stopDecision(call: Call, results: RootResult[], chosen: RootResult | un
   const repeatedBlocks = repeated.filter(event => event.verdict === "deny").length;
   const input: DecideInput = {
     ...inputOf(call, { ...NOTHING, ...chosen }),
+    // Earlier Stops of this session: a note or an advisory one of them already gave is not repeated.
+    history: priorStops,
     stop: { blocks: Math.max(state.stopBlocks(sid, state.H(stop.turn), call.session.agentId === null ? "-" : state.H(call.session.agentId)), repeatedBlocks), reentry: stop.reentry, approved: chosen?.approved ?? [] },
   };
   let decision = diagnosticNotice(decide(input), input);
