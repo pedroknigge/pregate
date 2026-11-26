@@ -1109,7 +1109,7 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
 }
 
 const GIT_READS: ReadonlySet<string> = new Set(["status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "cat-file", "grep", "ls-tree"]);
-const READERS: ReadonlySet<string> = new Set(["head", "tail", "wc", "stat", "file", "grep", "egrep", "fgrep", "rg", "less", "more", "jq", "shasum", "sha256sum", "md5", "md5sum", "du"]);
+const READERS: ReadonlySet<string> = new Set(["head", "tail", "wc", "stat", "grep", "egrep", "fgrep", "rg", "jq", "shasum", "sha256sum", "md5", "md5sum", "du"]);
 
 function policyReadKind(words: Word[]): "admitted" | "inspect" | "inventory" | null {
   if (!words.every(w => w.literal)) return null;
@@ -1117,9 +1117,10 @@ function policyReadKind(words: Word[]): "admitted" | "inspect" | "inventory" | n
   if (head === "git" && words[1]?.text === "add" && words.slice(2).every(w => w.text === "--" || !w.text.startsWith("-"))) return "admitted";
   if (head === "git" && words[1]?.text === "diff" && words[2]?.text === "--" && words.slice(3).every(w => !w.text.startsWith("-"))) return "inspect";
   if (head === "cat" && words.slice(1).every(w => w.text === "--" || !w.text.startsWith("-"))) return "inspect";
-  // Commands that only read. A git subcommand that can write a file does so through --output.
-  if (head === "git" && GIT_READS.has(words[1]?.text ?? "") && !words.some(w => /^(--output|-o$)/.test(w.text))) return "inventory";
-  if (READERS.has(head)) return "inventory";
+  // Commands that only read. An option that writes a file (--output) or runs a program on the
+  // files it found (git grep -O, --ext-diff, rg --pre) is not a read.
+  if (head === "git" && GIT_READS.has(words[1]?.text ?? "") && !words.some(w => /^(--output|-O|--open-files-in-pager|--ext-diff|--textconv|--filters)/.test(w.text))) return "inventory";
+  if (READERS.has(head) && !words.some(w => /^(--pre|--pre-glob|--hostname-bin)(=|$)/.test(w.text))) return "inventory";
   return head === "ls" ? "inventory" : null;
 }
 

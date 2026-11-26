@@ -164,3 +164,22 @@ test("at the end of a turn a file that does not parse is a note and does not hid
   expect(released.stdout).not.toContain('"decision":"block"');
   expect(released.text).toContain("syntax");
 });
+
+test("a command that reads the contract folder through a program-running option is still denied", () => {
+  const p = project();
+  for (const command of [
+    "git grep -Ovim uncertainty -- .pregate/preset.json",
+    "git grep --open-files-in-pager=vim uncertainty -- .pregate/preset.json",
+    "git diff --output=.pregate/preset.json",
+    "rg --pre cat uncertainty .pregate/preset.json",
+    "git log -1 -- .pregate > .pregate/preset.json",
+  ]) {
+    const out = p.bash(command);
+    expect(out.code, `${command}\n${out.text}`).toBe(2);
+    expect(out.text, command).toContain("PREGATE DENY protected-path");
+  }
+  for (const command of ["git grep -n uncertainty -- .pregate/preset.json", "rg -n uncertainty .pregate/preset.json", "head -5 .pregate/preset.json", "jq .enforcement .pregate/preset.json"]) {
+    const out = p.bash(command);
+    expect(out.code, `${command}\n${out.text}`).toBe(0);
+  }
+});
