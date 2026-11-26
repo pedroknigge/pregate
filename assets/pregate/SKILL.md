@@ -36,8 +36,8 @@ Reading is always allowed: `git status -- .pregate`, `cat .pregate/preset.json`,
 
 ## The six things people ask for
 
-**Set it up.** The user runs `pregate enable` in the project (in a harness:
-`! pregate enable --yes`). It proposes an advisor contract for the stack it finds,
+**Set it up.** The user runs `pregate enable` in the project, in a terminal or
+on a Claude Code `!` line as `! pregate enable --yes`. It proposes an advisor contract for the stack it finds,
 shows a short summary, and applies it on the user's `y`. If `pregate status`
 then says no harness has hooks, the user runs `pregate setup` once on that
 machine.
@@ -66,8 +66,8 @@ it until a maintainer accepts it.
 **Update or switch off.** `pregate update` installs the newest engine. Projects
 need nothing after it: any engine version reads any project's contract. The
 user runs `pregate disable` to switch Pregate off for a checkout, or `pregate
-disable --project` for every checkout of the repository (in a harness, with
-`!` and `--yes`).
+disable --project` for every checkout of the repository, in a terminal or on
+a Claude Code `!` line with `--yes`.
 
 ## Branches, worktrees, subagents and teammates
 
