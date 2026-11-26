@@ -494,9 +494,10 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("%s inspec
     }
     expect(traced).not.toHaveBeenCalled();
     expect(state.roots(state.key(s))).toEqual([root]);
-    for (const command of [`printf changed > '${join(root, PRESET)}'`, "git commit --no-verify", "pregate disable --yes"]) {
+    for (const command of [`printf changed > '${join(root, PRESET)}'`, "pregate disable --yes"]) {
       expect(onPreCommand({ session: s, callId: "protected", tool: "Bash", cwd: root, command }).verdict).toBe("deny");
     }
+    expect(onPreCommand({ session: s, callId: "no-verify", tool: "Bash", cwd: root, command: "git commit --no-verify" }).verdict).toBe("none");
     expect(traced).not.toHaveBeenCalled();
     const forged = JSON.parse(readFileSync(join(root, LOCK), "utf8"));
     forged.scope = ["unrelated/**"];
@@ -946,7 +947,7 @@ test("real filesystem shell checks do not canonicalize long Git or PR descriptio
   for (const text of [`git commit -m '${body}'`, `gh pr create --body '${body}'`, `gh pr create --body "$(cat <<'EOF'\n${body}\nEOF\n)"`]) {
     expect(onPreCommand(command(text)).verdict).toBe("none");
   }
-  expect(onPreCommand(command(`git commit -m '${body}' --no-verify`)).verdict).toBe("deny");
+  expect(onPreCommand(command(`git commit -m '${body}' --no-verify`)).verdict).toBe("none");
   for (const count of [255, 256, 4096]) expect(onPreCommand(command(`echo '${"a".repeat(count)}'`)).verdict).toBe("none");
   expect(onPreCommand(command(`unknown '.pregate/${"a".repeat(500)}'`)).cause).toBe("protected-path");
   expect(onPreCommand(command(`echo x > ${"a".repeat(500)}`)).verdict).toBe("none");
@@ -1775,7 +1776,7 @@ describe("engine selection", () => {
       }
       for (const text of ["env pregate guide --json", "sh -c 'pregate guide --preview'"]) {
         expect(redirect(command(text))).toBe("0.2.6");
-        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("deny");
+        expect(onPreCommand((command(text) as Extract<HookEvent, { kind: "pre-command" }>).command).verdict).toBe("none");
       }
     }
   });

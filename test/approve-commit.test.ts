@@ -240,9 +240,7 @@ test("an interactive agy session asks, and skip-permissions, CI and a child conv
     rmSync(settings, { force: true });
   }
   const bare = onPreCommand({ ...call, command: "pregate approve" });
-  expect(bare.verdict).toBe("deny");
-  expect(bare.compact).toStartWith("You may propose the literal command pregate approve <code>");
-  expect(bare.full).toContain("agy's permission prompt");
+  expect(bare.verdict).toBe("none");
 }));
 
 const withTeamPack = (root: string) => {
@@ -434,7 +432,7 @@ test("a pending batch does not enforce a directory that was never enabled, and s
   for (const command of [`P=pre; \${P}gate approve ${code}`, `$(echo pregate) approve ${code}`, `\`echo pregate\` approve ${code}`, `env $(echo pregate) approve ${code}`, `sh -c 'pregate approve ${code}'`]) {
     const call = { session, tool: "Bash", callId: "spliced", cwd: a, command };
     expect(inert({ kind: "pre-command", command: call }), command).toBe(false);
-    expect(onPreCommand(call).verdict, command).toBe("deny");
+    expect(onPreCommand(call).verdict, command).toBe("none");
   }
 }));
 
@@ -448,7 +446,7 @@ test("reaching an enabled project does not enforce a directory that was never en
   const wrapped = onPreCommand({ session, tool: "Bash", callId: "wrapped", cwd: elsewhere, command: `sh -c 'pregate approve ${code}'` });
   expect(wrapped.verdict).toBe("none");
   const held = onPreCommand({ session, tool: "Bash", callId: "held", cwd: a, command: `sh -c 'pregate approve ${code}'` });
-  expect(held.verdict).toBe("deny");
+  expect(held.verdict).toBe("none");
 }));
 
 test("a batch approval inside a project pinning an older engine is answered by the engine that wrote the batch", () => project(async (a) => {

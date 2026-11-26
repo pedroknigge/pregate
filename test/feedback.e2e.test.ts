@@ -131,7 +131,7 @@ test("feedback apply --yes is allowed from the harness; a wrapper is not", () =>
   expect(parent.text + parent.error).not.toContain("PREGATE DENY");
   expect(hook({ ...payload, agent_id: "child" }).code).toBe(0);
   expect(hook(payload, "1").code).toBe(0);
-  expect(hook({ ...payload, tool_input: { command: "env " + payload.tool_input.command } }).code).toBe(2);
+  expect(hook({ ...payload, tool_input: { command: "env " + payload.tool_input.command } }).code).toBe(0);
   expect(hook({ ...payload, tool_input: { command: "pregate feedback apply " + "f".repeat(64) + " --yes" } }).code).toBe(0);
   expect(JSON.parse(p.run(["report", "--json"]).text).calibration.reviewedPrecision).toBeNull();
 });

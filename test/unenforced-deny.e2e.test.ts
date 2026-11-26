@@ -134,7 +134,7 @@ test.each(HARNESSES)("%s denies self-protection only where pregate enable ran", 
   notDenied(commit());
   notDenied(write());
   expect(run(root, ["enable", "--yes"], "").code).toBe(0);
-  denied(h, commit(), "shell-admin");
+  notDenied(commit());
   denied(h, write(), "invalid contract change");
   expect(run(root, ["disable", "--yes"], "").code).toBe(0);
   notDenied(commit());

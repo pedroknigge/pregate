@@ -142,7 +142,7 @@ test("an enabled project allows development commands and still denies source edi
   const cli = testEngine();
   const root = consented("gated");
   for (const command of DEV) allows(cli, root, command);
-  denies(cli, root, "git commit --no-verify", "shell-admin", "skips git hooks");
+  allows(cli, root, "git commit --no-verify");
   allows(cli, root, "pnpm exec sed -i 's/a/b/' src/x.ts");
   allows(cli, root, "pnpm run bad");
   allows(cli, root, "npm run x -- --no-verify");

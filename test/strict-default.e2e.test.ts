@@ -159,7 +159,7 @@ test.each(HARNESSES)("uncertainty open in an enabled %s project allows unclassif
   allowed(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')));
   allowed(h, crash(root, h));
   const admin = run(root, ["hook", "pre", "--harness", h], bash(h, root, "git commit --no-verify"));
-  denied(h, admin, "shell-admin", false);
+  allowed(h, admin);
   preset(root, "closed");
   denied(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
 });

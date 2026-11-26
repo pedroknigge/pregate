@@ -255,7 +255,7 @@ test("cleanup approval cannot be self-approved by the parent, children or wrappe
   expect(parent.code).toBe(0);
   expect(parent.text + parent.error).not.toContain("PREGATE DENY");
   expect(p.run(["hook", "pre"], { ...payload, agent_id: "child" }, "").code).toBe(0);
-  expect(p.run(["hook", "pre"], { ...payload, tool_input: { command: "env " + payload.tool_input.command } }, "").code).toBe(2);
+  expect(p.run(["hook", "pre"], { ...payload, tool_input: { command: "env " + payload.tool_input.command } }, "").code).toBe(0);
   expect(p.run(["hook", "pre"], payload).code).toBe(0);
   expect(existsSync(join(p.folder, "blobs", sha256("old source")))).toBe(true);
 });

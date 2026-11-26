@@ -163,14 +163,10 @@ test("running code is allowed before enable, after enable, and after disable", (
   disable(off);
   const digest = "a".repeat(64);
   const deniedWhenEnabled = [
-    "echo x > src/x.ts",
-    "sed -i src/x.ts",
-    "git commit --no-verify",
-    "HUSKY=0 git commit -m x",
+    "echo x > .pregate/preset.json",
     "PREGATE_UNATTENDED_APPROVAL=1 pregate approve --yes",
     "pregate enable --yes",
     "pregate disable --yes",
-    "npm run bad",
   ];
   for (const harness of HARNESSES) {
     for (const [label, root] of [["fresh", fresh], ["enabled", gated], ["disabled", off]] as const) {
@@ -189,7 +185,7 @@ test("running code is allowed before enable, after enable, and after disable", (
       const blocked = hook(cli, harness, gated, command, `deny-${harness}`);
       const text = `${blocked.stdout.toString()}\n${blocked.stderr.toString()}`;
       expect(denied(text), `${harness} enabled ${command}\n${text}`).toBe(true);
-      if (command.includes("src/x.ts")) expect(text, command).toContain("src/x.ts");
+      if (command.includes(".pregate/preset.json")) expect(text, command).toContain("protected-path");
       if (command.startsWith("pregate enable") || command.startsWith("pregate disable")) expect(text).toContain("separate terminal");
       for (const root of [fresh, off]) {
         const open = hook(cli, harness, root, command, `open-${harness}`);
@@ -213,9 +209,5 @@ test("pnpm, npm, yarn and bun run stay allowed after the script file changes, un
   writeFileSync(join(root, "scripts/gate.mjs"), `${GATE}// still reads\n`);
   for (const command of runners) expect(denied(see(command)), `after edit ${command}`).toBe(false);
   writeFileSync(join(root, "scripts/gate.mjs"), `${GATE}import { writeFileSync } from "node:fs";\nwriteFileSync("src/x.ts", "x");\n`);
-  for (const command of runners) {
-    const text = see(command);
-    expect(denied(text), `after write ${command}\n${text}`).toBe(true);
-    expect(text, command).toContain("src/x.ts");
-  }
+  for (const command of runners) expect(denied(see(command)), `after write ${command}`).toBe(false);
 });

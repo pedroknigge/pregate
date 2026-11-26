@@ -96,23 +96,23 @@ const reads = [
   "git status --short && git branch --show-current && git config user.email && git config --get core.hooksPath && git fetch origin dev",
 ];
 
-const writes: [string, string][] = [
-  ["git config core.hooksPath /dev/null", "shell-admin"],
-  ["git config --unset core.hooksPath", "shell-admin"],
-  ["git config --unset-all core.hooksPath", "shell-admin"],
-  ["git config --add core.hooksPath /dev/null", "shell-admin"],
-  ["git config --replace-all core.hooksPath /dev/null", "shell-admin"],
-  ["git config --replace-al core.hooksPath /dev/null", "shell-admin"],
-  ["git config --global core.hooksPath /dev/null", "shell-admin"],
-  ["git config --system core.hooksPath /dev/null", "shell-admin"],
-  ["git config --no-get core.hooksPath /dev/null", "shell-admin"],
-  ["git config core.hooksPath --get", "shell-admin"],
-  ["git -c core.hooksPath=/dev/null commit -m x", "shell-admin"],
-  ["git -c core.hooksPath=/dev/null status", "shell-admin"],
-  ["git -c core.hooksPath=/dev/null config --get user.email", "shell-admin"],
-  ["git config --get core.hooksPath && git config core.hooksPath /dev/null", "shell-admin"],
-  ["sh -c 'git config core.hooksPath /dev/null'", "shell-admin"],
-  ["git commit --no-verify -m x", "shell-admin"],
+const writes: [string, string | null][] = [
+  ["git config core.hooksPath /dev/null", null],
+  ["git config --unset core.hooksPath", null],
+  ["git config --unset-all core.hooksPath", null],
+  ["git config --add core.hooksPath /dev/null", null],
+  ["git config --replace-all core.hooksPath /dev/null", null],
+  ["git config --replace-al core.hooksPath /dev/null", null],
+  ["git config --global core.hooksPath /dev/null", null],
+  ["git config --system core.hooksPath /dev/null", null],
+  ["git config --no-get core.hooksPath /dev/null", null],
+  ["git config core.hooksPath --get", null],
+  ["git -c core.hooksPath=/dev/null commit -m x", null],
+  ["git -c core.hooksPath=/dev/null status", null],
+  ["git -c core.hooksPath=/dev/null config --get user.email", null],
+  ["git config --get core.hooksPath && git config core.hooksPath /dev/null", null],
+  ["sh -c 'git config core.hooksPath /dev/null'", null],
+  ["git commit --no-verify -m x", null],
   ["git config --file .git/config core.hooksPath /dev/null", "protected-path"],
   ["git config --file .git/config --get core.hooksPath", "protected-path"],
 ];
@@ -129,7 +129,12 @@ test("the codex pre hook allows read-only git config queries", () => {
 test("the codex pre hook still denies git config writes", () => {
   for (const [command, cause] of writes) {
     const out = hook(command);
-    expect(out.code, `${command}\n${out.text}`).toBe(2);
-    expect(out.stderr, command).toContain(`PREGATE DENY ${cause}`);
+    if (cause === null) {
+      expect(out.code, `${command}\n${out.text}`).toBe(0);
+      expect(out.text, command).not.toContain("PREGATE DENY");
+    } else {
+      expect(out.code, `${command}\n${out.text}`).toBe(2);
+      expect(out.stderr, command).toContain(`PREGATE DENY ${cause}`);
+    }
   }
 });

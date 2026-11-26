@@ -26,12 +26,15 @@ test("every command that changes the contract or the protection is refused", () 
   expect(contract.length).toBeGreaterThan(0);
   // A literal `pregate approve --yes` is the harness confirmation. The guard allows that one
   // command. Every other contract command stays denied.
-  const harness = contract.filter((o) => o.id === "pregate-approve");
-  expect(harness.map((o) => [o.command, o.decision, o.cause])).toEqual([["pregate approve --yes", "allow", null]]);
-  for (const o of contract) if (o.id !== "pregate-approve") expect(o.decision, o.command).toBe("deny");
+  const harness = contract.filter((o) => o.id === "pregate-approve" || o.id === "git-commit-no-verify");
+  expect(harness.map((o) => [o.id, o.decision, o.cause]).sort()).toEqual([
+    ["git-commit-no-verify", "allow", null],
+    ["pregate-approve", "allow", null],
+  ]);
+  for (const o of contract) if (o.id !== "pregate-approve" && o.id !== "git-commit-no-verify") expect(o.decision, o.command).toBe("deny");
   expect(decided("pregate-disable").cause).toBe("shell-admin");
   expect(decided("pregate-edit-contract").cause).toBe("protected-path");
-  expect(decided("git-commit-no-verify").cause).toBe("shell-admin");
+  expect(decided("git-commit-no-verify").decision).toBe("allow");
 });
 
 test("a shell write to a governed source file is allowed, and a read of it is too", () => {

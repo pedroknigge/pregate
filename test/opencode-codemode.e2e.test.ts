@@ -101,7 +101,7 @@ test("an enabled project judges each code-mode child and still denies a shell au
   allowed(hook(root, "child-write.json"));
   allowed(hook(root, "execute-script.json"));
   allowed(hook(root, "child-shell-src.json"));
-  allowed(hook(root, "child-automation-shell.json"));
+  denied(hook(root, "child-automation-shell.json"), "shell-admin");
   denied(hook(root, "execute-script.json", "2.2.7"), "cannot-reconstruct");
   denied(hook(root, "execute-script.json", "2.3.1"), "cannot-reconstruct");
 });
@@ -130,7 +130,7 @@ test("pregate disable stops blocking this worktree", () => {
   allowed(hook(root, "execute-script.json", "2.2.7"));
   expect(run(root, ["enable", "--yes"]).code).toBe(0);
   allowed(hook(root, "child-shell-src.json"));
-  allowed(hook(root, "child-automation-shell.json"));
+  denied(hook(root, "child-automation-shell.json"), "shell-admin");
 });
 
 test("uncertainty open still denies a shell write and a shell automation", () => {
@@ -145,6 +145,6 @@ test("uncertainty open still denies a shell write and a shell automation", () =>
   allowed(hook(root, "child-shell.json"));
   allowed(hook(root, "execute-script.json"));
   allowed(hook(root, "child-shell-src.json"));
-  allowed(hook(root, "child-automation-shell.json"));
+  denied(hook(root, "child-automation-shell.json"), "shell-admin");
   allowed(hook(root, "execute-script.json", "2.2.7"));
 });

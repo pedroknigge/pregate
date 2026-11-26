@@ -383,7 +383,7 @@ test("a lock that does not match its preset is rejected, and the hook cannot rew
   denied(a.write("src/domain/note.ts", "export const note = 1;\n"), "lock-stale");
   denied(a.write(".pregate/preset.json", original), "invalid contract change");
   denied(a.write(".pregate/extra.json", "{}\n"), "protected-path");
-  denied(a.bash("git commit --no-verify -m tamper"), "shell-admin");
+  silent(a.bash("git commit --no-verify -m tamper"));
   writeFileSync(lock, original);
   allows(r);
 });

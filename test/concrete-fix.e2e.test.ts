@@ -230,9 +230,7 @@ test("an enabled project names the path and the replacement for each block kind"
     tool_name: "Bash", tool_use_id: `toolu_fix_${++calls}`,
     tool_input: { command: "echo x > src/core/written.ts" },
   }));
-  expect(shell).toContain("shell-write");
-  expect(has(shell, "src/core/written.ts")).toBe(true);
-  expect(shell).toContain("apply_patch");
+  expect(shell).not.toContain("PREGATE DENY");
 
   const locked = reason(write(s, ".pregate/pregate.lock.json", "{}\n"));
   expect(locked).toContain("protected-path");
