@@ -52,7 +52,7 @@ test("a protected-path block is one line, and a rule deny still explains absolut
   const protectedRequest = formText({ cause: "protected-path", line: null }, null);
   expect(protectedRequest.compact).toStartWith("PREGATE DENY protected-path: the agent does not write");
   expect(protectedRequest.compact).toContain("reading is fine.");
-  expect(protectedRequest.compact).toContain("Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview.");
+  expect(protectedRequest.compact).toContain("Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <file> --preview.");
   expect(protectedRequest.compact.length).toBeLessThanOrEqual(256);
   expect(protectedRequest.full).toBe(protectedRequest.compact);
   const text = denyText([v(1, 1)], LOCK, 1, "retry", CTX).full;
@@ -67,7 +67,7 @@ test("a protected-path block names a long path in one line without a pre-check o
   expect(text.compact).toStartWith("PREGATE DENY protected-path");
   // The path yields so the instruction survives in the first line; the whole path follows it.
   expect(text.compact).toContain("the agent does not write");
-  expect(text.compact).toContain("reading is fine. Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview.");
+  expect(text.compact).toContain("reading is fine. Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <file> --preview.");
   expect(text.full).toStartWith(`${text.compact}\nPath: `);
   expect(text.full).toEndWith("nested/.pregate/preset.json");
   expect(text.full).not.toContain("check --stdin");

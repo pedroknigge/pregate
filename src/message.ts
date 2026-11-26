@@ -258,8 +258,8 @@ export function syntaxAdvisory(f: Form, rel: string | null): Text {
 
 // The causes a hook blocks on: the agent acting on Pregate itself. Short on purpose.
 const CONTROL_EN: Partial<Record<Cause, { what: string; instead: string }>> = {
-  "protected-path": { what: "the agent does not write Pregate's contract, state, or harness settings; reading is fine.",
-    instead: "Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <request.json> --preview." },
+  "protected-path": { what: "the agent does not write Pregate's files or harness settings; reading is fine.",
+    instead: "Tell the user the change you want, or put it in .pregate/requests/<name>.json and run pregate preset apply <file> --preview." },
   "request-invalid": { what: "the request file does not match schema/request.v1.json.",
     instead: "Fix the JSON and resend it." },
   "hook-switch": { what: "the agent does not install, remove, or switch off Pregate or the hooks of a harness.",
