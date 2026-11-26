@@ -21,17 +21,25 @@ export function projectHookCommand(sub: Sub, windows = WINDOWS): string {
   if (windows) return windowsProjectHook(sub);
   const run = `export PREGATE_PROJECT_HOOK=1; f="\${CLAUDE_PROJECT_DIR:-$PWD}/.pregate/bin/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" hook ${sub} --harness claude-code; `;
   if (sub === "session-start") return `${run}printf '%s\\n' '{"systemMessage":"PREGATE could not prepare this session: the project launcher is missing. Run pregate project launcher."}'; exit 0`;
-  if (sub === "stop") return `${run}printf '%s\\n' '{"decision":"block","reason":"PREGATE could not verify this turn: the project launcher is missing; run pregate project launcher"}'; exit 2`;
+  // A missing launcher does not hold the end of a turn: the human is told, and the turn ends.
+  if (sub === "stop") return `${run}printf '%s\\n' '{"systemMessage":"PREGATE could not verify this turn: the project launcher is missing. Run pregate project launcher."}'; exit 0`;
   const open = `u="\${CLAUDE_PROJECT_DIR:-$PWD}"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
   return `${run}${open}printf '%s\\n' 'PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user' >&2; exit 2`;
+}
+
+// The same open-unless-closed rule as the POSIX command above, in PowerShell.
+function windowsOpen(start: string): string {
+  return `$q=${start}; $c=$false; for($i=0;$i -lt 40 -and $q;$i++) { $pf=Join-Path $q '.pregate/preset.json'; `
+    + `if (Test-Path -LiteralPath $pf) { if ((Get-Content -LiteralPath $pf -Raw -EA 0) -match '"uncertainty"\\s*:\\s*"closed"') { $c=$true }; break }; `
+    + `if (Test-Path -LiteralPath (Join-Path $q '.git')) { break }; $q=[IO.Path]::GetDirectoryName($q) }; if (!$c) { exit 0 }; `;
 }
 
 function windowsProjectHook(sub: Sub): string {
   const missing = sub === "session-start"
     ? `[Console]::Out.WriteLine('{"systemMessage":"PREGATE could not prepare this session: the project launcher is missing. Run pregate project launcher."}'); exit 0`
     : sub === "stop"
-      ? `[Console]::Out.WriteLine('{"decision":"block","reason":"PREGATE could not verify this turn: the project launcher is missing; run pregate project launcher"}'); exit 2`
-      : `[Console]::Error.WriteLine('PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user'); exit 2`;
+      ? `[Console]::Out.WriteLine('{"systemMessage":"PREGATE could not verify this turn: the project launcher is missing. Run pregate project launcher."}'); exit 0`
+      : `${windowsOpen("$dir")}[Console]::Error.WriteLine('PREGATE could not evaluate: the project launcher is missing; run pregate project launcher; report it to the user'); exit 2`;
   const script = `$env:PREGATE_PROJECT_HOOK='1'; $ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $dir=if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }; $f=Join-Path $dir '.pregate/bin/project-launcher.ps1'; if (!(Test-Path -LiteralPath $f -PathType Leaf)) { ${missing} }; $raw=[Console]::In.ReadToEnd(); $raw | & $f hook ${sub} --harness claude-code; exit $LASTEXITCODE`;
   return powershellCommand(script);
 }

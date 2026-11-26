@@ -56,6 +56,14 @@ const PROJECT = `for d in "\${CLAUDE_PROJECT_DIR:-}" "\${CURSOR_PROJECT_DIR:-}" 
 // agy runs hooks from the plugin folder and sets no project variable: the payload names the root.
 const AGY_PROJECT = `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); consented "$d" && { uncertainty_open "$d" && exit 0; ${MISSING}; }; exit 0`;
 
+// PowerShell: a missing project launcher lets the call through unless the nearest preset at or
+// above \`start\` holds the exact JSON "uncertainty": "closed". The same rule as the POSIX commands.
+function windowsOpen(start: string, allow = ""): string {
+  return `$q=${start}; $c=$false; for($i=0;$i -lt 40 -and $q;$i++) { $pf=Join-Path $q '.pregate/preset.json'; `
+    + `if (Test-Path -LiteralPath $pf) { if ((Get-Content -LiteralPath $pf -Raw -EA 0) -match '"uncertainty"\\s*:\\s*"closed"') { $c=$true }; break }; `
+    + `if (Test-Path -LiteralPath (Join-Path $q '.git')) { break }; $q=[IO.Path]::GetDirectoryName($q) }; if (!$c) { ${allow}exit 0 }; `;
+}
+
 // The registered command: frozen across versions (test/fixtures/hook-command.ts).
 export function hookCommand(data: string, sub: Sub, h: HarnessId): string {
   if (windowsData(data)) return windowsHook(data, sub, h);
@@ -96,7 +104,8 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
     const mark = h === "claude-code" ? "export PREGATE_PROJECT_HOOK=1; " : "";
     return `${mark}f="\${${dir}:-.}/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && exec "$f" ${args}; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const cursorAllow = h === "cursor" ? `[Console]::Out.WriteLine('{"permission":"allow"}'); ` : "";
+  const missing = sub === "pre" ? `${windowsOpen("$d", cursorAllow)}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   const mark = h === "claude-code" ? "$env:PREGATE_PROJECT_HOOK='1'; " : "";
   return powershellCommand(mark + "$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + `$raw=[Console]::In.ReadToEnd(); $d=if ($env:${dir}) { $env:${dir} } else { (Get-Location).Path }; $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
@@ -117,7 +126,7 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const missing = sub === "pre" ? `${windowsOpen("(Get-Location).Path")}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + `$raw=[Console]::In.ReadToEnd(); $d=(Get-Location).Path; while ($d) { $f=Join-Path $d '${PROJECT_BIN}/project-launcher.ps1'; `
     + `if (Test-Path -LiteralPath $f -PathType Leaf) { Set-Location -LiteralPath $d; $raw | & $f ${args}; exit $LASTEXITCODE }; `
@@ -136,7 +145,7 @@ function projectAgyCommand(sub: Sub, windows: boolean): string {
       + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `
       + `while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; if [ -x "$f" ] && [ -s "$f" ] && cd "$d"; then printf '%s' "$p" | "$f" ${args}; exit $?; fi; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
-  const missing = sub === "pre" ? `[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
+  const missing = sub === "pre" ? `${windowsOpen("(Get-Location).Path")}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";
   return powershellCommand("$ProgressPreference='SilentlyContinue'; $ErrorActionPreference='Stop'; $OutputEncoding=[Console]::InputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
     + "$raw=[Console]::In.ReadToEnd(); $p=$raw | ConvertFrom-Json -ErrorAction SilentlyContinue; "
     + "foreach ($start in @((Get-Location).Path)+@($p.workspacePaths)) { if (!$start) { continue }; $d=$start; while ($d) { "

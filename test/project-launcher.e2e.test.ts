@@ -198,22 +198,40 @@ describe("project launcher", () => {
     expect(outB.stderr).not.toContain("decoy-hook");
   });
 
-  test("missing or corrupt cached engines fail closed without modifying the repository", () => {
+  test("missing or corrupt cached engines pass with a note, fail closed where uncertainty is closed, and never modify the repository", () => {
     const i = isolated();
     const repo = gitProject(i, "repo-missing", "backend-clean-ddd.json", PIN_A);
     rmSync(join(i.data, PIN_A), { recursive: true, force: true });
     const target = join(repo, INVOICE_REL);
     const before = readFileSync(target, "utf8");
     const payload = prePayload(repo, i.home, INVOICE_REL, SETTER);
+    const preset = join(repo, ".pregate/preset.json");
+    const open = readFileSync(preset, "utf8");
+    const closed = JSON.stringify({ ...JSON.parse(open), uncertainty: "closed" });
+    const corrupted = (): void => {
+      mkdirSync(join(i.data, PIN_A), { recursive: true });
+      writeFileSync(join(i.data, PIN_A, ENGINE_FILE), "");
+      if (!WINDOWS) chmodSync(join(i.data, PIN_A, ENGINE_FILE), 0o755);
+    };
+    // The call is not checked and not blocked; the PowerShell launcher passes without the note line.
+    const passes = (): void => {
+      const out = hookPre(i, repo, payload);
+      expect(out.code, `${out.stdout}\n${out.stderr}`).toBe(0);
+      expect(out.stdout).toBe("");
+      if (!WINDOWS) expect(out.stderr).toBe("PREGATE NOTE engine-failure: the project engine did not answer. This call was not checked. Not blocked.\n");
+      expect(readFileSync(target, "utf8")).toBe(before);
+    };
+    passes();
+    writeFileSync(preset, closed);
     const missing = hookPre(i, repo, payload);
     expect(missing.code).toBe(2);
     expect(`${missing.stdout}\n${missing.stderr}`).toMatch(/prepare|not installed/i);
     expect(readFileSync(target, "utf8")).toBe(before);
-    mkdirSync(join(i.data, PIN_A), { recursive: true });
-    writeFileSync(join(i.data, PIN_A, ENGINE_FILE), "");
-    if (!WINDOWS) chmodSync(join(i.data, PIN_A, ENGINE_FILE), 0o755);
+    corrupted();
     const corrupt = hookPre(i, repo, payload);
     expect(corrupt.code).toBe(2);
     expect(readFileSync(target, "utf8")).toBe(before);
+    writeFileSync(preset, open);
+    passes();
   });
 });

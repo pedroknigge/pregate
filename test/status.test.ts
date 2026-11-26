@@ -53,7 +53,7 @@ test("status distinguishes local consent, stale contracts, missing hooks, shadow
     // The short form is three lines: the state, what needs attention, and the next step.
     expect(statusText(degraded).split("\n")).toEqual([
       `Pregate is on in ${root}: shadow mode. 4 rules block, 11 inform.`,
-      "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.",
+      "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.",
       "Next: pregate setup. Details: pregate status --verbose.",
     ]);
     // The counts by channel and the catalog size are in --verbose.

@@ -123,6 +123,16 @@ function gitProject(i: Isolated, name: string, o: { launcher?: boolean; settings
   return project;
 }
 
+// Writes "uncertainty": "closed" into the project's preset: the only setting under which a missing
+// engine or launcher denies. Returns the function that puts the preset back.
+function closeUncertainty(project: string): () => void {
+  const file = join(project, ".pregate/preset.json");
+  const original = readFileSync(file, "utf8");
+  writeFileSync(file, JSON.stringify({ ...(JSON.parse(original) as Json), uncertainty: "closed" }));
+  return () => writeFileSync(file, original);
+}
+const ENGINE_NOTE = "PREGATE NOTE engine-failure: the project engine did not answer. This call was not checked. Not blocked.";
+
 function registered(i: Isolated, name: string, settings?: string): string {
   const project = gitProject(i, name, settings === undefined ? {} : { settings });
   const out = pregate(i, project, ...HOOKS, "--yes");
@@ -323,12 +333,18 @@ describe("pregate project hooks", () => {
     expect(readFileSync(target, "utf8")).toBe(INVOICE);
   });
 
-  test("a missing pinned engine denies with the reason; a missing launcher denies a write and lets Stop pass", () => {
+  test("a missing pinned engine or launcher lets a write pass; with uncertainty closed each denies with the reason; Stop passes", () => {
     const i = isolated();
     const project = registered(i, "repo");
     const pre = handler(project, "PreToolUse"), stop = handler(project, "Stop");
     const payload = prePayload(project, i.home, INVOICE_REL, QUERY);
     removeTree(join(i.data, PIN));
+    const passedEngine = hook(i, pre, project, payload, project);
+    expect(passedEngine.code, `${passedEngine.stdout}\n${passedEngine.stderr}`).toBe(0);
+    expect(passedEngine.stdout).toBe("");
+    // The PowerShell launcher passes without the note line.
+    if (!WINDOWS) expect(passedEngine.stderr).toBe(`${ENGINE_NOTE}\n`);
+    const reopen = closeUncertainty(project);
     const noEngine = hook(i, pre, project, payload, project);
     expect(noEngine.code, `${noEngine.stdout}\n${noEngine.stderr}`).toBe(2);
     expect(noEngine.stderr).toContain(`engine ${PIN} is not installed; run pregate prepare`);
@@ -337,7 +353,11 @@ describe("pregate project hooks", () => {
     expect(noLauncher.code, `${noLauncher.stdout}\n${noLauncher.stderr}`).toBe(2);
     expect(noLauncher.stderr).toContain("the project launcher is missing");
     expect(hook(i, stop, project, "{}\n", project).code).toBe(0);
-    for (const out of [noEngine, noLauncher]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
+    reopen();
+    const passedLauncher = hook(i, pre, project, payload, project);
+    expect(passedLauncher, `${passedLauncher.stdout}\n${passedLauncher.stderr}`).toEqual({ code: 0, stdout: "", stderr: "" });
+    expect(hook(i, stop, project, "{}\n", project).code).toBe(0);
+    for (const out of [passedEngine, noEngine, noLauncher, passedLauncher]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
   });
 });
 
@@ -429,7 +449,9 @@ describe("doctor and status name the scope of the Claude Code registration", () 
     expect(local.stdout).toContain("INFO: No global installation");
     expect(local.code, local.stdout).toBe(0);
     expect(statusScope(i, project)).toBe("project");
-    const status = pregate(i, project, "status");
+    // The short form is three lines; the harness and scope detail is in --verbose.
+    expect(pregate(i, project, "status").stdout).toStartWith(`Pregate is on in ${project}: `);
+    const status = pregate(i, project, "status", "--verbose");
     expect(status.stdout).toContain("Harnesses gated: claude-code.");
     expect(status.stdout).toContain("Claude Code hooks are project-local");
 
@@ -438,7 +460,7 @@ describe("doctor and status name the scope of the Claude Code registration", () 
     expect(scopeLine(both)).toEqual([expect.stringContaining("WARNING: Claude Code hooks: project-local and global.")]);
     expect(scopeLine(both)[0]).toContain("every tool call is evaluated twice");
     expect(statusScope(i, project)).toBe("both");
-    expect(pregate(i, project, "status").stdout).toContain("every tool call is evaluated twice");
+    expect(pregate(i, project, "status", "--verbose").stdout).toContain("every tool call is evaluated twice");
 
     const other = gitProject(i, "other");
     const global = pregate(i, other, "doctor");
@@ -681,16 +703,22 @@ describe("pregate project hooks --harness codex", () => {
     expect(readFileSync(target, "utf8")).toBe(INVOICE);
   });
 
-  test("from a subdirectory, a missing pinned engine denies with the reason; a missing launcher denies a write and lets Stop pass; a directory outside the repository finds no launcher", () => {
+  test("from a subdirectory, a missing pinned engine or launcher lets a write pass; with uncertainty closed each denies with the reason; Stop passes; a directory outside the repository finds no launcher and passes", () => {
     const i = isolated();
     const project = codexRegistered(i, "repo");
     const pre = codexHandler(project, "PreToolUse"), stop = codexHandler(project, "Stop");
     const below = join(project, BELOW);
     const payload = patchPayload(i, below, updatePatch(join(project, INVOICE_REL), QUERY_LINES));
+    // Outside the repository the command finds neither a launcher nor a preset to read.
     const outside = hook(i, pre, join(i.root, "tmp"), payload, null);
-    expect(outside.code, `${outside.stdout}\n${outside.stderr}`).toBe(2);
-    expect(outside.stderr).toContain("the project launcher is missing");
+    expect(outside, `${outside.stdout}\n${outside.stderr}`).toEqual({ code: 0, stdout: "", stderr: "" });
     removeTree(join(i.data, PIN));
+    const passedEngine = hook(i, pre, below, payload, null);
+    expect(passedEngine.code, `${passedEngine.stdout}\n${passedEngine.stderr}`).toBe(0);
+    expect(passedEngine.stdout).toBe("");
+    // The PowerShell launcher passes without the note line.
+    if (!WINDOWS) expect(passedEngine.stderr).toBe(`${ENGINE_NOTE}\n`);
+    const reopen = closeUncertainty(project);
     const noEngine = hook(i, pre, below, payload, null);
     expect(noEngine.code, `${noEngine.stdout}\n${noEngine.stderr}`).toBe(2);
     expect(noEngine.stderr).toContain(`engine ${PIN} is not installed; run pregate prepare`);
@@ -699,7 +727,10 @@ describe("pregate project hooks --harness codex", () => {
     expect(noLauncher.code, `${noLauncher.stdout}\n${noLauncher.stderr}`).toBe(2);
     expect(noLauncher.stderr).toContain("the project launcher is missing");
     expect(hook(i, stop, below, "{}", null).code).toBe(0);
-    for (const out of [outside, noEngine, noLauncher]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
+    reopen();
+    const passedLauncher = hook(i, pre, below, payload, null);
+    expect(passedLauncher, `${passedLauncher.stdout}\n${passedLauncher.stderr}`).toEqual({ code: 0, stdout: "", stderr: "" });
+    for (const out of [outside, passedEngine, noEngine, noLauncher, passedLauncher]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
   });
 
   test("pregate install, setup and uninstall change no byte of the project Codex registration or launcher", () => {
@@ -761,7 +792,7 @@ describe("doctor and status name the scope of the Codex registration", () => {
     expect(report.codexHookReview).toBe("unknown");
     // A registration whose review is unknown does not count as a gated harness.
     expect(report.harnesses.find((h: Json) => h.id === "codex").configured).toBe(false);
-    const text = pregate(i, project, "status").stdout;
+    const text = pregate(i, project, "status", "--verbose").stdout;
     expect(text).toContain("Codex hooks are project-local (.codex/hooks.json of this project). Codex review state unknown: check `/hooks` in Codex.");
     expect(text).not.toMatch(/Harnesses gated: [^.]*codex/);
 
@@ -771,7 +802,7 @@ describe("doctor and status name the scope of the Codex registration", () => {
     expect(scopeLine(both)[0]).toContain("every tool call is evaluated twice");
     expect(scopeLine(both)[0]).toContain(UNKNOWN);
     expect(status(i, project).codexHooks).toBe("both");
-    expect(pregate(i, project, "status").stdout).toContain("every tool call is evaluated twice. Codex review state unknown");
+    expect(pregate(i, project, "status", "--verbose").stdout).toContain("every tool call is evaluated twice. Codex review state unknown");
 
     const other = gitProject(i, "other");
     expect(scopeLine(pregate(i, other, "doctor"))).toEqual([expect.stringContaining("INFO: Codex hooks: global only")]);
@@ -926,11 +957,18 @@ describe("pregate project hooks --harness cursor", () => {
     expect(nativeReply(remote)).toEqual({ permission: "allow" });
     const policy = cursorHook(i, command, project, mcp({ path: join(project, ".pregate/preset.json"), text: "{}" }));
     expect(denied(policy)).toContain("protected");
+    // An MCP write to a file in scope cannot be rebuilt: it is not checked, and it is not blocked.
     const source = cursorHook(i, command, project, mcp({ path: target, text: SETTER }));
-    expect(denied(source)).toContain("cannot evaluate this edit");
+    expect(source.code, `${source.stdout}\n${source.stderr}`).toBe(0);
+    // Cursor's native allow carries no text, so the note has no channel here.
+    expect(nativeReply(source)).toEqual({ permission: "allow" });
     for (const out of [blocked, allowed, remote, policy, source]) expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
     expect(readFileSync(target, "utf8")).toBe(INVOICE);
     rmSync(join(project, ".pregate/bin"), { recursive: true, force: true });
+    // A missing launcher passes with the native allow; only a preset that says closed denies.
+    const passed = cursorHook(i, command, project, write(QUERY));
+    expect(passed, `${passed.stdout}\n${passed.stderr}`).toEqual({ code: 0, stdout: '{"permission":"allow"}\n', stderr: "" });
+    closeUncertainty(project);
     const noLauncher = cursorHook(i, command, project, write(QUERY));
     expect(noLauncher.code).toBe(2);
     expect(noLauncher.stderr).toContain("the project launcher is missing");
@@ -966,18 +1004,25 @@ describe("pregate project hooks --harness cursor", () => {
     expect(readFileSync(target, "utf8")).toBe(INVOICE);
   });
 
-  test("a missing pinned engine blocks the native preToolUse and does not fall back to a global or PATH launcher", () => {
+  test("a missing pinned engine passes the native preToolUse with the note, blocks it where uncertainty is closed, and does not fall back to a global or PATH launcher", () => {
     const i = isolated();
     const project = cursorRegistered(i, "repo");
     const command = cursorHandler(project, "preToolUse");
     rmSync(join(i.data, PIN, ENGINE_FILE));
     const target = join(project, INVOICE_REL);
-    const out = cursorHook(i, command, project, cursorPayload(project, "pre-write-strreplace-1111.json", { name: "Write", input: { file_path: target, content: QUERY } }));
+    const call = () => cursorHook(i, command, project, cursorPayload(project, "pre-write-strreplace-1111.json", { name: "Write", input: { file_path: target, content: QUERY } }));
+    const passed = call();
+    expect(passed.code, `${passed.stdout}\n${passed.stderr}`).toBe(0);
+    expect(nativeReply(passed)).toEqual({ permission: "allow" });
+    // The PowerShell launcher passes without the note line.
+    if (!WINDOWS) expect(passed.stderr).toBe(`${ENGINE_NOTE}\n`);
+    closeUncertainty(project);
+    const out = call();
     expect(out.code).toBe(2);
     expect(out.stderr).toContain("not installed");
     expect(out.stderr).toContain("pregate prepare");
     expect(out.stdout).not.toContain('"permission":"allow"');
-    expect(`${out.stdout}\n${out.stderr}`).not.toContain("decoy-hook");
+    for (const each of [passed, out]) expect(`${each.stdout}\n${each.stderr}`).not.toContain("decoy-hook");
     expect(readFileSync(target, "utf8")).toBe(INVOICE);
   });
 
@@ -1029,7 +1074,7 @@ describe("doctor and status name the scope of the Cursor registration", () => {
     const report = status(i, project);
     expect(report.cursorHooks).toBe("project");
     expect(report.harnesses.find((h: Json) => h.id === "cursor").configured).toBe(true);
-    expect(pregate(i, project, "status").stdout).toContain("Cursor hooks are project-local; Cursor runs them in a trusted workspace.");
+    expect(pregate(i, project, "status", "--verbose").stdout).toContain("Cursor hooks are project-local; Cursor runs them in a trusted workspace.");
 
     put(join(i.home, ".cursor/hooks.json"), merge(null, "cursor", i.data.replaceAll("\\", "/"))!);
     const both = pregate(i, project, "doctor");
@@ -1052,7 +1097,7 @@ describe("doctor and status name the scope of the Cursor registration", () => {
     expect(double).toEqual([expect.stringContaining("INFO: Cursor hooks: .cursor/hooks.json and .claude/settings.json of this project both register PREGATE")]);
     expect(double[0]).toContain("evaluated once");
     expect(status(i, project).cursorHooks).toBe("both");
-    expect(pregate(i, project, "status").stdout).toContain("one evaluation");
+    expect(pregate(i, project, "status", "--verbose").stdout).toContain("one evaluation");
   });
 
   test("doctor names a modified registration", () => {

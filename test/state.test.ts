@@ -273,11 +273,14 @@ describe("snapshots", () => {
     expect(roots("s-never")).toEqual([]);
   });
 
-  test("a root directory without its snapshot is missing, never a fresh first contact", () => {
-    ensureSnapshot("s-gone", root, null);
+  test("a root directory without its snapshot is missing, and the next contact writes it again from HEAD", () => {
+    const first = ensureSnapshot("s-gone", root, null);
     unlinkSync(`${stateDir()}/sessions/s-gone/${H(root)}/snapshot.json`);
     expect(snapshot("s-gone", root)).toBe("missing");
-    expect(ensureSnapshot("s-gone", root, null)).toBe("snapshot-missing");
+    // The session keeps being judged: the base is HEAD again, the same as a first contact.
+    const again = ensureSnapshot("s-gone", root, null);
+    expect(again).toMatchObject({ root, head: (first as { head: string | null }).head, start: false, dirty: {} });
+    expect(snapshot("s-gone", root)).toMatchObject({ root, start: false, dirty: {} });
   });
 
   test("a deleted session starts over with HEAD as the base", () => {

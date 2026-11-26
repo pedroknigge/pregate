@@ -295,8 +295,10 @@ function briefStatus(s: Status): string[] {
 // The one thing that keeps this project from being checked, or null. A lock another engine version
 // wrote is not one: this engine judges from the preset.
 function attention(s: Status): string | null {
-  if (!s.installation.launcherPresent || !s.installation.enginePresent) return "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.";
   if (!s.harnesses.some((h) => h.configured)) return "Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.";
+  // Hooks registered in the project run its own launcher, so the machine installation is not what they need.
+  const projectHooks = [s.claudeCodeHooks, s.codexHooks, s.cursorHooks, s.agyHooks].some((scope) => scope === "project" || scope === "both");
+  if (!projectHooks && (!s.installation.launcherPresent || !s.installation.enginePresent)) return "Needs attention: the launcher or the engine is not installed on this machine, so no agent is checked.";
   if (!s.contract.valid) return `Needs attention: ${s.contract.errors[0] ?? "the contract is not ready."}`;
   return s.contract.errors.length > 0 ? `Note: ${s.contract.errors[0]} Nothing is blocked by that.` : null;
 }
@@ -310,8 +312,9 @@ function uncommittedLine(s: Status): string[] {
 function nextStep(s: Status): string {
   if (!s.consent) return "pregate enable.";
   if (s.pendingApproval !== null) return `pregate approve ${s.pendingApproval} applies the pending review.`;
-  if (!s.installation.launcherPresent || !s.installation.enginePresent) return "pregate setup.";
   if (!s.harnesses.some((h) => h.configured)) return "pregate setup.";
+  const projectHooks = [s.claudeCodeHooks, s.codexHooks, s.cursorHooks, s.agyHooks].some((scope) => scope === "project" || scope === "both");
+  if (!projectHooks && (!s.installation.launcherPresent || !s.installation.enginePresent)) return "pregate setup.";
   if (!s.contract.valid) return "pregate preset diagnose.";
   if (s.contract.errors.length > 0) return "nothing required. pregate preset compile refreshes the lock file for CI.";
   if (s.unsupportedInScope.length > 0 || s.uncoveredInScope.length > 0) return "nothing required. pregate guide --preview proposes a pack for the uncovered language.";
