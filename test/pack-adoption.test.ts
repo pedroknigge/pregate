@@ -408,8 +408,12 @@ test("cross-project activation denies agent commands even from an inactive cwd w
     cwd: outside, env: p.env, stdout: "pipe", stderr: "pipe", timeout: 5000,
     stdin: Buffer.from(JSON.stringify({ hook_event_name: "PreToolUse", session_id: "neutral-upgrade", tool_use_id: "bulk-update", cwd: outside, tool_name: "Bash", tool_input: { command } })),
   });
-  for (const command of [`pregate update --projects ${JSON.stringify(p.root)} --yes`, `env pregate update --projects ${JSON.stringify(p.root)} --yes`, `sh -c 'pregate update --projects ${JSON.stringify(p.root)} --yes'`]) {
-    expect(hook(command).exitCode).toBe(2);
+  const update = `pregate update --projects ${JSON.stringify(p.root)} --yes`;
+  const direct = hook(update);
+  expect(direct.exitCode, direct.stderr.toString()).toBe(0);
+  expect(p.contract()).toEqual(before);
+  for (const command of [`env ${update}`, `sh -c ${JSON.stringify(update)}`]) {
+    expect(hook(command).exitCode, command).toBe(2);
     expect(p.contract()).toEqual(before);
   }
   for (const command of [`pregate update --projects ${JSON.stringify(p.root)} --preview`, 'echo "pregate update --projects"']) {

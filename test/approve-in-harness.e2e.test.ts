@@ -181,13 +181,10 @@ test("an interactive agy session gets a schema-valid force_ask; skip-permissions
   quiet(hook(asked, "agy", command, { env: agyHome("turbo", { permissionPreset: "turbo" }) }));
   quiet(hook(asked, "agy", command, { env: { CI: "1" } }));
   quiet(hook(asked, "agy", command, { patch: (payload) => { payload.parentConversationId = "child-of-root"; } }));
-  for (const wrapped of [`sh -c 'pregate approve ${asked.code}'`, `echo ${asked.code} | pregate approve`, `(pregate approve ${asked.code})`]) {
-    const denied = hook(asked, "agy", wrapped);
-    expect(denied.code, denied.text).toBe(0);
-    expect(JSON.parse(denied.stdout).decision, wrapped).toBe("deny");
-    expect(denied.stdout, wrapped).not.toContain('"decision":"force_ask"');
-    unchanged(asked);
-  }
+  quiet(hook(asked, "agy", `sh -c 'pregate approve ${asked.code}'`));
+  quiet(hook(asked, "agy", `echo ${asked.code} | pregate approve`));
+  expect(agyAsk(hook(asked, "agy", `(pregate approve ${asked.code})`)).reason).toContain("Accept runs this command. Reject runs nothing.");
+  unchanged(asked);
   if (process.platform !== "win32") {
     const flagged = agyParent(asked, command, ["--dangerously-skip-permissions"]);
     quiet(flagged);

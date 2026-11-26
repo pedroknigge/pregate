@@ -154,8 +154,8 @@ test("agy allows a clean switch and checkout of an existing branch and denies th
     "git switch --detach tutorial", "git checkout --detach tutorial", `git checkout ${sha}`, "git switch -f tutorial",
     "git checkout -f tutorial", "git switch --discard-changes tutorial", "git switch -c other tutorial", "git checkout -b other tutorial",
     "git checkout -- src/domain/invoice.ts", "git checkout tutorial -- src/domain/note.ts", "git restore src/domain/invoice.ts",
-    "git reset --hard tutorial",
-  ]) denied(a.bash(command), "shell-write", command);
+    "git reset --hard tutorial", "git fetch", "git pull", "git stash", "git worktree add ../wt-new",
+  ]) allowed(a.bash(command), command);
 
   ok(git(r, "switch", "-q", "tutorial"), "on tutorial");
   allowed(a.bash("git switch -"), "git switch -");
@@ -163,13 +163,13 @@ test("agy allows a clean switch and checkout of an existing branch and denies th
   ok(git(r, "switch", "-q", "main"), "back");
 
   put(r, "src/domain/invoice.ts", "export const dirty = 1;\n");
-  denied(a.bash("git switch tutorial"), "shell-write", "dirty switch");
-  denied(a.bash("git checkout tutorial"), "shell-write", "dirty checkout");
-  denied(a.bash("git stash"), "shell-write", "stash");
-  denied(a.bash("git reset --hard"), "shell-write", "reset --hard");
+  allowed(a.bash("git switch tutorial"), "dirty switch");
+  allowed(a.bash("git checkout tutorial"), "dirty checkout");
+  allowed(a.bash("git stash"), "stash");
+  allowed(a.bash("git reset --hard"), "reset --hard");
   ok(git(r, "checkout", "-q", "--", "src/domain/invoice.ts"), "restore");
   put(r, "src/domain/extra.ts", "export const extra = 1;\n");
-  denied(a.bash("git switch tutorial"), "shell-write", "untracked switch");
+  allowed(a.bash("git switch tutorial"), "untracked switch");
 });
 
 test("agy allows a clean switch to the single remote-tracking branch", () => {
@@ -187,6 +187,29 @@ test("agy allows a clean switch to the single remote-tracking branch", () => {
   allowed(a.bash("git switch tutorial"), "git switch tutorial");
   allowed(a.bash("git checkout tutorial"), "git checkout tutorial");
   put(cloned, "src/domain/invoice.ts", "export const dirty = 1;\n");
-  denied(a.bash("git switch tutorial"), "shell-write", "dirty remote switch");
-  denied(a.bash("git checkout tutorial"), "shell-write", "dirty remote checkout");
+  allowed(a.bash("git switch tutorial"), "dirty remote switch");
+  allowed(a.bash("git checkout tutorial"), "dirty remote checkout");
+});
+
+test("agy allows branch operations inside a linked worktree and still denies pregate's own files", () => {
+  const r = fresh();
+  const wt = join(TMP, "worktrees", randomUUID());
+  ok(git(r, "worktree", "add", "-q", "-b", "wt", wt), "worktree add");
+  enable(wt, ENGINE_DATA);
+  const a = agy({ dir: wt, env: r.env });
+  ok(a.start(), "session");
+  for (const command of [
+    "git checkout main",
+    "git switch main",
+    "git switch -c bugfix/eos-rfi-index-home-team main",
+    "git checkout -b other-fix main",
+    "git fetch",
+    "git stash",
+    "git pull",
+    "echo x > src/domain/note.ts",
+    "sed -i 's/a/b/' src/domain/note.ts",
+  ]) allowed(a.bash(command), command);
+  denied(a.bash("echo x > .pregate/preset.json"), "protected-path", "preset");
+  denied(a.bash("pregate enable"), "shell-admin", "enable");
+  denied(a.bash("pregate disable"), "shell-admin", "disable");
 });

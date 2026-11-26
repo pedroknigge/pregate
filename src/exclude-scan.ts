@@ -91,7 +91,9 @@ async function reviewExclusions(root: string, preset: Preset, found: ExcludeCand
   const diff = reviewDiff(readText(join(root, LOCK)), compiled.lock, bundledBetween(before, text));
   const code = sha256(JSON.stringify(proposal)).slice(0, 12);
   // `enable --yes` is not `pregate approve`. CI alone must not accept the globs.
-  if (!await approve([candidateBlock(found), ...diff.summary].join("\n"), diff.warning, yes, false)) {
+  // Enable stays on a terminal. --yes here is not the harness form: it confirms only with
+  // PREGATE_UNATTENDED_APPROVAL, the same as before terminalOnly existed.
+  if (!await approve([candidateBlock(found), ...diff.summary].join("\n"), diff.warning, yes, false, true)) {
     return { code: 1, text: `${candidateBlock(found)}\n${approvalRefusal({ roots: [root], command: `pregate approve ${code}` })}` };
   }
   const applied = await applyReviewedProposal(root, sha256(JSON.stringify(proposal)), { activate: true, commit: false });

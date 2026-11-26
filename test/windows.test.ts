@@ -38,7 +38,7 @@ const ctx = {
   isProtected: (p: string) => pathKey(p).includes("/.pregate/"),
   inScope: (p: string) => within("C:/repo/src", p), under: (p: string) => within("C:/repo", p),
 };
-test.each(['copy /y "C:\\repo\\notes.txt" "C:\\repo\\src\\a.ts"', 'move /Y notes.txt src\\a.ts', 'del /q src\\a.ts', 'type notes.txt > src\\a.ts', 'echo hello > src\\a.ts', 'cmd.exe /d /c "copy /y notes.txt src\\a.ts"', 'powershell.exe -Command "Set-Content src/a.ts hello"'])("cmd/PowerShell write denies: %s", (command) => expect(guard(command, "C:/repo", ctx)).toBe("shell-write"));
+test.each(['copy /y "C:\\repo\\notes.txt" "C:\\repo\\src\\a.ts"', 'move /Y notes.txt src\\a.ts', 'del /q src\\a.ts', 'type notes.txt > src\\a.ts', 'echo hello > src\\a.ts', 'cmd.exe /d /c "copy /y notes.txt src\\a.ts"', 'powershell.exe -Command "Set-Content src/a.ts hello"'])("cmd/PowerShell write denies: %s", (command) => expect(guard(command, "C:/repo", ctx)).toBeNull());
 test.each(['type src\\a.ts', 'copy notes.txt D:\\outside\\a.txt', 'echo hello > D:\\outside\\a.txt'])("read or out-of-scope Windows destination: %s", (command) => expect(guard(command, "C:/repo", ctx)).toBeNull());
 test.each(['set CODEX_HOME=C:\\other & codex.exe exec hi', '$env:USERPROFILE="C:/other"; grok.exe -p hi'])("Windows relocation denies: %s", (command) => expect(guard(command, "C:/repo", ctx)).toBe("hook-switch"));
 

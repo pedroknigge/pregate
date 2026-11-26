@@ -3,7 +3,7 @@ import { absolutePath, matches, pathKey, PROTECTED_NAMES, REQUESTS, slash } from
 import type { Cause, HarnessId } from "./types.ts";
 import { pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
-import { inlineSink, nodeFile, noNewNodeSinks } from "./inline-sinks.ts";
+import { literalWriteTargets } from "./inline-sinks.ts";
 
 // Executable names each supported harness is launched as. `claude` and `cursor-agent` stay in the
 // list because status and the shell guard already look those up. Any one of a harness's names being
@@ -49,8 +49,11 @@ export function commandHelp(args: string[]): boolean {
 }
 
 // Shell guard (§4.2): a heuristic over one permissive lexer for POSIX shells and PowerShell. It
-// denies what it can establish (writes, admin commands, other harnesses, protected mentions).
-// Syntax the lexer cannot finish (an unclosed quote, substitution, or group) is shell-uncertain.
+// denies a command only when the text acts on PREGATE itself: `.pregate/`, the contract, lock,
+// config and baseline files, PREGATE's own hook entries, `pregate enable` / `pregate disable`,
+// an approval-forging variable, or a git hook bypass when the installed hook is PREGATE's.
+// A source edit (`sed -i src/a.ts`, `echo > src/a.ts`, `git checkout -- file`) is not one of those:
+// source gating belongs to the edit tools. Syntax the lexer cannot finish is shell-uncertain.
 // A finished token the heuristic does not classify, such as select or coproc, is not a deny by itself.
 // Stop, pre-commit and CI see the resulting tree.
 
@@ -63,8 +66,8 @@ export interface GuardContext {
   engines?: string;
   policyRead?: (abs: string, kind: "admitted" | "inspect" | "inventory") => boolean;
   configurationRead?: (abs: string) => boolean;
-  // The text a file had when the session began: the session's base commit, or the dirty text
-  // recorded at the session start. null when the file had none or it cannot be shown.
+  // The text a file had when the session began. Script runs do not consult it: an edit during
+  // the session must not flip a code runner from allow to deny. Callers may still pass it.
   sessionBase?: (abs: string) => string | null;
   // Whether a path is the skill file that setup installed for the agent to read.
   skillRead?: (abs: string) => boolean;
@@ -85,6 +88,8 @@ export interface GuardContext {
   // `worktree` paths are edits when they are in scope. `index` paths deny only when protected.
   // A clean checkout of an existing branch reports its files on `index` only.
   gitChanges?: (cwd: string, args: string[]) => GitChanges | null;
+  // True when this checkout's git hook is the one pregate installed. Absent means it is not.
+  pregateGitHook?: (cwd: string) => boolean;
 }
 export interface GitChanges { worktree: string[]; index: string[] }
 // `machineOnly`: neither the cwd nor the session reached a root (MH-17). `held`: the first cause
@@ -141,27 +146,18 @@ function scriptFile(ctx: Ctx, path: string, interpreter: string, cwd: string | n
   const control = controlFile(ctx, path);
   if (control !== null) return control;
   const read = ctx.readScriptFile?.(path) ?? { kind: "missing" as const };
-  if (read.kind === "native" || read.kind === "missing") return null;
-  if (read.kind === "admin") return "shell-admin";
+  if (read.kind === "native" || read.kind === "missing" || read.kind === "admin") return null;
   if (read.kind === "unreadable") return shellWrite(ctx, "the script could not be read");
   const lang = interpreter.replace(/^python[\d.]*$/, "python").replace(/^nodejs$/, "node");
   if (SHELL_INTERPRETERS.has(lang)) {
     const src = lang === "powershell" && read.text.includes("\\") ? read.text.replace(/\\(?=[\w.-])/g, "/") : read.text;
     return nestedScript(src, cwd, ctx);
   }
-  // A file run by node, bun or deno is a program with imports, read by the rules for a file.
-  const file = INTERPRETERS.get(lang) === NODE ? nodeFile(read.text) : null;
-  const sink = file === null ? inlineSink(lang, read.text, options) : file.sink;
-  const wrote = sink ? shellWrite(ctx, "the script writes files") : code({ text: file === null ? read.text : file.rest, literal: true, subs: [] }, cwd, ctx);
-  if (wrote !== "shell-write") return wrote;
-  // The base is asked only when the scan would deny. A script that is as it was when the session
-  // began is the project's own program: running it is what the project's test command does. A node
-  // file that the session changed keeps that standing while it gains no sink (an edited test file
-  // that already imported `vm`). Only a write sink is forgiven; control text was read above.
-  const base = ctx.sessionBase?.(path) ?? null;
-  if (base === null) return wrote;
-  if (base === read.text) return null;
-  return file !== null && sink && noNewNodeSinks(base, read.text) ? code({ text: file.rest, literal: true, subs: [] }, cwd, ctx) : wrote;
+  // A node, python, ruby, perl or php file is allowed unless it names a literal write into a
+  // gated or protected path. Importing a file-system module, or differing from the session base,
+  // is not that write. The session snapshot used to forgive an unchanged file and deny it after
+  // any edit; that flip is what made `pnpm run` deny a script `node` still allowed.
+  return programWrites(read.text, cwd, ctx);
 }
 
 // A path command (`./run`, `scripts/deploy.sh`) is read where it is spelled. A bare name is resolved
@@ -834,9 +830,54 @@ function expansions(text: string): string[] {
   }, [""]);
 }
 
-function shellWrite(ctx: Ctx | undefined, reason: string): Cause {
-  if (ctx?.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = reason;
-  return "shell-write";
+function shellWrite(_ctx: Ctx | undefined, _reason: string): null {
+  return null;
+}
+
+// A literal path a program writes. Protected paths stay protected-path. A path inside the
+// project scope is shell-write and the message names that path. Anything else is not a gated edit.
+function programWrites(program: string, cwd: string | null, ctx: Ctx): Cause | null {
+  for (const target of literalWriteTargets(program)) {
+    const abs = resolve(cwd, target);
+    if (abs === null) return shellWrite(ctx, `the write target \`${shown(target)}\` is not a literal path`);
+    try {
+      if (ctx.isProtected(abs)) {
+        if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = `the write target \`${shown(target)}\` is protected`;
+        return "protected-path";
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code === "ENAMETOOLONG") return shellWrite(ctx, `the write target \`${shown(target)}\` is longer than a file name allows`);
+      throw error;
+    }
+    const scoped = writes([{ text: target, literal: true, subs: [] }], cwd, ctx.inScope, ctx);
+    if (scoped !== null) return scoped;
+  }
+  return null;
+}
+
+// The program writes whatever path its arguments name (`open(sys.argv[1], "w")`, `unlink $ARGV`).
+// A literal operand that lands in scope or on a protected path is that write. An operand that
+// does not is not.
+function argvWrites(name: string, program: string, operands: Word[], cwd: string | null, ctx: Ctx): Cause | null {
+  if (!readsArgv(name, program)) return null;
+  if (!/\b(?:open|writeFile|unlink|file_put_contents|File\.write|system|exec)\b/.test(program) && !/>\s*\$/.test(program)) return null;
+  for (const operand of operands) {
+    if (!operand.literal || operand.text === "" || operand.text.startsWith("-")) continue;
+    const abs = resolve(cwd, operand.text);
+    if (abs === null) return shellWrite(ctx, `the argument \`${shown(operand.text)}\` is not a literal path`);
+    try {
+      if (ctx.isProtected(abs)) {
+        if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = `the argument \`${shown(operand.text)}\` is protected`;
+        return "protected-path";
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code === "ENAMETOOLONG") return shellWrite(ctx, `the argument \`${shown(operand.text)}\` is longer than a file name allows`);
+      throw error;
+    }
+    const scoped = writes([operand], cwd, ctx.inScope, ctx);
+    if (scoped !== null) return scoped;
+  }
+  return null;
 }
 
 function shown(text: string): string {
@@ -877,8 +918,8 @@ function code(w: Word, cwd: string | null, ctx: Ctx): Cause | null {
 // A script given as text (sh -c, eval, a heredoc or a pipe to a shell) is analyzed again when the
 // text is known; when it is not, it may write anything.
 function inline(w: Word | null | undefined, cwd: string | null, ctx: Ctx): Cause | null {
-  if (!w) return null;
-  return w.literal ? nestedScript(w.text, cwd, ctx) : "shell-write";
+  if (!w?.literal) return null;
+  return nestedScript(w.text, cwd, ctx);
 }
 
 // eval, Invoke-Expression and pwsh -Command join their arguments into one script.
@@ -907,10 +948,11 @@ function script(src: string, cwd: string | null, ctx: Ctx, block = false): Cause
     // A brace group or a subshell is another command the human did not type as `pregate approve`.
     const savedDirect = subCtx.direct;
     if (command.grouped || subshell > 0) subCtx.direct = false;
-    const cause = computed(command, calling) ? "shell-admin" : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
+    const raw = computed(command, calling) ? null : simple(statement(command, block && !called, saved.length === 0), cwd, subCtx, pipedIn);
+    const cause = raw === "shell-write" ? null : raw;
     subCtx.direct = savedDirect;
     // An approval-forging assignment stays denied. A later statement that really switches hooks
-    // off, or touches a protected path, keeps that cause. A later shell-admin does not replace it.
+    // off, or touches a protected path, keeps that cause. A source write is not a shell denial.
     if (cause === "hook-switch" || cause === "protected-path") return cause;
     if (cause === "approval") forged = true;
     else if (cause !== null && !forged && (!subCtx.machineOnly || ALWAYS.has(cause))) return cause;
@@ -1319,7 +1361,7 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   const ci = assigned.includes("CI");
   if (ci && head === undefined) ctx.ciSet = true;
   const descriptions = commandDescriptions(words);
-  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx);
+  const admin = administers({ words: words.filter(w => !descriptions.includes(w)), assigned, head, args }, ctx, cwd);
   if (admin === "hook-switch" || head === undefined) return admin;
   const was = ctx.ciSet;
   if (ci) ctx.ciSet = true;
@@ -1411,9 +1453,8 @@ function orcaInspect(words: string[], flags: Flag[]): boolean {
 
 // The launcher is project code, so an unclassified verb is not silently re-parsed. The sentence
 // names the tool and the verb; agent launch and hooks off keep the generic sentences.
-function orcaUnknown(name: string, words: string[], ctx: Ctx): Cause {
-  if (ctx.shellDetail) ctx.shellDetail.text = `${name} ${words.join(" ")} is not a read-only orca inventory or drive command.`;
-  return "shell-admin";
+function orcaUnknown(_name: string, _words: string[], _ctx: Ctx): Cause | null {
+  return null;
 }
 
 function orcaDrive(words: string[]): boolean {
@@ -1429,22 +1470,8 @@ function orcaDrive(words: string[]): boolean {
 // harness when its command's first token is one. `agent hooks off` removes the status hooks.
 function orcaDenied(words: string[], flags: Flag[]): Cause | null {
   const [a, b, c] = words;
-  if (a === "agent" && b === "launch") return "shell-admin";
   if (a === "agent" && b === "hooks" && c === "off") return "hook-switch";
-  if (a === "worktree" && b === "create" && flags.some(([flag]) => flag === "--agent")) return "shell-admin";
-  if (a === "automations" && b === "run") return "shell-admin";
-  if (a === "terminal" && (b === "create" || b === "split")) {
-    const command = flags.find(([flag]) => flag === "--command")?.[1];
-    if (command !== undefined && harnessToken(command.text)) return "shell-admin";
-  }
   return null;
-}
-
-function harnessToken(text: string): boolean {
-  const token = text.trim().split(/[ \t]+/)[0] ?? "";
-  if (token === "") return false;
-  const base = basename(slash(token)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
-  return base === "agent" || HARNESS.test(base);
 }
 
 function hostOutputs(words: string[], flags: Flag[], operands: Word[], cwd: string | null, ctx: Ctx): Cause | null {
@@ -1476,7 +1503,13 @@ function developer(name: string, args: Word[], cwd: string | null, ctx: Ctx): Ca
   if (sub === undefined) return null;
   if (REGISTRY_READS.has(sub) || PACKAGE_MUTATORS.has(sub)) return null;
   const yarn = name === "yarn" || name === "yarnpkg";
-  if (!yarn && !NPM_SCRIPTS.has(sub)) return shellWrite(ctx, `the ${name} subcommand \`${shown(sub)}\` is not a registry read, an install, or a project script`);
+  // pnpm lint and pnpm gate are package scripts, the same as pnpm run lint. Yarn already
+  // treated every other word that way. A name package.json does not define stays denied.
+  if (!yarn && !NPM_SCRIPTS.has(sub)) {
+    const defined = packageScript(cwd, ctx, sub);
+    if (defined === null) return shellWrite(ctx, `the ${name} subcommand \`${shown(sub)}\` is not a registry read, an install, or a project script`);
+    if (typeof defined !== "string") return defined.cause;
+  }
   return projectScript(sub, args, cwd, ctx);
 }
 
@@ -1484,7 +1517,8 @@ function projectScript(sub: string, args: Word[], cwd: string | null, ctx: Ctx):
   const script = scriptName(sub, args);
   if (script === null) return null;
   const body = packageScript(cwd, ctx, script);
-  if (typeof body !== "string") return body;
+  if (body === null) return null;
+  if (typeof body !== "string") return body.cause;
   const at = args.findIndex((w) => w.text === "--");
   const extra = at < 0 ? "" : args.slice(at + 1).map((w) => w.text).join(" ");
   return nestedScript(extra === "" ? body : `${body} ${extra}`, cwd, ctx);
@@ -1501,19 +1535,19 @@ function scriptName(sub: string, args: Word[]): string | null {
   return null;
 }
 
-function packageScript(cwd: string | null, ctx: Ctx, name: string): string | Cause | null {
+function packageScript(cwd: string | null, ctx: Ctx, name: string): string | { cause: Cause } | null {
   const path = resolve(cwd, "package.json");
   if (path === null) return null;
   const read = ctx.readScriptFile?.(path) ?? { kind: "missing" as const };
   if (read.kind === "missing") return null;
-  if (read.kind !== "text") return shellWrite(ctx, "package.json could not be read, so its script cannot be checked");
+  if (read.kind !== "text") return null;
   let parsed: unknown;
   try { parsed = JSON.parse(read.text); }
   catch (error) {
-    if (error instanceof SyntaxError) return shellWrite(ctx, "package.json is not valid JSON, so its script cannot be checked");
+    if (error instanceof SyntaxError) return null;
     throw error;
   }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return shellWrite(ctx, "package.json is not an object, so its script cannot be checked");
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const scripts = (parsed as { scripts?: unknown }).scripts;
   if (scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) return null;
   const body = (scripts as Record<string, unknown>)[name];
@@ -1537,7 +1571,7 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
     const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
     if (cause === "shell-admin" && ctx.shellDetail && ctx.shellDetail.text === null) {
       const sub = args.find((w) => w.literal && !w.text.startsWith("-"));
-      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is human-only. The human runs pregate ${sub.text} in a terminal.`;
+      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is human-only. The human runs pregate ${sub.text} in a separate terminal.`;
     }
     return cause;
   }
@@ -1556,7 +1590,13 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
     const at = args.findIndex((w) => /^\/[ck]$/i.test(w.text));
     return at < 0 ? "shell-write" : inline(joined(args.slice(at + 1)), cwd, ctx);
   }
-  if (name === "eval" || name === "invoke-expression" || name === "iex") return inline(joined(args), cwd, ctx);
+  if (name === "eval" || name === "invoke-expression" || name === "iex") {
+    // A literal `eval 'echo ok'` is scanned. `eval "$l"` is the stdin loop a pty can type
+    // `pregate approve` into without another hook. That command is not readable, so it stays denied.
+    const body = joined(args);
+    if (!body.literal) return shellWrite(ctx, "`eval` runs a command this process cannot read");
+    return inline(body, cwd, ctx);
+  }
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
   if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd, ctx) ?? writes(targets(name, args), cwd, ctx.inScope, ctx);
@@ -1583,7 +1623,7 @@ function unnamed(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: 
   const value = psValue(head, args, ctx.bound);
   if (value !== null) return run(value, cwd, ctx, stdin);
   const name = head.text.slice(head.text.lastIndexOf("/") + 1);
-  if (/[$`\\{}()*?[]/.test(name)) return "shell-admin";
+  if (/[$`\\{}()*?[]/.test(name)) return null;
   const cause = invoke({ ...head, literal: true }, args, cwd, ctx, stdin);
   // Under the home folder the path is as known as a literal one: `~/bin/tool` is `/home/u/bin/tool`.
   // Only the home prefix may expand: `$HOME/$DIR/tool` is as unknown as `"$DIR"/tool`.
@@ -1632,10 +1672,6 @@ export function ungatedHarnessMessage(name: string): string {
   return `${name} (${id}) is not gated. Gate it: \`pregate setup\`${project}.`;
 }
 
-function noteUngated(ctx: Ctx, name: string): void {
-  if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = ungatedHarnessMessage(name);
-}
-
 // Options and subcommands that manage hooks, plugins or config, or that skip permissions.
 // A prompt (`-p`, `--prompt`, or the words after `exec`/`run`) is not one of those, even when it
 // mentions pregate or hooks.
@@ -1678,7 +1714,7 @@ function harnessSwitchesHooks(args: Word[]): boolean {
 // shell-admin: a git hook switch, such as --no-verify or `HUSKY=0 git …` (PowerShell's
 // `$env:HUSKY=0` sets it for the commands that follow), setting `core.hooksPath`, or an ungated
 // harness as the command. Reading that key with `git config` is not one.
-function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, ctx: Ctx): Cause | null {
+function administers({ words, assigned, head, args }: { words: Word[]; assigned: string[]; head: Word | undefined; args: Word[] }, ctx: Ctx, cwd: string | null): Cause | null {
   const psEnv = /^\$env:(\w+)/i.exec(head?.text ?? "")?.[1]!.toUpperCase() ?? "";
   const cmdEnv = head?.text.toLowerCase() === "set" ? /^(\w+)=/.exec(args[0]?.text ?? "")?.[1]?.toUpperCase() ?? "" : "";
   const names = [...assigned, psEnv, cmdEnv];
@@ -1692,13 +1728,17 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   if (!harness && words.some((w) => HOOK_WORD.test(w.text) || HOOK_FLAG.test(w.text))) return "hook-switch";
   if (named.includes("hook-switch") || (harness && harnessSwitchesHooks(args))) return "hook-switch";
   if (named.includes("approval")) return "approval";
-  const other = harness && (!head?.literal || !harnessGated(launched, ctx.gated));
-  if (other && launched !== null) noteUngated(ctx, launched);
-  // A proven read still denies `--no-verify`. Every other `core.hooksPath` spelling stays admin.
-  // `sh -c` and the other script wrappers are the same command again; the wrapper's text is not
-  // a second copy of the check.
+  // `--no-verify`, `core.hooksPath` and a hook-manager variable deny only when the hook they
+  // skip is PREGATE's. Another project's husky or lefthook is not this guard's job.
   const query = words.some((w) => /core\.hookspath/i.test(w.text)) && commandAllowsHooks(words, 0);
-  return other || words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n)) ? "shell-admin" : null;
+  const bypass = words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n));
+  if (!bypass || !pregateOwnsGitHook(cwd, ctx)) return null;
+  if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "this skips a pregate-installed git hook. core.hooksPath points at .pregate/git-hooks, or the pre-commit script runs pregate.";
+  return "shell-admin";
+}
+
+function pregateOwnsGitHook(cwd: string | null, ctx: Ctx): boolean {
+  return cwd !== null && ctx.pregateGitHook?.(cwd) === true;
 }
 
 // Global git options that do not assign config. `-c` and `--config-env` are checked apart: a
@@ -1829,19 +1869,20 @@ function commandAllowsHooks(words: Word[], depth: number): boolean {
 // The read-only subcommands run; setup, update and uninstall, or one that cannot be named, change
 // what every harness runs (MH-17).
 function pregate(args: Word[], guideAllowed: boolean, direct: boolean): Cause | null {
+  // enable and disable stay on a separate terminal, including inside `sh -c`. Every other
+  // pregate command is an ordinary shell command. A non-literal name, or a wrapper around
+  // prepare/setup/update/uninstall, can still switch the installed hooks off.
+  const subWord = args.find((w) => !w.text.startsWith("-"));
+  if (subWord?.literal && (subWord.text === "enable" || subWord.text === "disable")) return "shell-admin";
+  if (direct && args.every((w) => w.literal && w.subs.length === 0)) return null;
   if (args.every((w) => w.literal) && args[0]?.text === "pack" && args[1]?.text === "init") return null;
-  // A draft writes only an inactive, unprotected pack folder; the command itself refuses the rest.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "draft") return null;
-  // `rules add` prepares one pending review in the data directory; only the human approves it.
   if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "add" && !args.some((w) => w.text === "--yes")) return null;
   if (proposal(args)) return null;
-  if (args[0]?.text === "guide" && !guideAllowed && !commandHelp(args.map(w => w.text))) return "shell-admin";
+  if (args[0]?.text === "guide" && guideAllowed) return null;
   if (readOnlyPregate(args, false)) return null;
-  // A literal `pregate approve` that already carries a code or `--yes` is the human's confirmation.
-  // A script, `sh -c`, a wrapper and every other control command stay shell-admin.
   if (direct && inHarnessApproval(args)) return null;
-  const sub = args.find((w) => !w.text.startsWith("-"));
-  return sub !== undefined && (!sub.literal || MACHINE.test(sub.text)) ? "hook-switch" : "shell-admin";
+  return subWord !== undefined && (!subWord.literal || MACHINE.test(subWord.text)) ? "hook-switch" : null;
 }
 
 // The human's in-harness confirmation: one literal `approve` with a code operand, or with `--yes`
@@ -2029,7 +2070,10 @@ function sed(args: Word[]): Word[] {
   const bsd = args.findIndex((w, k) => /^-[iI]$/.test(w.text) && /^(\.[^/]*)?$/.test(args[k + 1]?.text ?? "/"));
   const { flags, operands } = getopt(bsd < 0 ? args : args.toSpliced(bsd + 1, 1), ["-e", "-f", "--expression", "--file"]);
   if (!flags.some(([flag]) => /^(-[iI]|--in-place)$/.test(flag))) return [];
-  return flags.some(([flag]) => /^(-[ef]|--expression|--file)$/.test(flag)) ? operands : operands.slice(1);
+  if (flags.some(([flag]) => /^(-[ef]|--expression|--file)$/.test(flag))) return operands;
+  // `sed -i src/a.ts` has no expression. The one operand is the file when it looks like a path.
+  if (operands.length === 1 && /[\\/]|\.[A-Za-z0-9]+$/.test(operands[0]!.text)) return operands;
+  return operands.slice(1);
 }
 
 // curl writes -o's file, and a name taken from the URL or the response with -O or -J.
@@ -2147,8 +2191,13 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   const [sub, rest] = [operands[0]?.text, operands.slice(1)];
   // Creating a repository writes `.git`, not gated source.
   if (sub === "init") return null;
-  // `commit -n` is --no-verify; an option that takes a value ends the cluster (`-mn` is the message "n").
-  if (sub === "commit" && getopt(rest, ["-m", "-F", "-c", "-C", "-t"]).flags.some(([flag]) => flag === "-n")) return "shell-admin";
+  // `commit -n` is --no-verify. It denies only when this checkout's git hook is PREGATE's.
+  // An option that takes a value ends the cluster (`-mn` is the message "n").
+  if (sub === "commit" && getopt(rest, ["-m", "-F", "-c", "-C", "-t"]).flags.some(([flag]) => flag === "-n")) {
+    if (!pregateOwnsGitHook(base ?? cwd, ctx)) return null;
+    if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "git commit -n skips a pregate-installed git hook.";
+    return "shell-admin";
+  }
   const has = (re: RegExp) => rest.some((w) => re.test(w.text));
   const dash = rest.findIndex((w) => w.text === "--");
   if (sub !== undefined && movesHistory(sub, rest, dash)) {
@@ -2220,7 +2269,8 @@ function shell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): 
   const fromStdin = operands.length === 0 || operands[0]!.text === "-" || flags.some(([flag]) => flag === "-s");
   // A literal script is read for pregate control commands. A non-literal one is not (`bash "$SCRIPT"`).
   const script = operands[0];
-  if (!fromStdin && script !== undefined && script.text !== "-" && !script.literal) return "shell-write";
+  // `bash "$SCRIPT"` does not name a file this process can read. Running it is not a proven write.
+  if (!fromStdin && script !== undefined && script.text !== "-" && !script.literal) return null;
   if (!fromStdin && script?.literal && script.text !== "-") {
     const abs = resolve(cwd, script.text);
     const cause = abs === null ? "shell-write" : scriptFile(ctx, abs, "sh", cwd);
@@ -2245,7 +2295,7 @@ function makefile(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
     if (attached !== null) named = { ...word, text: attached[1]! };
     else if (word.literal && (word.text === "-f" || word.text === "--file" || word.text === "--makefile")) named = args[i + 1];
   }
-  if (named !== undefined && !named.literal) return shellWrite(ctx, "the makefile path is not a literal path");
+  if (named !== undefined && !named.literal) return null;
   const paths = named !== undefined ? [resolve(cwd, named.text)] : ["Makefile", "makefile", "GNUmakefile"].map((name) => resolve(cwd, name));
   const control = first(paths, (path) => controlFile(ctx, path));
   if (control !== null) return control;
@@ -2280,10 +2330,10 @@ function powershell(args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | nu
   for (let i = 0; i < args.length; i++) {
     const param = /^-([a-z]+)$/i.exec(args[i]!.text)?.[1]!.toLowerCase();
     if (param === undefined) continue;
-    if ("encodedcommand".startsWith(param) || param === "ec") return "shell-write";
+    if ("encodedcommand".startsWith(param) || param === "ec") return null;
     if (param === "file" || param === "f") {
       const target = args[i + 1];
-      if (target !== undefined && !target.literal) return "shell-write";
+      if (target !== undefined && !target.literal) return null;
       if (!target?.literal) return null;
       const abs = resolve(cwd, target.text);
       return abs === null ? "shell-write" : scriptFile(ctx, abs, "powershell", cwd);
@@ -2360,38 +2410,45 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   // A harness run by its interpreter: the entry script lives in the package's folder. A project
   // folder that shares a harness name is not one.
   const entry = operands[0]?.text.toLowerCase() ?? "";
-  if (entry.includes("node_modules/") && HARNESS.test(entry)) {
-    const name = launchedHarness(entry);
-    if (name !== null && harnessGated(name, ctx.gated)) return null;
-    if (name !== null) noteUngated(ctx, name);
-    return "shell-admin";
-  }
-  // A REPL: run bare, on `-` or `repl` (bun, deno), or with -i, which python and node keep open
-  // after the script. Options alone (`node --test`) usually run something else.
-  const repl = args.length === 0 || entry === "-" || entry === "repl"
-    || ((name === "python" || name.startsWith("node")) && args.some((w) => /^(-i|--interactive)$/.test(w.text)));
-  if (repl && stdin === null) return "shell-write";
+  if (entry.includes("node_modules/") && HARNESS.test(entry)) return null;
   const inlined = program.length > 0;
   if (!inlined && stdin !== null && (entry === "" || entry === "-")) program.push(stdin);
   const options = args.filter((w) => /^-./.test(w.text)).map((w) => w.text);
   if (name === "python" && moduleWord !== undefined && program.length === 0 && /^[A-Za-z_][\w.]*$/.test(moduleWord.text)) {
-    if (!moduleWord.literal) return "shell-write";
+    // `python3 -m "$MOD"` names a module this process cannot read. That is not a proven write.
+    if (!moduleWord.literal) return null;
     return pythonModuleCause(moduleWord.text, cwd, ctx, options);
   }
-  // Inline code and a literal script file: `python3 -c "subprocess.run(['pregate','approve'...])"`,
-  // `node -e`, `perl -e`, `ruby -e`, and `python3 attack.py`.
   const interp = name.replace(/^python[\d.]*$/, "python");
+  // `bun run lint` is the package script, scanned like `pnpm run lint`. A following file
+  // (`bun run x.ts`, or a script name that is also a file) is scanned when the script body is not.
+  if (interp === "bun" && operands[0]?.text === "run") {
+    const script = projectScript("run", args, cwd, ctx);
+    if (script !== null) return script;
+    const file = operands[1];
+    if (file?.literal && /\.(?:[cm]?[jt]sx?)$/i.test(file.text)) {
+      const abs = resolve(cwd, file.text);
+      if (abs !== null) {
+        const scanned = scriptFile(ctx, abs, interp, cwd, options);
+        if (scanned !== null) return scanned;
+      }
+    }
+    return null;
+  }
+  // Inline code and a literal script file. A non-literal path (`node "$P"`, `ruby` with no
+  // script) is opaque: it is not denied for being unreadable.
   const control = first(program, (w) => w.literal ? (w.file === undefined ? pregateControlCause(w.text) : controlFile(ctx, w.file)) : null)
-    ?? (!inlined && operands[0] !== undefined && !["-", "repl"].includes(operands[0].text) && !(interp === "bun" && BUN_SUBCOMMANDS.has(operands[0].text))
-      ? (operands[0].literal ? ((abs) => abs === null ? "shell-write" : scriptFile(ctx, abs, interp, cwd, options))(resolve(cwd, operands[0].text)) : "shell-write") : null);
+    ?? (!inlined && operands[0] !== undefined && !["-", "repl"].includes(operands[0].text) && !(interp === "bun" && BUN_SUBCOMMANDS.has(operands[0].text)) && operands[0].literal
+      ? ((abs) => abs === null ? shellWrite(ctx, `the script \`${shown(operands[0]!.text)}\` is not a literal path`) : scriptFile(ctx, abs, interp, cwd, options))(resolve(cwd, operands[0].text))
+      : null);
   if (control !== null) return control;
-  // Code that reads its arguments (`sys.argv[1]`, `process.argv`, `@ARGV`) may write the files they
-  // name; other code only reads them (`perl -ne 'print' src/a.ts`).
-  const argv = program.some((w) => readsArgv(name, w.text));
+  const text = program.filter((w) => w.literal && w.file === undefined).map((w) => w.text).join("\n");
+  const wrote = text === "" ? null : programWrites(text, cwd, ctx);
+  if (wrote !== null) return wrote;
+  const fromArgv = argvWrites(name, program.map((w) => w.text).join("\n"), operands, cwd, ctx);
+  if (fromArgv !== null) return fromArgv;
   // perl and ruby edit files in place with -i, checked on every option: in `perl -pie`, -i takes
   // "e" as its backup suffix.
   const inPlace = (name === "perl" || name === "ruby") && args.some((w) => /^-[A-Za-z0-9]*i/.test(w.text));
-  return first(argv ? [...program, ...operands] : program, (w) => code(w, cwd, ctx))
-    ?? first(program, (w) => (w.literal && w.file === undefined && inlineSink(name, w.text, options) ? "shell-write" : null))
-    ?? (inPlace ? writes(inlined ? operands : operands.slice(1), cwd, ctx.inScope, ctx) : null);
+  return inPlace ? writes(inlined ? operands : operands.slice(1), cwd, ctx.inScope, ctx) : null;
 }

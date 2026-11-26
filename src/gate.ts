@@ -12,7 +12,7 @@ import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
 import { commandOnPath, controlInFile, readScriptFile } from "./control-file.ts";
-import { gitChanges } from "./git-changes.ts";
+import { gitChanges, pregateGitHook } from "./git-changes.ts";
 import { directApprovalArgv, guard, type GuardContext } from "./shell.ts";
 import { skillFiles } from "./skill.ts";
 import * as state from "./state.ts";
@@ -167,8 +167,10 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const root = isCause(located) ? null : located;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root, rel: null, startedAt };
   if (isCause(located)) return settle(call, { ...NOTHING, form: locatedForm(sid, located, cwd) });
-  const approval = administrativeApproval(root, c);   // a batch code needs no root
-  if (approval !== null) return approval;
+  // `storage apply --yes` is how a busy session is recovered. The exclusive cleanup lock makes
+  // every other record fail with state-io, including this command, so the allow does not wait
+  // for a snapshot write. A wrapper is not this command and still goes through the guard.
+  if (root !== null && storageRecovery(c.command)) return told(null);
   // `enabled` can miss a root after `git init` changes its common dir. The consent record
   // still names it, so shell-admin is not dropped the way a never-enabled directory is.
   const machineOnly = root === null && state.roots(sid).length === 0 && !enforcedHere(cwd);
@@ -185,6 +187,11 @@ function evaluatePreCommand(c: ProposedCommand): Decision {
   const cause = ctx.failure() ?? guarded;
   const o = { ...NOTHING, lock: valid?.lock ?? null, lockHash: valid?.hash ?? null, form: commandForm(cause, noted.text), protectedPath: cause === "protected-path" };
   return machineOnly && !ctx.touched() ? decide(inputOf(call, o)) : settle(call, o);
+}
+
+function storageRecovery(command: string): boolean {
+  const rest = literalPregate(command, launcher());
+  return rest !== null && /^storage apply [0-9a-f]{64} --yes$/.test(rest);
 }
 
 // A named shell-admin denial carries its own sentence. Every other cause keeps the generic text.
@@ -225,19 +232,6 @@ function enforcedElsewhere(own: string, others: string[], p: string): boolean {
   }
 }
 
-// issue submit, feedback apply and storage apply stay on a separate terminal. `pregate approve`
-// with a code or `--yes` is not in this list: the shell guard allows that exact command, and the
-// approval log records a non-terminal confirmation. A batch code needs no root.
-function administrativeApproval(root: string | null, c: ProposedCommand): Decision | null {
-  const command = literalPregate(c.command, launcher());
-  if (command === null) return null;
-  const known = [/^issue submit [0-9a-f]{64} --yes$/, /^feedback apply [0-9a-f]{64} --yes$/, /^storage apply [0-9a-f]{64} --yes$/].some((re) => re.test(command));
-  if (!known || root === null) return null;
-  const text = `PREGATE: Ask the user to approve. Do not run the approval command yourself. Show the complete preview and ask the user to run ${c.command} in a separate terminal. The agent must not run the approval command.`;
-  const fix = causeFix("approval", null, null, null);
-  return { ...told(null), verdict: "deny", full: `${text}\nFix: ${fix.text}`, compact: text, notice: text, fix };
-}
-
 // What the guard asks about a path, answered on its canonical form by the root that holds it: a
 // command run from one root can write into a sibling or a nested one. Any root counts, accepted or
 // not, and without a valid lock every path below it is in scope (inScope(null, …)): both err
@@ -275,7 +269,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
     configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
-    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges,
+    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges, pregateGitHook,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);

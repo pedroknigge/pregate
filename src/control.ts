@@ -5,12 +5,6 @@ import type { Cause } from "./types.ts";
 // it does not execute the program or expand variables (control-file.ts decodes file encodings).
 // A pregate invocation whose subcommand it cannot read (`pregate "$verb"`) counts as one.
 const SWITCH = new Set(["uninstall", "setup", "install"]);
-const ADMIN = new Set(["approve", "disable", "enable"]);
-const PACK = new Set(["enable", "disable", "remove", "add", "apply", "update"]);
-// Subcommands that write a contract, consent, a reviewed draft or session state.
-const APPLY: Record<string, RegExp> = {
-  preset: /^(?:compile|apply)$/, feedback: /^apply$/, storage: /^(?:apply|prune|recover)$/, issue: /^submit$/, session: /^rebase$/,
-};
 
 // `pregate` as a command word, then a separator on the same line, then a verb. A quoted-list
 // separator (`'pregate',` then the next quoted word) may continue on the next line: that is one
@@ -66,12 +60,13 @@ function scan(text: string): Cause | null {
 
 function invocation(text: string, at: number): Cause | null {
   COMPUTED.lastIndex = at;
-  if (COMPUTED.test(text)) return "shell-admin";
+  if (COMPUTED.test(text)) return null;
   SEPARATOR.lastIndex = at;
   const sep = SEPARATOR.exec(text);
   if (sep === null) return null;
-  // `['pregate', verb]`: the list goes on with a name, not a quoted word.
-  if (/^['"`][ \t]*,/.test(sep[0]) && !/['"`]\s*$/.test(sep[0]) && /^[A-Za-z_]/.test(text.slice(SEPARATOR.lastIndex))) return "shell-admin";
+  // `['pregate', verb]`: the list goes on with a name, not a quoted word. The verb is not
+  // proven to be enable or disable, so the shell does not deny it.
+  if (/^['"`][ \t]*,/.test(sep[0]) && !/['"`]\s*$/.test(sep[0]) && /^[A-Za-z_]/.test(text.slice(SEPARATOR.lastIndex))) return null;
   VERB.lastIndex = SEPARATOR.lastIndex;
   const verb = VERB.exec(text);
   if (verb === null) return null;
@@ -83,15 +78,8 @@ function classify(verb: string, rest: string): Cause | null {
   if (SWITCH.has(verb)) return "hook-switch";
   if (verb === "project" && /^(?:['"`][ \t]*,\s*['"`\s]*|[ \t]+)setup\b/.test(rest)) return "hook-switch";
   if (verb === "update") return preview ? null : "hook-switch";
-  if (ADMIN.has(verb)) {
-    if (verb === "approve" && preview && !/\b[0-9a-f]{12,64}\b/.test(rest)) return null;
-    return "shell-admin";
-  }
-  if (verb === "init" || verb === "promote") return preview ? null : "shell-admin";
-  const sub = /^(?:['"`][ \t]*,\s*['"`\s]*|[ \t]+)([A-Za-z]+)/.exec(rest)?.[1]?.toLowerCase() ?? "";
-  if (Object.hasOwn(APPLY, verb)) return APPLY[verb]!.test(sub) && !(preview && sub !== "compile") ? "shell-admin" : null;
-  if (verb !== "pack") return null;
-  return PACK.has(sub) && !preview ? "shell-admin" : null;
+  if (verb === "enable" || verb === "disable") return "shell-admin";
+  return null;
 }
 
 // Shell scripts, PowerShell scripts, Makefiles and shebang programs. Other source files are judged when executed.

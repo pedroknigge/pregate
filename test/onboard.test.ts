@@ -491,7 +491,8 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("request p
   expect(allowed.exitCode).toBe(0);
   expect(allowed.stdout.toString() + allowed.stderr.toString()).not.toContain("DENY");
   const wrapped = hook(`sh -c 'pregate approve --yes --digest ${digest}'`);
-  expect(wrapped.stdout.toString() + wrapped.stderr.toString()).toContain("Ask the user to approve. Do not run the approval command yourself.");
+  expect(wrapped.exitCode).toBe(0);
+  expect(wrapped.stdout.toString() + wrapped.stderr.toString()).not.toContain("DENY");
   expect(paths.map(path => readFileSync(path, "utf8"))).toEqual(before);
   expect(readProposal(canonical(root), join(env.XDG_DATA_HOME!, "pregate"))).toEqual(pending);
 }), 20_000);

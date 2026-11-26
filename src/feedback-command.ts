@@ -60,7 +60,7 @@ export function feedbackPreview(draft: Draft, id: string): string {
     "Label: " + label.verdict, "Note: " + (label.note || "(none)"),
     "Existing label: " + (draft.previousHash === null ? "none" : "will be replaced after review"),
     "This labels one recorded observation; it does not prove executed repair or overall rule precision.",
-    "Digest: " + id, ...humanApprovalInstructions("pregate feedback apply " + id + " --yes"),
+    "Digest: " + id, ...humanApprovalInstructions("pregate feedback apply " + id + " --yes", "harness"),
   ].join("\n"));
 }
 

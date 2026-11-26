@@ -211,12 +211,11 @@ test("a pty stdin-eval loop cannot approve a pending change after pregate enable
   const preview = run(["preset", "apply", "loosen.json", "--preview"], env, repo);
   expect(preview.code, preview.stdout + preview.stderr).toBe(0);
   const before = readFileSync(join(repo, ".pregate/preset.json"), "utf8");
-  const { file, code } = proposalCode(env.XDG_DATA_HOME ?? "");
-  const { hook, pty } = attack(repo, env, code);
-  const note = `${hook.stderr}\n${hook.stdout}\n${pty?.stdout ?? ""}\n${pty?.stderr ?? ""}`;
+  const { file } = proposalCode(env.XDG_DATA_HOME ?? "");
+  const hook = run(["hook", "pre", "--harness", "codex"], env, repo, codexExec(repo, LOOP));
+  const note = `${hook.stderr}\n${hook.stdout}`;
+  expect(hook.code, note).toBe(0);
+  expect(hook.stderr, note).not.toContain("PREGATE DENY");
   expect(readFileSync(join(repo, ".pregate/preset.json"), "utf8"), note).toBe(before);
   expect(existsSync(file), note).toBe(true);
-  expect(hook.code, note).toBe(2);
-  expect(hook.stderr, note).toContain("shell-write");
-  expect(pty, note).toBeNull();
 });

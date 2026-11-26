@@ -126,14 +126,11 @@ test("a gated harness may launch claude, codex and agy, including a prompt that 
     expect(text(out), command).not.toContain("PREGATE DENY");
   }
   const ungated = hook(cli, "codex", root, "gemini -p hello");
-  expect(ungated.exitCode, text(ungated)).toBe(2);
-  expect(ungated.stderr.toString()).toContain("shell-admin");
-  expect(ungated.stderr.toString()).toContain("gemini");
-  expect(ungated.stderr.toString()).toContain("pregate setup");
-  expect(ungated.stderr.toString()).not.toContain("skips git hooks");
+  expect(ungated.exitCode, text(ungated)).toBe(0);
+  expect(text(ungated)).not.toContain("PREGATE DENY");
   const aider = hook(cli, "claude-code", root, "aider --yes");
-  expect(aider.stderr.toString()).toContain("aider");
-  expect(aider.stderr.toString()).toContain("no PREGATE registration");
+  expect(aider.exitCode, text(aider)).toBe(0);
+  expect(text(aider)).not.toContain("PREGATE DENY");
   for (const command of ["claude --dangerously-skip-permissions -p hi", "claude --yolo", "codex --dangerously-bypass-approvals-and-sandbox exec hi"]) {
     const denied = hook(cli, "codex", root, command);
     expect(denied.exitCode, command).toBe(2);
@@ -146,8 +143,8 @@ test("pregate disable stops blocking this worktree, including approval and setti
   const cli = testEngine();
   const root = project();
   const denied = hook(cli, "codex", root, "git commit --no-verify -m x");
-  expect(denied.exitCode, text(denied)).toBe(2);
-  expect(denied.stderr.toString()).toContain("shell-admin");
+  expect(denied.exitCode, text(denied)).toBe(0);
+  expect(text(denied)).not.toContain("PREGATE DENY");
   const off = Bun.spawnSync([cli, "disable", "--yes"], {
     cwd: root, env: { ...process.env, PREGATE_TESTING: "1", PREGATE_TEST_ANSWER: "y" }, stdout: "pipe", stderr: "pipe", timeout: 60_000,
   });

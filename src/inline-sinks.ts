@@ -154,6 +154,33 @@ function readMode(arg: string): boolean {
   return literal !== null && PYTHON_READ_MODE.test(literal[2]!);
 }
 
+// String literals that a call writes, appends, removes or creates. A read (`open(path)`,
+// `readFileSync`) is not one. A computed path (`"src/" + name`, a template hole) is not one:
+// the call is then opaque, and running it is allowed.
+const WRITE_CALL = /\b(?:writeFileSync|writeFile|appendFileSync|appendFile|rmSync|unlinkSync|renameSync|copyFileSync|mkdirSync|truncateSync|writeTextFileSync|writeTextFile|write_text|write_bytes|file_put_contents)\s*\(\s*(['"`])([^'"`\n]+)\1(?!\s*\+)/g;
+const BUN_WRITE = /\bBun\.write\s*\(\s*(['"`])([^'"`\n]+)\1/g;
+const RUBY_WRITE = /\bFile\.write\s*\(\s*(['"`])([^'"`\n]+)\1/g;
+const PATH_WRITE = /\bPath\s*\(\s*(['"])([^'"]+)\1\s*\)\s*\.\s*(?:write_text|write_bytes|unlink)\b/g;
+const PY_OPEN = /\bopen\s*\(\s*(['"])([^'"]+)\1\s*,\s*(['"])([^'"]*)\3/g;
+const PERL_REDIRECT = /['"]>([^'"\n]+)['"]/g;
+const PERL_MODE = /['"]\s*>\s*['"]\s*,\s*['"]([^'"]+)['"]/g;
+
+export function literalWriteTargets(program: string): string[] {
+  const found: string[] = [];
+  const add = (value: string | undefined) => {
+    if (value === undefined || value === "" || value.includes("${") || value.includes("$(")) return;
+    found.push(value);
+  };
+  for (const pattern of [WRITE_CALL, BUN_WRITE, RUBY_WRITE, PATH_WRITE, PERL_REDIRECT, PERL_MODE]) {
+    for (const match of program.matchAll(pattern)) add(match[2] ?? match[1]);
+  }
+  for (const match of program.matchAll(PY_OPEN)) {
+    const mode = match[4] ?? "";
+    if (/[wax+]/.test(mode) && !PYTHON_READ_MODE.test(mode)) add(match[2]);
+  }
+  return found;
+}
+
 // The program with the contents of plain string literals blanked, so that words in messages are
 // not read as calls. Python f-strings and JavaScript template literals hold code and stay. A
 // Python read mode ("r", "rb") stays for readOnlyOpen.

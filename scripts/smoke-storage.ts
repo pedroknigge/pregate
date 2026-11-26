@@ -97,8 +97,9 @@ try {
     const agent = run(["hook", "pre"], { hook_event_name: "PreToolUse", session_id: "native-retention", cwd: root,
       permission_mode: "default", tool_name: "Bash", tool_use_id: "recover-" + kind,
       tool_input: { command: "pregate storage apply " + id + " --yes" } }, "");
-    assert(agent.exitCode === 2 && (agent.stdout.toString() + agent.stderr.toString()).includes(`run pregate storage apply ${id} --yes in a separate terminal`),
-      "Production recovery from the agent was not denied with the human ! route");
+    const said = agent.stdout.toString() + agent.stderr.toString();
+    assert(agent.exitCode === 0 && !said.includes("PREGATE DENY"),
+      "Production recovery from the agent was denied. storage apply --yes is an ordinary harness command.");
     assert(run(["storage", "apply", id!]).exitCode === 1, "Unattended recovery must refuse");
     checked(["storage", "apply", id!, "--yes"]);
   }
@@ -110,5 +111,5 @@ try {
   console.log(JSON.stringify({ target: hostTarget(), observed: "one real recorded shadow observation; short test retention window",
     approval: "unattended refused; explicit digest automation applied", removed: "one historical source copy",
     preserved: "live dirty-source baseline, snapshot bytes, contract bytes, report count and resumed Stop",
-    recovery: "real killed source-helper writer/cleaner; agent apply denied with the ! route; unattended refused; explicit digest applied", github: "no publication" }));
+    recovery: "real killed source-helper writer/cleaner; agent apply allowed; unattended refused; explicit digest applied", github: "no publication" }));
 } finally { rmSync(area, { recursive: true, force: true }); }
