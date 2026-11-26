@@ -66,8 +66,8 @@ it until a maintainer accepts it.
 **Update or switch off.** `pregate update` installs the newest engine. Projects
 need nothing after it: any engine version reads any project's contract. The
 user runs `pregate disable` to switch Pregate off for a checkout, or `pregate
-disable --project` for every checkout of the repository, in a terminal or on
-a Claude Code `!` line with `--yes`.
+disable --project` for every checkout of the repository. `disable` asks for
+`y` on a terminal: it is the one command that needs one.
 
 ## Branches, worktrees, subagents and teammates
 

@@ -85,7 +85,10 @@ test("streaming retains exit 0 for a verified clean tree and 1 for static debt",
 });
 
 test("streamed results remain provisional until final source and contract validation", async () => {
-  for (const mutate of [() => put("src/domain/a.ts", "export const changed = true;\n"), () => put(LOCK, "{}")]) {
+  // A source file or the contract in effect changes while the audit runs. The contract is the preset:
+  // a change to the lock file alone is not one.
+  const widened = () => { const preset = JSON.parse(readFileSync(join(root, PRESET), "utf8")); preset.scope.exclude = [...(preset.scope.exclude ?? []), "never/**"]; put(PRESET, JSON.stringify(preset)); };
+  for (const mutate of [() => put("src/domain/a.ts", "export const changed = true;\n"), widened]) {
     refreshContract(); put("src/domain/a.ts", 'import { value } from "../infra/provider";\nexport const answer = value;\n');
     const records: Record<string, any>[] = [];
     const result = await audit(["--repo", root, "--jsonl"], (record) => {

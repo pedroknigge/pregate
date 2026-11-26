@@ -129,7 +129,7 @@ export async function inspectProject(directory: string) {
     methodologies: item.methodologies.filter(method => !validPreset?.methodologies.includes(method)) }));
   const documentation = discoverDocumentation(root);
   const outdated = !!diagnosis && [diagnosis.project.engine, diagnosis.project.lockEngine].some(engine => engine !== null && engine !== VERSIONS.engine);
-  const state = !established ? "new" : outdated ? "needs-update" : !status.contract.valid ? "needs-repair" : status.state;
+  const state = !established ? "new" : outdated ? "needs-update" : !status.contract.valid || status.contract.errors.length > 0 ? "needs-repair" : status.state;
   const installation = { ...status.installation, harnessesConfigured: status.harnesses.filter(harness => harness.configured).length };
   const actions = projectActions(state, installation, coverage?.outsideScope.length ?? 0, recommendations.map(item => item.ns));
   return { schemaVersion: 1, root, engine: VERSIONS, state, consent: status.consent, installation,

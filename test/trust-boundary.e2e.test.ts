@@ -318,12 +318,12 @@ test("history commands that rewrite the worktree are writes, denied when .pregat
 
 // ── P1-3: CI is not an approval channel ─────────────────────────────────────────────────
 
-test("CI in the environment neither confirms nor reveals codes; --yes confirms and the dedicated opt-in reveals", () => {
+test("CI in the environment neither confirms nor reveals codes; disable needs a terminal even with --yes, and the dedicated opt-in confirms and reveals", () => {
   const r = fresh();
   const status = () => JSON.parse(cli(r, ["status", "--json"]).stdout).consent as boolean;
   const refused = cli(r, ["disable"], { CI: "1" });
   expect(refused.code, said(refused)).toBe(1);
-  expect(said(refused)).toContain("pregate disable needs your confirmation; nothing changed.");
+  expect(said(refused)).toContain("pregate disable needs your confirmation on a terminal; nothing changed.");
   expect(status()).toBe(true);
   put(r, "loosen.json", JSON.stringify({ why: "advisor first", patch: [{ op: "replace", path: "/enforcement", value: "advisor" }] }));
   const preview = cli(r, ["preset", "apply", "loosen.json", "--preview"], { CI: "1" });
@@ -332,8 +332,12 @@ test("CI in the environment neither confirms nor reveals codes; --yes confirms a
   const revealed = cli(r, ["preset", "apply", "loosen.json", "--preview"], { PREGATE_UNATTENDED_APPROVAL: "1" });
   expect(revealed.code, said(revealed)).toBe(0);
   expect(said(revealed)).toMatch(/pregate approve [0-9a-f]{12}/);
-  // --yes is the confirmation where there is no terminal; CI adds nothing to it.
-  const applied = cli(r, ["disable", "--yes"], { CI: "1" });
+  // Switching protection off stays on a terminal: --yes without one changes nothing, with or without CI.
+  const stillOn = cli(r, ["disable", "--yes"], { CI: "1" });
+  expect(stillOn.code, said(stillOn)).toBe(1);
+  expect(status()).toBe(true);
+  // An unattended job that already holds the opt-in in its environment is the exception.
+  const applied = cli(r, ["disable", "--yes"], { PREGATE_UNATTENDED_APPROVAL: "1" });
   expect(applied.code, said(applied)).toBe(0);
   expect(status()).toBe(false);
   // The agent cannot set it for a command or a script it runs.

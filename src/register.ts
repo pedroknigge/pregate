@@ -122,7 +122,7 @@ export function projectHookCommand(sub: Sub, windows: boolean, h: "claude-code" 
 function projectCodexCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness codex`;
   if (!windows) {
-    const open = `u="$d"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
+    const open = `u="$PWD"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ -n "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
@@ -139,10 +139,10 @@ function projectCodexCommand(sub: Sub, windows: boolean): string {
 function projectAgyCommand(sub: Sub, windows: boolean): string {
   const args = `hook ${sub} --harness agy`;
   if (!windows) {
-    const open = `u="$d"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
+    const open = `u="\${w:-$PWD}"; c=; while [ -n "$u" ] && [ "$u" != / ]; do [ -f "$u/.pregate/preset.json" ] && { grep -Eq '"uncertainty"[[:space:]]*:[[:space:]]*"closed"' "$u/.pregate/preset.json" && c=1; break; }; [ -e "$u/.git" ] && break; u=\${u%/*}; done; [ -z "$c" ] && exit 0; `;
     const missing = sub === "pre" ? `${open}printf '%s\\n' '${PROJECT_MISSING}' >&2; exit 2` : "exit 0";
     return `d=$PWD; while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; [ -x "$f" ] && [ -s "$f" ] && cd "$d" && exec "$f" ${args}; [ -e "$d/.git" ] && break; d=\${d%/*}; done; `
-      + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); `
+      + `p=$(cat); d=$(printf '%s' "$p" | sed -n 's/.*"workspacePaths":\\["\\([^"\\\\]*\\)".*/\\1/p'); w=$d; `
       + `while [ "\${d#/}" != "$d" ]; do f="$d/${PROJECT_BIN}/pregate"; if [ -x "$f" ] && [ -s "$f" ] && cd "$d"; then printf '%s' "$p" | "$f" ${args}; exit $?; fi; [ -e "$d/.git" ] && break; d=\${d%/*}; done; ${missing}`;
   }
   const missing = sub === "pre" ? `${windowsOpen("(Get-Location).Path")}[Console]::Error.WriteLine('${PROJECT_MISSING}'); exit 2` : "exit 0";

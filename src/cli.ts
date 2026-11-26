@@ -144,7 +144,10 @@ async function command([cmd, ...args]: string[]): Promise<Result> {
       if (exclusions !== null && "code" in exclusions) {
         return exclusions.code === 0 ? { code: 0, text: `${exclusions.text}\n${statusText(protectionStatus(root))}` } : exclusions;
       }
-      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, false)) return { code: 1, text: `pregate ${cmd} needs your confirmation; nothing changed. Run pregate ${cmd} --yes (on a Claude Code ! line: ! pregate ${cmd} --yes).` };
+      if (!await approve(`${cmd === "enable" ? "Enable protection" : "Revoke local consent and stop protection"} for ${place}.`, cmd === "disable", flags.has("--yes"), false, cmd === "disable")) return { code: 1, text: cmd === "disable"
+        // Switching protection off stays on a terminal: a command an agent hides from the shell guard cannot type y there.
+        ? "pregate disable needs your confirmation on a terminal; nothing changed. Run pregate disable in a terminal and answer y."
+        : "pregate enable needs your confirmation; nothing changed. Run pregate enable --yes (on a Claude Code ! line: ! pregate enable --yes)." };
       if (cmd === "enable") enable(root);
       else if (flags.has("--project")) disableProject(root);
       else disable(root);

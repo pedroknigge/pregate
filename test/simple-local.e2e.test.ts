@@ -170,6 +170,11 @@ test("a command that reads the contract folder through a program-running option 
   for (const command of [
     "git grep -Ovim uncertainty -- .pregate/preset.json",
     "git grep --open-files-in-pager=vim uncertainty -- .pregate/preset.json",
+    "git grep --open=rm -e uncertainty -- .pregate/preset.json",
+    "git grep -nOrm -e . -- .pregate/preset.json",
+    "git grep -n uncertainty -- .pregate/preset.json",
+    "git diff --outp=.pregate/preset.json",
+    "git log --ext -1 -- .pregate/preset.json",
     "git diff --output=.pregate/preset.json",
     "rg --pre cat uncertainty .pregate/preset.json",
     "git log -1 -- .pregate > .pregate/preset.json",
@@ -178,7 +183,7 @@ test("a command that reads the contract folder through a program-running option 
     expect(out.code, `${command}\n${out.text}`).toBe(2);
     expect(out.text, command).toContain("PREGATE DENY protected-path");
   }
-  for (const command of ["git grep -n uncertainty -- .pregate/preset.json", "rg -n uncertainty .pregate/preset.json", "head -5 .pregate/preset.json", "jq .enforcement .pregate/preset.json"]) {
+  for (const command of ["git log --oneline -3 -- .pregate", "rg -n uncertainty .pregate/preset.json", "head -5 .pregate/preset.json", "jq .enforcement .pregate/preset.json"]) {
     const out = p.bash(command);
     expect(out.code, `${command}\n${out.text}`).toBe(0);
   }

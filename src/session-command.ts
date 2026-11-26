@@ -73,7 +73,7 @@ function reviewBaseline(root: string, session: string, at: number): RebaseReview
   // Git saw a committed change the text does not show: a file mode, a symlink or bytes that do not decode.
   const opaque = paths.filter((path, i) => diffs[i] === "" && !Object.hasOwn(saved.dirty, path));
   return { root, session, head, at, originalHash: sha256(readFileSync(join(dir, "snapshot.json"), "utf8")),
-    previousHash: sha256(readText(join(dir, "reviewed-baseline.json")) ?? ""), lockHash: sha256(readFileSync(join(root, LOCK), "utf8")),
+    previousHash: sha256(readText(join(dir, "reviewed-baseline.json")) ?? ""), lockHash: sha256(readText(join(root, LOCK)) ?? ""),
     ...arrived.length ? { arrived } : {}, ...opaque.length ? { opaque } : {},
     ...large ? { diff: "", base: saved.head, changes: changes(paths, sides, diffs) } : { diff } };
 }

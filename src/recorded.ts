@@ -3,7 +3,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { approvalDeadline, pendingContract, proposeContract } from "./approval.ts";
 import { disabledNotice, enabled, enforcedHere, explicitlyDisabled } from "./consent.ts";
 import { bundledBetween, contractDiff, sourceDiff, validateContract } from "./contract.ts";
-import { evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, recompiled, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
+import { compileHere, evaluationProgress, form, fromDisk, globsOf, grammars, inputOf, type Loaded, locate, locatedForm, lockOf, recompiled, settle, sourceDirs, sourcesOf, verify } from "./contract-diagnostic.ts";
 import { blocking, decide, merge } from "./decide.ts";
 import { dependencyReviews, dependencyRules, type ImportMemo, memoizedImports, needsDependencyReview } from "./dependencies.ts";
 import { openDependencyCache } from "./dependency-cache.ts";
@@ -220,15 +220,20 @@ export async function check(root: string, m: CheckMode, format: "agent" | "sarif
   reviews.push({ rel: ".pregate/preset.json", ...CLEAN, violations: fitnessViolations(loaded.lock, fitness) });
   // A looser contract fails the check against the base revision only: that is the pull request,
   // where a reviewer accepts it. A local commit carries it there and is told, not refused.
-  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(m.kind, loaded, before, read) : null;
+  const contract = m.kind === "staged" || m.kind === "base" ? refusedLoosening(root, m.kind, loaded, before, read) : null;
   const result = report(loaded, reviews, phase, format, m.kind === "base" ? contract : null);
   return m.kind === "staged" && contract !== null && format === "agent" ? { code: result.code, text: `${result.text}${result.text === "" ? "" : "\n\n"}${contract}` } : result;
 }
 
 // A contract loosened since the last commit (staged) or the base revision (CI), unless the exact
 // digest is in PREGATE_ACCEPT_CONTRACT. No record on this machine accepts or refuses one.
-function refusedLoosening(where: "staged" | "base", loaded: Loaded, before: Read, read: Read): string | null {
-  const found = loosening({ lockText: before(LOCK), presetText: before(PRESET) }, { lock: loaded.lock, hash: loaded.hash, presetText: read(PRESET) });
+function refusedLoosening(root: string, where: "staged" | "base", loaded: Loaded, before: Read, read: Read): string | null {
+  // The base side is the contract that was in effect there. Its lock file may be missing, behind
+  // its preset, or from another engine version, so the base preset is compiled the way the head is.
+  const basePreset = before(PRESET);
+  const compiledBase = basePreset === null ? null : compileHere(basePreset, sourcesOf(root));
+  const baseLock = compiledBase !== null && !("errors" in compiledBase) ? compiledBase.text : before(LOCK);
+  const found = loosening({ lockText: baseLock, presetText: basePreset }, { lock: loaded.lock, hash: loaded.hash, presetText: read(PRESET) });
   if (found === null || acceptedByEnvironment(found.digest)) return null;
   return looseningText(found, where);
 }

@@ -1108,7 +1108,7 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
   return run(words, cwd, ctx, stdin) ?? writes(outputs.map((r) => r.target), cwd, ctx.inScope, ctx);
 }
 
-const GIT_READS: ReadonlySet<string> = new Set(["status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "cat-file", "grep", "ls-tree"]);
+const GIT_READS: ReadonlySet<string> = new Set(["status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "cat-file", "ls-tree"]);
 const READERS: ReadonlySet<string> = new Set(["head", "tail", "wc", "stat", "grep", "egrep", "fgrep", "rg", "jq", "shasum", "sha256sum", "md5", "md5sum", "du"]);
 
 function policyReadKind(words: Word[]): "admitted" | "inspect" | "inventory" | null {
@@ -1118,8 +1118,10 @@ function policyReadKind(words: Word[]): "admitted" | "inspect" | "inventory" | n
   if (head === "git" && words[1]?.text === "diff" && words[2]?.text === "--" && words.slice(3).every(w => !w.text.startsWith("-"))) return "inspect";
   if (head === "cat" && words.slice(1).every(w => w.text === "--" || !w.text.startsWith("-"))) return "inspect";
   // Commands that only read. An option that writes a file (--output) or runs a program on the
-  // files it found (git grep -O, --ext-diff, rg --pre) is not a read.
-  if (head === "git" && GIT_READS.has(words[1]?.text ?? "") && !words.some(w => /^(--output|-O|--open-files-in-pager|--ext-diff|--textconv|--filters)/.test(w.text))) return "inventory";
+  // files it found (--ext-diff, --textconv, rg --pre) is not a read.
+  // Git accepts any unique prefix of a long option, so the refusal is by prefix. `git grep` is not
+  // in the list: its -O runs a program on each file, also inside a short-option bundle.
+  if (head === "git" && GIT_READS.has(words[1]?.text ?? "") && !words.some(w => /^--(ou|ext|textc|filt)/.test(w.text))) return "inventory";
   if (READERS.has(head) && !words.some(w => /^(--pre|--pre-glob|--hostname-bin)(=|$)/.test(w.text))) return "inventory";
   return head === "ls" ? "inventory" : null;
 }
@@ -1578,7 +1580,8 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
     const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
     if (cause === "shell-admin" && ctx.shellDetail && ctx.shellDetail.text === null) {
       const sub = args.find((w) => w.literal && !w.text.startsWith("-"));
-      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = `pregate ${sub.text} is the user's command: they run pregate ${sub.text} --yes in a terminal or on a Claude Code ! line`;
+      if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = sub.text === "enable" ? "pregate enable is the user's command: they run pregate enable --yes in a terminal or on a Claude Code ! line"
+        : "pregate disable is the user's command: they run it in a terminal and answer y";
     }
     return cause;
   }

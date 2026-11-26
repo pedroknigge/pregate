@@ -72,15 +72,18 @@ function text(path: string): string | null {
 // `valid`: this engine can judge the project, which it can whenever the preset compiles. A lock
 // file that is missing, behind the preset, or written by another engine version does not stop
 // that (the hooks rebuild it from the preset); it is one note, because CI compares the file.
-export function contractState(root: string): { valid: boolean; errors: string[]; lock: Lock | null } {
+// `text`: the compiled contract in effect, which is what a hash of "the lock" must cover: the
+// lock file may be missing or behind.
+export function contractState(root: string): { valid: boolean; errors: string[]; lock: Lock | null; text: string | null } {
   try {
     const preset = text(join(root, PRESET));
-    if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null };
+    if (preset === null) return { valid: false, errors: ["Preset missing."], lock: null, text: null };
     const result = compileHere(preset, sourcesOf(root));
-    if ("errors" in result) return { valid: false, errors: result.errors, lock: null };
-    const same = result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
-    return { valid: true, errors: same ? [] : [STALE_LOCK], lock: result.lock };
-  } catch (e) { return { valid: false, errors: [(e as Error).message], lock: null }; }
+    if ("errors" in result) return { valid: false, errors: result.errors, lock: null, text: null };
+    // A preset read with this engine's versions is not the committed contract byte for byte.
+    const same = !result.rebased && result.text === text(join(root, LOCK))?.replaceAll("\r\n", "\n");
+    return { valid: true, errors: same ? [] : [STALE_LOCK], lock: result.lock, text: result.text };
+  } catch (e) { return { valid: false, errors: [(e as Error).message], lock: null, text: null }; }
 }
 
 export const STALE_LOCK = "The lock file is missing, behind the preset, or written by another engine version; this engine judges from the preset. pregate preset compile refreshes the file.";
