@@ -12,7 +12,9 @@ import { removeTree } from "./remove-tree.ts";
 // harness shell and a `!` line. The hook is asked first and does not itself apply the contract.
 // The binary sits at <data>/pregate/<version>/pregate. The engine protects the folder two levels
 // above itself, so a binary next to the fixture would protect the fixture.
-const area = mkdtempSync(join(tmpdir(), "pregate-in-harness-"));
+// Canonical, as a harness reports its working directory: a pending review is keyed by the real
+// path, and the macOS temporary folder is a symbolic link.
+const area = canonical(mkdtempSync(join(tmpdir(), "pregate-in-harness-")));
 const data = join(area, "data");
 const binary = join(data, "pregate", VERSIONS.engine, ENGINE_FILE);
 const HARNESSES = ["claude-code", "codex", "cursor", "grok", "agy", "opencode"] as const;

@@ -392,9 +392,9 @@ test("mixed enforcement keeps syntax failures for check only for the applicable 
   expect(blocking(contract, [], "syntax", { rel: null, phase: "pre" }).cause).toBeNull();
   const form = { cause: "syntax" as const, line: 1 };
   for (const event of ["pre-edit", "stop"] as const) {
-    for (const path of ["src/domain/price.py", "src/infra/store.py"]) {
-      expect(decide(input({ lock: contract, path, event, form }))).toMatchObject({ verdict: "none", halt: false, cause: "syntax", shadowed: true, full: "" });
-    }
+    // Shadow observes in silence, except where the parse failure hides the file from an enforced rule.
+    expect(decide(input({ lock: contract, path: "src/domain/price.py", event, form }))).toMatchObject({ verdict: "none", halt: false, cause: "syntax", shadowed: true, compact: expect.stringMatching(/^PREGATE WARN syntax src\/domain\/price\.py:1: /) });
+    expect(decide(input({ lock: contract, path: "src/infra/store.py", event, form }))).toMatchObject({ verdict: "none", halt: false, cause: "syntax", shadowed: true, full: "" });
     expect(decide(input({ lock: { ...contract, enforcement: "advisor" }, path: "src/domain/price.py", event, form })))
       .toMatchObject({ verdict: "none", halt: false, cause: "syntax", compact: expect.stringMatching(/^PREGATE WARN syntax src\/domain\/price\.py:1: /) });
   }

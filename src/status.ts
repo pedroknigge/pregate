@@ -283,7 +283,7 @@ function notEnforced(where: string): string {
 // the next step. Counts by channel, catalog size and harness detail are in --verbose.
 function briefStatus(s: Status): string[] {
   if (s.root === null) return ["Pregate is not set up in this directory.", "Next: pregate enable. It proposes an advisor contract; nothing blocks."];
-  if (!s.consent) return [`Pregate is off in ${s.root}${s.disabled ? ` (disabled for ${disabledLabel(s.root)})` : ""}. Nothing is checked or blocked.`, ...consentLostLine(s), "Next: pregate enable."];
+  if (!s.consent) return [`Pregate is off in ${s.root}${s.disabled ? `: disabled for ${disabledLabel(s.root)}` : ""}. Nothing is checked or blocked.`, ...consentLostLine(s), "Next: pregate enable."];
   const b = breakdown(s);
   const reason = attention(s);
   return [

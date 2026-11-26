@@ -189,10 +189,13 @@ test("explicit static enforcement keeps syntax strict in check; Pre and Stop rec
   await onSessionStart({ kind: "session-start", session: s, cwd: root });
   const invalid = "export const broken = ;\n";
   const edit = (rel: string): ProposedChange => ({ session: s, callId: rel, from: null, path: join(root, rel), tool: "Write", edit: { form: "full", content: invalid } });
-  // Shadow says nothing: the cause is recorded, and the call passes.
+  // The call passes and the cause is recorded. Shadow says nothing, except where the parse failure
+  // hides the file from the rule this project enforces.
   for (const rel of ["src/domain/a.ts", "src/infra/unrelated.ts"]) {
     const pre = await onPreEdit([edit(rel)]);
-    expect(pre).toMatchObject({ verdict: "none", halt: false, cause: "syntax", full: "" });
+    expect(pre).toMatchObject({ verdict: "none", halt: false, cause: "syntax" });
+    if (rel === "src/domain/a.ts") expect(pre.compact).toStartWith("PREGATE WARN syntax src/domain/a.ts");
+    else expect(pre.full).toBe("");
     expect(events(s, join(root, rel)).at(-1)).toMatchObject({ verdict: "none", form: "syntax" });
   }
   expect((await check(root, { kind: "stdin", path: "src/domain/a.ts", text: invalid })).code).toBe(1);

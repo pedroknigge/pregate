@@ -350,8 +350,8 @@ function stopScope(sid: string, session: Session): StopScope {
 
 function stopRoot(sid: string, root: string, scope: StopScope): RootResult {
   const none: RootResult = { root, rel: null, lock: null, lockHash: null, form: null, introduced: [], approved: [] };
-  const snap = state.snapshot(sid, root);
-  if (snap === null || snap === "missing") return { ...none, form: form("snapshot-missing") };
+  const snap = state.ensureSnapshot(sid, root, null);
+  if (isCause(snap)) return { ...none, form: form(snap) };
   const loaded = verify(sid, root, lockOf(root));
   if (isCause(loaded)) return { ...none, form: form(loaded) };
   // Project fitness belongs to the turn, not to one subagent's files.

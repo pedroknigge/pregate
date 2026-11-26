@@ -628,7 +628,11 @@ test("timeouts, source mutation and contract mutation during a verifier cannot p
     if (reason === "inputs changed" && code!.includes("p.name")) {
       expect(result.text).toContain("UNVERIFIED");
       expect(result.text).toContain("Contract or project inputs changed");
-      expect(run("fitness", "status").text).toContain("lock-stale");
+      // The changed preset is judged as it now is (the lock is rebuilt from it): no evidence carries over.
+      const status = run("fitness", "status");
+      expect(status.code).toBe(1);
+      expect(status.text).toContain("0 adopted assertions passing");
+      expect(status.text).toContain("core/CORE-INV-001: UNVERIFIED");
     }
     else {
       const status = JSON.parse(run("fitness", "status", "--json").text).requirements[0];

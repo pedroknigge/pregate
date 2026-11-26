@@ -136,7 +136,7 @@ function approvalCommandAsk(c: ProposedCommand, decision: Decision): Decision {
   if (!enforcedHere(c.cwd)) return decision;
   if (decision.verdict !== "none" || (!claudeNativeAsk(c.session) && !agyNativeAsk(c.session))) return decision;
   const reviews = directApprovalArgv(c.command).flatMap((argv) => {
-    const review = approvalAskReview(c.cwd, argv);
+    const review = approvalAskReview(canonical(c.cwd), argv);
     return review === null ? [] : [review];
   });
   if (reviews.length === 0) return decision;

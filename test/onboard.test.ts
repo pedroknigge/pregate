@@ -342,21 +342,21 @@ test("explicit init writes a versioned shadow contract and activates local conse
   expect(preset.sources[0].version).toBe(VERSIONS.core);
   expect(preset.enforcement).toBe("shadow");
   expect(cli(root, "--version").stdout.toString()).toBe(`pregate ${VERSIONS.engine} (core ${VERSIONS.core})\n`);
-  expect(cli(root, "status").stdout.toString()).toContain("is active");
+  expect(cli(root, "status").stdout.toString()).toMatch(/^Pregate is on in [^\n]+: shadow mode\. /);
 }));
 
 test("disabling consent requires explicit approval and makes the project inactive", () => inPreviewProject(({ root, cli }) => {
   expect(cli(root, "init", "--yes", "--preset", "legacy-safe").exitCode).toBe(0);
   expect(cli(root, "disable").exitCode).toBe(1);
   expect(cli(root, "disable", "--yes").exitCode).toBe(0);
-  expect(cli(root, "status").stdout.toString()).toContain("is inactive");
+  expect(cli(root, "status").stdout.toString()).toMatch(/^Pregate is off in [^\n]+\. Nothing is checked or blocked\.\n/);
 }));
 
 test("explicit approval can reactivate a disabled project", () => inPreviewProject(({ root, cli }) => {
   expect(cli(root, "init", "--yes", "--preset", "legacy-safe").exitCode).toBe(0);
   expect(cli(root, "disable", "--yes").exitCode).toBe(0);
   expect(cli(root, "enable", "--yes").exitCode).toBe(0);
-  expect(cli(root, "status").stdout.toString()).toContain("is active");
+  expect(cli(root, "status").stdout.toString()).toMatch(/^Pregate is on in [^\n]+: shadow mode\. /);
 }));
 
 test("repeated init preserves the existing contract and rejects a different preset", () => inPreviewProject(({ root, cli }) => {
@@ -414,7 +414,7 @@ test("init, enable and status succeed in a plain directory without git", () => i
   expect(initRes.exitCode).toBe(0);
   expect(existsSync(join(root, ".pregate/preset.json"))).toBe(true);
   expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(true);
-  expect(cli("status").stdout.toString()).toContain("is active");
+  expect(cli("status").stdout.toString()).toMatch(/^Pregate is on in [^\n]+: shadow mode\. /);
 }));
 
 function previewProject() {
@@ -497,7 +497,7 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("request p
   expect(readProposal(canonical(root), join(env.XDG_DATA_HOME!, "pregate"))).toEqual(pending);
 }), 20_000);
 
-test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial review allows the exact approval command in %s and a missing launcher still grants nothing", (h) => inPreviewProject(({ dir, root, cli, env }) => {
+test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial review allows the exact approval command in %s and a missing engine or launcher passes the call but grants nothing", (h) => inPreviewProject(({ dir, root, cli, env }) => {
   const setup = cli(root, "setup");
   if (setup.exitCode !== 0) throw new Error(setup.stdout.toString() + setup.stderr.toString());
   const preview = cli(root, "init", "--preview", "--preset", "legacy-safe");
@@ -526,27 +526,42 @@ test.each(["claude-code", "codex", "cursor", "grok", "agy"] as const)("initial r
       expect(JSON.parse(allowed.stdout.toString()).permission).toBe("allow");
     }
     const malformed = run(argv, "{invalid");
-    expect(malformed.stdout.toString() + malformed.stderr.toString()).toContain("payload-unrecognized");
+    // A payload the engine cannot read is not blocked. Cursor's native allow and agy's neutral
+    // answer have no channel for a note on an allowed call; the other harnesses say it once.
+    const said = malformed.stdout.toString() + malformed.stderr.toString();
+    expect(malformed.exitCode, said).toBe(0);
+    expect(said).not.toContain("DENY");
+    if (h === "cursor") expect(JSON.parse(malformed.stdout.toString()).permission).toBe("allow");
+    else if (h === "agy") expect(said).toBe("");
+    else {
+      expect(said).toContain("PREGATE NOTE payload-unrecognized");
+      expect(said).toContain("Not blocked.");
+    }
   }
   expect(existsSync(join(data, "consent"))).toBe(false);
-  // A missing engine and then a missing launcher must not turn this review into permission.
+  // A missing engine and then a missing launcher let the call through (no preset says
+  // "uncertainty": "closed"), and that pass must not turn this review into permission.
   // The engine just ran, so Windows may still have it open; a lock that lasts is still a failure.
   removeReleased(join(data, pkg.version, ENGINE_FILE));
   expect(existsSync(join(data, pkg.version, ENGINE_FILE))).toBe(false);
   const failed = run([binary, "--supervise", data, pkg.version, ...args]);
-  expect(failed.stdout.toString() + failed.stderr.toString()).toContain("could not evaluate");
+  expect(failed.exitCode).toBe(0);
+  expect(failed.stderr.toString()).toMatch(/^PREGATE NOTE engine-failure: [^\n]+ This call was not checked\. Not blocked\.\n$/);
+  if (h === "cursor") expect(JSON.parse(failed.stdout.toString()).permission).toBe("allow");
+  else expect(failed.stdout.toString()).toBe("");
   const launcher = join(data, "bin", process.platform === "win32" ? "launcher.ps1" : "pregate");
   if (process.platform !== "win32") {
     const failedLauncher = run(["/bin/sh", launcher, ...args]);
-    expect(failedLauncher.exitCode).toBe(2);
-    expect(failedLauncher.stderr.toString()).toContain("could not evaluate");
+    expect(failedLauncher.exitCode).toBe(0);
+    expect(failedLauncher.stdout.toString() + failedLauncher.stderr.toString()).not.toContain("DENY");
+    if (h === "cursor") expect(JSON.parse(failedLauncher.stdout.toString()).permission).toBe("allow");
   }
   rmSync(launcher);
   const shells = process.platform === "win32" ? [["cmd.exe", "/d", "/s", "/c"]] : [["/bin/sh", "-c"], ["/bin/zsh", "-c"]];
   for (const shell of shells) {
     const fallback = run([...shell, hookCommand(data, "pre", h)]);
-    expect(fallback.exitCode).toBe(2);
-    expect(fallback.stderr.toString()).toMatch(/^PREGATE could not evaluate: [^\n]+\n$/);
+    expect(fallback.exitCode).toBe(0);
+    expect(fallback.stderr.toString()).toBe("");
   }
   expect(existsSync(join(root, ".pregate/preset.json"))).toBe(false);
   expect(existsSync(join(root, ".pregate/pregate.lock.json"))).toBe(false);
@@ -601,15 +616,25 @@ test("a stale initial proposal can be replaced after restoring its baseline", ()
   expect(existsSync(join(root, ".pregate/preset.json"))).toBe(true);
 }), 15_000); // Four compiled CLI calls share this scenario budget; product deadlines are unchanged.
 
-test("repeated init preserves explicit disable and refuses an invalid existing lock", () => inPreviewProject(({ root, cli }) => {
+test("repeated init preserves explicit disable, leaves a lock file behind the preset as it is, and refuses a preset that does not compile", () => inPreviewProject(({ root, cli }) => {
   expect(cli(root, "init", "--yes", "--preset", "legacy-safe").exitCode).toBe(0);
   const original = readFileSync(join(root, ".pregate/preset.json"), "utf8");
   expect(cli(root, "disable", "--yes").exitCode).toBe(0);
   expect(cli(join(root, "src"), "init", "--yes").exitCode).toBe(0);
   expect(readFileSync(join(root, ".pregate/preset.json"), "utf8")).toBe(original);
-  expect(cli(root, "status").stdout.toString()).toContain("is inactive");
+  expect(cli(root, "status").stdout.toString()).toMatch(/^Pregate is off in [^\n]+\. Nothing is checked or blocked\.\n/);
   writeFileSync(join(root, ".pregate/pregate.lock.json"), "{}\n");
+  // A lock file that is not the preset's compile is not a broken contract: the engine judges from the preset.
+  const again = cli(root, "init");
+  expect(again.exitCode).toBe(0);
+  expect(again.stdout.toString()).toStartWith("Existing project left unchanged.\n");
+  expect(readFileSync(join(root, ".pregate/pregate.lock.json"), "utf8")).toBe("{}\n");
+  expect(readFileSync(join(root, ".pregate/preset.json"), "utf8")).toBe(original);
+  // A preset that does not compile is one, and init still refuses it without touching either file.
+  const broken = JSON.stringify({ ...JSON.parse(original), enforcement: "silent" });
+  writeFileSync(join(root, ".pregate/preset.json"), broken);
   expect(cli(root, "init").exitCode).toBe(1);
+  expect(readFileSync(join(root, ".pregate/preset.json"), "utf8")).toBe(broken);
   expect(readFileSync(join(root, ".pregate/pregate.lock.json"), "utf8")).toBe("{}\n");
 }));
 

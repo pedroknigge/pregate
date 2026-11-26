@@ -304,21 +304,27 @@ test("one batch code from the multi-project preview approves every project from 
   expect(again.text).toContain("No pending project review or batch review matches");
 });
 
-test("project update names sibling worktrees that pin another engine, with the exact review command", () => {
+test("project update asks nothing for a sibling worktree whose lock another engine wrote", () => {
   const p = project("worktree-main");
   const git = (...args: string[]) => expect(Bun.spawnSync(["git", "-c", "user.name=W", "-c", "user.email=w@example.com", "-c", "commit.gpgsign=false", ...args],
     { cwd: p.root, stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
   git("init", "-q");
   git("add", ".");
-  git("commit", "-qm", "contract");
+  // init commits the contract itself where Git has an identity; either way the worktree needs it committed.
+  git("commit", "--allow-empty", "-qm", "contract");
   const sibling = join(area, "worktree-sibling");
   git("worktree", "add", "-q", sibling);
-  expect(p.cli(["update", "--project", "--preview"]).text).not.toContain("Other worktrees");
+  const current = p.cli(["update", "--project", "--preview"]);
+  expect(current.code, current.text).toBe(0);
   const lock = JSON.parse(readFileSync(join(sibling, ".pregate/pregate.lock.json"), "utf8"));
   writeFileSync(join(sibling, ".pregate/pregate.lock.json"), JSON.stringify({ ...lock, engine: "0.0.0" }));
+  // Any engine reads any lock, so the sibling needs no step and the update of this project is the same.
   const preview = p.cli(["update", "--project", "--preview"]);
-  expect(preview.text).toContain(`Other worktrees of this repository pin another engine: ${slash(realpathSync(sibling))}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${commandPath(sibling)} --preview`);
+  expect(preview.code, preview.text).toBe(0);
+  expect(preview.text).toBe(current.text);
+  expect(preview.text).not.toContain("Other worktrees");
+  expect(preview.text).not.toContain("Review them together");
+  expect(preview.text).not.toContain(slash(realpathSync(sibling)));
 });
 
 test("multi-project --yes applies and commits each prepared project; --no-commit leaves the files uncommitted", () => {
@@ -362,18 +368,23 @@ test("multi-project --yes applies and commits each prepared project; --no-commit
   expect(current.text).toContain("All 2 projects are current. No project contracts changed.");
 });
 
-test("a single-project update preview names other registered projects that pin older engines", () => {
+test("a single-project update preview asks nothing for other registered projects whose locks other engines wrote", () => {
   const main = project("registry main");
   const other = project("registry other");
   const newer = project("registry newer");
+  const current = main.cli(["update", "--project", "--preview"]);
+  expect(current.code, current.text).toBe(0);
   for (const [p, engine] of [[other, "0.0.0"], [newer, "99.0.0"]] as const) {
     const path = join(p.root, ".pregate/pregate.lock.json");
     writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), engine }));
     expect(p.cli(["enable", "--yes"], main.env).code).toBe(0);
   }
   const preview = main.cli(["update", "--project", "--preview"]);
-  expect(preview.text).toContain(`1 other registered projects pin older engines: ${slash(realpathSync(other.root))}.`);
-  expect(preview.text).toContain(`Review them together: pregate update --projects ${JSON.stringify(slash(realpathSync(other.root)))} --preview`);
+  expect(preview.code, preview.text).toBe(0);
+  expect(preview.text).toBe(current.text);
+  expect(preview.text).not.toContain("pin older engines");
+  expect(preview.text).not.toContain("Review them together");
+  expect(preview.text).not.toContain("registry other");
   expect(preview.text).not.toContain("registry newer");
 });
 
@@ -452,7 +463,7 @@ test("project update rejects an unknown pack, unrelated malformed config and sta
   }
 });
 
-test("compiled agy recovery reaches the current engine with a redirecting lock and never activates it", () => {
+test("compiled agy recovery is answered by the current engine when the lock names another one, and never changes the contract", () => {
   const p = project("agy-old-lock");
   const preset = JSON.parse(p.contract()[0]!);
   const lock = JSON.parse(p.contract()[1]!);
@@ -478,8 +489,18 @@ test("compiled agy recovery reaches the current engine with a redirecting lock a
     expect(out.stdout.toString()).toBe("");
     expect(p.contract()).toEqual(before);
   }
-  expect(hook("pregate approve --yes").exitCode).toBe(3);
-  expect(hook("pregate check --all").exitCode).toBe(3);
+  // No call is handed to the engine the lock names: this engine answers each one from the preset.
+  for (const command of ["pregate approve --yes", "pregate check --all"]) {
+    const out = hook(command);
+    expect(out.exitCode, out.stderr.toString()).toBe(0);
+    expect(out.stdout.toString()).toBe("");
+    expect(p.contract()).toEqual(before);
+  }
+  // It still refuses what only the user runs.
+  const refused = hook("pregate disable --yes");
+  expect(refused.exitCode, refused.stderr.toString()).toBe(0);
+  expect(JSON.parse(refused.stdout.toString())).toMatchObject({ decision: "deny", reason: expect.stringContaining("PREGATE DENY shell-admin") });
+  expect(p.contract()).toEqual(before);
   for (const args of [["update", "--help", "--yes"], ["pack", "update", "--help", "--yes"], ["unknown", "--help"]]) {
     expect(p.cli(args).code).toBe(1);
     expect(p.contract()).toEqual(before);

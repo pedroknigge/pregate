@@ -223,7 +223,7 @@ fail_closed() {
   if uncertainty_open "${active_dir:-$PWD}"; then
     # Cursor native preToolUse treats empty stdout as a failure when failClosed is set.
     [ "$event" = pre ] && [ "$hook_harness" = cursor ] && printf '%s\n' '{"permission":"allow"}'
-    printf '%s\n' "PREGATE NOTE engine-failure: ${1:-the engine did not answer}. This call was not checked. Not blocked." >&2
+    printf '%s\n' "PREGATE NOTE engine-failure: ${1:-the engine did not answer}. This call was not checked. Not blocked." >&4
     exit 0
   fi
   hint=${3:-"Check the installation (pregate doctor)."}

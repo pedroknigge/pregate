@@ -32,6 +32,7 @@ type Attempt = Pick<CallEvent, "astHash" | "violations">;
 interface Sorted {
   form: Form | null; block: Violation[]; advised: Violation[]; warnings: Violation[];
   muted: Violation[]; mutedForm: Form | null;    // what shadow kept from blocking
+  say: boolean;                                  // the muted cause is told: false only where shadow observes in silence
 }
 
 export function decide(i: DecideInput): Decision {
@@ -50,7 +51,7 @@ export function decide(i: DecideInput): Decision {
 // A cause this agent already met on this path is not repeated.
 function withHeldAdvisory(i: DecideInput, s: Sorted, d: Decision): Decision {
   const held = s.mutedForm;
-  if (s.form !== null || held === null || i.lock?.enforcement === "shadow") return d;
+  if (s.form !== null || held === null || !s.say) return d;
   const warning = held.cause === "syntax" ? syntaxAdvisory(held, i.path)
     : held.cause === "unresolvable-import" ? unresolvedAdvisory(held, i.path) : notedText(held, i.path);
   // Before a call the history is this file's. A Stop's history is the session's earlier Stops, so
@@ -115,7 +116,7 @@ function enforced(lock: Lock): (v: Violation) => boolean {
 
 function classify(i: DecideInput): Sorted {
   const control = i.form !== null && CONTROL.has(i.form.cause);
-  if (i.lock === null) return { form: control ? i.form : null, block: [], advised: [], warnings: [], muted: [], mutedForm: control ? null : i.form };
+  if (i.lock === null) return { form: control ? i.form : null, block: [], advised: [], warnings: [], muted: [], mutedForm: control ? null : i.form, say: true };
   const policies = ruleEnforcements(i.lock);
   const policyOf = (v: Violation) => policies[v.rule] ?? i.lock!.enforcement;
   const b = blocking(i.lock, i.introduced, i.form?.cause ?? null, { rel: i.path, phase: i.event === "stop" ? "stop" : "pre" });
@@ -126,6 +127,8 @@ function classify(i: DecideInput): Sorted {
     warnings: i.introduced.filter((v) => v.severity === "warn" && policyOf(v) === "enforce"),
     muted: i.introduced.filter((v) => v.severity !== "warn" && policyOf(v) === "shadow"),
     mutedForm: b.cause !== null && control ? null : i.form,
+    // Shadow observes in silence, except a parse failure that hides a file from a rule the project enforces.
+    say: i.lock.enforcement !== "shadow" || b.cause === "syntax",
   };
 }
 
