@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": { "package": "@trpc/server", "introduced": "11.0.0", "fixed": "11.29.11" },
+  "target": "yarn.lock",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [{ "line": 2 }]
+  }
+}

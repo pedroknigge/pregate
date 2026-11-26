@@ -1,0 +1,6 @@
+@trpc/server@^11.29.10:
+  version "11.29.10"
+  resolved "https://registry.npmjs.org/@trpc/server/-/server-11.29.10.tgz"
+
+@trpc/client@^11.29.10:
+  version "11.29.10"
