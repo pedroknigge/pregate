@@ -82,15 +82,15 @@ This document integrates the complete 113 invariant rules converted from Lauren 
 57. **Visual parity** claims pixel-exact equivalence only after both implementations have been compared.
 58. **Authoring a skill** produces a `SKILL.md` whose trigger, steps, and exit criteria a later agent can follow.
 59. **Eval** tests a skill or prompt change with a blinded comparison.
-60. **Babysit** drives a PR or a stack to merge-ready: conflicts, review threads, and CI are closed or deferred.
+60. **Babysit** declares a mode and clears one PR at a time: drive loops to merge-ready in the order conflicts, review threads, then CI, and a conflict is reported and the run stops.
 61. **Shipping** independently verifies a green stack, then lands the contiguous verified run bottom-up.
 62. **Autonomous run** drives a long task to completion without stopping for reversible choices.
-63. **Orchestrate** assigns a multi-day project to one coordinator.
+63. **Program-scale work** routes large, cross-cutting, or unattended work to figure-it-out.
 64. **Autopilot full** runs independent PRs to merged with one owner per PR.
 65. **Autopilot stack** builds and verifies one linear stack for the operator to review and land.
 66. **Session pickup** resumes in-flight work from the recorded state, not from a reconstructed guess.
 67. **Pause safely** suspends in-flight work so a later session can resume it.
-68. **Multi-phase plan** names phases, the verifiable exit of each phase, and the order.
+68. **Multi-phase plan** names the PRs in landing order and the unit, live, and perf check that verifies each one.
 69. **Worktree cleanup** leaves no orphan worktree whose branch is unrecorded.
 70. **Opening a PR** states the problem, the change, and the proof.
 

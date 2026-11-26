@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **process**.
+Version: `1.2.1`. Category: **process**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -1529,7 +1529,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-60`. Minimum severity: `deny`.
 
-Babysit drives a PR or a stack to merge-ready: conflicts, review threads, and CI are closed or deferred.
+Babysit declares a mode and clears one PR at a time: drive loops to merge-ready in the order conflicts, review threads, then CI, and a conflict is reported and the run stops.
 
 Default parameters: `{"verifier":"PS-60"}`.
 
@@ -1554,7 +1554,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:85; PS-60",
-  "paraphrase": "Babysit drives a PR or a stack to merge-ready: conflicts, review threads, and CI are closed or deferred."
+  "paraphrase": "Babysit declares a mode and clears one PR at a time: drive loops to merge-ready in the order conflicts, review threads, then CI, and a conflict is reported and the run stops."
 }
 ```
 
@@ -1640,7 +1640,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-63`. Minimum severity: `deny`.
 
-Orchestrate assigns a multi-day project to one coordinator.
+Program-scale work routes large, cross-cutting, or unattended work to figure-it-out.
 
 Default parameters: `{"verifier":"PS-63"}`.
 
@@ -1665,7 +1665,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:88; PS-63",
-  "paraphrase": "Orchestrate assigns a multi-day project to one coordinator."
+  "paraphrase": "Program-scale work routes large, cross-cutting, or unattended work to figure-it-out."
 }
 ```
 
@@ -1825,7 +1825,7 @@ Implementation: `fitness`. Phases: `stop`, `commit`, `ci`.
 
 Languages: language-independent project verification. Cardinality: `singleton`. Dimension: `pstack.ps-68`. Minimum severity: `deny`.
 
-Multi-phase plan names phases, the verifiable exit of each phase, and the order.
+Multi-phase plan names the PRs in landing order and the unit, live, and perf check that verifies each one.
 
 Default parameters: `{"verifier":"PS-68"}`.
 
@@ -1850,7 +1850,7 @@ Source metadata:
 {
   "work": "User-requested pstack and installed-workflow invariant catalog",
   "locator": "packs/pstack/INVARIANTS.md:93; PS-68",
-  "paraphrase": "Multi-phase plan names phases, the verifiable exit of each phase, and the order."
+  "paraphrase": "Multi-phase plan names the PRs in landing order and the unit, live, and perf check that verifies each one."
 }
 ```
 
