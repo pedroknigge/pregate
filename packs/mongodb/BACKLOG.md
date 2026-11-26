@@ -23,7 +23,7 @@ plausible evasions are backlog cases, not pass fixtures or claimed trap coverage
 | MONGO-UPDATE-001 | `const patch = { name }; users.updateOne(filter, patch)`, or a collection received as a function parameter (`(users: Collection) => users.updateOne(f, { name })`). | Same-file value evaluation and parameter types; only inline update objects on visible `.collection` receivers are read. |
 | MONGO-OIDC-001 | `new MongoClient(process.env.MONGODB_URI, { authMechanismProperties: { OIDC_CALLBACK } })` when the URI is not a literal. The driver still reads `ENVIRONMENT` from that string. | The connection string's value. `MONGO-OIDC-002` still warns when the driver pin is inside the vulnerable range. |
 | MONGO-OIDC-001 | `ENVIRONMENT` on one statement and the callback on a later call, or `mongoose.connect` forwarding the same options. | Cross-statement binding. The rule names `MongoClient` and `MongoClient.connect`. |
-| MONGO-OIDC-002 | A spec the parser cannot read (`*`, `latest`, a git URL) and a lock version that is not a numeric triple. | The pin has to be a readable range or a resolved version. |
+| MONGO-OIDC-002 | A spec the parser cannot read (`*`, `latest`, a git URL), a lock version that is not a numeric triple, and a pin entirely below 6.7.0. CVE-2026-129930 starts at 4.0.0 and CVE-2026-129929 affects every release before 7.9.1, so those older pins stay quiet. | The pin has to be a readable range or a resolved version inside >=6.7.0 and <7.9.1. |
 | MONGO-INDEX-001 | `dropIndexes` throwing or swallowing `NamespaceNotFound` is runtime behavior, not a call shape. | Documented from the 7.9.0 notes. The rule still denies in-app index builds. |
 
 ## Server-side candidates (need a non-TS pack or human review)
