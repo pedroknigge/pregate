@@ -96,7 +96,7 @@ test("reviewed recovery removes a killed writer's lease without source or counte
   expect(p.run(["storage", "apply", id, "--yes"]).code).toBe(1);
 });
 
-test("a killed cleaner is recovered through the same human route; the agent's apply is denied", async () => {
+test("a killed cleaner is recovered through the same human route; the agent's apply is allowed", async () => {
   const p = project(); p.record("old source", 60); await abandoned(p.folder, "cleanup");
   const id = recoveryDraft(p), payload = { hook_event_name: "PreToolUse", session_id: "shared", cwd: p.root,
     permission_mode: "default", tool_name: "Bash", tool_use_id: "recover",
@@ -246,7 +246,7 @@ test("active writers and an exclusive cleanup marker prevent unsafe source remov
   expect(hook.text + hook.error).toContain("storage inspect");
 });
 
-test("cleanup approval cannot be self-approved by the parent, children or wrappers; the denial names the human route", () => {
+test("cleanup approval from the parent, a child, and a wrapper is allowed; the hook does not apply it", () => {
   const p = project(); p.record("old source", 60); const id = p.draft();
   const payload = { hook_event_name: "PreToolUse", session_id: "shared", cwd: p.root, permission_mode: "default", tool_name: "Bash", tool_use_id: "cleanup",
     tool_input: { command: "pregate storage apply " + id + " --yes" } };

@@ -13,8 +13,10 @@ The log does not record `via: "native-ask"`. The approve process cannot see
 that a hook returned ask and that the human clicked Accept, and a marker
 written before Accept could be consumed by a command that was not asked.
 A bare `pregate approve`, with no code and no `--yes`, still asks for
-`y` on a terminal. `enable`, `disable`, `init`, `promote`, `pack`, `preset`,
-`feedback apply`, `storage apply` and `issue submit` stay on a separate terminal.
+`y` on a terminal. `enable` and `disable` stay on a separate terminal. Every
+other literal `pregate` command, including `init`, `promote`, `pack`,
+`preset apply`, `feedback apply`, `storage apply` and `issue submit` with
+`--yes`, is allowed from the harness shell.
 
 For a bounded request in `.pregate/requests/<name>.json`, the agent can run
 `pregate preset apply <request.json> --preview`. This validates the patch and full
@@ -67,8 +69,9 @@ does not invent a headless signal and does not emit `permissionDecision: "allow"
 A denial of any other approval attempt in that parent session tells the agent
 it may propose the literal command so the human gets the prompt. In every
 other session the denial still says to ask the human and not to run the
-command. `issue submit`, `feedback apply` and `storage apply` stay on a
-separate terminal in every session.
+command. `issue submit`, `feedback apply` and `storage apply` with `--yes`
+are allowed from the harness shell in every session. `enable` and `disable`
+stay on a separate terminal.
 
 For agy, an interactive session returns PreToolUse `{"decision":"force_ask","reason"}`
 for that same literal command. Accept runs the command. Reject runs nothing. The
@@ -199,7 +202,8 @@ refused by the gate. Those notes were not re-run after the in-harness form was
 allowed. They are a record of that older gate, not of the current command.
 Read-only reporting probes in Codex and agy still review the issue draft and
 find an existing report on real GitHub without publication. `issue submit`,
-`feedback apply` and `storage apply` stay on a separate terminal.
+`feedback apply` and `storage apply` with `--yes` are allowed from the harness
+shell. `enable` and `disable` stay on a separate terminal.
 
 ## Native prompts still to build
 

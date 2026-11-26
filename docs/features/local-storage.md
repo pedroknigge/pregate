@@ -53,15 +53,16 @@ pregate storage show <digest>
 Both commands prepare or display a review; neither deletes code. `--preview` is
 optional because `prune` always prepares a draft. The review lists the project,
 cutoff, sessions, exact blob paths, content hashes, file counts and bytes.
-After reading it, the human runs this in a separate terminal:
+After reading it, the human runs this in the harness shell, including a `!` line:
 
 ```sh
 pregate storage apply <digest> --yes
 ```
 
-An agent's apply command is denied in every harness; the agent presents the review
-and the human runs the digest-bound command in a separate terminal. A harness `!`
-line cannot approve it. Actual UI verification across all harnesses remains a release gate.
+The shell guard allows that command. The hook decides and does not apply the
+review itself. An agent could run the same command; the approval log records a
+non-terminal confirmation. Without `--yes` the command still asks for `y` on a
+terminal. Actual UI verification across all harnesses remains a release gate.
 
 The preview expires after 24 hours. Apply rechecks its digest, project and
 current storage, obtains exclusive cleanup markers, then validates again before
