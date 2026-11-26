@@ -281,9 +281,9 @@ const NOTE_EN: Partial<Record<Cause, string>> = {
   "version-mismatch": "the lock was written by another PREGATE version, so this call was not checked. `pregate update` installs the newest engine.",
   "snapshot-missing": "this session has no starting snapshot here, so this call was not checked.",
   "state-io": "PREGATE state is busy or unwritable, so this call was not checked. `pregate doctor` explains.",
-  "git-missing": "git is not on PATH, so this call was not checked.",
-  "git-not-repository": "this directory is not a Git repository, so this call was not checked.",
-  "git-error": "git returned an error, so this call was not checked.",
+  "git-missing": "git is not on PATH, so this call was not checked. Install Git and open a new terminal.",
+  "git-not-repository": "this directory is not a Git repository, so this call was not checked. Run `git init` here, or restore the removed .git folder.",
+  "git-error": "git returned an error, so this call was not checked. `git status` here shows it.",
   "regex-limit": "a rule regex hit its backtracking limit on this file, so that rule was not checked.",
   "contract-loosened": "the contract here enforces less than at session start. Nothing is blocked locally; the pull request review and `pregate check --ratchet` in CI decide.",
 };
