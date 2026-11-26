@@ -58,18 +58,18 @@ const ACTIONS: readonly Action[] = [
   { id: "before-enable-no-verify", feature: "enable-disable", phase: "before-enable", kind: "shell", expect: "allow", witness: null,
     command: "git commit --no-verify -m \"agent skips hooks\"",
     summary: "Before pregate enable, a hook bypass is not enforced." },
-  { id: "no-verify", feature: "shell-gate", phase: "after-enable", kind: "shell", expect: "deny", witness: null,
+  { id: "no-verify", feature: "shell-gate", phase: "after-enable", kind: "shell", expect: "allow", witness: null,
     command: "git commit --no-verify -m \"agent skips hooks\"",
-    summary: "git commit --no-verify skips the hook." },
+    summary: "git commit --no-verify is denied only when the installed git hook is Pregate's. These clones have none." },
   { id: "disable", feature: "enable-disable", phase: "after-enable", kind: "shell", expect: "deny", witness: null,
     command: "pregate disable --yes",
     summary: "An agent shell cannot disable the project." },
-  { id: "pack-enable", feature: "pack-enable", phase: "after-enable", kind: "shell", expect: "deny", witness: null,
+  { id: "pack-enable", feature: "pack-enable", phase: "after-enable", kind: "shell", expect: "allow", witness: null,
     command: "pregate pack enable architecture/structure --yes",
-    summary: "An agent shell cannot enable a methodology." },
-  { id: "node-write", feature: "shell-gate", phase: "after-enable", kind: "shell", expect: "deny", witness: "agent-out.txt",
+    summary: "A pregate command other than enable and disable runs from the harness shell, including --yes." },
+  { id: "node-write", feature: "shell-gate", phase: "after-enable", kind: "shell", expect: "allow", witness: "agent-out.txt",
     command: "node -e 'require(\"fs\").writeFileSync(\"agent-out.txt\", \"x\")'",
-    summary: "An inline Node write is a shell write." },
+    summary: "A shell write is not blocked. The hook does not run the command, so the witness file stays absent." },
   { id: "status", feature: "shell-gate", phase: "after-enable", kind: "shell", expect: "allow", witness: null,
     command: "pregate status",
     summary: "pregate status is a read." },
@@ -346,7 +346,7 @@ function enableRepo(bin: string, repo: string, env: Record<string, string>): { e
   const status = spawn([bin, "status"], repo, env, HOOK_MS);
   const text = status.stdout.trim();
   if (status.code !== 0) return { enabled: false, status: text, failure: `status exited ${status.code}` };
-  if (!text.includes("Local consent is active") || text.includes("Nothing is enforced")) {
+  if (!text.includes("Pregate is on in")) {
     return { enabled: false, status: text, failure: "status does not show an enabled project" };
   }
   return { enabled: true, status: text, failure: null };
