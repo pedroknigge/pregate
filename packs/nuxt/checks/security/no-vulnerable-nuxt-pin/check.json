@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nuxt/security/no-vulnerable-nuxt-pin",
+  "version": "1.0.0",
+  "area": "security",
+  "cardinality": "singleton",
+  "dimension": "nuxt.security.pin",
+  "minSeverity": null,
+  "params": {
+    "package": {
+      "const": "nuxt"
+    },
+    "introduced": {
+      "const": "3.0.0"
+    },
+    "fixed": {
+      "const": "4.7.0"
+    }
+  },
+  "impl": {
+    "kind": "primitive",
+    "primitive": "dependency-pin"
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "nuxt is pinned below 4.7.0. Nuxt 3 has no patched line. Upgrade to nuxt >= 4.7.0. GHSA-jxc9-w3j6-pwp2, GHSA-vrh2-cfcx-c3fg, and GHSA-h5xj-x893-p5f7 are fixed only in 4.7.0."
+  }
+}

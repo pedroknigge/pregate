@@ -84,6 +84,15 @@
                         "required": ["dependencies", "version"],
                         "additionalProperties": false
                       },
+                      "until": {
+                        "type": "object",
+                        "properties": {
+                          "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
+                          "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+                        },
+                        "required": ["dependencies", "version"],
+                        "additionalProperties": false
+                      },
                       "when": {
                         "type": "object",
                         "properties": { "cacheComponents": { "enum": ["on", "off"] } },
@@ -106,6 +115,15 @@
                       "files": { "type": "array", "items": { "type": "string" } },
                       "ignores": { "type": "array", "items": { "type": "string" } },
                       "since": {
+                        "type": "object",
+                        "properties": {
+                          "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
+                          "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+                        },
+                        "required": ["dependencies", "version"],
+                        "additionalProperties": false
+                      },
+                      "until": {
                         "type": "object",
                         "properties": {
                           "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
@@ -144,6 +162,15 @@
                         "required": ["dependencies", "version"],
                         "additionalProperties": false
                       },
+                      "until": {
+                        "type": "object",
+                        "properties": {
+                          "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
+                          "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+                        },
+                        "required": ["dependencies", "version"],
+                        "additionalProperties": false
+                      },
                       "when": {
                         "type": "object",
                         "properties": { "cacheComponents": { "enum": ["on", "off"] } },
@@ -166,6 +193,15 @@
                       "files": { "type": "array", "items": { "type": "string" } },
                       "ignores": { "type": "array", "items": { "type": "string" } },
                       "since": {
+                        "type": "object",
+                        "properties": {
+                          "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
+                          "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+                        },
+                        "required": ["dependencies", "version"],
+                        "additionalProperties": false
+                      },
+                      "until": {
                         "type": "object",
                         "properties": {
                           "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
@@ -262,6 +298,15 @@
                         "files": { "type": "array", "items": { "type": "string" } },
                         "ignores": { "type": "array", "items": { "type": "string" } },
                         "since": {
+                          "type": "object",
+                          "properties": {
+                            "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },
+                            "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$" }
+                          },
+                          "required": ["dependencies", "version"],
+                          "additionalProperties": false
+                        },
+                        "until": {
                           "type": "object",
                           "properties": {
                             "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[^\\s]+$" }, "minItems": 1 },

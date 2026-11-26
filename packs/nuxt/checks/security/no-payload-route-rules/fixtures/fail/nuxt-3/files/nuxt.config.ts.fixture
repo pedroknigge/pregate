@@ -1,0 +1,8 @@
+export default defineNuxtConfig({
+  routeRules: {
+    '/**': { swr: 60 },
+    '/admin': { redirect: '/login' },
+    '/internal': { proxy: 'http://127.0.0.1:4180/gated', headers: { 'x-frame-options': 'DENY' } },
+    '/account': { isr: false },
+  },
+})

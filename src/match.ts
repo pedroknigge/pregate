@@ -25,7 +25,7 @@ type PNode = { var: MetaVar } | { leaf: string; named: boolean; kind: number } |
 interface Scope { grammar: Grammar; utils: Map<string, Test>; rawUtils: Record<string, unknown>; refs: string[]; vars: Set<string>; indexed: boolean }
 
 const RULE_KEYS = ["pattern", "kind", "regex", "nthChild", "all", "any", "not", "matches", "scope", "inside", "has", "precedes", "follows"];
-const CONFIG_KEYS = new Set(["id", "rule", "constraints", "utils", "files", "ignores", "since", "when"]);
+const CONFIG_KEYS = new Set(["id", "rule", "constraints", "utils", "files", "ignores", "since", "until", "when"]);
 // Escapes that mean the same in Rust's regex and in a JS RegExp without flags; anything else
 // (\A, \z, \p{…}, \x{…}, octal) would be read differently, so it is rejected instead.
 const SAME_ESCAPE = /^(?:[^0-9A-Za-z]|[dDwWsSbBnrtfv]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4})/;

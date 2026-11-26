@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { dependencySatisfies } from "../src/dependency-since.ts";
+import { dependencyBelow, dependencySatisfies } from "../src/dependency-since.ts";
 import type { Read } from "../src/types.ts";
 
 const since = { dependencies: ["@prisma/client", "prisma"], version: "7.0.0" };
@@ -47,6 +47,45 @@ test("a nested Prisma 6 package is not denied by a root Prisma 7 install", () =>
     "package.json": manifest("^6.19.0"),
     "packages/app/package.json": manifest("^7.0.0"),
   }), "packages/app/src/db.ts", since)).toBe(true);
+});
+
+const until = { dependencies: ["nuxt", "@nuxt/nitro-server"], version: "4.7.0" };
+const nuxt = (spec: string, field = "dependencies") => JSON.stringify({ [field]: { nuxt: spec } });
+
+test("a Nuxt pin below 4.7.0 applies and a pin at 4.7.0 stays quiet", () => {
+  const below = (spec: string) => dependencyBelow(read({ "package.json": nuxt(spec) }), "nuxt.config.ts", until);
+  expect(below("4.6.4")).toBe(true);
+  expect(below("^4.6.0")).toBe(true);
+  expect(below("3.16.2")).toBe(true);
+  expect(below("^3.13.0")).toBe(true);
+  expect(below(">=4.0.0")).toBe(true);
+  expect(below("<4.7.0")).toBe(true);
+  expect(below("4.6.4 || 4.8.0")).toBe(true);
+  expect(below("4.7.0")).toBe(false);
+  expect(below("^4.7.0")).toBe(false);
+  expect(below(">=4.7.0")).toBe(false);
+  expect(below("4.7.0 || 4.8.0")).toBe(false);
+  expect(below("latest")).toBe(false);
+  expect(below("*")).toBe(false);
+  expect(dependencyBelow(read({}), "nuxt.config.ts", until)).toBe(false);
+  expect(dependencyBelow(read({ "package.json": nuxt("4.6.4", "devDependencies") }), "nuxt.config.ts", until)).toBe(true);
+});
+
+test("an older install counts when the range does not, and the first package with evidence decides", () => {
+  expect(dependencyBelow(read({
+    "package.json": nuxt("^4.7.0"),
+    "node_modules/nuxt/package.json": JSON.stringify({ name: "nuxt", version: "4.6.4" }),
+  }), "nuxt.config.ts", until)).toBe(true);
+  expect(dependencyBelow(read({
+    "package.json": JSON.stringify({ dependencies: { nuxt: "4.7.0", "@nuxt/nitro-server": "4.6.0" } }),
+  }), "nuxt.config.ts", until)).toBe(false);
+  expect(dependencyBelow(read({
+    "package.json": JSON.stringify({ dependencies: { "@nuxt/nitro-server": "4.6.0" } }),
+  }), "nuxt.config.ts", until)).toBe(true);
+  expect(dependencyBelow(read({
+    "package.json": nuxt("workspace:*"),
+    "node_modules/nuxt/package.json": JSON.stringify({ name: "nuxt", version: "4.6.4" }),
+  }), "nuxt.config.ts", until)).toBe(true);
 });
 
 test("the client package decides before the prisma CLI package", () => {

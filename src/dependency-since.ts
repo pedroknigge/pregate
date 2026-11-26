@@ -1,6 +1,7 @@
 // A pattern `since` stays quiet unless a named dependency is known to be at least that version.
 // The first name with evidence decides. A parsed lower bound below the floor wins over a newer
 // hoisted install, so a Prisma 6 package is not denied because a sibling resolved Prisma 7.
+import { allowsBelow } from "./package-version.ts";
 import { compareVersions } from "./product.ts";
 import type { Read } from "./types.ts";
 
@@ -24,6 +25,25 @@ export function dependencySatisfies(read: Read, rel: string, since: DependencySi
       return exact !== null && compareVersions(exact, floor) >= 0;
     }
     return bound !== null && compareVersions(bound, floor) >= 0;
+  }
+  return false;
+}
+
+// True when the first named dependency with evidence can still install, or has installed,
+// a version below `until.version`. A range that can install below the floor wins over a
+// newer copy in node_modules. An unreadable spec with no older install stays quiet.
+export function dependencyBelow(read: Read, rel: string, until: DependencySince): boolean {
+  if (canonical(until.version) === null || until.dependencies.length === 0) return false;
+  for (const name of until.dependencies) {
+    const declared = nearestDeclared(read, rel, name);
+    const installed = nearestInstalled(read, rel, name);
+    if (declared === null && installed === null) continue;
+    if (declared !== null && allowsBelow(declared, until.version)) return true;
+    if (installed !== null) {
+      const exact = canonical(installed);
+      if (exact !== null && compareVersions(exact, until.version) < 0) return true;
+    }
+    return false;
   }
   return false;
 }

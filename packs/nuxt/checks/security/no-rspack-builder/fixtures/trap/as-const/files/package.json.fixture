@@ -1,0 +1,6 @@
+{
+  "name": "app",
+  "dependencies": {
+    "nuxt": "4.7.0"
+  }
+}

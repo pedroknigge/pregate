@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "package": "nuxt",
+    "introduced": "3.0.0",
+    "fixed": "4.7.0"
+  },
+  "target": "package.json",
+  "before": null,
+  "expect": {
+    "verdict": "pass"
+  }
+}

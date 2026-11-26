@@ -15,7 +15,7 @@ import { intervalsWithoutCleanup } from "./interval-cleanup.ts";
 import { reactIndexKeys } from "./react-index-key.ts";
 import { credentialLiterals } from "./credential-literal.ts";
 import { gatedSeverity } from "./typescript-version.ts";
-import { dependencySatisfies } from "./dependency-since.ts";
+import { dependencyBelow, dependencySatisfies } from "./dependency-since.ts";
 import { pythonLegacyHits } from "./python-legacy.ts";
 import { tsconfigFindings, typescriptFactNodes } from "./typescript-facts.ts";
 import { dependencyPinHit, pinWindows, versionGateMatches } from "./package-version.ts";
@@ -240,9 +240,13 @@ function count(what: Extract<Extract<Impl, { primitive: "diff" }>["count"], { pa
   return Array.isArray(hits) ? hits.length : hits;
 }
 
-// `since` is evidence about the package, not the syntax. Missing or older evidence stays quiet.
+// `since` stays quiet until the package is known to be at least that version.
+// `until` stays quiet unless the package is known to allow a version below that one.
+// Missing or unreadable evidence stays quiet for either gate.
 function current(c: PatternConfig, rel: string, read: Read): boolean {
-  return c.since === undefined || dependencySatisfies(read, rel, c.since);
+  if (c.since !== undefined && !dependencySatisfies(read, rel, c.since)) return false;
+  if (c.until !== undefined && !dependencyBelow(read, rel, c.until)) return false;
+  return true;
 }
 
 // params.allow names qualified references a project declares pure: a match is allowed when the member

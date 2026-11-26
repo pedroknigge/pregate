@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {
+    "package": "nuxt",
+    "introduced": "3.0.0",
+    "fixed": "4.7.0"
+  },
+  "target": "package-lock.json",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 16
+      }
+    ]
+  },
+  "trap": {
+    "family": "nested-lock-pin",
+    "origin": "forge",
+    "discovered": "2026-11-25",
+    "note": "The root nuxt pin is 4.7.0 and nuxt-og-image is a different package at 4.6.4. The nested nuxt 3.16.2 is the vulnerable pin."
+  }
+}

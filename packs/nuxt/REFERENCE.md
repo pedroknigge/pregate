@@ -2,7 +2,7 @@
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-Version: `1.2.0`. Category: **library**.
+Version: `1.3.0`. Category: **library**.
 
 These are manifest defaults. All core rules activate automatically and enforce unless explicitly disabled in the reviewed preset, except the heuristic requirements whose default severity is `warn`: they advise until a reviewed promote or override raises them. Optional packs activate only when selected. `pregate preset show` gives the effective contract. A manifest's `complete` label refers to that manifest, not full library or methodology compliance.
 
@@ -231,6 +231,116 @@ Source metadata:
   "work": "Nuxt import.meta (https://nuxt.com/docs/4.x/api/advanced/import-meta)",
   "locator": "Runtime (App) Properties",
   "paraphrase": "process.browser, process.client, process.dev, process.server and process.test are soft-deprecated since Nuxt 3.12. Prefer the matching import.meta flags."
+}
+```
+
+## nuxt/security
+
+Manifest version: `1.0.0`. Status: **complete**.
+
+### nuxt/NUXT-PIN-001
+
+Check: [`nuxt/security/no-vulnerable-nuxt-pin@1.0.0`](checks/security/no-vulnerable-nuxt-pin/check.json). Default severity: **warn**.
+
+Implementation: `dependency-pin`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript (includes JavaScript)`. Cardinality: `singleton`. Dimension: `nuxt.security.pin`. Minimum severity: `none`.
+
+A nuxt pin that can still install 3.x or a 4.x release before 4.7.0 keeps the payload route-rule bypass, the repeated-slash route-rule bypass, and the dev-server runtime-config exposure.
+
+Default parameters: `{"package":"nuxt","introduced":"3.0.0","fixed":"4.7.0"}`.
+
+**Repair:** Upgrade nuxt to >= 4.7.0. Nuxt 3 has no patched line.
+
+**Scope and limits:** The warning is a nuxt spec that can install >=3.0.0 and <4.7.0, from dependencies, devDependencies, peerDependencies, or optionalDependencies, or a resolved lockfile version in that range. A pin entirely below 3.0.0, a pin at >=4.7.0, and an unreadable spec such as *, latest, or a git URL do not warn. @nuxt/nitro-server, @nuxt/vite-builder, and @nuxt/vite-server move with the nuxt release; this check reads the nuxt pin. A package whose name merely starts with nuxt is not this package.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{
+  "package": {
+    "const": "nuxt"
+  },
+  "introduced": {
+    "const": "3.0.0"
+  },
+  "fixed": {
+    "const": "4.7.0"
+  }
+}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Nuxt security advisories GHSA-jxc9-w3j6-pwp2, GHSA-vrh2-cfcx-c3fg, and GHSA-h5xj-x893-p5f7",
+  "locator": "https://github.com/nuxt/nuxt/security/advisories/GHSA-jxc9-w3j6-pwp2",
+  "paraphrase": "The three advisories published on 2026-11-24 are fixed in 4.7.0. Each one lists the Nuxt 3 range with no patched version. Nuxt 3 has no patched line."
+}
+```
+
+### nuxt/NUXT-RULES-001
+
+Check: [`nuxt/security/no-payload-route-rules@1.0.0`](checks/security/no-payload-route-rules/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `nuxt.security.route-rules`. Minimum severity: `none`.
+
+Below 4.7.0, GET <route>/_payload.json ignores the page's redirect, proxy, headers, cors, ssr: false, and cache exclusion, and can store the rendered data for another user.
+
+Default parameters: `{}`.
+
+**Repair:** Upgrade to nuxt >= 4.7.0. Until then, add a /** rule with the same value beside each exact page rule so the payload URL is covered, and keep auth in server middleware or the handler.
+
+**Scope and limits:** The pattern matches a routeRules object in nuxt.config that has '/**' with swr, isr, or cache (not false) and another path that does not end in /** and sets redirect, proxy, headers, cors, or ssr, isr, cache, or swr to false. It stays quiet when nuxt or, if nuxt is absent, @nuxt/nitro-server is entirely >= 4.7.0, and when that pin cannot be read. A covering sibling such as '/admin/**' next to '/admin' is not proof the payload is covered, so the exact key still warns. A key other than the literal '/**', a rule built from a spread, and route rules outside nuxt.config are not matched. Route rules are not an auth boundary.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Nuxt advisory GHSA-jxc9-w3j6-pwp2 (route rules skipped on _payload.json)",
+  "locator": "https://github.com/nuxt/nuxt/security/advisories/GHSA-jxc9-w3j6-pwp2",
+  "paraphrase": "A catch-all isr, swr, or cache rule plus a page rule for an exact path, a dynamic path, or a single-segment wildcard lets that page's payload render and be cached. The fix is nuxt 4.7.0. Nuxt 3 has no patched line."
+}
+```
+
+### nuxt/NUXT-BUILDER-001
+
+Check: [`nuxt/security/no-rspack-builder@1.0.0`](checks/security/no-rspack-builder/check.json). Default severity: **warn**.
+
+Implementation: `pattern`. Phases: `pre`, `stop`, `commit`, `ci`.
+
+Languages: `typescript`. Cardinality: `singleton`. Dimension: `nuxt.security.rspack-builder`. Minimum severity: `none`.
+
+Nuxt 4.7.0 deprecates builder: 'rspack'. New builder work belongs on builder: 'rsbuild'.
+
+Default parameters: `{}`.
+
+**Repair:** Set builder to 'rsbuild' and depend on @nuxt/rsbuild-builder.
+
+**Scope and limits:** The warning is a builder property whose value is the string rspack, including a const assertion, in nuxt.config, and only when nuxt is known to be >= 4.7.0. builder: 'vite', builder: 'rsbuild', and the same rspack string on an older nuxt stay quiet. A builder value held in a variable is not matched.
+
+Check-specific parameter schema (this check also accepts `paths`, `exclude` and intersecting `within` globs):
+
+```json
+{}
+```
+
+Source metadata:
+
+```json
+{
+  "work": "Nuxt v4.7.0 release notes (Rsbuild builder)",
+  "locator": "https://github.com/nuxt/nuxt/releases/tag/v4.7.0",
+  "paraphrase": "@nuxt/rsbuild-builder (builder: 'rsbuild') replaces @nuxt/rspack-builder, which is deprecated in 4.7.0."
 }
 ```
 

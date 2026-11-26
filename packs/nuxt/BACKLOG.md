@@ -26,6 +26,16 @@ The closed pattern vocabulary inspects syntax in one file. It cannot evaluate ar
 | NUXT-URL-001 | `` useFetch(`${base}/orders`) `` with an absolute `base`. | Computed URL evaluation; only literal `http(s)://` arguments match. |
 | NUXT-CTX-001 | Stashing the event on a module global (`current = event`) without exporting it. | Cross-request escape needs data-flow facts, not export shapes. |
 
+## Advisory limits (4.7.0)
+
+Route rules (`redirect`, `proxy`, `headers`, `appMiddleware`) are not an auth boundary. Auth belongs in server middleware or the handler, which is the same boundary NUXT-VALID-001 guards for request bodies. GHSA-vrh2-cfcx-c3fg (a repeated or leading encoded slash skips route rules on a catch-all page) is a request path, not a config shape, so NUXT-PIN-001 carries it and NUXT-RULES-001 does not.
+
+| Rule | Uncaught flow | Missing capability |
+| --- | --- | --- |
+| NUXT-PIN-001 | A direct pin of `@nuxt/nitro-server`, `@nuxt/vite-builder`, or `@nuxt/vite-server` below 4.7.0 while `nuxt` itself is absent or already >= 4.7.0. | The pin primitive reads one package name. Those packages ship with the `nuxt` release. |
+| NUXT-RULES-001 | A caching rule whose key is not the literal `'/**'`, route rules assembled with a spread, or the advisory workaround that adds `'/admin/**'` beside `'/admin'`. The exact key still warns. | Path-prefix coverage and value tracking. The pattern stays quiet when the `nuxt` pin (or `@nuxt/nitro-server`, if `nuxt` is not declared) is entirely >= 4.7.0 or cannot be read. |
+| NUXT-BUILDER-001 | `builder` set from a variable. | The string `rspack` has to be the property value. The warning also stays quiet below Nuxt 4.7.0, where `@nuxt/rsbuild-builder` is not the replacement yet. |
+
 ## Narrow readings (documented over-flagging)
 
 - **NUXT-HYDR-001** flags `Math.random()`/`Date.now()` anywhere in app-scoped files, including inside `onMounted` where the value is client-only and safe. Prefer a tighter scope once hook awareness exists; until then, move even mount-local nondeterminism to clearly marked helpers or accept the flag.

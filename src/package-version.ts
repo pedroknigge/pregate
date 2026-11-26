@@ -41,6 +41,21 @@ export function minimumOf(range: string): Semver | null {
   return match ? { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) } : null;
 }
 
+// True when one understood alternative can still install a version below `version`.
+// `latest`, `*`, a git URL, and an empty alternative are not evidence.
+export function allowsBelow(spec: string, version: string): boolean {
+  const minimum = minimumOf(`>=${version}`);
+  if (minimum === null) return false;
+  const normalized = normalizeSpec(spec);
+  if (normalized === null) return false;
+  const alternatives = normalized.split("||").map((part) => part.trim());
+  if (alternatives.length === 0 || alternatives.some((part) => part === "")) return false;
+  return alternatives.some((part) => {
+    const interval = alternativeInterval(part);
+    return interval !== null && !lowerClears(interval, minimum);
+  });
+}
+
 // True only when every version the specifier allows is at least `minimum`.
 // 16.0.0-canary.1 counts as Next 16: the gate is the release line, not the final tag.
 export function entirelyAtLeast(spec: string, minimum: Semver): boolean {

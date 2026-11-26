@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../../../schema/fixture.v1.json",
+  "language": "typescript",
+  "params": {},
+  "target": "nuxt.config.ts",
+  "before": null,
+  "expect": {
+    "verdict": "fail",
+    "violations": [
+      {
+        "line": 2
+      }
+    ]
+  },
+  "trap": {
+    "family": "rspack-as-const",
+    "origin": "forge",
+    "discovered": "2026-11-25",
+    "note": "A const assertion on the builder string is still builder: 'rspack'."
+  }
+}

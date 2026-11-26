@@ -1,0 +1,162 @@
+{
+  "$schema": "../../../../../schema/check.v1.json",
+  "id": "nuxt/security/no-payload-route-rules",
+  "version": "1.0.0",
+  "area": "security",
+  "cardinality": "singleton",
+  "dimension": "nuxt.security.route-rules",
+  "minSeverity": null,
+  "params": {},
+  "impl": {
+    "kind": "pattern",
+    "patterns": {
+      "typescript": [
+        {
+          "id": "payload-route-rules",
+          "until": {
+            "dependencies": [
+              "nuxt",
+              "@nuxt/nitro-server"
+            ],
+            "version": "4.7.0"
+          },
+          "files": [
+            "**/nuxt.config.{ts,mts,cts,js,mjs,cjs}"
+          ],
+          "rule": {
+            "kind": "pair",
+            "all": [
+              {
+                "has": {
+                  "field": "key",
+                  "regex": "^['\"]?routeRules['\"]?$"
+                }
+              },
+              {
+                "has": {
+                  "field": "value",
+                  "all": [
+                    {
+                      "kind": "object"
+                    },
+                    {
+                      "has": {
+                        "matches": "caching-catchall"
+                      }
+                    },
+                    {
+                      "has": {
+                        "matches": "page-rule"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "utils": {
+            "caching-catchall": {
+              "kind": "pair",
+              "all": [
+                {
+                  "has": {
+                    "field": "key",
+                    "regex": "^['\"`]/\\*\\*['\"`]$"
+                  }
+                },
+                {
+                  "has": {
+                    "field": "value",
+                    "has": {
+                      "kind": "pair",
+                      "all": [
+                        {
+                          "has": {
+                            "field": "key",
+                            "regex": "^['\"]?(?:swr|isr|cache)['\"]?$"
+                          }
+                        },
+                        {
+                          "not": {
+                            "has": {
+                              "field": "value",
+                              "regex": "^false$"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "page-rule": {
+              "kind": "pair",
+              "all": [
+                {
+                  "has": {
+                    "field": "key",
+                    "all": [
+                      {
+                        "regex": "^['\"`]/"
+                      },
+                      {
+                        "not": {
+                          "regex": "\\*\\*['\"`]$"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "has": {
+                    "field": "value",
+                    "any": [
+                      {
+                        "has": {
+                          "kind": "pair",
+                          "has": {
+                            "field": "key",
+                            "regex": "^['\"]?(?:redirect|proxy|headers|cors)['\"]?$"
+                          }
+                        }
+                      },
+                      {
+                        "has": {
+                          "kind": "pair",
+                          "all": [
+                            {
+                              "has": {
+                                "field": "key",
+                                "regex": "^['\"]?(?:ssr|isr|cache|swr)['\"]?$"
+                              }
+                            },
+                            {
+                              "has": {
+                                "field": "value",
+                                "regex": "^false$"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "phase": [
+    "pre",
+    "stop",
+    "commit",
+    "ci"
+  ],
+  "feedback": {
+    "message": "routeRules caches '/**' beside a page rule that does not cover /_payload.json. Below nuxt 4.7.0 that payload skips redirect, proxy, headers, cors, ssr: false, and cache exclusions (GHSA-jxc9-w3j6-pwp2). Upgrade to nuxt >= 4.7.0."
+  }
+}
