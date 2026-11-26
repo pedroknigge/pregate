@@ -18,7 +18,7 @@ Ready-made combinations live in `packs/presets/`.
 
 | ID | Forbids | Why | Default severity |
 | --- | --- | --- | --- |
-| `DRIZ-RAW-001` | `db.execute` with a `+` next to a quote, or any `sql.raw(` call. | A value concatenated into SQL is syntax to the database; `sql.raw` splices text straight into the statement. | deny |
+| `DRIZ-RAW-001` | `db.execute` with a `+` next to a quote in the SQL text, or any `sql.raw(` call. A `+` that only builds a `sql` template parameter is a bound value. | A value concatenated into SQL is syntax to the database; `sql.raw` splices text straight into the statement. | deny |
 | `DRIZ-SQL-001` | `.where(` whose first argument is a string or template literal instead of an `eq`/`and`/`or` helper. | A raw string in `where` bypasses the builder and reaches SQL as written. (`sql`` itself parameterizes `${}`, so it passes.) | deny |
 | `DRIZ-LIMIT-001` | A literal select/from chain without a result bound from limit/get or proved schema/input cardinality. | Optional policy for reviewed bounded-read paths; another query's limit/get and column names do not establish a bound. | deny |
 | `DRIZ-REL-001` | An awaited `db.` call inside `for`, `for-in/of`, or `while`. | A query per iteration turns one round trip into N and drains the pool. | deny |
@@ -38,6 +38,7 @@ Ready-made combinations live in `packs/presets/`.
 
 Non-decidable practices from the same sources are in `BACKLOG.md`.
 
+Source 1.3.1 does not treat a plus inside a `sql` template parameter as SQL concatenation. That value is bound. A plus that builds text passed to `.execute`, and any `sql.raw(` call, still report.
 Source 1.3.0 preserves Buffer.from(), query text and terminal single-row get().
 The bounded-select primitive resolves current imported Drizzle schema sources,
 including static reexports and TypeScript aliases. Predicates must cover an
@@ -62,7 +63,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 ## Exact rule contract
 
-Category: **library**. Version: `1.3.0`. 12 distinct check IDs.
+Category: **library**. Version: `1.3.1`. 12 distinct check IDs.
 
 Methodologies: `drizzle/queries` (complete), `drizzle/schema` (complete).
 

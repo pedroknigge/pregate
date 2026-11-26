@@ -7,6 +7,12 @@
       "test": "time before admission does not consume the pre budget"
     },
     {
+      "id": "driz-raw-bound-parameter",
+      "summary": "DRIZ-RAW-001 flagged a plus that only builds a value inside a sql template parameter. Drizzle binds that interpolation; it is not SQL concatenation.",
+      "source": "CHANGELOG Unreleased, Fixed, #157.",
+      "test": "issue 157: a plus inside a sql template parameter is a bound value"
+    },
+    {
       "id": "hang-after-admission-still-dies",
       "summary": "Extending the Pre deadline so cold start is not charged must not let a hang after the admission checkpoint run past 5 seconds.",
       "source": "CHANGELOG Unreleased, Fixed.",

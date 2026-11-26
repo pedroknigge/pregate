@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../schema/check.v1.json",
   "id": "drizzle/queries/no-sql-concat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "area": "queries",
   "cardinality": "singleton",
   "dimension": "drizzle.raw-concat",
@@ -13,6 +13,7 @@
       "typescript": [
         {
           "id": "sql-concat",
+          "x-note": "Design 1, rejected: keep the regex on the whole .execute argument text and skip ${} spans first. A regex cannot see nested substitutions, quotes, and inner templates, and it would treat a plain template the same as a sql tag, so db.execute(`SELECT ${\"d2d-canonical:\" + id}`) would pass even though JavaScript splices that value into the statement. Design 2, used: a + beside a quote matches only on a binary_expression that is not inside a template_substitution of a call whose callee is sql or ends in .sql. Drizzle binds that interpolation as a parameter (sql`... ${\"d2d-canonical:\" + id} ...`). The same + in a string or a plain template passed to .execute stays a finding. Any sql.raw( call stays a finding, including a constant or a sanitized argument, because the tree does not show that the text is static. A tag whose callee is not named sql is not this exemption.",
           "rule": {
             "kind": "call_expression",
             "any": [
@@ -26,8 +27,23 @@
                   },
                   {
                     "has": {
-                      "field": "arguments",
-                      "regex": "[\"'`]\\s*\\+|\\+\\s*[\"'`]"
+                      "kind": "binary_expression",
+                      "regex": "[\"'`]\\s*\\+|\\+\\s*[\"'`]",
+                      "stopBy": "end",
+                      "not": {
+                        "inside": {
+                          "kind": "template_substitution",
+                          "stopBy": "end",
+                          "inside": {
+                            "kind": "call_expression",
+                            "stopBy": "end",
+                            "has": {
+                              "field": "function",
+                              "regex": "(^|\\.)sql$"
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 ]
