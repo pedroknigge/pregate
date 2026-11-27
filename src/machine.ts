@@ -10,7 +10,6 @@ import { describeCi } from "./ci/detect.ts";
 import { consentedPlaces, consentedRoots, dataHome, disable, enable, enabled, status } from "./consent.ts";
 import { findRoot } from "./disk.ts";
 import { launcherVersion } from "./admission.ts";
-import { readProposal } from "./proposal.ts";
 import { cliVersion, TESTED as CODEX_TESTED } from "./harness/codex.ts";
 import { cliVersion as claudeCliVersion, ON_FAILURE_SINCE } from "./harness/claude.ts";
 import { compareVersions, ENGINE_VERSION, REPO } from "./product.ts";
@@ -312,7 +311,9 @@ export async function update(o: { version?: string; engine?: string }): Promise<
   const blocked = setupBlocked(r.exit, r.stdout, r.stderr);
   // Loaded here, not at the top: hooks import this module and must not load the update path.
   const registry = await import("./project-updates.ts");
-  const review = blocked ? null : projectReviews(p, registry, engine, v);
+  // Any engine reads any project's contract, so a global update prepares no project review. One
+  // per registered project and worktree took minutes on a machine with many of them, for nothing.
+  const review = blocked ? null : { exit: 0, lines: ["Projects need no step: this engine reads every project's contract. pregate update --project --preview moves one project's committed pins when you want to."] };
   const pruned = blocked ? [] : pruneEngines(p.data, retained(p, registry, [v, previous]));
   // The new engine's setup opens with its own install line; this one already says it.
   const setupLines = r.stdout.trim().split("\n").filter((line) => line !== `Engine ${v} installed at ${dirname(engine)}.`).join("\n");
@@ -321,33 +322,6 @@ export async function update(o: { version?: string; engine?: string }): Promise<
   return { code: !blocked && (review === null || review.exit === 0) ? 0 : 1, text };
 }
 
-// One batch preview, by the new engine, of every enabled registered project (with its worktrees)
-// and the current one whose lock pins an older engine. A newer pin is never downgraded.
-type Registry = typeof import("./project-updates.ts");
-
-function projectReviews(p: Paths, registry: Registry, engine: string, v: string): { exit: number | null; lines: string[] } {
-  const root = findRoot(canonical(process.cwd()), () => true);
-  const registered = [...consentedRoots(p.data).filter((entry) => entry.enabled).map((entry) => entry.root), ...inheriting(p, registry)];
-  const candidates = root === null ? registered : [...registered, root];
-  const stale = registry.staleProjects(candidates, v);
-  if (root !== null && registry.pinnedEngine(root) === null && !stale.includes(root)) stale.push(root);
-  if (stale.length === 0) return { exit: 0, lines: candidates.length === 0 ? [] : ["All registered projects are current."] };
-  if (!ready(engine)) return { exit: 1, lines: [`Engine ${v} is missing or not executable after setup; no project review was prepared. The human can run ! pregate update --engine ${v}, then pregate doctor.`] };
-  // One run, so every prepared review shares one batch approval code. The current project's review
-  // decides the exit: another registered project that cannot be previewed never fails the update.
-  const run = spawn([engine, "update", "--projects", ...stale, "--preview"], 600_000);
-  const ownFailed = root !== null && stale.includes(root) && run.exit !== 0 && !reviewTo(root, v, p.data);
-  const othersFailed = run.exit !== 0 && !ownFailed && stale.some((dir) => dir !== root);
-  return { exit: ownFailed ? run.exit : 0, lines: [run.stdout.trim(), run.stderr.trim(),
-    ...(othersFailed ? ["WARNING: Some registered project reviews failed (named above). The engine update and the other reviews are unaffected; fix those projects and rerun pregate update."] : []),
-    "Each project's preset, lock and consent remain unchanged until approval. Run pregate status to inspect effective protection."] };
-}
-
-// Whether `root` holds a pending review that moves its lock to engine `v`: its preview succeeded.
-function reviewTo(root: string, v: string, data: string): boolean {
-  const proposal = readProposal(root, data);
-  return proposal !== null && (JSON.parse(proposal.lockText) as { engine?: unknown }).engine === v;
-}
 
 // Worktrees gated only through a repository-wide consent record (no record of their own).
 function inheriting(p: Paths, registry: Registry): string[] {
@@ -365,6 +339,9 @@ function consentOf(dir: string, data: string): boolean {
 // Engines to keep: the new and previous launcher versions, the running one, and every engine pinned
 // by a consented root, its worktrees, or any worktree of a consented repository (enabled or not,
 // with or without a preset). Pruning a pin would fail closed there.
+// The project registry module; loaded only on the update path.
+type Registry = typeof import("./project-updates.ts");
+
 function retained(p: Paths, registry: Registry, versions: (string | null)[]): Set<string> {
   const root = findRoot(canonical(process.cwd()), () => true);
   const places = consentedPlaces(p.data);

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-11-27
+
+`pregate update` installs the new engine and stops there. 0.0.16 still prepared a review for every registered project and worktree, which took more than ten minutes on a machine with 77 of them and changed nothing. 0.0.16 was released on GitHub and not published to npm; this version carries its changes.
+
+### Fixed
+
+- A global `pregate update` prepares no project review. Since 0.0.14 any engine reads any project's contract, so those reviews were not needed, and preparing one per registered project and worktree kept the command busy for minutes. It now prints one line saying that projects need no step. `pregate update --project --preview` still prepares the review that moves one project's committed pins.
+
+
 ## [0.0.16] - 2026-11-27
 
 This release answers two outside reviews. Layer rules work across the packages of a monorepo. The shell guard is a quarter smaller and blocks the same things. Each bundled pack now says whether a measurement on real code validated it. The README leads with what Pregate does that a linter does not. Eight engine bugs from a code review are fixed. 0.0.15 was released on GitHub and not published to npm; this version carries its changes too.
