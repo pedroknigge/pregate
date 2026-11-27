@@ -12,6 +12,17 @@ the manifests. Actual enforcement depends on selected methodologies, scope,
 enforcement and overrides; syntax matches are not a documentation-coverage score.
 The additional dcouplr pack is preview and does not close its runtime backlog.
 
+A methodology is `complete` only in a pack that the
+[precision measurement](../docs/guides/rule-precision.md#pack-status-from-the-0015-measurement)
+validates: at least 6 labeled findings on the pinned corpus and a sample
+precision of at least 70%. Nine packs pass: architecture, clean-code, go,
+javascript, maintainability, mattpocock, musk, node and senior. Every methodology
+of the other 39 packs is `preview`: four packs are below 70% (pstack, typescript,
+express, vibe-proof), two have fewer than 6 labels (python, react-native), and the
+corpus has no finding for the rest. `preview` here means not validated on real
+code. It does not mean the rules are wrong, and `complete` does not mean every
+rule of the pack was measured.
+
 The two normative Markdown catalogs contain 313 **nominal** entries: 100 FH,
 100 SE, and 113 PS. [`invariant-coverage.json`](invariant-coverage.json)
 records all 313 with source lines. The original syntax/workflow classification

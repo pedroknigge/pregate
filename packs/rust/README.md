@@ -14,7 +14,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **language**. Version: `1.2.0`. 9 distinct check IDs.
 
-Methodologies: `rust/architecture` (complete), `rust/quality` (complete).
+Methodologies: `rust/architecture` (preview), `rust/quality` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

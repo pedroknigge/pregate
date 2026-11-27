@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## astro/config
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### astro/ASTRO-ENV-001
 
@@ -76,7 +76,7 @@ Source metadata:
 
 ## astro/content
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### astro/ASTRO-SCHEMA-001
 
@@ -144,7 +144,7 @@ Source metadata:
 
 ## astro/routing
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### astro/ASTRO-MW-001
 

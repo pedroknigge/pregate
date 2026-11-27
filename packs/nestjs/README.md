@@ -48,7 +48,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.3.0`. 13 distinct check IDs.
 
-Methodologies: `nestjs/controllers` (complete), `nestjs/providers` (complete), `nestjs/transport` (complete).
+Methodologies: `nestjs/controllers` (preview), `nestjs/providers` (preview), `nestjs/transport` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

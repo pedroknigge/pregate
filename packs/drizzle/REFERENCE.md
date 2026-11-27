@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## drizzle/queries
 
-Manifest version: `1.3.1`. Status: **complete**.
+Manifest version: `1.3.1`. Status: **preview**.
 
 ### drizzle/DRIZ-RAW-001
 
@@ -268,7 +268,7 @@ Source metadata:
 
 ## drizzle/schema
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### drizzle/DRIZ-TABLE-001
 

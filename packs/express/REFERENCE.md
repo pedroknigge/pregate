@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## express/middleware
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### express/EX-ERR-001
 
@@ -108,7 +108,7 @@ Source metadata:
 
 ## express/requests
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### express/EX-BODY-001
 

@@ -115,7 +115,7 @@ beforeAll(() => {
   gate.put("app/page.tsx", "export default function Page() { return <main>Home</main>; }\n");
   gate.git("init", "-q");
   expect(gate.run(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
-  expect(gate.run(["pack", "add", "--library", "nextjs", "--yes"]).code).toBe(0);
+  for (const methodology of ["nextjs/rendering", "nextjs/routing"]) expect(gate.run(["pack", "enable", methodology, "--yes"]).code).toBe(0);
   gate.put(".pregate/requests/scope.json", JSON.stringify({
     why: "Exercise NEXT-SEGMENT-001 on defineRoute and a direct Promise read.",
     patch: [

@@ -17,6 +17,14 @@
   },
   {
     "corpus": "classnames",
+    "line": 38,
+    "pack": "maintainability",
+    "path": "tests/bind.test-d.ts",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "classnames",
     "line": 113,
     "pack": "node",
     "path": "tests/index.js",
@@ -65,11 +73,27 @@
   },
   {
     "corpus": "classnames",
+    "line": 9,
+    "pack": "typescript",
+    "path": "dedupe.js",
+    "rule": "typescript/TS-CONST-001",
+    "symbol": "classNames.classes"
+  },
+  {
+    "corpus": "classnames",
     "line": 3,
     "pack": "typescript",
     "path": "bind.d.ts",
     "rule": "typescript/TS-DEFAULT-001",
     "symbol": "<module>"
+  },
+  {
+    "corpus": "classnames",
+    "line": 10,
+    "pack": "typescript",
+    "path": "tests/bind.test-d.ts",
+    "rule": "typescript/TS-INAME-001",
+    "symbol": "IFoo"
   },
   {
     "corpus": "classnames",
@@ -94,6 +118,86 @@
     "path": "format_test.go",
     "rule": "go/GO-FN-001",
     "symbol": "TestFormatWithStack"
+  },
+  {
+    "corpus": "errors",
+    "line": 481,
+    "pack": "go",
+    "path": "format_test.go",
+    "rule": "go/GO-FN-002",
+    "symbol": "testFormatCompleteCompare"
+  },
+  {
+    "corpus": "errors",
+    "line": 507,
+    "pack": "go",
+    "path": "format_test.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "testFormatCompleteCompare"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "lib/response.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/Router.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/app.router.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/express.json.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/express.static.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/express.text.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/res.download.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "architecture",
+    "path": "test/res.sendFile.js",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
   },
   {
     "corpus": "express",
@@ -137,9 +241,41 @@
   },
   {
     "corpus": "express",
+    "line": 8,
+    "pack": "clean-code",
+    "path": "test/acceptance/auth.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 397,
+    "pack": "clean-code",
+    "path": "test/app.render.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 65,
     "pack": "clean-code",
     "path": "test/app.route.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 7,
+    "pack": "clean-code",
+    "path": "test/app.routes.error.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 17,
+    "pack": "clean-code",
+    "path": "test/express.static.js",
     "rule": "clean-code/CC-FN-001",
     "symbol": "<module>"
   },
@@ -153,10 +289,50 @@
   },
   {
     "corpus": "express",
+    "line": 6,
+    "pack": "clean-code",
+    "path": "test/req.acceptsEncodings.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 6,
+    "pack": "clean-code",
+    "path": "test/req.stale.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 7,
+    "pack": "clean-code",
+    "path": "test/res.links.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 173,
     "pack": "clean-code",
     "path": "test/res.render.js",
     "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 951,
+    "pack": "clean-code",
+    "path": "test/res.sendFile.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 144,
+    "pack": "clean-code",
+    "path": "test/app.param.js",
+    "rule": "clean-code/CC-FN-002",
     "symbol": "<module>"
   },
   {
@@ -169,9 +345,25 @@
   },
   {
     "corpus": "express",
+    "line": 141,
+    "pack": "clean-code",
+    "path": "test/res.location.js",
+    "rule": "clean-code/CC-FN-002",
+    "symbol": "testRequestedRedirect"
+  },
+  {
+    "corpus": "express",
     "line": 13,
     "pack": "express",
     "path": "examples/mvc/controllers/pet/index.js",
+    "rule": "express/EX-NEXT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 13,
+    "pack": "express",
+    "path": "test/app.param.js",
     "rule": "express/EX-NEXT-001",
     "symbol": "<module>"
   },
@@ -182,6 +374,14 @@
     "path": "test/app.param.js",
     "rule": "express/EX-NEXT-001",
     "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 854,
+    "pack": "express",
+    "path": "test/app.router.js",
+    "rule": "express/EX-NEXT-001",
+    "symbol": "fn"
   },
   {
     "corpus": "express",
@@ -201,7 +401,31 @@
   },
   {
     "corpus": "express",
+    "line": 64,
+    "pack": "express",
+    "path": "examples/error-pages/index.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 78,
+    "pack": "express",
+    "path": "examples/mvc/index.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 101,
+    "pack": "express",
+    "path": "examples/web-service/index.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 109,
     "pack": "express",
     "path": "examples/web-service/index.js",
     "rule": "express/EX-STATUS-001",
@@ -217,6 +441,22 @@
   },
   {
     "corpus": "express",
+    "line": 182,
+    "pack": "express",
+    "path": "test/app.route.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "handleError"
+  },
+  {
+    "corpus": "express",
+    "line": 357,
+    "pack": "express",
+    "path": "test/express.raw.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 498,
     "pack": "express",
     "path": "test/express.raw.js",
@@ -225,9 +465,25 @@
   },
   {
     "corpus": "express",
+    "line": 756,
+    "pack": "express",
+    "path": "test/express.static.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 635,
     "pack": "express",
     "path": "test/express.urlencoded.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 109,
+    "pack": "express",
+    "path": "test/res.format.js",
     "rule": "express/EX-STATUS-001",
     "symbol": "<module>"
   },
@@ -241,11 +497,59 @@
   },
   {
     "corpus": "express",
+    "line": 75,
+    "pack": "express",
+    "path": "test/res.format.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 15,
+    "pack": "express",
+    "path": "test/res.sendFile.js",
+    "rule": "express/EX-STATUS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "javascript",
+    "path": "examples/route-separation/site.js",
+    "rule": "javascript/JS-CJS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 18,
+    "pack": "javascript",
+    "path": "test/support/utils.js",
+    "rule": "javascript/JS-CJS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 23,
     "pack": "javascript",
     "path": "examples/ejs/index.js",
     "rule": "javascript/JS-REQ-001",
     "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 8,
+    "pack": "javascript",
+    "path": "examples/mvc/index.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "logger"
+  },
+  {
+    "corpus": "express",
+    "line": 9,
+    "pack": "javascript",
+    "path": "examples/view-constructor/index.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "md"
   },
   {
     "corpus": "express",
@@ -257,11 +561,51 @@
   },
   {
     "corpus": "express",
+    "line": 25,
+    "pack": "javascript",
+    "path": "lib/response.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "statuses"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "javascript",
+    "path": "test/acceptance/error-pages.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "request"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "javascript",
+    "path": "test/app.param.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "express"
+  },
+  {
+    "corpus": "express",
     "line": 4,
     "pack": "javascript",
     "path": "test/app.request.js",
     "rule": "javascript/JS-REQ-001",
     "symbol": "express"
+  },
+  {
+    "corpus": "express",
+    "line": 8,
+    "pack": "javascript",
+    "path": "test/express.raw.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 4,
+    "pack": "javascript",
+    "path": "test/req.ip.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "request"
   },
   {
     "corpus": "express",
@@ -273,6 +617,70 @@
   },
   {
     "corpus": "express",
+    "line": 3,
+    "pack": "javascript",
+    "path": "test/res.download.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "after"
+  },
+  {
+    "corpus": "express",
+    "line": 13,
+    "pack": "javascript",
+    "path": "test/res.sendFile.js",
+    "rule": "javascript/JS-REQ-001",
+    "symbol": "utils"
+  },
+  {
+    "corpus": "express",
+    "line": 53,
+    "pack": "maintainability",
+    "path": "examples/route-separation/index.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 508,
+    "pack": "maintainability",
+    "path": "test/Router.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 402,
+    "pack": "maintainability",
+    "path": "test/express.json.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "app.verify"
+  },
+  {
+    "corpus": "express",
+    "line": 318,
+    "pack": "maintainability",
+    "path": "test/express.text.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "app.verify"
+  },
+  {
+    "corpus": "express",
+    "line": 401,
+    "pack": "maintainability",
+    "path": "test/express.urlencoded.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "parameterLimit"
+  },
+  {
+    "corpus": "express",
+    "line": 185,
+    "pack": "maintainability",
+    "path": "test/res.send.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 24,
     "pack": "maintainability",
     "path": "examples/route-map/index.js",
@@ -281,11 +689,27 @@
   },
   {
     "corpus": "express",
+    "line": 679,
+    "pack": "maintainability",
+    "path": "lib/response.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "header"
+  },
+  {
+    "corpus": "express",
     "line": 23,
     "pack": "mattpocock",
     "path": "examples/params/index.js",
     "rule": "mattpocock/MP-PARAMS-001",
     "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 53,
+    "pack": "mattpocock",
+    "path": "examples/resource/index.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "User.range"
   },
   {
     "corpus": "express",
@@ -329,6 +753,70 @@
   },
   {
     "corpus": "express",
+    "line": 113,
+    "pack": "node",
+    "path": "test/app.js",
+    "rule": "node/NODE-ENVPARSE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/error-pages/index.js",
+    "rule": "node/NODE-HEADERS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/vhost/index.js",
+    "rule": "node/NODE-HEADERS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/markdown/index.js",
+    "rule": "node/NODE-OBSERVE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/web-service/index.js",
+    "rule": "node/NODE-OBSERVE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/online/index.js",
+    "rule": "node/NODE-ROUTE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "test/res.sendFile.js",
+    "rule": "node/NODE-ROUTE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/route-map/index.js",
+    "rule": "node/NODE-SIGNAL-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 201,
     "pack": "node",
     "path": "lib/view.js",
@@ -337,9 +825,57 @@
   },
   {
     "corpus": "express",
+    "line": 1,
+    "pack": "node",
+    "path": "examples/route-map/index.js",
+    "rule": "node/NODE-TIMEOUT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 159,
+    "pack": "node",
+    "path": "test/res.location.js",
+    "rule": "node/NODE-URL-001",
+    "symbol": "testRequestedRedirect.locationHost"
+  },
+  {
+    "corpus": "express",
+    "line": 29,
+    "pack": "pstack",
+    "path": "examples/downloads/index.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 14,
+    "pack": "pstack",
+    "path": "examples/error/index.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 3,
     "pack": "pstack",
     "path": "examples/mvc/db.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 33,
+    "pack": "pstack",
+    "path": "examples/mvc/lib/boot.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "pstack",
+    "path": "examples/search/index.js",
     "rule": "pstack/PS-COMMENT-001",
     "symbol": "<module>"
   },
@@ -353,11 +889,51 @@
   },
   {
     "corpus": "express",
+    "line": 26,
+    "pack": "pstack",
+    "path": "examples/view-constructor/index.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 107,
+    "pack": "pstack",
+    "path": "examples/web-service/index.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 220,
+    "pack": "pstack",
+    "path": "lib/application.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "use"
+  },
+  {
+    "corpus": "express",
     "line": 373,
     "pack": "pstack",
     "path": "lib/application.js",
     "rule": "pstack/PS-COMMENT-001",
     "symbol": "set"
+  },
+  {
+    "corpus": "express",
+    "line": 195,
+    "pack": "pstack",
+    "path": "lib/response.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "send"
+  },
+  {
+    "corpus": "express",
+    "line": 928,
+    "pack": "pstack",
+    "path": "lib/response.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "sendfile"
   },
   {
     "corpus": "express",
@@ -369,6 +945,30 @@
   },
   {
     "corpus": "express",
+    "line": 726,
+    "pack": "pstack",
+    "path": "test/express.static.js",
+    "rule": "pstack/PS-COMMENT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 99,
+    "pack": "senior",
+    "path": "test/acceptance/web-service.js",
+    "rule": "senior/SR-CHAIN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 667,
+    "pack": "senior",
+    "path": "test/express.static.js",
+    "rule": "senior/SR-CHAIN-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 43,
     "pack": "senior",
     "path": "test/req.get.js",
@@ -377,9 +977,49 @@
   },
   {
     "corpus": "express",
+    "line": 208,
+    "pack": "senior",
+    "path": "test/res.format.js",
+    "rule": "senior/SR-CHAIN-001",
+    "symbol": "test"
+  },
+  {
+    "corpus": "express",
+    "line": 3,
+    "pack": "senior",
+    "path": "examples/content-negotiation/index.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 19,
     "pack": "senior",
     "path": "lib/express.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 19,
+    "pack": "senior",
+    "path": "lib/response.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 16,
+    "pack": "senior",
+    "path": "test/app.listen.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 38,
+    "pack": "senior",
+    "path": "test/app.use.js",
     "rule": "senior/SR-VAR-001",
     "symbol": "<module>"
   },
@@ -393,9 +1033,33 @@
   },
   {
     "corpus": "express",
+    "line": 599,
+    "pack": "senior",
+    "path": "test/express.urlencoded.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 472,
+    "pack": "senior",
+    "path": "test/res.download.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 3,
     "pack": "senior",
     "path": "test/res.send.js",
+    "rule": "senior/SR-VAR-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 674,
+    "pack": "senior",
+    "path": "test/res.sendFile.js",
     "rule": "senior/SR-VAR-001",
     "symbol": "<module>"
   },
@@ -441,9 +1105,41 @@
   },
   {
     "corpus": "express",
+    "line": 61,
+    "pack": "vibe-proof",
+    "path": "examples/auth/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "authenticate"
+  },
+  {
+    "corpus": "express",
+    "line": 56,
+    "pack": "vibe-proof",
+    "path": "examples/ejs/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 52,
     "pack": "vibe-proof",
     "path": "examples/error/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 43,
+    "pack": "vibe-proof",
+    "path": "examples/markdown/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 76,
+    "pack": "vibe-proof",
+    "path": "examples/mvc/lib/boot.js",
     "rule": "vibe-proof/VP-CONSOLE-001",
     "symbol": "<module>"
   },
@@ -457,9 +1153,33 @@
   },
   {
     "corpus": "express",
+    "line": 36,
+    "pack": "vibe-proof",
+    "path": "examples/session/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 42,
+    "pack": "vibe-proof",
+    "path": "examples/static-files/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
     "line": 43,
     "pack": "vibe-proof",
     "path": "examples/static-files/index.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "express",
+    "line": 47,
+    "pack": "vibe-proof",
+    "path": "examples/view-constructor/index.js",
     "rule": "vibe-proof/VP-CONSOLE-001",
     "symbol": "<module>"
   },
@@ -521,7 +1241,39 @@
   },
   {
     "corpus": "ms",
+    "line": 218,
+    "pack": "musk",
+    "path": "src/format.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 239,
+    "pack": "musk",
+    "path": "src/format.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
     "line": 344,
+    "pack": "musk",
+    "path": "src/index.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 358,
+    "pack": "musk",
+    "path": "src/index.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 54,
     "pack": "musk",
     "path": "src/index.test.ts",
     "rule": "musk/MUSK-REQ-001",
@@ -537,7 +1289,39 @@
   },
   {
     "corpus": "ms",
+    "line": 196,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 217,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
     "line": 55,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 59,
+    "pack": "musk",
+    "path": "src/parse-strict.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 70,
     "pack": "musk",
     "path": "src/parse-strict.test.ts",
     "rule": "musk/MUSK-REQ-001",
@@ -549,6 +1333,38 @@
     "pack": "musk",
     "path": "src/parse.test.ts",
     "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 169,
+    "pack": "musk",
+    "path": "src/parse.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 190,
+    "pack": "musk",
+    "path": "src/parse.test.ts",
+    "rule": "musk/MUSK-REQ-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "ms",
+    "line": 24,
+    "pack": "typescript",
+    "path": "jest.config.ts",
+    "rule": "typescript/TS-DEFAULT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 1129,
+    "pack": "pstack",
+    "path": "test.jsx",
+    "rule": "pstack/PS-COMMENT-001",
     "symbol": "<module>"
   },
   {
@@ -585,11 +1401,27 @@
   },
   {
     "corpus": "react-markdown",
+    "line": 43,
+    "pack": "vibe-proof",
+    "path": "script/load-jsx.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "createLoader.load"
+  },
+  {
+    "corpus": "react-markdown",
     "line": 98,
     "pack": "vibe-proof",
     "path": "script/load-jsx.js",
     "rule": "vibe-proof/VP-CONSOLE-001",
     "symbol": "createLoader.transformSource"
+  },
+  {
+    "corpus": "react-markdown",
+    "line": 1205,
+    "pack": "vibe-proof",
+    "path": "test.jsx",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
   },
   {
     "corpus": "toml",
@@ -601,11 +1433,51 @@
   },
   {
     "corpus": "toml",
+    "line": 98,
+    "pack": "go",
+    "path": "decode_test.go",
+    "rule": "go/GO-FN-001",
+    "symbol": "TestDecodeEmbedded"
+  },
+  {
+    "corpus": "toml",
+    "line": 100,
+    "pack": "go",
+    "path": "error_test.go",
+    "rule": "go/GO-FN-001",
+    "symbol": "TestParseError"
+  },
+  {
+    "corpus": "toml",
     "line": 262,
     "pack": "go",
     "path": "toml_test.go",
     "rule": "go/GO-FN-001",
     "symbol": "TestToml"
+  },
+  {
+    "corpus": "toml",
+    "line": 1364,
+    "pack": "go",
+    "path": "encode_test.go",
+    "rule": "go/GO-FN-002",
+    "symbol": "encodeExpected"
+  },
+  {
+    "corpus": "toml",
+    "line": 342,
+    "pack": "go",
+    "path": "decode.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "MetaData.unifyStruct"
+  },
+  {
+    "corpus": "toml",
+    "line": 305,
+    "pack": "go",
+    "path": "encode.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "Encoder.eElement"
   },
   {
     "corpus": "toml",
@@ -617,11 +1489,99 @@
   },
   {
     "corpus": "toml",
+    "line": 295,
+    "pack": "go",
+    "path": "internal/toml-test/runner.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "Runner.Run"
+  },
+  {
+    "corpus": "toml",
+    "line": 621,
+    "pack": "go",
+    "path": "internal/toml-test/runner.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "floatToInt"
+  },
+  {
+    "corpus": "toml",
     "line": 740,
     "pack": "go",
     "path": "lex.go",
     "rule": "go/GO-NEST-001",
     "symbol": "lexMultilineString"
+  },
+  {
+    "corpus": "toml",
+    "line": 108,
+    "pack": "go",
+    "path": "meta.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "Key.String"
+  },
+  {
+    "corpus": "toml",
+    "line": 749,
+    "pack": "go",
+    "path": "parse.go",
+    "rule": "go/GO-NEST-001",
+    "symbol": "parser.stripEscapedNewlines"
+  },
+  {
+    "corpus": "tslib",
+    "line": 4,
+    "pack": "architecture",
+    "path": "modules/index.d.ts",
+    "rule": "architecture/ARCH-EXPORT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 36,
+    "pack": "architecture",
+    "path": "modules/index.js",
+    "rule": "architecture/ARCH-EXPORT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 24,
+    "pack": "architecture",
+    "path": "tslib.es6.mjs",
+    "rule": "architecture/ARCH-EXPORT-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 1,
+    "pack": "architecture",
+    "path": "tslib.es6.mjs",
+    "rule": "architecture/ARCH-FILE-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 305,
+    "pack": "clean-code",
+    "path": "tslib.es6.js",
+    "rule": "clean-code/CC-FN-001",
+    "symbol": "__addDisposableResource"
+  },
+  {
+    "corpus": "tslib",
+    "line": 234,
+    "pack": "maintainability",
+    "path": "tslib.es6.js",
+    "rule": "maintainability/MAINT-MAGIC-001",
+    "symbol": "__asyncGenerator.resume"
+  },
+  {
+    "corpus": "tslib",
+    "line": 132,
+    "pack": "maintainability",
+    "path": "tslib.es6.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "__generator.step"
   },
   {
     "corpus": "tslib",
@@ -641,11 +1601,27 @@
   },
   {
     "corpus": "tslib",
+    "line": 132,
+    "pack": "maintainability",
+    "path": "tslib.es6.mjs",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "__generator.step"
+  },
+  {
+    "corpus": "tslib",
     "line": 345,
     "pack": "maintainability",
     "path": "tslib.es6.mjs",
     "rule": "maintainability/MAINT-NEST-001",
     "symbol": "__disposeResources.next"
+  },
+  {
+    "corpus": "tslib",
+    "line": 107,
+    "pack": "maintainability",
+    "path": "tslib.js",
+    "rule": "maintainability/MAINT-NEST-001",
+    "symbol": "<module>"
   },
   {
     "corpus": "tslib",
@@ -657,11 +1633,35 @@
   },
   {
     "corpus": "tslib",
+    "line": 293,
+    "pack": "mattpocock",
+    "path": "tslib.es6.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__classPrivateFieldSet"
+  },
+  {
+    "corpus": "tslib",
     "line": 371,
     "pack": "mattpocock",
     "path": "tslib.es6.js",
     "rule": "mattpocock/MP-PARAMS-001",
     "symbol": "__rewriteRelativeImportExtension"
+  },
+  {
+    "corpus": "tslib",
+    "line": 66,
+    "pack": "mattpocock",
+    "path": "tslib.es6.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__esDecorate"
+  },
+  {
+    "corpus": "tslib",
+    "line": 293,
+    "pack": "mattpocock",
+    "path": "tslib.es6.mjs",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__classPrivateFieldSet"
   },
   {
     "corpus": "tslib",
@@ -673,7 +1673,31 @@
   },
   {
     "corpus": "tslib",
+    "line": 66,
+    "pack": "mattpocock",
+    "path": "tslib.es6.mjs",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "__esDecorate"
+  },
+  {
+    "corpus": "tslib",
     "line": 115,
+    "pack": "mattpocock",
+    "path": "tslib.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 342,
+    "pack": "mattpocock",
+    "path": "tslib.js",
+    "rule": "mattpocock/MP-PARAMS-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 419,
     "pack": "mattpocock",
     "path": "tslib.js",
     "rule": "mattpocock/MP-PARAMS-001",
@@ -697,11 +1721,51 @@
   },
   {
     "corpus": "tslib",
+    "line": 217,
+    "pack": "senior",
+    "path": "tslib.es6.js",
+    "rule": "senior/SR-CHAIN-001",
+    "symbol": "__spreadArray"
+  },
+  {
+    "corpus": "tslib",
+    "line": 252,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-FLOAT-001",
+    "symbol": "__asyncValues.settle"
+  },
+  {
+    "corpus": "tslib",
+    "line": 130,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__generator.step"
+  },
+  {
+    "corpus": "tslib",
     "line": 178,
     "pack": "typescript",
     "path": "tslib.es6.js",
     "rule": "typescript/TS-THROW-001",
     "symbol": "__values"
+  },
+  {
+    "corpus": "tslib",
+    "line": 288,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__classPrivateFieldGet"
+  },
+  {
+    "corpus": "tslib",
+    "line": 314,
+    "pack": "typescript",
+    "path": "tslib.es6.js",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__addDisposableResource"
   },
   {
     "corpus": "tslib",
@@ -713,10 +1777,50 @@
   },
   {
     "corpus": "tslib",
+    "line": 149,
+    "pack": "typescript",
+    "path": "tslib.es6.mjs",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__generator.step"
+  },
+  {
+    "corpus": "tslib",
+    "line": 289,
+    "pack": "typescript",
+    "path": "tslib.es6.mjs",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__classPrivateFieldGet"
+  },
+  {
+    "corpus": "tslib",
     "line": 310,
     "pack": "typescript",
     "path": "tslib.es6.mjs",
     "rule": "typescript/TS-THROW-001",
     "symbol": "__addDisposableResource"
+  },
+  {
+    "corpus": "tslib",
+    "line": 318,
+    "pack": "typescript",
+    "path": "tslib.es6.mjs",
+    "rule": "typescript/TS-THROW-001",
+    "symbol": "__addDisposableResource"
+  },
+  {
+    "corpus": "tslib",
+    "line": 185,
+    "pack": "typescript",
+    "path": "tslib.d.ts",
+    "rule": "typescript/TS-WRAPPER-001",
+    "symbol": "<module>"
+  },
+  {
+    "corpus": "tslib",
+    "line": 31,
+    "pack": "vibe-proof",
+    "path": "test/runTests.js",
+    "rule": "vibe-proof/VP-CONSOLE-001",
+    "symbol": "<module>"
   }
 ]

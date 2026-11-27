@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## postgres/client
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### postgres/PG-POOL-001
 
@@ -236,7 +236,7 @@ Source metadata:
 
 ## postgres/safety
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### postgres/PG-CONCAT-001
 

@@ -76,17 +76,19 @@
   ],
   "engine": "0.0.15",
   "labels": {
-    "agent": 47,
+    "agent": 186,
     "maintainer": 17,
     "resolved": 35
   },
   "limits": [
-    "Sample precision is true positives divided by the labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.",
-    "A pack with no matching label is unmeasured. This report does not give it a precision.",
-    "A sample of five or six findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings match the rule.",
+    "Sample precision is true positives divided by true positives plus false positives of that pack. Uncertain labels and unlabeled findings are not in the denominator and have no precision.",
+    "A pack with no true-positive or false-positive label is unmeasured. This report does not give it a precision.",
+    "A sample of at most 12 findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings are correct.",
+    "Validated means only this: at least 6 labeled findings and a sample precision of at least 70% on this corpus. It describes the rules of that pack that reported a finding here. The rules of that pack that reported nothing are not measured.",
     "Agent labels were written by an AI coding agent. They are not an independent human review, and the maintainer has not confirmed them. The Labeled by column separates them from maintainer labels.",
     "A resolved false positive says the rule no longer reports that site. It is not evidence about the findings that remain.",
-    "A label says whether the finding matches the rule's stated condition. It is not a judgment that a project should adopt the rule.",
+    "A label is not a judgment that a project should adopt the rule. A rule that states a project choice, such as no var or no require, is correct where the code has that construct.",
+    "The labels were written under two bars. The maintainer labels and the agent labels in the `.agent.json` files say whether the finding matches the rule's stated condition. The agent labels in the `.agent-2.json` files are stricter: true-positive only when the rule's stated reason applies to that line. A pack fraction can mix both.",
     "The corpus is the pinned commits in the manifest. It is not a random sample of public code.",
     "The audit records static matches in the checked-out tree. It is not the no-new ratchet used on an edit, and it does not run fitness, diff, or placement checks.",
     "Vue and Svelte single-file components use the TypeScript grammar. This corpus has no .vue or .svelte file, so a zero there is not evidence about those rules.",
@@ -94,100 +96,134 @@
   ],
   "packs": [
     {
-      "falsePositives": 0,
+      "falsePositives": 3,
       "findings": 3420,
-      "labeled": 6,
+      "labeled": 17,
       "pack": "senior",
-      "precision": 1,
-      "truePositives": 6
+      "precision": 0.8125,
+      "status": "validated",
+      "truePositives": 13,
+      "uncertain": 1
     },
     {
-      "falsePositives": 0,
+      "falsePositives": 1,
       "findings": 565,
-      "labeled": 5,
+      "labeled": 16,
       "pack": "clean-code",
-      "precision": 1,
-      "truePositives": 5
+      "precision": 0.875,
+      "status": "validated",
+      "truePositives": 7,
+      "uncertain": 8
     },
     {
-      "falsePositives": 4,
+      "falsePositives": 12,
       "findings": 516,
-      "labeled": 6,
+      "labeled": 17,
       "pack": "pstack",
-      "precision": 0.3333333333333333,
-      "truePositives": 2
+      "precision": 0.29411764705882354,
+      "status": "low-precision",
+      "truePositives": 5,
+      "uncertain": 0
     },
     {
-      "falsePositives": 0,
+      "falsePositives": 1,
       "findings": 512,
-      "labeled": 5,
+      "labeled": 17,
       "pack": "javascript",
-      "precision": 1,
-      "truePositives": 5
+      "precision": 0.9411764705882353,
+      "status": "validated",
+      "truePositives": 16,
+      "uncertain": 0
     },
     {
-      "falsePositives": 0,
-      "findings": 105,
-      "labeled": 5,
+      "falsePositives": 3,
+      "findings": 358,
+      "labeled": 17,
       "pack": "maintainability",
-      "precision": 1,
-      "truePositives": 5
+      "precision": 0.7692307692307693,
+      "status": "validated",
+      "truePositives": 10,
+      "uncertain": 4
+    },
+    {
+      "falsePositives": 2,
+      "findings": 191,
+      "labeled": 15,
+      "pack": "node",
+      "precision": 0.8666666666666667,
+      "status": "validated",
+      "truePositives": 13,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
       "findings": 101,
-      "labeled": 5,
+      "labeled": 16,
       "pack": "go",
       "precision": 1,
-      "truePositives": 5
+      "status": "validated",
+      "truePositives": 16,
+      "uncertain": 0
     },
     {
-      "falsePositives": 0,
-      "findings": 91,
-      "labeled": 5,
+      "falsePositives": 9,
+      "findings": 97,
+      "labeled": 16,
       "pack": "typescript",
-      "precision": 1,
-      "truePositives": 5
+      "precision": 0.4375,
+      "status": "low-precision",
+      "truePositives": 7,
+      "uncertain": 0
     },
     {
-      "falsePositives": 0,
+      "falsePositives": 9,
       "findings": 56,
-      "labeled": 3,
+      "labeled": 14,
       "pack": "express",
-      "precision": 1,
-      "truePositives": 3
+      "precision": 0.35714285714285715,
+      "status": "low-precision",
+      "truePositives": 5,
+      "uncertain": 0
     },
     {
-      "falsePositives": 0,
+      "falsePositives": 9,
       "findings": 55,
-      "labeled": 5,
+      "labeled": 15,
       "pack": "vibe-proof",
-      "precision": 1,
-      "truePositives": 5
+      "precision": 0.4,
+      "status": "low-precision",
+      "truePositives": 6,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
       "findings": 40,
-      "labeled": 5,
+      "labeled": 15,
       "pack": "musk",
       "precision": 1,
-      "truePositives": 5
+      "status": "validated",
+      "truePositives": 15,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
-      "findings": 31,
-      "labeled": 5,
-      "pack": "node",
+      "findings": 21,
+      "labeled": 12,
+      "pack": "architecture",
       "precision": 1,
-      "truePositives": 5
+      "status": "validated",
+      "truePositives": 12,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
       "findings": 12,
-      "labeled": 5,
+      "labeled": 12,
       "pack": "mattpocock",
       "precision": 1,
-      "truePositives": 5
+      "status": "validated",
+      "truePositives": 11,
+      "uncertain": 1
     },
     {
       "falsePositives": 0,
@@ -195,7 +231,9 @@
       "labeled": 3,
       "pack": "python",
       "precision": 1,
-      "truePositives": 3
+      "status": "small-sample",
+      "truePositives": 3,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -203,7 +241,9 @@
       "labeled": 1,
       "pack": "react-native",
       "precision": 1,
-      "truePositives": 1
+      "status": "small-sample",
+      "truePositives": 1,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -211,7 +251,9 @@
       "labeled": 0,
       "pack": "agent-practices",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -219,15 +261,9 @@
       "labeled": 0,
       "pack": "angular",
       "precision": null,
-      "truePositives": 0
-    },
-    {
-      "falsePositives": 0,
-      "findings": 0,
-      "labeled": 0,
-      "pack": "architecture",
-      "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -235,7 +271,9 @@
       "labeled": 0,
       "pack": "astro",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -243,7 +281,9 @@
       "labeled": 0,
       "pack": "authjs",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -251,7 +291,9 @@
       "labeled": 0,
       "pack": "consumer-saas",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -259,7 +301,9 @@
       "labeled": 0,
       "pack": "core",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -267,7 +311,9 @@
       "labeled": 0,
       "pack": "dcouplr",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -275,7 +321,9 @@
       "labeled": 0,
       "pack": "ddd",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -283,7 +331,9 @@
       "labeled": 0,
       "pack": "design-invariants",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -291,7 +341,9 @@
       "labeled": 0,
       "pack": "drizzle",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -299,7 +351,9 @@
       "labeled": 0,
       "pack": "enterprise-ready",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -307,7 +361,9 @@
       "labeled": 0,
       "pack": "firebase",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -315,7 +371,9 @@
       "labeled": 0,
       "pack": "hono",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -323,7 +381,9 @@
       "labeled": 0,
       "pack": "mongodb",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -331,7 +391,9 @@
       "labeled": 0,
       "pack": "nestjs",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -339,7 +401,9 @@
       "labeled": 0,
       "pack": "next-website",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -347,7 +411,9 @@
       "labeled": 0,
       "pack": "nextjs",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -355,7 +421,9 @@
       "labeled": 0,
       "pack": "nuxt",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -363,7 +431,9 @@
       "labeled": 0,
       "pack": "postgres",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -371,7 +441,9 @@
       "labeled": 0,
       "pack": "prisma",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -379,7 +451,9 @@
       "labeled": 0,
       "pack": "react",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -387,7 +461,9 @@
       "labeled": 0,
       "pack": "redis",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -395,7 +471,9 @@
       "labeled": 0,
       "pack": "rust",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -403,7 +481,9 @@
       "labeled": 0,
       "pack": "security-audit",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -411,7 +491,9 @@
       "labeled": 0,
       "pack": "solana",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -419,7 +501,9 @@
       "labeled": 0,
       "pack": "supabase",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -427,7 +511,9 @@
       "labeled": 0,
       "pack": "svelte",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -435,7 +521,9 @@
       "labeled": 0,
       "pack": "sveltekit",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -443,7 +531,9 @@
       "labeled": 0,
       "pack": "tailwind",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -451,7 +541,9 @@
       "labeled": 0,
       "pack": "tanstack-query",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -459,7 +551,9 @@
       "labeled": 0,
       "pack": "testing",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -467,7 +561,9 @@
       "labeled": 0,
       "pack": "trpc",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -475,7 +571,9 @@
       "labeled": 0,
       "pack": "vercel",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     },
     {
       "falsePositives": 0,
@@ -483,7 +581,9 @@
       "labeled": 0,
       "pack": "vue",
       "precision": null,
-      "truePositives": 0
+      "status": "unmeasured",
+      "truePositives": 0,
+      "uncertain": 0
     }
   ],
   "resolved": [
@@ -899,6 +999,28 @@
     {
       "corpus": "classnames",
       "labeler": "agent",
+      "line": 47,
+      "note": "The loop runs one benchmark at a time on purpose. Running them together would spoil the timings, so the work could not run together.",
+      "pack": "javascript",
+      "path": "benchmarks/benchmarks.js",
+      "rule": "javascript/JS-AWAIT-001",
+      "symbol": "runBenchmarks.bench",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 38,
+      "note": "bound(42) passes an arbitrary number to show that a number is rejected by the types. The value has no unit and no reason to name.",
+      "pack": "maintainability",
+      "path": "tests/bind.test-d.ts",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
       "line": 113,
       "note": "vm.runInContext(code, context) evaluates a string in a vm context, which is the call this rule names. The string is a fixed literal in a test.",
       "pack": "node",
@@ -943,12 +1065,34 @@
     {
       "corpus": "classnames",
       "labeler": "agent",
+      "line": 9,
+      "note": "let classes = '' is assigned again with classes += on line 13. It cannot be const.",
+      "pack": "typescript",
+      "path": "dedupe.js",
+      "rule": "typescript/TS-CONST-001",
+      "symbol": "classNames.classes",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
       "line": 3,
       "note": "export default function classNames declares a default export.",
       "pack": "typescript",
       "path": "bind.d.ts",
       "rule": "typescript/TS-DEFAULT-001",
       "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "classnames",
+      "labeler": "agent",
+      "line": 10,
+      "note": "interface IFoo has the I prefix.",
+      "pack": "typescript",
+      "path": "tests/bind.test-d.ts",
+      "rule": "typescript/TS-INAME-001",
+      "symbol": "IFoo",
       "verdict": "true-positive"
     },
     {
@@ -974,6 +1118,116 @@
       "verdict": "true-positive"
     },
     {
+      "corpus": "errors",
+      "labeler": "agent",
+      "line": 481,
+      "note": "testFormatCompleteCompare takes t, n, arg, format, want and detectStackBoundaries. That is six parameters and the limit is four.",
+      "pack": "go",
+      "path": "format_test.go",
+      "rule": "go/GO-FN-002",
+      "symbol": "testFormatCompleteCompare",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "errors",
+      "labeler": "agent",
+      "line": 507,
+      "note": "The if on line 507 is in the else branch of the if on line 495, inside the for loop. That is a third level and the limit is two.",
+      "pack": "go",
+      "path": "format_test.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "testFormatCompleteCompare",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "lib/response.js has 1050 lines and the limit is 400. It holds every res method, from status to sendFile.",
+      "pack": "architecture",
+      "path": "lib/response.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/Router.js has 636 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/Router.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/app.router.js has 1217 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/app.router.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/express.json.js has 755 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/express.json.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/express.static.js has 815 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/express.static.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/express.text.js has 566 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/express.text.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/res.download.js has 487 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/res.download.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "test/res.sendFile.js has 1019 lines and the limit is 400.",
+      "pack": "architecture",
+      "path": "test/res.sendFile.js",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
       "corpus": "express",
       "labeler": "maintainer",
       "line": 11,
@@ -986,6 +1240,94 @@
     },
     {
       "corpus": "express",
+      "labeler": "agent",
+      "line": 8,
+      "note": "The describe callback runs from line 8 to line 117, over the limit of 20. It is a test suite container with no steps of its own, so the stated reason, mixed levels of abstraction, is doubtful. The maintainer labeled the same shape true-positive.",
+      "pack": "clean-code",
+      "path": "test/acceptance/auth.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 397,
+      "note": "The describe callback runs from line 397 to line 477. It only groups it() cases, so it is a long function by count and not by the stated reason.",
+      "pack": "clean-code",
+      "path": "test/app.render.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 7,
+      "note": "The describe callback spans the whole 62-line file. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/app.routes.error.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 17,
+      "note": "The describe callback runs from line 17 to line 135. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/express.static.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 6,
+      "note": "The describe callback spans the 39-line file. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/req.acceptsEncodings.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 6,
+      "note": "The describe callback spans the 50-line file. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/req.stale.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 7,
+      "note": "The describe callback runs from line 7 to line 64. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/res.links.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 951,
+      "note": "The describe callback runs from line 951 to line 1007. It only groups test cases.",
+      "pack": "clean-code",
+      "path": "test/res.sendFile.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
       "labeler": "maintainer",
       "line": 20,
       "note": "error takes err, req, res, and next. Express uses that arity for error middleware, and the function is still four parameters over the limit of three.",
@@ -993,6 +1335,28 @@
       "path": "examples/error/index.js",
       "rule": "clean-code/CC-FN-002",
       "symbol": "error",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 144,
+      "note": "Express fixes the app.param callback signature as (req, res, next, value). The author cannot remove a parameter, so no unnamed concept hides in the list.",
+      "pack": "clean-code",
+      "path": "test/app.param.js",
+      "rule": "clean-code/CC-FN-002",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 141,
+      "note": "testRequestedRedirect is a local helper with five parameters: app, inputUrl, expected, expectedHost and done. The limit is three.",
+      "pack": "clean-code",
+      "path": "test/res.location.js",
+      "rule": "clean-code/CC-FN-002",
+      "symbol": "testRequestedRedirect",
       "verdict": "true-positive"
     },
     {
@@ -1009,6 +1373,61 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 13,
+      "note": "return next('route') passes the string route to next.",
+      "pack": "express",
+      "path": "test/app.param.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 854,
+      "note": "next('route') passes the string route to next.",
+      "pack": "express",
+      "path": "test/app.router.js",
+      "rule": "express/EX-NEXT-001",
+      "symbol": "fn",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 64,
+      "note": "res.status(404) is followed by res.format(...), whose branches render or send. The response is sent.",
+      "pack": "express",
+      "path": "examples/error-pages/index.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 78,
+      "note": "Line 78 is the app.use(...) call. Inside it, res.status(500).render('5xx') sends the response. render is not in the rule's sender list, and the rule reports the enclosing statement.",
+      "pack": "express",
+      "path": "examples/mvc/index.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 109,
+      "note": "res.send(...) is the next statement. The request does not stay open.",
+      "pack": "express",
+      "path": "examples/web-service/index.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 101,
       "note": "res.status(500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line, so the request does not stay open.",
       "pack": "express",
@@ -1020,6 +1439,39 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 182,
+      "note": "res.send(...) is the next statement. The request does not stay open.",
+      "pack": "express",
+      "path": "test/app.route.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "handleError",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 357,
+      "note": "res.send(...) is the next statement. The request does not stay open.",
+      "pack": "express",
+      "path": "test/express.raw.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 756,
+      "note": "The middleware sets 501 and calls next(), and express.static then sends the file. The test is about that hand-over.",
+      "pack": "express",
+      "path": "test/express.static.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 635,
       "note": "res.status(err.status || 500) is a statement with no chained sender, which is the stated condition. res.send follows on the next line.",
       "pack": "express",
@@ -1027,6 +1479,39 @@
       "rule": "express/EX-STATUS-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 109,
+      "note": "res.send(...) is the next statement. The request does not stay open.",
+      "pack": "express",
+      "path": "test/res.format.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 75,
+      "note": "res.send(...) is the next statement. The request does not stay open.",
+      "pack": "express",
+      "path": "test/res.format.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 15,
+      "note": "Line 15 is the describe('res', ...) call that wraps the whole test file. It is not a handler that sets a status.",
+      "pack": "express",
+      "path": "test/res.sendFile.js",
+      "rule": "express/EX-STATUS-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -1046,6 +1531,28 @@
       "note": "exports.text assigns a CommonJS export. The rule asks for an export statement.",
       "pack": "javascript",
       "path": "examples/content-negotiation/users.js",
+      "rule": "javascript/JS-CJS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "exports.index = function ... publishes through the CommonJS exports object. Express is a CommonJS package; the label does not judge that choice.",
+      "pack": "javascript",
+      "path": "examples/route-separation/site.js",
+      "rule": "javascript/JS-CJS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 18,
+      "note": "exports.shouldNotHaveHeader = ... is a CommonJS export.",
+      "pack": "javascript",
+      "path": "test/support/utils.js",
       "rule": "javascript/JS-CJS-001",
       "symbol": "<module>",
       "verdict": "true-positive"
@@ -1075,6 +1582,171 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 8,
+      "note": "require('morgan') is a require call.",
+      "pack": "javascript",
+      "path": "examples/mvc/index.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "logger",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 9,
+      "note": "require('marked') is a require call.",
+      "pack": "javascript",
+      "path": "examples/view-constructor/index.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "md",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 25,
+      "note": "require('statuses') is a require call in library code.",
+      "pack": "javascript",
+      "path": "lib/response.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "statuses",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "require('supertest') is a require call.",
+      "pack": "javascript",
+      "path": "test/acceptance/error-pages.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "request",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "require('../') is a require call.",
+      "pack": "javascript",
+      "path": "test/app.param.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "express",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 8,
+      "note": "require('node:buffer') is a require call.",
+      "pack": "javascript",
+      "path": "test/express.raw.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 4,
+      "note": "require('supertest') is a require call.",
+      "pack": "javascript",
+      "path": "test/req.ip.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "request",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "require('after') is a require call.",
+      "pack": "javascript",
+      "path": "test/res.download.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "after",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 13,
+      "note": "require('./support/utils') is a require call.",
+      "pack": "javascript",
+      "path": "test/res.sendFile.js",
+      "rule": "javascript/JS-REQ-001",
+      "symbol": "utils",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 53,
+      "note": "app.listen(3000) uses a bare port number. A named port constant is what the rule asks for.",
+      "pack": "maintainability",
+      "path": "examples/route-separation/index.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 508,
+      "note": "42 stands for any value that is not a function in a test of the argument check. A name would add nothing.",
+      "pack": "maintainability",
+      "path": "test/Router.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 402,
+      "note": "buf[0] === 0x5b compares with the byte of an opening bracket. The reader must know the character code.",
+      "pack": "maintainability",
+      "path": "test/express.json.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "app.verify",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 318,
+      "note": "buf[0] !== 0x20 compares with the byte of a space. The reader must know the character code.",
+      "pack": "maintainability",
+      "path": "test/express.text.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "app.verify",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 401,
+      "note": "parameterLimit: 10.1 is named by its property key, and the test title says it is a floating point limit.",
+      "pack": "maintainability",
+      "path": "test/express.urlencoded.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "parameterLimit",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 185,
+      "note": "Buffer.alloc(999, ...) is a test body size. The expected ETag two lines below depends on it, so a name could help, but the size itself is arbitrary.",
+      "pack": "maintainability",
+      "path": "test/res.send.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 24,
       "note": "if (verbose) is inside a switch, which is inside a for-in loop. That is a third level and the limit is two.",
       "pack": "maintainability",
@@ -1086,12 +1758,34 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 679,
+      "note": "The if on line 679 is at a third level, and its body is only a throw. The rule text says such a guard clause does not add a level. The engine exempts a guard only directly under a function or a loop, not under another if.",
+      "pack": "maintainability",
+      "path": "lib/response.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "header",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 23,
       "note": "The app.param callback takes req, res, next, num and name. That is five inputs and the limit is four.",
       "pack": "mattpocock",
       "path": "examples/params/index.js",
       "rule": "mattpocock/MP-PARAMS-001",
       "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 53,
+      "note": "range takes req, res, a, b and format. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "examples/resource/index.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "User.range",
       "verdict": "true-positive"
     },
     {
@@ -1130,12 +1824,122 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 113,
+      "note": "process.env.NODE_ENV = this.env is a write that restores the variable after a test. The rule is about a scattered read of the environment.",
+      "pack": "node",
+      "path": "test/app.js",
+      "rule": "node/NODE-ENVPARSE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and sets no security header. It is an example server.",
+      "pack": "node",
+      "path": "examples/error-pages/index.js",
+      "rule": "node/NODE-HEADERS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and sets no security header. It is an example server.",
+      "pack": "node",
+      "path": "examples/vhost/index.js",
+      "rule": "node/NODE-HEADERS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and has no logger and no request id. It is an example server.",
+      "pack": "node",
+      "path": "examples/markdown/index.js",
+      "rule": "node/NODE-OBSERVE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and has no logger and no request id. It is an example server.",
+      "pack": "node",
+      "path": "examples/web-service/index.js",
+      "rule": "node/NODE-OBSERVE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and registers neither /health nor /ready. It is an example server.",
+      "pack": "node",
+      "path": "examples/online/index.js",
+      "rule": "node/NODE-ROUTE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "This is a mocha test file. Its app.listen() calls start short-lived servers inside test cases, which no platform probes.",
+      "pack": "node",
+      "path": "test/res.sendFile.js",
+      "rule": "node/NODE-ROUTE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and handles no SIGTERM or SIGINT. It is an example server.",
+      "pack": "node",
+      "path": "examples/route-map/index.js",
+      "rule": "node/NODE-SIGNAL-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 201,
       "note": "fs.statSync(path) is a synchronous filesystem call in library code.",
       "pack": "node",
       "path": "lib/view.js",
       "rule": "node/NODE-SYNC-001",
       "symbol": "tryStat",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 1,
+      "note": "The file starts a server with app.listen(3000) and sets no header, request or keep-alive timeout. It is an example server.",
+      "pack": "node",
+      "path": "examples/route-map/index.js",
+      "rule": "node/NODE-TIMEOUT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 159,
+      "note": "url.parse(...) is the legacy parser.",
+      "pack": "node",
+      "path": "test/res.location.js",
+      "rule": "node/NODE-URL-001",
+      "symbol": "testRequestedRedirect.locationHost",
       "verdict": "true-positive"
     },
     {
@@ -1152,10 +1956,54 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 29,
+      "note": "non-404 error repeats the condition err.status !== 404 on the same line.",
+      "pack": "pstack",
+      "path": "examples/downloads/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 14,
+      "note": "The block explains why Express error middleware takes four arguments. The code after it does not say that.",
+      "pack": "pstack",
+      "path": "examples/error/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 3,
       "note": "faux database says the module is a stand-in for a real store. The next statement, var pets = exports.pets = [], does not say that.",
       "pack": "pstack",
       "path": "examples/mvc/db.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 33,
+      "note": "\"reserved\" exports gives the meaning of the name list in the next line. The code does not say the names are reserved.",
+      "pack": "pstack",
+      "path": "examples/mvc/lib/boot.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 3,
+      "note": "install redis first: is a setup instruction for the reader of the example.",
+      "pack": "pstack",
+      "path": "examples/search/index.js",
       "rule": "pstack/PS-COMMENT-001",
       "symbol": "<module>",
       "verdict": "false-positive"
@@ -1174,6 +2022,39 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 26,
+      "note": "The comment says the views value is a GitHub repository. app.set('views', 'expressjs/express') does not say that.",
+      "pack": "pstack",
+      "path": "examples/view-constructor/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 107,
+      "note": "The block explains why the 404 middleware is registered last. It does not restate the code.",
+      "pack": "pstack",
+      "path": "examples/web-service/index.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 220,
+      "note": "non-express app gives the meaning of the duck-type test !fn || !fn.handle || !fn.set. The condition does not say that.",
+      "pack": "pstack",
+      "path": "lib/application.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "use",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 373,
       "note": "trust proxy inherit back-compat gives the purpose of the Object.defineProperty call that follows. The call itself does not name back-compat.",
       "pack": "pstack",
@@ -1185,6 +2066,28 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 195,
+      "note": "freshness repeats req.fresh in the next line.",
+      "pack": "pstack",
+      "path": "lib/response.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "send",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 928,
+      "note": "request aborted repeats the name of function onaborted in the next line.",
+      "pack": "pstack",
+      "path": "lib/response.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "sendfile",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 93,
       "note": "lookup path sits on this.path = this.lookup(fileName) and repeats the two names in that statement.",
       "pack": "pstack",
@@ -1192,6 +2095,17 @@
       "rule": "pstack/PS-COMMENT-001",
       "symbol": "View",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 726,
+      "note": "The line is an empty // that opens a NOTE block. It has no words.",
+      "pack": "pstack",
+      "path": "test/express.static.js",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -1214,6 +2128,39 @@
       "rule": "senior/SR-CHAIN-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 99,
+      "note": "request(app).get(...).expect(...).expect(...) is the supertest fluent builder. Each call returns the same test object, so the caller does not walk through objects it does not own.",
+      "pack": "senior",
+      "path": "test/acceptance/web-service.js",
+      "rule": "senior/SR-CHAIN-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 667,
+      "note": "request(this.app).get(...).set(...).expect(...) is the supertest fluent builder, not a chain of getters.",
+      "pack": "senior",
+      "path": "test/express.static.js",
+      "rule": "senior/SR-CHAIN-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 208,
+      "note": "request(app).get(...).set(...).expect(...) is the supertest fluent builder, not a chain of getters.",
+      "pack": "senior",
+      "path": "test/res.format.js",
+      "rule": "senior/SR-CHAIN-001",
+      "symbol": "test",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -1240,6 +2187,105 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 3,
+      "note": "var express declares a binding with var.",
+      "pack": "senior",
+      "path": "examples/content-negotiation/index.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 19,
+      "note": "var escapeHtml declares a binding with var.",
+      "pack": "senior",
+      "path": "lib/response.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 16,
+      "note": "var app2 declares a binding with var.",
+      "pack": "senior",
+      "path": "test/app.listen.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 38,
+      "note": "var blog, forum and app are declared with var.",
+      "pack": "senior",
+      "path": "test/app.use.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 599,
+      "note": "var test declares a binding with var.",
+      "pack": "senior",
+      "path": "test/express.urlencoded.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 472,
+      "note": "var app declares a binding with var.",
+      "pack": "senior",
+      "path": "test/res.download.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 674,
+      "note": "var app declares a binding with var.",
+      "pack": "senior",
+      "path": "test/res.sendFile.js",
+      "rule": "senior/SR-VAR-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 61,
+      "note": "console.log('authenticating %s:%s', name, pass) prints the user name and the password.",
+      "pack": "vibe-proof",
+      "path": "examples/auth/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "authenticate",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 56,
+      "note": "console.log('Express started on port 3000') is the intended start message of the example, not a leftover debug print.",
+      "pack": "vibe-proof",
+      "path": "examples/ejs/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 52,
       "note": "console.log('Express started on port 3000') is a console.log call in an example server, not in a test file.",
       "pack": "vibe-proof",
@@ -1247,6 +2293,28 @@
       "rule": "vibe-proof/VP-CONSOLE-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 43,
+      "note": "The line is the intended start message of the example.",
+      "pack": "vibe-proof",
+      "path": "examples/markdown/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 76,
+      "note": "verbose && console.log(...) is output the caller asks for with the verbose option.",
+      "pack": "vibe-proof",
+      "path": "examples/mvc/lib/boot.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "express",
@@ -1262,6 +2330,28 @@
     {
       "corpus": "express",
       "labeler": "agent",
+      "line": 36,
+      "note": "The line is the intended start message of the example.",
+      "pack": "vibe-proof",
+      "path": "examples/session/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 42,
+      "note": "The line is part of the usage text the example prints at start.",
+      "pack": "vibe-proof",
+      "path": "examples/static-files/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
       "line": 43,
       "note": "console.log('  GET /css/style.css') is a console.log call in an example server, not in a test file.",
       "pack": "vibe-proof",
@@ -1269,6 +2359,17 @@
       "rule": "vibe-proof/VP-CONSOLE-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "express",
+      "labeler": "agent",
+      "line": 47,
+      "note": "The line is the intended start message of the example.",
+      "pack": "vibe-proof",
+      "path": "examples/view-constructor/index.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "markupsafe",
@@ -1317,8 +2418,52 @@
     {
       "corpus": "ms",
       "labeler": "agent",
+      "line": 218,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/format.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 239,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/format.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
       "line": 344,
       "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket, which is the directive this rule reports.",
+      "pack": "musk",
+      "path": "src/index.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 358,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/index.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 54,
+      "note": "@ts-expect-error - We expect this to fail. names no owner and no ticket.",
       "pack": "musk",
       "path": "src/index.test.ts",
       "rule": "musk/MUSK-REQ-001",
@@ -1339,8 +2484,52 @@
     {
       "corpus": "ms",
       "labeler": "agent",
+      "line": 196,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 217,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
       "line": 55,
       "note": "The @ts-expect-error comment explains that JS users can still pass the value. It names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 59,
+      "note": "The @ts-expect-error comment gives a reason and names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse-strict.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 70,
+      "note": "The @ts-expect-error comment gives a reason and names no owner and no ticket.",
       "pack": "musk",
       "path": "src/parse-strict.test.ts",
       "rule": "musk/MUSK-REQ-001",
@@ -1357,6 +2546,50 @@
       "rule": "musk/MUSK-REQ-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 169,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 190,
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket.",
+      "pack": "musk",
+      "path": "src/parse.test.ts",
+      "rule": "musk/MUSK-REQ-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "ms",
+      "labeler": "agent",
+      "line": 24,
+      "note": "export default config is the form Jest reads from a TypeScript config file. No importer renames it.",
+      "pack": "typescript",
+      "path": "jest.config.ts",
+      "rule": "typescript/TS-DEFAULT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 1129,
+      "note": "Note: hooks are not supported on the server. states a limit that the test below does not say.",
+      "pack": "pstack",
+      "path": "test.jsx",
+      "rule": "pstack/PS-COMMENT-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "react-markdown",
@@ -1383,6 +2616,17 @@
     {
       "corpus": "react-markdown",
       "labeler": "agent",
+      "line": 43,
+      "note": "console.log(warning.location) reports a build warning from a loader script. That is the purpose of the lines.",
+      "pack": "vibe-proof",
+      "path": "script/load-jsx.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "createLoader.load",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
       "line": 98,
       "note": "console.log(warning.text) prints a build warning from a loader script. The file is not a test file.",
       "pack": "vibe-proof",
@@ -1390,6 +2634,17 @@
       "rule": "vibe-proof/VP-CONSOLE-001",
       "symbol": "createLoader.transformSource",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "react-markdown",
+      "labeler": "agent",
+      "line": 1205,
+      "note": "console.info(...) tells the person who runs the tests that the next error is expected. test.jsx is a test file.",
+      "pack": "vibe-proof",
+      "path": "test.jsx",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     },
     {
       "corpus": "toml",
@@ -1400,6 +2655,28 @@
       "path": "decode.go",
       "rule": "go/GO-FN-001",
       "symbol": "MetaData.unify",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 98,
+      "note": "TestDecodeEmbedded runs from line 98 to line 149. That is 52 lines and the limit is 50.",
+      "pack": "go",
+      "path": "decode_test.go",
+      "rule": "go/GO-FN-001",
+      "symbol": "TestDecodeEmbedded",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 100,
+      "note": "TestParseError runs from line 100 to line 356. That is 257 lines and the limit is 50.",
+      "pack": "go",
+      "path": "error_test.go",
+      "rule": "go/GO-FN-001",
+      "symbol": "TestParseError",
       "verdict": "true-positive"
     },
     {
@@ -1416,12 +2693,67 @@
     {
       "corpus": "toml",
       "labeler": "agent",
+      "line": 1364,
+      "note": "encodeExpected takes t, label, val, want and wantErr. That is five parameters and the limit is four.",
+      "pack": "go",
+      "path": "encode_test.go",
+      "rule": "go/GO-FN-002",
+      "symbol": "encodeExpected",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 342,
+      "note": "The else if on line 342 belongs to if isUnifiable(subv), inside if f != nil, inside the for loop over the mapping. That is a third level.",
+      "pack": "go",
+      "path": "decode.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "MetaData.unifyStruct",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 305,
+      "note": "The if on line 305 is inside else if math.IsInf, inside the switch on the kind. That is a third level and the limit is two.",
+      "pack": "go",
+      "path": "encode.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "Encoder.eElement",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
       "line": 491,
       "note": "The if on line 491 is inside if isEmbed, which is inside the for loop over the struct fields. That is a third level and the limit is two.",
       "pack": "go",
       "path": "encode.go",
       "rule": "go/GO-NEST-001",
       "symbol": "Encoder.eStruct",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 295,
+      "note": "The if on line 295 is in the else branch of if t.Failed(), inside if r.SkipMustError, inside the test loop. That is more than two levels.",
+      "pack": "go",
+      "path": "internal/toml-test/runner.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "Runner.Run",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 621,
+      "note": "The if on line 621 is inside a type switch, inside a for loop, inside the outer type switch. That is more than two levels.",
+      "pack": "go",
+      "path": "internal/toml-test/runner.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "floatToInt",
       "verdict": "true-positive"
     },
     {
@@ -1436,6 +2768,83 @@
       "verdict": "true-positive"
     },
     {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 108,
+      "note": "The for on line 108 is in the else branch of if kk == \"\", inside the outer for loop. That is a third level.",
+      "pack": "go",
+      "path": "meta.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "Key.String",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "toml",
+      "labeler": "agent",
+      "line": 749,
+      "note": "The switch on line 749 is inside the whitespace for loop, inside the outer for loop. That is a third level.",
+      "pack": "go",
+      "path": "parse.go",
+      "rule": "go/GO-NEST-001",
+      "symbol": "parser.stripEscapedNewlines",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 4,
+      "note": "The export list names 32 helpers and the limit is 20.",
+      "pack": "architecture",
+      "path": "modules/index.d.ts",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 36,
+      "note": "The export list republishes every tslib helper, more than 30 names, and the limit is 20.",
+      "pack": "architecture",
+      "path": "modules/index.js",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 24,
+      "note": "The file has 33 export statements and the limit is 20. Line 24 is the first one.",
+      "pack": "architecture",
+      "path": "tslib.es6.mjs",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 1,
+      "note": "tslib.es6.mjs has 410 lines and the limit is 400. It holds about 30 unrelated helpers.",
+      "pack": "architecture",
+      "path": "tslib.es6.mjs",
+      "rule": "architecture/ARCH-FILE-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 305,
+      "note": "__addDisposableResource runs from line 305 to line 327. That is 23 lines and the limit is 20.",
+      "pack": "clean-code",
+      "path": "tslib.es6.js",
+      "rule": "clean-code/CC-FN-001",
+      "symbol": "__addDisposableResource",
+      "verdict": "true-positive"
+    },
+    {
       "corpus": "tslib",
       "labeler": "maintainer",
       "line": 2,
@@ -1445,6 +2854,28 @@
       "rule": "javascript/JS-REQ-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 234,
+      "note": "q[0][3] reads the reject callback by its position in a four-item tuple. The index 3 has no name.",
+      "pack": "maintainability",
+      "path": "tslib.es6.js",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "symbol": "__asyncGenerator.resume",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 132,
+      "note": "The if on line 132 is inside a try, inside a while loop, and its body is only return t. By the rule text a guard clause does not add a level; the engine counts this one because its parent is a try.",
+      "pack": "maintainability",
+      "path": "tslib.es6.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "__generator.step",
+      "verdict": "uncertain"
     },
     {
       "corpus": "tslib",
@@ -1471,12 +2902,34 @@
     {
       "corpus": "tslib",
       "labeler": "agent",
+      "line": 132,
+      "note": "Same shape as tslib.es6.js:132: an if with only a return, inside a try, inside a while loop.",
+      "pack": "maintainability",
+      "path": "tslib.es6.mjs",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "__generator.step",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
       "line": 345,
       "note": "if (r.async) is inside if (r.dispose), inside a try, inside a while loop. That is more than two levels.",
       "pack": "maintainability",
       "path": "tslib.es6.mjs",
       "rule": "maintainability/MAINT-NEST-001",
       "symbol": "__disposeResources.next",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 107,
+      "note": "The if (d = decorators[i]) is inside the for loop, which is the else branch of the if on line 106. That is a third level and the limit is two.",
+      "pack": "maintainability",
+      "path": "tslib.js",
+      "rule": "maintainability/MAINT-NEST-001",
+      "symbol": "<module>",
       "verdict": "true-positive"
     },
     {
@@ -1493,12 +2946,45 @@
     {
       "corpus": "tslib",
       "labeler": "agent",
+      "line": 293,
+      "note": "__classPrivateFieldSet takes receiver, state, value, kind and f. That is five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__classPrivateFieldSet",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
       "line": 371,
       "note": "The replace callback takes m, tsx, d, ext and cm. That is five inputs and the limit is four.",
       "pack": "mattpocock",
       "path": "tslib.es6.js",
       "rule": "mattpocock/MP-PARAMS-001",
       "symbol": "__rewriteRelativeImportExtension",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 66,
+      "note": "__esDecorate takes six inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__esDecorate",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 293,
+      "note": "__classPrivateFieldSet takes five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.mjs",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__classPrivateFieldSet",
       "verdict": "true-positive"
     },
     {
@@ -1515,6 +3001,17 @@
     {
       "corpus": "tslib",
       "labeler": "agent",
+      "line": 66,
+      "note": "__esDecorate takes six inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.es6.mjs",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "__esDecorate",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
       "line": 115,
       "note": "The function assigned to __esDecorate takes ctor, descriptorIn, decorators, contextIn, initializers and extraInitializers. That is six inputs and the limit is four.",
       "pack": "mattpocock",
@@ -1522,6 +3019,28 @@
       "rule": "mattpocock/MP-PARAMS-001",
       "symbol": "<module>",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 342,
+      "note": "The function assigned to __classPrivateFieldSet takes five inputs and the limit is four.",
+      "pack": "mattpocock",
+      "path": "tslib.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 419,
+      "note": "The String.replace callback takes m, tsx, d, ext and cm. Its arity follows the capture groups of the regular expression, so it is not a caller-facing interface. An earlier agent label marks the same callback true-positive.",
+      "pack": "mattpocock",
+      "path": "tslib.js",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "symbol": "<module>",
+      "verdict": "uncertain"
     },
     {
       "corpus": "tslib",
@@ -1548,6 +3067,39 @@
     {
       "corpus": "tslib",
       "labeler": "agent",
+      "line": 217,
+      "note": "Array.prototype.slice.call walks three members, which is the counted shape. It is a standard idiom on a builtin, not the layout of an object the caller does not own.",
+      "pack": "senior",
+      "path": "tslib.es6.js",
+      "rule": "senior/SR-CHAIN-001",
+      "symbol": "__spreadArray",
+      "verdict": "uncertain"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 252,
+      "note": "Promise.resolve(v).then(onFulfilled, reject) passes reject as the rejection handler. The rejection is handled.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-FLOAT-001",
+      "symbol": "__asyncValues.settle",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 130,
+      "note": "Generator is already executing. is a re-entrancy defect in a runtime helper, and the rule reserves throw for defects. The throw is in the nested step function.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__generator.step",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
       "line": 178,
       "note": "throw new TypeError(...) is the last statement of export function __values.",
       "pack": "typescript",
@@ -1555,6 +3107,28 @@
       "rule": "typescript/TS-THROW-001",
       "symbol": "__values",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 288,
+      "note": "The helper must throw the TypeError that the language defines for a private accessor without a getter. It cannot return a value in its place.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__classPrivateFieldGet",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 314,
+      "note": "Symbol.dispose is not defined. reports a missing runtime feature. That is a defect, not an expected failure.",
+      "pack": "typescript",
+      "path": "tslib.es6.js",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__addDisposableResource",
+      "verdict": "false-positive"
     },
     {
       "corpus": "tslib",
@@ -1570,6 +3144,28 @@
     {
       "corpus": "tslib",
       "labeler": "agent",
+      "line": 149,
+      "note": "throw op[1] passes the error of the generator body on to the caller. The generator protocol needs that throw.",
+      "pack": "typescript",
+      "path": "tslib.es6.mjs",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__generator.step",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 289,
+      "note": "The helper must throw the TypeError that the language defines for a private member read on the wrong object.",
+      "pack": "typescript",
+      "path": "tslib.es6.mjs",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__classPrivateFieldGet",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
       "line": 310,
       "note": "throw new TypeError(\"Symbol.asyncDispose is not defined.\") is in the body of export function __addDisposableResource.",
       "pack": "typescript",
@@ -1577,7 +3173,40 @@
       "rule": "typescript/TS-THROW-001",
       "symbol": "__addDisposableResource",
       "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 318,
+      "note": "Object not disposable. is the TypeError the using declaration defines. The helper cannot return a value in its place.",
+      "pack": "typescript",
+      "path": "tslib.es6.mjs",
+      "rule": "typescript/TS-THROW-001",
+      "symbol": "__addDisposableResource",
+      "verdict": "false-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 185,
+      "note": "generator: Function uses the Function type.",
+      "pack": "typescript",
+      "path": "tslib.d.ts",
+      "rule": "typescript/TS-WRAPPER-001",
+      "symbol": "<module>",
+      "verdict": "true-positive"
+    },
+    {
+      "corpus": "tslib",
+      "labeler": "agent",
+      "line": 31,
+      "note": "console.log(\"Skipping\") is the progress output of a command-line test runner.",
+      "pack": "vibe-proof",
+      "path": "test/runTests.js",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "symbol": "<module>",
+      "verdict": "false-positive"
     }
   ],
-  "schemaVersion": 2
+  "schemaVersion": 3
 }

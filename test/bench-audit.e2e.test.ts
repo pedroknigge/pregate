@@ -61,8 +61,8 @@ test("precision audit runs every fixture pack and withholds precision for unlabe
       ["sample/SAMPLE-EVAL-001", "src/twice.js", 2],
     ]);
     const unlabeled = readFileSync(join(area, "a.md"), "utf8");
-    expect(unlabeled).toContain("| sample | 4 | 0 | 0 | 0 | unmeasured |");
-    expect(unlabeled).not.toMatch(/\| sample \| 4 \| 0 \| 0 \| 0 \| \d+\/\d+ \|/);
+    expect(unlabeled).toContain("| sample | 4 | 0 | 0 | 0 | 0 | unmeasured | unmeasured |");
+    expect(unlabeled).not.toMatch(/\| sample \| 4 \| 0 \| 0 \| 0 \| 0 \| \d+\/\d+ \|/);
     const chosen = sampleFindings.filter((finding) => finding.path === "src/run.js" || finding.path === "src/member.js");
     const sample: SampleLabel[] = chosen.map((finding, index) => ({
       ...finding,
@@ -78,7 +78,7 @@ test("precision audit runs every fixture pack and withholds precision for unlabe
     expect(report.packs.find((pack) => pack.pack === "sample")).toMatchObject({ labeled: 2, precision: 0.5 });
     expect(report.packs.find((pack) => pack.pack === "core")?.precision).toBeNull();
     const markdown = readFileSync(join(area, "b.md"), "utf8");
-    expect(markdown).toContain("| sample | 4 | 2 | 1 | 1 | 1/2 |");
+    expect(markdown).toContain("| sample | 4 | 2 | 1 | 1 | 0 | 1/2 | not validated: fewer than 6 labels |");
     expect(markdown).toContain("unmeasured");
     expect(markdown).toContain(commit);
     writeFileSync(join(labels, "missing.json"), JSON.stringify({

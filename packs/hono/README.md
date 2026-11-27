@@ -40,7 +40,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.0.0`. 4 distinct check IDs.
 
-Methodologies: `hono/middleware` (complete), `hono/routing` (complete).
+Methodologies: `hono/middleware` (preview), `hono/routing` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

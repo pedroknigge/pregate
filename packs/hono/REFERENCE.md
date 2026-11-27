@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## hono/middleware
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### hono/HONO-NEXT-001
 
@@ -76,7 +76,7 @@ Source metadata:
 
 ## hono/routing
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### hono/HONO-CTRL-001
 

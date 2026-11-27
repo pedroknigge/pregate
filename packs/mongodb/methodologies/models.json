@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "mongodb/models",
   "version": "1.1.2",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

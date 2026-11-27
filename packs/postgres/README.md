@@ -61,7 +61,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.0`. 11 distinct check IDs.
 
-Methodologies: `postgres/client` (complete), `postgres/safety` (complete).
+Methodologies: `postgres/client` (preview), `postgres/safety` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

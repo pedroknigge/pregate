@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "typescript",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "typescript",
+      "rule": "typescript/TS-CONST-001",
+      "path": "dedupe.js",
+      "line": 9,
+      "symbol": "classNames.classes",
+      "verdict": "false-positive",
+      "note": "let classes = '' is assigned again with classes += on line 13. It cannot be const."
+    },
+    {
+      "corpus": "classnames",
+      "pack": "typescript",
+      "rule": "typescript/TS-INAME-001",
+      "path": "tests/bind.test-d.ts",
+      "line": 10,
+      "symbol": "IFoo",
+      "verdict": "true-positive",
+      "note": "interface IFoo has the I prefix."
+    },
+    {
+      "corpus": "ms",
+      "pack": "typescript",
+      "rule": "typescript/TS-DEFAULT-001",
+      "path": "jest.config.ts",
+      "line": 24,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "export default config is the form Jest reads from a TypeScript config file. No importer renames it."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-FLOAT-001",
+      "path": "tslib.es6.js",
+      "line": 252,
+      "symbol": "__asyncValues.settle",
+      "verdict": "false-positive",
+      "note": "Promise.resolve(v).then(onFulfilled, reject) passes reject as the rejection handler. The rejection is handled."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.js",
+      "line": 130,
+      "symbol": "__generator.step",
+      "verdict": "false-positive",
+      "note": "Generator is already executing. is a re-entrancy defect in a runtime helper, and the rule reserves throw for defects. The throw is in the nested step function."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.js",
+      "line": 288,
+      "symbol": "__classPrivateFieldGet",
+      "verdict": "false-positive",
+      "note": "The helper must throw the TypeError that the language defines for a private accessor without a getter. It cannot return a value in its place."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.js",
+      "line": 314,
+      "symbol": "__addDisposableResource",
+      "verdict": "false-positive",
+      "note": "Symbol.dispose is not defined. reports a missing runtime feature. That is a defect, not an expected failure."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.mjs",
+      "line": 149,
+      "symbol": "__generator.step",
+      "verdict": "false-positive",
+      "note": "throw op[1] passes the error of the generator body on to the caller. The generator protocol needs that throw."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.mjs",
+      "line": 289,
+      "symbol": "__classPrivateFieldGet",
+      "verdict": "false-positive",
+      "note": "The helper must throw the TypeError that the language defines for a private member read on the wrong object."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-THROW-001",
+      "path": "tslib.es6.mjs",
+      "line": 318,
+      "symbol": "__addDisposableResource",
+      "verdict": "false-positive",
+      "note": "Object not disposable. is the TypeError the using declaration defines. The helper cannot return a value in its place."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "typescript",
+      "rule": "typescript/TS-WRAPPER-001",
+      "path": "tslib.d.ts",
+      "line": 185,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "generator: Function uses the Function type."
+    }
+  ]
+}

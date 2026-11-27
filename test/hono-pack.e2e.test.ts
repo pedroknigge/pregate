@@ -152,7 +152,7 @@ test("stdin check denies detached handlers, HEAD routes, and untyped middleware,
   p.put("src/index.ts", "export const ready = true;\n");
   p.git("init", "-q");
   expect(p.run(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
-  expect(p.run(["pack", "add", "--library", "hono", "--yes"]).code).toBe(0);
+  for (const methodology of ["hono/routing", "hono/middleware"]) expect(p.run(["pack", "enable", methodology, "--yes"]).code).toBe(0);
   p.put(".pregate/requests/enforce.json", JSON.stringify({
     why: "Judge the Hono rules in enforcing mode.",
     patch: [{ op: "add", path: "/enforcement", value: "enforce" }],

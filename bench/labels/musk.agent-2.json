@@ -1,0 +1,106 @@
+{
+  "labeler": "agent",
+  "pack": "musk",
+  "items": [
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/format.test.ts",
+      "line": 218,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/format.test.ts",
+      "line": 239,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/index.test.ts",
+      "line": 358,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/index.test.ts",
+      "line": 54,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to fail. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 196,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 217,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 59,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The @ts-expect-error comment gives a reason and names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse-strict.test.ts",
+      "line": 70,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The @ts-expect-error comment gives a reason and names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse.test.ts",
+      "line": 169,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    },
+    {
+      "corpus": "ms",
+      "pack": "musk",
+      "rule": "musk/MUSK-REQ-001",
+      "path": "src/parse.test.ts",
+      "line": 190,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "@ts-expect-error - We expect this to throw. names no owner and no ticket."
+    }
+  ]
+}

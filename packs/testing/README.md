@@ -12,7 +12,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **practice**. Version: `1.2.2`. 4 distinct check IDs.
 
-Methodologies: `testing/tdd` (complete).
+Methodologies: `testing/tdd` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

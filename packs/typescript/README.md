@@ -101,7 +101,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **language**. Version: `1.4.0`. 37 distinct check IDs.
 
-Methodologies: `typescript/anti-evasion` (complete), `typescript/async-results` (complete), `typescript/checked` (complete), `typescript/compiler` (complete), `typescript/discipline` (complete), `typescript/framework-entries` (complete), `typescript/legacy` (complete), `typescript/named-exports` (complete), `typescript/strict-types` (complete).
+Methodologies: `typescript/anti-evasion` (preview), `typescript/async-results` (preview), `typescript/checked` (preview), `typescript/compiler` (preview), `typescript/discipline` (preview), `typescript/framework-entries` (preview), `typescript/legacy` (preview), `typescript/named-exports` (preview), `typescript/strict-types` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

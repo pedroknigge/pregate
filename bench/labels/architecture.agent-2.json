@@ -1,0 +1,126 @@
+{
+  "labeler": "agent",
+  "pack": "architecture",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "lib/response.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "lib/response.js has 1050 lines and the limit is 400. It holds every res method, from status to sendFile."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/Router.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/Router.js has 636 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/app.router.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/app.router.js has 1217 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/express.json.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/express.json.js has 755 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/express.static.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/express.static.js has 815 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/express.text.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/express.text.js has 566 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/res.download.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/res.download.js has 487 lines and the limit is 400."
+    },
+    {
+      "corpus": "express",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "test/res.sendFile.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "test/res.sendFile.js has 1019 lines and the limit is 400."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "path": "modules/index.d.ts",
+      "line": 4,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The export list names 32 helpers and the limit is 20."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "path": "modules/index.js",
+      "line": 36,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The export list republishes every tslib helper, more than 30 names, and the limit is 20."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-EXPORT-001",
+      "path": "tslib.es6.mjs",
+      "line": 24,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file has 33 export statements and the limit is 20. Line 24 is the first one."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "architecture",
+      "rule": "architecture/ARCH-FILE-001",
+      "path": "tslib.es6.mjs",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "tslib.es6.mjs has 410 lines and the limit is 400. It holds about 30 unrelated helpers."
+    }
+  ]
+}

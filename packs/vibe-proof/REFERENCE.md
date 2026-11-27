@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## vibe-proof/hygiene
 
-Manifest version: `1.0.2`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **preview**.
 
 ### vibe-proof/VP-CONSOLE-001
 
@@ -240,7 +240,7 @@ Source metadata:
 
 ## vibe-proof/secrets
 
-Manifest version: `1.0.2`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **preview**.
 
 ### vibe-proof/VP-SECRET-001
 
@@ -312,7 +312,7 @@ Source metadata:
 
 ## vibe-proof/transport
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### vibe-proof/VP-TIMEOUT-001
 

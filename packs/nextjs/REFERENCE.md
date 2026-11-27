@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## nextjs/rendering
 
-Manifest version: `1.4.1`. Status: **complete**.
+Manifest version: `1.4.1`. Status: **preview**.
 
 ### nextjs/NEXT-HEAD-001
 
@@ -476,7 +476,7 @@ Source metadata:
 
 ## nextjs/routing
 
-Manifest version: `1.4.1`. Status: **complete**.
+Manifest version: `1.4.1`. Status: **preview**.
 
 ### nextjs/NEXT-LINK-001
 

@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## vue/reactivity
 
-Manifest version: `1.1.1`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **preview**.
 
 ### vue/VUE-DEST-001
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## vue/sfc
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### vue/VUE-OPT-001
 
