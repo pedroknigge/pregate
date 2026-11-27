@@ -34,6 +34,12 @@ user's task.
 Reading is always allowed: `git status -- .pregate`, `cat .pregate/preset.json`,
 `pregate status`, `pregate explain <rule>`, `pregate check`.
 
+Git is yours to run. Commit, merge, pull, push and switch branches yourself,
+as in any project. That includes `git add` and `git commit` of `.pregate/`
+files the user changed or approved: staging and committing them is not editing
+them. Do not hand a command to the user because it only names `.pregate/`.
+Hand it over when a hook denied it, and say which hook message you got.
+
 ## The six things people ask for
 
 **Set it up.** The user runs `pregate enable` in the project, in a terminal or

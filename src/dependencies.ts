@@ -73,7 +73,12 @@ export function dependencyReviews(paths: string[] | (() => string[]), context: D
 // Import policies use target paths, parser validity and re-export edges, not a
 // target's function bodies or ordinary imports. Changed files still receive the
 // complete direct-file review. Creation, deletion and resolver configs retain a sweep.
+// The contract pair is Pregate's own: no resolver reads it and no query depends on it. A change
+// to it alone must not send every importer in the tree through a review that can find nothing.
+const CONTRACT: ReadonlySet<string> = new Set([".pregate/preset.json", ".pregate/pregate.lock.json"]);
+
 function changesResolution(rel: string, context: DependencyContext): boolean {
+  if (CONTRACT.has(rel)) return false;
   // Removing a schema's uniqueness constraint can unbound an unchanged query.
   if (schemaRules(context.lock).length) return context.read(rel) !== context.before(rel);
   const grammar = grammarOf(rel);

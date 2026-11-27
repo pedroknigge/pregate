@@ -271,7 +271,7 @@ async function checkCommand(args: string[]): Promise<Result> {
   const root = here();
   if (root === null) return noPreset(process.cwd());
   const mode = o.opts.has("--all") || (modes === 0 && !hasRepository(root)) ? { kind: "tree" } as const
-    : o.opts.has("--staged") ? { kind: "staged" } as const : { kind: "base", sha: base ?? "HEAD" } as const;
+    : o.opts.has("--staged") ? { kind: "staged" } as const : { kind: "base", sha: base ?? "HEAD", ratchet: o.opts.has("--ratchet") } as const;
   return delegate(root, ["check", ...args]) ?? finish(root, await check(root, mode, format));
 }
 

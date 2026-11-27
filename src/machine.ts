@@ -848,7 +848,7 @@ function versionOf(h: HarnessId, bin: string | null): Line {
     }
   }
   return v.includes(verified) ? ok(`${h} ${verified}.`)
-    : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed contract may cause payload-unrecognized denials.`);
+    : warn(`${h}: version ${v || `unknown (exit ${r.exit})`}; hooks verified with ${verified}. A changed payload shape may leave some calls unchecked, with a payload-unrecognized note.`);
 }
 
 // A Codex home without the binary on PATH: an IDE's bundled Codex still reads hooks.json, so a home
