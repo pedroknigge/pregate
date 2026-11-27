@@ -1,128 +1,100 @@
 # PREGATE
 
-**Your `AGENTS.md` is a suggestion. Pregate turns it into rules that run before the agent writes the file.**
+**Pregate checks an AI coding agent's edit against your project's own rules before the edit is written, and tells the agent why it fails and how to fix it.**
 
-An AI agent can skip an instruction. The instruction loads in every session, and it fades in a long one. A rule in a Pregate contract does none of that. Pregate checks the edit the agent proposes, before a supported edit tool writes it, and tells the agent why the edit breaks the rule and how to repair it. CI checks the same contract again.
-
-It fits any repository where an agent writes code, small or large, solo or team. It works alongside your linters, tests, CI, and review. It does not replace them.
+An agent can skip an instruction in `AGENTS.md`. A rule in a Pregate contract is checked on every edit, and CI checks the same contract again. Pregate works alongside your linters, tests, CI and review. It does not replace them, and it does not prove that code is correct.
 
 [MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.15 release notes](docs/releases/0.0.15.md)
 
-## What it looks like
+## What it does that a linter does not
 
-The agent proposes a file in `src/domain` that imports the database adapter. Before the file is written, the agent receives this:
+### 1. It turns your instruction file into rules that are checked
+
+`pregate compile` reads `AGENTS.md`, `CLAUDE.md` or `.cursorrules` and sorts each statement: it is a rule now, it needs an example, or it stays as guidance.
 
 ```text
-1) architecture/CA-DEP-001 → architecture/dependencies/layer-direction@1.0.0 · src/domain/order.ts:1
-   the module imports code from a layer this layer may not depend on. Layer `domain` imports layer `infra` via `../infra/db.ts`.
-   Why: An inner layer that imports an outer one cannot be tested, reused or kept stable without dragging the details along.
-   Fix: Put the code in domain (src/domain/); implement the outer side under infra (src/infra/). Use a module under src/domain/ instead of ../infra/db.ts. Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
-   Avoid: Barrels and re-exports that tunnel the same edge, type-only imports, require calls and path aliases that point at the same outer module.
+$ pregate compile AGENTS.md
+Rules (1):
+  L2 "Do not import `moment`. Use `date-fns`." -> project rule: no import of the package moment; cases generated
+Need one example each (1):
+  L3 "Never use `console.log` in `src/`." -> pregate rules add "Never use console.log in src/." --fail "<bad code>" --pass "<good code>"
+Stay in AGENTS.md (2):
+  L4 "Write clear code." -> guidance or an agent action; no check on a file decides it
+  L5 "Run the tests before you finish." -> guidance or an agent action; no check on a file decides it
 ```
 
-The agent repairs the edit and writes the corrected file. `Avoid` names the shortcuts that would pass the rule without fixing the problem. While a rule is in advisor mode, the same text arrives as a warning and nothing is blocked.
+A rule is kept only when code that must fail does fail and code that must pass does pass. Pregate never edits your instruction file. [How it works and what it proves](docs/features/agent-proposed-contract.md).
 
-## Start in two steps
+### 2. It enforces architecture boundaries before the file is written
 
-**1. Install.**
+You declare layers, and Pregate checks each import against them: a file in `src/domain` that imports `../infra/db.ts` is reported as `architecture/CA-DEP-001` before the write, not in a review. The same step checks banned packages. It also checks import cycles in TypeScript: "This edit adds an import cycle". `pregate guide --preview` proposes layers from your folder names and shows which imports break them today.
+
+### 3. It holds a "no new debt" line
+
+Violations that exist when you start are kept as known debt. Only new ones are reported, so you do not need a clean tree first. The record follows the code: a function renamed from `parseBody` to `parseBody2` with the same body keeps its old debt and gets no new finding. [Ratchet guarantees](docs/guarantees.md#ratchet-no-new).
+
+### 4. Every finding says Why, Fix and Avoid, in six agent harnesses
+
+The text is written for the agent's next attempt. `Avoid` names the shortcuts that pass the rule without fixing the problem. For the layer rule above:
+
+```text
+why: An inner layer that imports an outer one cannot be tested, reused or kept stable without dragging the details along.
+fix: Declare what the inner layer needs as a port in a layer it may import, implement it in the outer layer, and wire both in the composition root the preset declares.
+avoid: Barrels and re-exports that tunnel the same edge, type-only imports, require calls and path aliases that point at the same outer module.
+```
+
+One contract serves Claude Code, Codex CLI, Cursor, Grok Build, Antigravity and OpenCode. Git pre-commit and CI read it too.
+
+## Start
 
 ```sh
 curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
+pregate enable     # in your project; a human runs this, not the agent
 ```
 
-Or `npm i -g pregate`. Windows and the details are in [Install and adopt, step by step](#install-and-adopt-step-by-step).
+Or `npm i -g pregate`. Windows and the details are in [Install details](#install-details).
 
-**2. Turn it on in your repository.**
+`pregate enable` proposes a contract for the stack it finds, prints a summary, and applies it when you answer `y`. It starts in advisor mode: the agent sees each finding and nothing blocks. `pregate status` then prints:
 
-```sh
-pregate enable
+```text
+Pregate is on in /path/to/your/project: advisor mode. 0 rules block, 24 inform.
+Needs attention: no agent harness has Pregate hooks on this machine, so no agent is checked.
+Next: pregate setup. Details: pregate status --verbose.
 ```
 
-It prepares the advisor contract that `pregate guide --preview` proposes for the stack it finds, prints a short summary (scope, packs, rules, mode), and applies it when you answer `y`. A human runs this command. A hook denies it when an agent runs it. To choose packs, a layer map, or rules from your instruction files before that approval, run `pregate guide --preview`, or type `/pregate` in your agent and say what you want.
+This sample is from a machine with no agent hooks installed. The second line appears only when something needs attention.
 
-Nothing blocks on day one. Rules start in advisor mode: the agent sees each finding and decides. Violations that already exist are kept as known debt, and only new ones are reported. When a rule reports nothing for a week of real edits, Pregate says so at the start of a session and proposes to make it block. A rule that already has findings can block too: the existing ones stay as known debt and only new ones are denied. A human approves each promotion.
+When an advisor rule reports nothing for a week of real edits, Pregate says so at the start of a session and proposes to make it block. A human approves each promotion with `pregate promote --preview`.
 
-## Where the rules come from
+## What blocks and what does not
 
-| Layer | Source | When it applies |
-| --- | --- | --- |
-| **Core** | Pregate: the integrity of the contract and of generated files | Always |
-| **Packs** | 48 optional packs derived from books, framework documentation and public agent skills, each with its source named | You choose them; `guide` suggests the ones your stack uses |
-| **Yours** | Your own instruction files and your own architecture | Included in the one review you approve |
+Locally, a hook blocks two things only: an edit that breaks a rule the project set to enforce, and an agent that acts on Pregate itself. Everything else Pregate cannot check is a one-line `PREGATE NOTE`, and the call goes through.
 
-One mechanism serves all three: the agent or a pack proposes, the engine proves each rule against passing and failing code, and a human approves one exact change.
+The cost: a repository without CI that runs `pregate check --ratchet` has only notes locally, and nothing holds a loosened contract there. Pregate is not a security boundary or a sandbox. [What blocks locally](docs/guarantees.md#what-blocks-locally) · [CI setup](#ci).
 
-### Turn your instruction file into rules
+## Rule packs are optional
 
-```sh
-pregate compile AGENTS.md
-```
+A contract has three sources: a small core that is always on, your own rules and layers, and optional packs for languages, frameworks and practices. The packs are not equally validated. Some have labeled findings on real repositories and many have none. Read the measured numbers in [rule precision](docs/guides/rule-precision.md) before you select a pack, and inspect it with `pregate pack list --library`. The [inventory](#rule-inventory) below is a count, not a quality claim.
 
-sorts every statement into one of three groups: it runs as a rule now, it needs an example, or it stays in the file as guidance. Real instruction files are mostly paragraphs, so the agent does the reading:
+## Platform support and limits
 
-```sh
-pregate compile AGENTS.md --template          # the statements, and the steps to complete them
-pregate guide --preview --compile proposals.json
-```
+| Platform | Status |
+| --- | --- |
+| macOS Apple silicon, arm64 | Stable |
+| Linux x64 and arm64 | Experimental test builds |
+| Windows x64 | Experimental test builds |
 
-On a new project, pass that proposals file to `pregate guide --preview` so the rules join the contract review. `pregate compile apply proposals.json --preview` is the later review, once a contract exists. Before a contract exists, `compile apply` updates the pending guide review instead of starting a second approval.
+Intel Mac archives are produced but are not declared stable. 0.0.15 is this release. Windows users of 0.0.2 must upgrade: two bugs in that release could let an edit through without a finding. See the [Windows verification guide](docs/guides/windows-verification.md).
 
-For each rule the agent gives a short sentence, code that must fail, and code that must pass. Pregate keeps only the rules those cases prove and puts them in that one review. After approval, the report names the lines that can leave the instruction file, so they stop loading in every session. Pregate never edits that file.
-
-A statement such as "write clear code" or "run the tests before you finish" is not a rule on a file, and Pregate says so instead of inventing one. [How it works and what it proves](docs/features/agent-proposed-contract.md).
-
-### Let the agent propose your architecture
-
-`pregate guide --preview` derives layers from conventional folder names and shows what they find today: which imports already break each layer, and which folders no layer covers. For folders it cannot place, the agent writes a layer map and passes it with `pregate guide --preview --layers <map.json>` on a new project. When `ark.config.json` is already in the repository, that same preview imports its layers and `coexist.arkgate` instead of a hand-written map. Once a contract exists, `pregate layers apply <map.json> --preview` reports the evidence before you approve, and `pregate import arkgate --preview` refreshes the ArkGate import.
-
-A file in no layer is unrestricted, so a partial map leaves a way around it: move the code to a folder the map does not cover. Add `--complete` when you want no such folder. It refuses a map that leaves a source file, or a folder created later, outside every layer; a catch-all layer such as `src/**` closes the gap.
-
-A statement that allows the code in one place ("only inside `src/lib/ai`") becomes a rule with an exception, and the exception is proved like the rule. What a real trial found, including a rule that was broader than its statement, is in the [case study](docs/benchmarks/case-study-production-repository.md).
-
-## For the agent reading this
-
-This section is written for an AI agent that reads this file to decide how to act. It is literal.
-
-- Pregate is a command-line tool and a set of harness hooks. A repository uses it when `.pregate/preset.json` exists.
-- When a human has enabled it, every file write and edit in scope is checked before it is written. A denial contains `Why`, `Fix` and `Avoid`. Revise the edit to satisfy the rule. Do not route the same change through a shell command, a script, or a different file.
-- A hook blocks two things only: an edit that breaks a rule the project set to enforce, and an action on Pregate itself (`pregate enable` or `pregate disable`, approving for the human, changing a harness's hooks, writing inside `.pregate/`). Do not look for another way around the second one. Tell the user what you wanted to change.
-- An advisor finding does not block. Revise the code, or keep it and tell the user why.
-- A line that starts with `PREGATE NOTE` means Pregate could not check something. The call went through. It is not a reason to stop the user's task.
-- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --packs <ns,ns|none>`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them. If `guide --preview` stops because one pack's nested packages cannot share a single include/exclude scope, run it again with `--packs` listing the packs to keep and omitting that pack. `guide --json` prints that scope error as JSON and exits non-zero. A project with no contract is told that none exists yet.
-- You must not run these. Only a human does, in a terminal: `pregate approve`, `pregate enable`, `pregate disable`, `pregate uninstall`.
-- Do not edit `.pregate/`, rule pack sources, or harness hook settings. Reading them is allowed. Propose a change with the preview commands above.
-- When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill is a one-page guide to the common requests. The complete command list is in [docs/CLI.md](docs/CLI.md).
-- Pregate does not prove that code is correct. Do not tell the user that a passing check means the change is right.
-
-## What Pregate does
-
-- Checks the proposed file content. Hooks reconstruct supported edits before evaluation. `pregate check --stdin --path <file>` accepts the complete proposed file without writing it.
-- Shares one `.pregate/preset.json` and compiled `.pregate/pregate.lock.json` across the supported harnesses. Git pre-commit and CI evaluate that contract too.
-- Lets you introduce rules gradually. Advisor rules explain without blocking. Enforce rules can block. The no-new ratchet blocks new or growing violations while allowing existing debt that did not grow.
-- Lists existing findings with `audit`, then proposes advisor rules for enforcement with `promote`. Clean rules block every match. Under the no-new ratchet, rules that already have findings can move to enforce too: existing findings stay grandfathered and new ones are denied. A human reviews the change before it applies.
-- Gives agents `Why`, `Fix`, and `Avoid` guidance, including known ways a superficial repair would miss the rule.
-- Binds contract approval to a SHA-256 digest. A human approves the exact preview through a terminal, not through the agent's permission prompt.
-
-The ratchet compares violations by rule and symbol, not arbitrary program meaning. It does not prove that code is correct. [Ratchet guarantees](docs/guarantees.md#ratchet-no-new).
-
-## What Pregate does not do
-
-Pregate is not a security boundary. Hooks provide early feedback, not a sandbox. They see only the calls an agent exposes. The shell guard uses text heuristics. Locally a hook blocks only a rule the project set to enforce and an agent acting on Pregate itself. Anything else it cannot check is a one-line note, and the call goes through. An engine crash, a timeout, or a missing launcher also lets the call through, unless `.pregate/preset.json` sets `"uncertainty": "closed"`. Stop audits and Git pre-commit checks are local backstops, not tamper-proof controls. A local bypass is meant to be visible and to fail in CI, not to be impossible. A repository without CI that runs `pregate check --ratchet` has only notes locally, and nothing holds a loosened contract there. See [what blocks locally](docs/guarantees.md#what-blocks-locally).
-
-The [guarantees](docs/guarantees.md#contract-loosening) put the boundary in CI:
-
-> This is the boundary: protect `.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews, or a pull request can rewrite the workflow that runs the check.
-
-CI's `check --ratchet` rejects contract loosening unless a maintainer accepts that exact change's digest outside the PR. Stop does not compare contracts, and a local commit that loosens the contract gets a note and is not refused. Protect the Vercel build recipe the same way if you use that route.
-
-- Keep your linters, formatter, type checker, tests, security scans, and human review. Pregate does not replace them.
-- Pregate provides repair guidance, not source-code autofix. It has no editor diagnostics extension. Agent hook registrations, including the Antigravity plugin, are not that extension.
-- The generated language list below is every extension the engine parses. Coverage differs by language and rule. Python, Go, and Rust need explicit language rules. Vue and Svelte `<script>` blocks are in the typescript row. Their templates are not a grammar.
-- A framework pack is not a parser for every file that framework uses. The `astro` pack checks TypeScript and JavaScript files. The engine does not parse `.astro` templates.
-- Textual integrity and placement guards can apply beyond parsed languages. Project fitness obligations need bound commands and current evidence. An unbound obligation is unverified, not a passing check.
+- Pregate parses TypeScript, JavaScript, Python, Go and Rust. Coverage differs by language and rule. Python, Go and Rust need explicit language rules. The exact list is below.
+- A framework pack is not a parser for that framework's files. The `astro` pack checks TypeScript and JavaScript; `.astro` templates are not parsed.
+- Hooks see only the calls an agent exposes, and the shell guard uses text heuristics. A local bypass is meant to be visible and to fail in CI, not to be impossible.
+- Pregate gives repair guidance, not source-code autofix. It has no editor diagnostics extension.
+- It evaluates its own rules. It does not run ESLint, Ruff or Semgrep, and it is not a vulnerability scanner. Keep those tools.
 - A rule made from your examples is proved against those examples. That does not prove it matches every form of the mistake.
+- A fitness obligation needs a bound command and current evidence. An unbound obligation is unverified, not a passing check.
 
-See [language coverage](src/capabilities.ts), [architecture and scope limits](docs/ARCHITECTURE.md), and the [pack catalog](docs/packs.md).
+The Pre hook has a 150 ms p95 budget on the reference machine; a passing CI job does not mean that budget was met elsewhere. [Hook latency](docs/benchmarks/hook-latency.md) · [Architecture and scope limits](docs/ARCHITECTURE.md).
 
 ## Supported agents and languages
 
@@ -161,33 +133,22 @@ Not in that list: `.astro`, `.java`, `.kt`, `.kts`, `.swift`, `.dart`.
 
 <!-- END generated reference -->
 
-## How Pregate fits with your tools
+## For the agent reading this
 
-Keep the tools you trust for their rule depth, fixes, and editor feedback. Pregate's distinction is the combination of a shared agent policy, pre-write evaluation, one ratchet and promotion workflow, and feedback written for the agent's next attempt.
+This section is written for an AI agent that reads this file to decide how to act. It is literal.
 
-| Keep using | For | Pregate adds alongside it |
-| --- | --- | --- |
-| [ESLint](https://eslint.org/docs/latest/use/command-line-interface) and [Ruff](https://docs.astral.sh/ruff/) | Language lint rules and supported automatic fixes | The same reviewed contract across supported agents, with pre-write feedback |
-| [Semgrep](https://semgrep.dev/docs/semgrep-code/overview) | Security analysis with pattern and data-flow rules | Engineering-contract checks, not a replacement vulnerability scanner |
-| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Dependency validation and visualization | Agent feedback for the architecture rules Pregate models |
-| [ArchUnit](https://www.archunit.org/) | Architecture tests over Java bytecode | A separate policy for Pregate's supported languages, not Java analysis |
-| CI and human review | Merge checks, behavioral evidence, and judgment | The same contract checked earlier in the edit loop and again in CI |
+- Pregate is a command-line tool and a set of harness hooks. A repository uses it when `.pregate/preset.json` exists.
+- When a human has enabled it, every file write and edit in scope is checked before it is written. A denial contains `Why`, `Fix` and `Avoid`. Revise the edit to satisfy the rule. Do not route the same change through a shell command, a script, or a different file.
+- A hook blocks two things only: an edit that breaks a rule the project set to enforce, and an action on Pregate itself (`pregate enable` or `pregate disable`, approving for the human, changing a harness's hooks, writing inside `.pregate/`). Do not look for another way around the second one. Tell the user what you wanted to change.
+- An advisor finding does not block. Revise the code, or keep it and tell the user why.
+- A line that starts with `PREGATE NOTE` means Pregate could not check something. The call went through. It is not a reason to stop the user's task.
+- You may run these, because they inspect or only prepare a review: `pregate guide --json`, `pregate guide --preview`, `pregate guide --preview --packs <ns,ns|none>`, `pregate guide --preview --layers <map.json> --compile <proposals.json>`, `pregate status`, `pregate explain <rule>`, `pregate check --stdin --path <file> --format agent`, `pregate audit`, `pregate report`, `pregate layers --json`, `pregate layers apply <map.json> --preview`, `pregate compile <file>`, `pregate compile <file> --template`, `pregate compile apply <proposals.json> --preview`, `pregate rules add "<sentence>"`, `pregate promote --preview`. On a new project, put the layer map and the compiled rules on `guide --preview` so one approval applies them. If `guide --preview` stops because one pack's nested packages cannot share a single include/exclude scope, run it again with `--packs` listing the packs to keep and omitting that pack.
+- You must not run these. Only a human does, in a terminal: `pregate approve`, `pregate enable`, `pregate disable`, `pregate uninstall`.
+- Do not edit `.pregate/`, rule pack sources, or harness hook settings. Reading them is allowed. Propose a change with the preview commands above.
+- When you report to the user, use plain language, name real files from the repository, and give one action. The `/pregate` skill is a one-page guide to the common requests. The complete command list is in [docs/CLI.md](docs/CLI.md).
+- Pregate does not prove that code is correct. Do not tell the user that a passing check means the change is right.
 
-Pre-write checks, baselines, and agent integrations exist elsewhere. ESLint already accepts stdin and supports bulk suppressions. You can build your own hooks. Pregate packages its contract workflow across supported agents; it does not claim to have invented these mechanisms.
-
-Pregate currently evaluates its own rules. It does not run ESLint, Ruff, or Semgrep as built-in analysis backends.
-
-## Install and adopt, step by step
-
-Start with advisor rules and inspect the findings before choosing what should block. The installer changes global agent settings, so read [what install touches](#what-install-touches-and-how-to-remove-it) first. For no local hooks, start with the [GitHub Action](#github-action-and-sarif).
-
-### 1. Install the standalone binary
-
-macOS and Linux:
-
-```sh
-curl -fsSL https://github.com/pedroknigge/pregate/releases/latest/download/install.sh | sh
-```
+## Install details
 
 Windows PowerShell, experimental:
 
@@ -195,128 +156,45 @@ Windows PowerShell, experimental:
 irm https://github.com/pedroknigge/pregate/releases/latest/download/install.ps1 | iex
 ```
 
-You can also install from npm:
+The npm package is a launcher. On first run it downloads the release archive for that version (about 55 MB), verifies `SHA256SUMS`, and runs the same installer. Bun is needed only to build from source.
+
+The installer runs `pregate setup`, which changes global agent settings. It installs the engine, a launcher and the `/pregate` skill, and registers hooks for each agent it detects. It does not create a repository contract or a CI workflow. The hooks act only in a directory where a human ran `pregate enable`; a contract committed by someone else does not activate them. A repository can also register its own hooks with no machine-wide setup.
+
+- `pregate disable` turns the project off after human confirmation. Global hooks stay installed.
+- `pregate uninstall` removes the global hooks, launcher, engines and skill. Repository contracts and the settings backups remain.
+- `pregate uninstall --purge` also deletes local session and consent state.
+
+Exact paths, backups, project-local hooks, checksums and signatures: [installation guide](docs/guides/installation.md).
+
+## Choose what goes into the contract
+
+`pregate enable` is the whole setup. To choose packs, a layer map, or rules from your instruction files before you approve, prepare the review yourself or type `/pregate` in your agent:
 
 ```sh
-npm i -g pregate
-npx pregate --version
+pregate guide --preview                             # propose a contract; add --packs <a,b|none> to choose packs
+pregate guide --preview --layers map.json --compile proposals.json
+pregate approve --preview                           # read it, then: pregate approve <code>
+pregate audit --plan                                # list existing debt
+pregate promote --preview                           # propose advisor rules for enforcement
 ```
 
-The npm package is a launcher (`bin/pregate.mjs`). On first run it downloads the GitHub release archive for that package version (about 55 MB), verifies `SHA256SUMS`, optionally verifies Sigstore bundles when `PREGATE_REQUIRE_SIGNATURE=1` and `cosign` is available, then runs the same installer as `install.sh` / `install.ps1`, which registers harness hooks and the companion skill. Later runs use the cached engine. Bun is needed only for development or builds from source, not to run the standalone binary. See [installation and signature requirements](docs/guides/installation.md).
+A preview does not apply a contract. Approval is bound to a SHA-256 digest of the exact preview, and a human gives it in a terminal. A file in no layer is unrestricted; `--complete` refuses a layer map that leaves a source file outside every layer. For a wrong finding, record feedback with `pregate feedback draft <finding-id> --as false-positive`. See the [daily workflow](docs/guides/daily-use.md), [feedback](docs/features/human-feedback.md) and the [command reference](docs/CLI.md). `pregate --help` prints the seven everyday commands.
 
-### 2. Turn it on in your Git repository
+## CI
 
 ```sh
-pregate enable
+pregate install --git-hook --ci github     # or --ci vercel, or --ci github,vercel
 ```
 
-In a repository with no contract, this prepares the advisor contract, prints a short summary, and applies it on your `y` (or `--yes`). That is the whole setup. The rest of this step is for choosing what goes into the contract before you approve it:
+The generated workflow runs `check --ratchet` against the PR base and pins the engine from the base branch's lock. It rejects a loosened contract unless a maintainer accepts that exact change outside the PR. The [guarantees](docs/guarantees.md#contract-loosening) state the boundary:
 
-```sh
-pregate guide --preview
-pregate approve --preview
-```
+> This is the boundary: protect `.pregate/` and `.github/workflows/` with CODEOWNERS and required reviews, or a pull request can rewrite the workflow that runs the check.
 
-`guide --preview` selects the packs it infers. To leave one out, name the packs this review should keep. That is the escape hatch when onboarding stops because a pack's nested packages cannot share one include/exclude scope:
+Protect `vercel.json` and the build script the same way if you use the [Vercel route](docs/guides/vercel-ci.md). `check --format sarif` and `audit --sarif` produce reports for GitHub Code Scanning. For a hand-written workflow, see the [Action inputs](action.yml) and pin the Action to a reviewed full commit SHA.
 
-```sh
-pregate guide --preview --packs typescript,javascript
-```
+## Rule inventory
 
-`--packs none` adds no optional packs. Omit only the blocked pack unless an empty selection is the review you want. `guide --json` includes that scope error and exits non-zero; it does not write a contract.
-
-A new project is proposed in advisor mode: the agent sees each finding and nothing blocks. Pass `--enforcement enforce` or `--enforcement shadow` to propose another mode. Review the proposed scope, selected packs, layers, and effective rule modes. Preview does not apply a contract or grant consent. In this shell, including a harness `!` line, run the displayed command, replacing `<code>` with the preview's 12-character digest code:
-
-```text
-pregate approve <code>
-```
-
-A code or `--yes` needs no terminal. An agent could run that same command. Pregate records a non-terminal approval in the approval log so that is visible. In an interactive Claude Code parent session, or an interactive agy session, the agent may propose that command, and the human gets that harness's permission prompt: Accept runs it, Reject runs nothing. In every other session the agent is told to ask the human and not to run it. A bare `pregate approve` still asks for `y` on a terminal. Approval normally commits the contract in a Git worktree. Add `--no-commit` to leave it uncommitted. `enable` and `disable` stay on a separate terminal. Other `pregate` commands, including `storage apply <digest> --yes`, are allowed from the harness shell.
-
-```sh
-pregate status
-pregate audit --plan
-```
-
-`audit` ends with a line that states its exit code. `Exit 0` and `Exit 1` are complete results: nothing blocks, or findings block. `Exit 2` is an incomplete audit, for example a file with a syntax error. It still prints a report, and it is not a count of violations.
-
-A committed contract is not local consent. For an existing cloned or disabled contract, review `status`, then use `pregate enable` in a human terminal and confirm. Advisor rules do not block edits, but explicit enforcing overrides and bound fitness requirements can still block. Review the preview rather than assuming every rule became advisory.
-
-### 3. Calibrate, then promote
-
-`audit` inventories debt. With `ratchet.mode: "no-new"`, enforcing rules prevent growth instead of demanding a clean tree on the first edit. See the [daily workflow](docs/guides/daily-use.md) for baseline and mode details.
-
-```sh
-pregate promote --preview
-```
-
-`audit` and `report` list clean advisor rules as `enforceCandidates`, and a session start names them when they have stayed clean for a week of edits. When the ratchet is `no-new`, `audit` also lists advisor rules that already have findings as `ratchetCandidates`. `pregate promote --preview` can move either set to enforce. A clean rule blocks every match. A rule with existing findings keeps those matches grandfathered by the no-new ratchet and denies new ones. A strict ratchet does not grandfather, so dirty rules stay out. Review and approve the promotion's new digest. Zero findings is a candidate for enforcement, not proof that a rule covers every case.
-
-For a wrong finding, record feedback separately:
-
-```sh
-pregate feedback draft <finding-id> --as false-positive --note "why this case is allowed"
-```
-
-Applying the label needs its own human approval. See [feedback](docs/features/human-feedback.md). The `/pregate` companion skill helps the agent follow this workflow. Setup installs it, or you can sync it with [`npx skills`](https://github.com/vercel-labs/skills):
-
-```sh
-npx skills add pedroknigge/pregate
-```
-
-## What install touches and how to remove it
-
-The full installer runs `pregate setup` globally. Setup installs the engine, launcher, and companion skill. For detected agents, it registers owned hooks in Claude settings, Cursor hooks, Codex hooks, the Antigravity `pregate-global` plugin, or the OpenCode plugin folder named by `~/.config/opencode/opencode.json`. Claude Code, Cursor, and Grok share the Claude settings registration. Setup does not create a repository contract or repository CI workflow.
-
-Setup exits 0 when at least one detected harness was wired. A harness that could not be wired is a warning and names the next step. Codex that does not confirm hook trust is that warning: `hooks.json` is left unchanged, and the message says to approve the Pregate hooks in Codex with `/hooks`, then rerun `pregate setup`. Setup exits 1 when no harness was wired, or on a real error. `install.sh` and `install.ps1` stop only on that non-zero exit. `pregate guide` still applies a reviewed contract after a warning-only setup and says agent-edit protection stays degraded until a harness is wired.
-
-A repository can register Claude Code on its own, without a machine-wide setup. `pregate prepare` caches the engine the lock pins, `pregate project launcher` installs the reviewed launcher, and `pregate project setup` merges hooks into `.claude/settings.json` that run that launcher. The hooks do not fall back to a global installation. Claude's workspace-trust dialog and `pregate enable` stay separate.
-
-Project-rule hooks need local consent. A preset committed by someone else does not activate them. Read the [installation guide](docs/guides/installation.md) for exact paths, backups, updates, checksum verification, and signatures.
-
-- `pregate disable` revokes current-worktree consent and withdraws repository-wide consent after human confirmation. Global hooks remain installed. They enforce a directory only where `pregate enable` is in effect. A repository that was never enabled is not blocked: pre-command and pre-edit exit 0, and SessionStart may print one line. A disabled checkout is not blocked either, except a write that lands in a different worktree that is still enabled. The hook may print one line that it is disabled.
-- `pregate uninstall` removes owned global hook registrations, launcher, engines, and companion skill. Repository contracts and the original `.pregate.bak` settings backups remain.
-- `pregate uninstall --purge` also deletes local session and consent state. It still leaves repository contracts alone.
-
-## GitHub Action and SARIF
-
-CI can evaluate the contract without installing hooks on a laptop. After initialization, generate a Git pre-commit hook and a GitHub Actions workflow with:
-
-```sh
-pregate install --git-hook --ci github
-```
-
-The generated workflow runs `check --ratchet` against the PR base and pins the engine from the base branch's lock. Protect the contract and workflow with CODEOWNERS and required reviews.
-
-For a hand-written workflow, see the [Action inputs](action.yml) and [installation guide](docs/guides/installation.md). Pin the Action to a reviewed full commit SHA. `check --format sarif` and `audit --sarif` produce reports for GitHub Code Scanning. See the [command reference](docs/CLI.md).
-
-## Vercel
-
-The same gate can run in a Vercel build, including a repository with no GitHub Actions workflow:
-
-```sh
-pregate install --ci vercel
-```
-
-Use `--ci github,vercel` for both. When both providers are configured, both must pass. Protect `vercel.json` and the build script with CODEOWNERS too. See the [Vercel guide](docs/guides/vercel-ci.md).
-
-## Platform support
-
-| Platform | Status |
-| --- | --- |
-| macOS Apple silicon, arm64 | Stable |
-| Linux x64 and arm64 | Experimental test builds |
-| Windows x64 | Experimental test builds |
-
-Intel Mac archives are produced but are not declared stable. Passing a CI job is not a promise of production support. 0.0.15 is this release. Windows users of 0.0.2 should upgrade. Two bugs in that release could let an edit through on Windows without a finding. 0.0.3 denies those calls. See the [0.0.15 release notes](docs/releases/0.0.15.md) and [Windows verification guide](docs/guides/windows-verification.md).
-
-### Measured hook latency
-
-CI measures the compiled Pre hook on 200-line and 2,000-line TypeScript fixtures and compares each route with that platform's baseline. The 150 ms p95 budget belongs to the reference M5 Pro with 18 cores, and a passing CI job does not mean that budget was met. Method, baselines, and one recorded hosted run: [hook latency](docs/benchmarks/hook-latency.md).
-
-## Languages and optional packs
-
-Counts and pack names below are generated from this tree. They are an implementation inventory, not a measure of semantic coverage or precision. The [pack catalog](docs/packs.md) records defaults and limits. Use `pregate pack list --library` on your installed engine and inspect a pack before selecting it. Selection is a reviewed preview, not an install side effect.
+Counts and pack names below are generated from this tree. They are an implementation inventory, not a measure of semantic coverage or precision. The [pack catalog](docs/packs.md) records defaults and limits.
 
 <!-- BEGIN readme catalog -->
 
@@ -339,29 +217,6 @@ Pattern checks by language: typescript 455, python 18, go 8, rust 6. A check wit
 
 Regenerate the version, harness, language, and pack blocks with `bun scripts/docs-reference.ts`. `bun scripts/readme-catalog.ts` rewrites only the pack block.
 
-## CLI commands
-
-| Task | Command |
-| --- | --- |
-| Set a project up in advisor mode | `pregate enable` |
-| Prepare a contract with chosen packs, layers or rules | `pregate guide --preview` |
-| Review a pending contract | `pregate approve --preview` |
-| Inspect consent and installation | `pregate status` / `pregate doctor` |
-| Sort an instruction file into rules and guidance | `pregate compile <rules.md>` |
-| Stage rules an agent proposed from that file | `pregate compile apply <proposals.json> --preview` |
-| Show the layer map with evidence | `pregate layers` |
-| Stage a layer map an agent proposed | `pregate layers apply <map.json> --preview` |
-| Evaluate proposed file content | `pregate check --stdin --path <file> --format agent` |
-| Check the full tree or staged files | `pregate check --all` / `pregate check --staged` |
-| Check new debt against a base | `pregate check --ratchet --base <sha>` |
-| Inventory debt and plan repairs | `pregate audit --plan` |
-| Propose clean rules for enforcement | `pregate promote --preview` |
-| Explain a rule | `pregate explain <rule>` |
-| Summarize what the gate did to the agent | `pregate report` |
-| Run an isolated example | `pregate demo` |
-
-`pregate --help` prints the seven everyday commands. `pregate --help --all` and the [command reference](docs/CLI.md) have the complete CLI.
-
 ## Documentation
 
 - [Installation, updates, and removal](docs/guides/installation.md)
@@ -369,15 +224,10 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 - [The `/pregate` skill](docs/guides/pregate-skill.md)
 - [Instruction files to rules, layers with evidence, promotion](docs/features/agent-proposed-contract.md)
 - [Command reference](docs/CLI.md)
-- [Pack and preset inventory](docs/packs.md)
-- [Core catalog](docs/core-catalog.md)
-- [Rule drafting](docs/features/rule-drafting.md)
-- [Project fitness](docs/features/project-fitness.md)
-- [Hook latency](docs/benchmarks/hook-latency.md)
-- [Case study: one production repository](docs/benchmarks/case-study-production-repository.md), with what was measured and what was not
-- [Shell guard friction](docs/benchmarks/shell-guard-friction.md): which routine commands the guard refuses
-- [Session trial](docs/benchmarks/session-trial.md): 48 real sessions of Claude Code and Codex on three pinned public repositories, with and without the gate: no new finding in either arm, 17 denial rows in the gated arm (7 labeled true, 8 false, 2 unclear; an AI coding agent wrote the labels)
 - [Guarantees and residual limits](docs/guarantees.md)
+- [Rule precision](docs/guides/rule-precision.md) · [Pack and preset inventory](docs/packs.md) · [Core catalog](docs/core-catalog.md)
+- [Rule drafting](docs/features/rule-drafting.md) · [Project fitness](docs/features/project-fitness.md)
+- Measurements: [hook latency](docs/benchmarks/hook-latency.md), [one production repository](docs/benchmarks/case-study-production-repository.md), [shell guard friction](docs/benchmarks/shell-guard-friction.md), [session trial](docs/benchmarks/session-trial.md)
 - [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
 - [Release notes for 0.0.15](docs/releases/0.0.15.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
