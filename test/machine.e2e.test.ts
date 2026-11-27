@@ -638,7 +638,7 @@ describe("update", () => {
     put(lock, JSON.stringify({ ...json(lock), engine: "0.0.0" }));
     const out = ok(run([m.link, "update", "--version", pkg.version], m, root), "update");
     expect(out.stdout).toContain("WARNING: No Claude Code");
-    expect(out.stdout).toContain("1 project reviews prepared");
+    expect(out.stdout).toContain("Projects need no step");
     expect(out.stdout).not.toContain("ERROR:");
   });
 
@@ -657,57 +657,32 @@ describe("update", () => {
     expect(out.code).toBe(1);
     expect(out.stdout).toContain("ERROR:");
     expect(out.stdout).not.toContain("project reviews prepared");
+    expect(out.stdout).not.toContain("Projects need no step");
   });
 
-  test("updating inside a project automatically prepares one review without applying the project contract", () => {
+  // Any engine reads any project's contract, so a global update prepares no review. One review
+  // per registered project and worktree took minutes on a machine with many of them.
+  test("a global update prepares no project review and changes no project file, inside a project or from anywhere", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");
-    const root = join(m.root, "project");
-    mkdirSync(root);
-    ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
-    const files = ["preset.json", "pregate.lock.json"].map(file => join(root, ".pregate", file));
-    // Exercise a migration, not the current-contract no-op.
-    for (const file of files) {
-      const old = JSON.parse(read(file)!); old.engine = "0.0.0";
-      put(file, JSON.stringify(old));
-    }
-    const before = files.map(read);
-    const consentFiles = readdirSync(join(m.data, "consent")).sort().map(file => join(m.data, "consent", file));
-    const consent = consentFiles.map(read);
-    const out = ok(run([m.link, "update", "--version", pkg.version], m, root), "update");
-    expect(out.stdout).toContain("Approval commits the preset and lock");
-    expect(out.stdout).toContain("Digest:");
-    expect(out.stdout).toContain("1 project reviews prepared");
-    expect(out.stdout).toContain("preset, lock and consent remain unchanged until approval");
-    expect(out.stdout).toContain("pregate status to inspect effective protection");
-    expect(files.map(read)).toEqual(before);
-    expect(consentFiles.map(read)).toEqual(consent);
-  });
-
-  test("update reviews every enabled registered project that pins an older engine, from any directory, in one preview", () => {
-    const m = machine(["claude-code"]);
-    ok(pregate(m, "setup"), "setup");
-    const projects = ["registered a", "registered b", "registered current"].map((name) => join(m.root, name)) as [string, string, string];
+    const projects = ["registered a", "registered b"].map((name) => join(m.root, name)) as [string, string];
     for (const root of projects) {
       mkdirSync(root);
       ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
+      for (const file of ["preset.json", "pregate.lock.json"].map((name) => join(root, ".pregate", name))) {
+        const old = JSON.parse(read(file)!); old.engine = "0.0.0";
+        put(file, JSON.stringify(old));
+      }
     }
-    for (const root of projects.slice(0, 2)) {
-      const lock = join(root, ".pregate/pregate.lock.json");
-      put(lock, JSON.stringify({ ...json(lock), engine: "0.0.0" }));
+    const files = projects.flatMap((root) => ["preset.json", "pregate.lock.json"].map((name) => join(root, ".pregate", name)));
+    const before = files.map(read);
+    for (const cwd of [projects[0], m.root]) {
+      const out = ok(run([m.link, "update", "--version", pkg.version], m, cwd), "update");
+      expect(out.stdout).toContain("Projects need no step");
+      expect(out.stdout).not.toContain("project reviews prepared");
+      expect(out.stdout).not.toContain("Digest:");
+      expect(files.map(read)).toEqual(before);
     }
-    ok(run([BIN, "disable", "--yes"], m, projects[1]), "disable");
-    const out = ok(run([m.link, "update", "--version", pkg.version], m), "update");
-    expect(out.stdout).toContain(`Project: ${projects[0]}`);
-    expect(out.stdout).not.toContain(`Project: ${projects[1]}`);
-    expect(out.stdout).not.toContain(`Project: ${projects[2]}`);
-    expect(out.stdout).toContain("1 project reviews prepared");
-    ok(run([BIN, "enable", "--yes"], m, projects[1]), "enable");
-    const lock = join(projects[0], ".pregate/pregate.lock.json");
-    put(lock, JSON.stringify({ ...json(lock), engine: "99.0.0" }));
-    const again = ok(run([m.link, "update", "--version", pkg.version], m), "update again");
-    expect(again.stdout).toContain(`Project: ${projects[1]}`);
-    expect(again.stdout).not.toContain(`Project: ${projects[0]}`);
   });
 
   test("update removes engines no registered project pins and keeps the pinned, previous and new ones", () => {
@@ -741,27 +716,7 @@ describe("update", () => {
     const out = ok(run([m.link, "update"], m), "update");
     expect(out.stdout).not.toContain("0.0.1)");
     expect(existsSync(join(m.data, "0.0.1", "pregate"))).toBe(true);
-    // The inheriting checkout is reviewed too (the fake release engine prints no preview).
-    expect(out.stdout).toContain("Each project's preset, lock and consent remain unchanged until approval.");
-  });
-
-  test("a registered project that cannot be previewed does not fail the update of a healthy current project", () => {
-    const m = machine(["claude-code"]);
-    ok(pregate(m, "setup"), "setup");
-    const [broken, healthy] = ["broken registered", "healthy current"].map((name) => join(m.root, name)) as [string, string];
-    for (const root of [broken, healthy]) {
-      mkdirSync(root);
-      ok(run([BIN, "init", "--yes", "--preset", "integrity-only"], m, root), "init");
-      const lock = join(root, ".pregate/pregate.lock.json");
-      put(lock, JSON.stringify({ ...json(lock), engine: "0.0.0" }));
-    }
-    const preset = join(broken, ".pregate/preset.json");
-    put(preset, JSON.stringify({ ...json(preset), sources: [...json(preset).sources, { ns: "missing-pack", kind: "library", version: "1.0.0" }] }));
-    const out = ok(run([m.link, "update", "--version", pkg.version], m, healthy), "update");
-    expect(out.stdout).toContain(`Project: ${realpathSync(healthy)}`);
-    expect(out.stdout).toContain("1 project reviews prepared");
-    expect(out.stdout).toContain(`1 project reviews failed: ${realpathSync(broken)}.`);
-    expect(out.stdout).toContain("WARNING: Some registered project reviews failed (named above).");
+    expect(out.stdout).toContain("Projects need no step");
   });
 
   test("a tar that does not match SHA256SUMS installs nothing", () => {

@@ -2,9 +2,9 @@
 
 Two measurements are recorded here. Sample precision says how many labeled findings match the rule that produced them, and who wrote each label: the maintainer or an AI coding agent. Hook latency is the compiled Pre hook on 200-line and 2,000-line files. A pack with no labels has no precision, and a latency number from one OS is not the number for another.
 
-## Pack status from the 0.0.16 measurement
+## Pack status from the 0.0.17 measurement
 
-Engine 0.0.16 reports 5,948 findings on the pinned corpus: 49 packs, 8 repositories, 238 source files. 203 of those findings have a label. The maintainer wrote 17 labels and an AI coding agent wrote 186. No person has reviewed the agent labels. The [per-pack table](#per-pack-counts) has the findings, labels, correct, false-positive and uncertain counts, the sample precision and the status of each pack.
+Engine 0.0.17 reports 5,948 findings on the pinned corpus: 49 packs, 8 repositories, 238 source files. 203 of those findings have a label. The maintainer wrote 17 labels and an AI coding agent wrote 186. No person has reviewed the agent labels. The [per-pack table](#per-pack-counts) has the findings, labels, correct, false-positive and uncertain counts, the sample precision and the status of each pack.
 
 One bar decides the status. A pack is **validated** when it has at least 6 labeled findings and its sample precision, correct / (correct + false-positive), is at least 70%. A pack below either number is **not validated**. A pack with no finding on the corpus is **unmeasured**, which is also not validated.
 
@@ -97,7 +97,7 @@ The agent sample found false positives in six more packs. The maintainer read th
 
 The corpus contains no project that uses tRPC, Vue, Tailwind, Auth.js, MongoDB or Redis. For `trpc`, `vue`, `tailwind`, `authjs`, `mongodb` and `redis`, no true positive is measured here: the run shows only that the rules no longer report unrelated code. The `fail` and `trap` fixtures of each pack are the only evidence that the rules still report the code they name. The measured false positives are `pass` fixtures, and for `EX-NEXT-001` a trap fixture with the exact line.
 
-After that round `pstack` was 2/6 with default severity `warn`, and no other pack had a false positive among 64 labeled findings out of 5,508. The 0.0.16 measurement above replaces those numbers.
+After that round `pstack` was 2/6 with default severity `warn`, and no other pack had a false positive among 64 labeled findings out of 5,508. The 0.0.17 measurement above replaces those numbers.
 
 <!-- BEGIN measured precision -->
 
@@ -105,7 +105,7 @@ After that round `pstack` was 2/6 with default severity `warn`, and no other pac
 
 This run audited 49 packs on 8 pinned trees (238 source files) and recorded **5948 findings**. Sample precision is shown for 15 labeled packs. Every other pack is unmeasured.
 
-Engine 0.0.16, core 0.0.1.
+Engine 0.0.17, core 0.0.1.
 
 Labeled sample: 140 true-positive, 49 false-positive, 14 uncertain. Packs that do not appear in that sample are unmeasured.
 
