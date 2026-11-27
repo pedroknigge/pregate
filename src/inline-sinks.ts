@@ -185,10 +185,16 @@ export function literalWriteTargets(program: string): string[] {
 // not read as calls. Python f-strings and JavaScript template literals hold code and stay. A
 // Python read mode ("r", "rb") stays for readOnlyOpen.
 function masked(program: string, python: boolean): string {
+  // A comment is consumed as one token and blanked. Without that, a quote inside a comment pairs
+  // with the next real quote and the code between them is masked as if it were a string.
   const literal = python
-    ? /([A-Za-z]{0,2})('''[\s\S]*?'''|"""[\s\S]*?"""|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g
-    : /()('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g;
-  return program.replace(literal, (all, prefix: string, body: string) => {
+    ? /(?<comment>#[^\n]*)|(?<prefix>[A-Za-z]{0,2})(?<body>'''[\s\S]*?'''|"""[\s\S]*?"""|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g
+    : /(?<comment>\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(?<template>`(?:[^`\\]|\\.)*`)|(?<prefix>)(?<body>'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g;
+  return program.replace(literal, (all: string, ...rest: unknown[]) => {
+    const groups = rest.at(-1) as { comment?: string; template?: string; prefix?: string; body?: string };
+    if (groups.comment !== undefined) return " ";
+    if (groups.template !== undefined) return all;
+    const prefix = groups.prefix ?? "", body = groups.body!;
     if (/[fF]/.test(prefix)) return all;
     const quote = body.startsWith("'''") || body.startsWith('"""') ? body.slice(0, 3) : body[0]!;
     const inner = body.slice(quote.length, body.length - quote.length);

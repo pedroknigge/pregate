@@ -234,6 +234,11 @@ describe("operators (each row also checked against @ast-grep/napi)", () => {
     ["stopBy rule is inclusive and does not descend past it",
       { rule: { kind: "call_expression", has: { kind: "number", stopBy: { kind: "array" } } } }, "f([1]); f({ a: 1 });",
       ["8-19 call_expression"]],
+    // Reported as a bug: with a field, a stopBy rule does not reach a deep descendant. The reference
+    // matcher does the same, so this stays as it is: the pattern language is a subset of ast-grep's.
+    ["field with a stopBy rule does not reach a deep descendant, as in ast-grep",
+      { rule: { kind: "call_expression", has: { field: "arguments", kind: "number", stopBy: { kind: "array" } } } }, "f({ a: { b: 1 } }); f([1]);",
+      []],
   ]));
 
   test("inside: field, stopBy end and rule", () => check([

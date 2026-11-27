@@ -200,14 +200,25 @@ export function scopeUnder(lock: Lock | null, rel: string): boolean {
   });
 }
 
-// The most specific glob wins: the one with more literal characters. A tie keeps the layer
-// declared first, because only a strictly higher score replaces the current best.
+// The most specific glob wins: the one with more literal characters. A brace group counts as its
+// shortest alternative and a bracket class as one character, so `src/{alpha,beta}/**` does not
+// outrank `src/alpha/foo.ts`. A tie keeps the first layer of the lock, whose keys are in name
+// order, because only a strictly higher score replaces the current best.
+function specificity(glob: string): number {
+  let text = glob, previous = "";
+  while (text !== previous) {
+    previous = text;
+    text = text.replace(/\{([^{}]*)\}/g, (_all, group: string) => group.split(",").reduce((shortest, part) => part.length < shortest.length ? part : shortest));
+  }
+  return text.replace(/\[[^\]]*\]/g, "c").replace(/[*?]/g, "").length;
+}
+
 export function layerOf(lock: Lock, rel: string): string | null {
   let best: string | null = null;
   let score = -1;
   for (const [name, layer] of Object.entries(lock.layers)) {
     for (const glob of layer.paths) {
-      const literals = glob.replace(/[*?]/g, "").length;
+      const literals = specificity(glob);
       if (literals > score && matches(glob, rel)) {
         best = name;
         score = literals;

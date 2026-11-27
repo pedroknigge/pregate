@@ -121,7 +121,9 @@ function ruleEntry(before: Lock | null, previous: LockRule | undefined, after: L
     line: `${RANK[policy] < RANK[oldPolicy] ? "Loosens" : "Tightens"} ${rule.id}. Enforcement: ${oldPolicy} -> ${policy} (project default).`, inherited: true };
   const sameImpl = equal(previous.impl, rule.impl), sameParams = equal(previous.params, rule.params);
   const sameRest = equal(previous.languages, rule.languages) && equal(previous.phases, rule.phases)
-    && equal(previous.aliases, rule.aliases) && (!previous.integrity || rule.integrity);
+    && equal(previous.aliases, rule.aliases) && (!previous.integrity || rule.integrity)
+    // A version gate or a `when` decides whether the rule runs at all: a change to either is a change of behavior.
+    && equal(previous.versionGate, rule.versionGate) && equal(previous.when, rule.when);
   const sameShape = sameParams && sameRest;
   const sameBehavior = sameImpl && sameShape && equal(ruleLanguages(previous), ruleLanguages(rule)) && previous.severity === rule.severity
     && previous.integrity === rule.integrity && oldPolicy === policy;

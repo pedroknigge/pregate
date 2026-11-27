@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The CI ratchet reports a preset that no longer says `"uncertainty": "closed"`. The lock does not hold that key, so removing it let a failing engine pass with no loosening reported and no acceptance needed.
+- A `versionGate` or a `when` added to or changed on a rule is a change that may loosen. It was reported as documentation with the effective check unchanged, although either one decides whether the rule runs.
+- A quote inside a JavaScript comment no longer hides an inline sink from the shell guard: `/* ' */ eval('1') /* ' */` was read as one string.
+- An escaped import specifier names the module the runtime loads: `import fs from "\u0066s"` and `require("\x66s")` are `fs` to `banned-import` and to layer rules.
+- `export const { a, b } = obj` and `export const [x, y] = list` count as the names they bind for `file.publicExports`. They counted as zero.
+- A value import beside an `import type` of the same module on one line is still an edge for `import-cycles`.
+- A brace group or a bracket class in a layer glob no longer counts as literal characters, so `src/{alpha,beta}/**` does not outrank `src/alpha/foo.ts`. The comment about ties now says what the code does: the first layer in name order wins.
+- A `<script>` inside an HTML comment of a Vue or Svelte file is not read as code.
+
 ## [0.0.15] - 2026-11-26
 
 The first real session on 0.0.14 ended every turn without a block, and the agent still handed commands to the user. A plain `pregate check` no longer refuses a looser contract, a contract change no longer reviews every importer in the project, and the agent runs the check and git itself.

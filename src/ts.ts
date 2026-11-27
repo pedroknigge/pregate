@@ -47,7 +47,11 @@ function blankOutside(text: string): string {
 export function sfcScript(rel: string, text: string): string {
   if (!/\.(vue|svelte)$/i.test(rel)) return text;
   let out = "", at = 0;
-  for (const m of text.matchAll(/<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)(?:<\/script>|$)/gi)) {
+  // An HTML comment is matched first and skipped, so a <script> inside one is not read as code.
+  // Inside a real <script> the first </script> ends it, also in a string or a comment: that is how
+  // the HTML parser of Vue and Svelte reads the file too.
+  for (const m of text.matchAll(/<!--[\s\S]*?(?:-->|$)|<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)(?:<\/script>|$)/gi)) {
+    if (m[2] === undefined) continue;
     const start = m.index! + 8 + m[1]!.length;
     const end = start + m[2]!.length;
     out += blankOutside(text.slice(at, start)) + m[2]!;
@@ -307,7 +311,18 @@ function statementImport(n: Node): Import | null {
   const kind = n.type === "export_statement" ? "reexport"
     : clause ? "require"
     : n.children.some((c) => c.type === "type") ? "type" : "static";
-  return { spec: source.text.slice(1, -1), line: lineOf(n), kind, literal: true };
+  return { spec: unquoted(source.text), line: lineOf(n), kind, literal: true };
+}
+
+// The module a quoted specifier names. "\u0066s" and "\x66s" are the module fs to Node and Bun, so
+// the escapes are decoded before a rule compares the name.
+function unquoted(quoted: string): string {
+  return quoted.slice(1, -1).replace(/\\(?:u\{([0-9a-fA-F]{1,6})\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|([\s\S]))/g,
+    (_all, brace?: string, unicode?: string, hex?: string, other?: string) => {
+      const code = brace ?? unicode ?? hex;
+      if (code !== undefined) return String.fromCodePoint(Number.parseInt(code, 16));
+      return ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", "0": "\0", "\n": "" } as Record<string, string>)[other!] ?? other!;
+    });
 }
 
 // require is module-scoped in CommonJS: `require` and `module.require` are its only callable names.
@@ -320,7 +335,7 @@ function isRequire(fn: Node | null): boolean {
 function specOf(arg: Node | null): { spec: string; literal: boolean } {
   const literal = arg?.type === "string"
     || (arg?.type === "template_string" && !arg.namedChildren.some((c) => c.type === "template_substitution"));
-  return literal && arg ? { spec: arg.text.slice(1, -1), literal } : { spec: arg?.text ?? "", literal: false };
+  return literal && arg ? { spec: unquoted(arg.text), literal } : { spec: arg?.text ?? "", literal: false };
 }
 
 // Non-blank, non-comment lines, or statements when they are packed onto fewer lines.
@@ -364,11 +379,21 @@ function exportNames(stmt: Node): string[] {
   if (decl.type === "lexical_declaration" || decl.type === "variable_declaration") {
     return members(decl).flatMap((d) => {
       const name = d.childForFieldName("name");
-      return name?.type === "identifier" ? [name.text] : [];
+      return name === null ? [] : boundNames(name);
     });
   }
   const name = decl.childForFieldName("name");
   return name ? [name.text] : [];
+}
+
+// Every name a declarator binds: `a`, and each name inside `{ a, b: c, ...rest }` or `[x, y]`.
+// A default value (`{ a = other }`) is an expression, not a binding, so its names are not counted.
+function boundNames(target: Node): string[] {
+  if (target.type === "identifier" || target.type === "shorthand_property_identifier_pattern") return [target.text];
+  if (target.type === "pair_pattern") { const value = target.childForFieldName("value"); return value ? boundNames(value) : []; }
+  if (target.type === "assignment_pattern" || target.type === "object_assignment_pattern") { const left = target.childForFieldName("left"); return left ? boundNames(left) : []; }
+  if (target.type === "object_pattern" || target.type === "array_pattern" || target.type === "rest_pattern") return target.namedChildren.flatMap(boundNames);
+  return [];
 }
 
 function exportedName(spec: Node): string {
@@ -390,11 +415,15 @@ export function cycleImports(p: Parsed): { spec: string; line: number }[] {
 function typeOnlyEdge(p: Parsed, edge: Import): boolean {
   if (edge.kind !== "static" && edge.kind !== "reexport") return false;
   const kinds = edge.kind === "reexport" ? ["export_statement"] : ["import_statement"];
-  const stmt = descendants(p.root, kinds).find((n) => lineOf(n) === edge.line && n.childForFieldName("source")?.text.slice(1, -1) === edge.spec);
-  if (!stmt) return false;
-  if (stmt.children.some((c) => c.type === "type")) return true;
-  const specs = descendants(stmt, [edge.kind === "reexport" ? "export_specifier" : "import_specifier"]);
-  return specs.length > 0 && specs.every((s) => s.children.some((c) => c.type === "type"));
+  // Two statements on one line may name the same module: `import type { A } from "./b"; import { v } from "./b";`.
+  // The edge is type-only when every such statement is, not when the first one is.
+  const stmts = descendants(p.root, kinds).filter((n) => { const source = n.childForFieldName("source"); return lineOf(n) === edge.line && source !== null && unquoted(source.text) === edge.spec; });
+  if (stmts.length === 0) return false;
+  return stmts.every((stmt) => {
+    if (stmt.children.some((c) => c.type === "type")) return true;
+    const specs = descendants(stmt, [edge.kind === "reexport" ? "export_specifier" : "import_specifier"]);
+    return specs.length > 0 && specs.every((spec) => spec.children.some((c) => c.type === "type"));
+  });
 }
 
 const NAMED_SCOPES = new Set([

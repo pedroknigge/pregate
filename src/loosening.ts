@@ -27,12 +27,23 @@ const MAX_LINES = 80;
 export function loosening(base: Contract, head: { lock: Lock; hash: string; presetText: string | null }): Loosening | null {
   if (base.lockText === null) return null;
   const baseText = base.lockText.replaceAll("\r\n", "\n");
-  if (sha256(baseText) === head.hash) return null;
+  // The lock does not hold `uncertainty`: it is read from the preset when the engine fails. A
+  // project that said "closed" and no longer does lets a failing engine pass, which is looser.
+  const opened = closedUncertainty(base.presetText) && !closedUncertainty(head.presetText)
+    ? ['Changes uncertainty from "closed": an engine crash, a timeout, or a missing launcher will let a call through.'] : [];
+  if (sha256(baseText) === head.hash && opened.length === 0) return null;
   const diff = reviewDiff(baseText, head.lock, bundledBetween(base.presetText, head.presetText));
-  if (!diff.warning) return null;
-  const digest = sha256(`pregate-contract-loosening\0${sha256(baseText)}\0${head.hash}`);
-  const lines = diff.lines.length <= MAX_LINES ? diff.lines : [...diff.lines.slice(0, MAX_LINES), `… ${diff.lines.length - MAX_LINES} more contract changes.`];
+  if (!diff.warning && opened.length === 0) return null;
+  const all = [...opened, ...(diff.warning ? diff.lines : [])];
+  const digest = sha256(`pregate-contract-loosening\0${sha256(baseText)}\0${head.hash}${opened.length ? "\0uncertainty" : ""}`);
+  const lines = all.length <= MAX_LINES ? all : [...all.slice(0, MAX_LINES), `… ${all.length - MAX_LINES} more contract changes.`];
   return { digest, lines };
+}
+
+function closedUncertainty(presetText: string | null): boolean {
+  if (presetText === null) return false;
+  try { return (JSON.parse(presetText) as { uncertainty?: unknown } | null)?.uncertainty === "closed"; }
+  catch (error) { if (error instanceof SyntaxError) return false; throw error; }
 }
 
 // The exact digests the environment accepts, comma- or space-separated. A prefix is not one.
