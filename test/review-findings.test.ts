@@ -2,7 +2,6 @@ import { beforeAll, expect, test } from "bun:test";
 import { setUpGrammars } from "../src/assets.ts";
 import { fixtureLock } from "../src/compile.ts";
 import { bundledBetween, reviewDiff } from "../src/contract.ts";
-import { inlineSink } from "../src/inline-sinks.ts";
 import { loosening } from "../src/loosening.ts";
 import { layerOf } from "../src/paths.ts";
 import { sha256 } from "../src/state.ts";
@@ -10,7 +9,9 @@ import { cycleImports, imports, parse, publicExports, sfcScript } from "../src/t
 import type { Check, Lock } from "../src/types.ts";
 
 // Findings of an outside review of the engine, each fixed and pinned here. Two reported items are
-// not here because the engine was right: a field with a stopBy rule follows ast-grep (see
+// not here because the engine was right, and one (a quote inside a comment hiding an inline sink) is
+// gone with the code it lived in: the shell guard no longer judges what interpreter code can do,
+// only its literal write targets. The two where the engine was right: a field with a stopBy rule follows ast-grep (see
 // match.test.ts), and a literal </script> ends a Vue or Svelte script block for the HTML parser too.
 beforeAll(setUpGrammars);
 
@@ -39,15 +40,6 @@ test("a version gate or a when added to a rule is a change that may loosen, not 
   const conditional: Lock = { ...lock, rules: lock.rules.map((rule) => ({ ...rule, when: { dependency: "typescript", min: "99.0.0" } })) } as Lock;
   expect(reviewDiff(text(lock), conditional, bundledBetween(null, null)).warning).toBe(true);
   expect(reviewDiff(text(lock), lock, bundledBetween(null, null)).warning).toBe(false);
-});
-
-test("a quote inside a comment does not hide an inline sink", () => {
-  expect(inlineSink("node", "/* ' */ eval('1') /* ' */", [])).toBe(true);
-  expect(inlineSink("node", "// it's\neval('1') // isn't", [])).toBe(true);
-  expect(inlineSink("python3", "# '''\nimport os; os.remove('x')\n# '''", [])).toBe(true);
-  // A sink named only inside a string or a comment is still not a sink.
-  expect(inlineSink("node", "console.log('eval(1)') // eval('2')", [])).toBe(false);
-  expect(inlineSink("node", "const url = 'http://x/y'; console.log(`a // ${url}`)", [])).toBe(false);
 });
 
 test("an escaped import specifier names the module the runtime loads", () => {

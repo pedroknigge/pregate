@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The CI ratchet reports a preset that no longer says `"uncertainty": "closed"`. The lock does not hold that key, so removing it let a failing engine pass with no loosening reported and no acceptance needed.
 - A `versionGate` or a `when` added to or changed on a rule is a change that may loosen. It was reported as documentation with the effective check unchanged, although either one decides whether the rule runs.
-- A quote inside a JavaScript comment no longer hides an inline sink from the shell guard: `/* ' */ eval('1') /* ' */` was read as one string.
 - An escaped import specifier names the module the runtime loads: `import fs from "\u0066s"` and `require("\x66s")` are `fs` to `banned-import` and to layer rules.
 - `export const { a, b } = obj` and `export const [x, y] = list` count as the names they bind for `file.publicExports`. They counted as zero.
 - A value import beside an `import type` of the same module on one line is still an edge for `import-cycles`.

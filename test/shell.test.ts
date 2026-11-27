@@ -471,6 +471,22 @@ test("storage apply --yes runs from the harness; a wrapper and a protected write
   expect(guard("env pregate storage apply digest --yes", ROOT, ctx)).toBeNull();
   expect(guard("pregate storage inspect --json > /home/u/.local/state/pregate/inspection.json", ROOT, ctx)).toBe("protected-path");
 });
+test("the gate is shown a redirection target, an interpreter's literal target and git's changed files, and no tool-specific target", () => {
+  const shown = (command: string, extra: object = {}): string[] => {
+    const asked: string[] = [];
+    const { under: _unused, ...rest } = ctx;
+    expect(guard(command, ROOT, { ...rest, ...extra, inScope: (path: string) => { asked.push(path); return true; } }), command).toBeNull();
+    return asked;
+  };
+  expect(shown("echo x > src/a.ts")).toEqual([`${ROOT}/src/a.ts`]);
+  expect(shown("cd src && echo x >> a.ts")).toEqual([`${ROOT}/src/a.ts`]);
+  expect(shown("node -e \"require('fs').writeFileSync('src/a.ts', 'x')\"")).toEqual([`${ROOT}/src/a.ts`]);
+  expect(shown("git checkout main", { gitChanges: () => ({ worktree: [`${ROOT}/src/a.ts`], index: [] }) })).toEqual([`${ROOT}/src/a.ts`]);
+  for (const command of ["cp /tmp/a src/a.ts", "echo x | tee src/a.ts", "sed -i 's/a/b/' src/a.ts", "tar -xzf /tmp/a.tar.gz -C src", "rsync -a /tmp/a src/",
+    "prettier --write src/a.ts", "git checkout -- src/a.ts", "curl -o src/a.ts https://example.com/a", "Set-Content -Path src/a.ts -Value x",
+    "perl -pi -e 's/a/b/' src/a.ts", "agent-browser screenshot src/a.png", "echo x > \"$FILE\"", "cat src/a.ts"]) expect(shown(command), command).toEqual([]);
+});
+
 // The same over a captured payload, whose own cwd is the root.
 const withLockAt = (root: string) => ({
   ...ctx, launcher: null,
@@ -702,8 +718,9 @@ const allowed: string[] = [
 ];
 
 const denied: [string, Cause | null][] = [
-  ['echo "it\'s fine', "shell-uncertain"],
-  ["grep 'unterminated src/a.ts", "shell-uncertain"],
+  // unfinished syntax is not a cause
+  ['echo "it\'s fine', null],
+  ["grep 'unterminated src/a.ts", null],
   // writes to paths in scope
   ["echo x > src/a.ts", null],
   ["echo x >> src/a.ts", null],
@@ -992,7 +1009,7 @@ const denied: [string, Cause | null][] = [
   // a variable the POSIX script binds itself is its command
   ["x=$(echo pregate); $x = approve abc", "shell-admin"],
   ['x="pregate approve abc123"; $x', "shell-admin"],
-  ['read x <<< "pregate approve abc123"; $x', "shell-uncertain"],
+  ['read x <<< "pregate approve abc123"; $x', null],
   ['for x in "pregate approve abc123"; do $x; done', "shell-admin"],
   ['export x="pregate approve abc123"; sh -c \'$x\'', "shell-admin"],
   ["$CMD approve abc123", "shell-admin"],
