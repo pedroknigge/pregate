@@ -14,7 +14,7 @@ export function gatedSeverity(rule: LockRule, rel: string, read: Read): Severity
   return when.otherwise ?? null;
 }
 
-export function typescriptVersion(rel: string, read: Read): string | null {
+function typescriptVersion(rel: string, read: Read): string | null {
   const dirs = directories(rel);
   for (const dir of dirs) {
     const installed = installedVersion(read(`${dir}node_modules/typescript/package.json`));

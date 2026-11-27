@@ -11,7 +11,7 @@ export const UNCERTAINTY_CAUSES: ReadonlySet<Cause> = new Set<Cause>([
 
 // Fits on the first deny line after the cause, including the harness label main adds to payload-unrecognized.
 // A hook never denies these causes; `pregate check` still reports them, and no preset key overrides that.
-export const UNCERTAINTY_OVERRIDE = "";
+const UNCERTAINTY_OVERRIDE = "";
 
 // All product text is English (D23). Nothing taken from code (paths, symbols) reaches a message unless it went
 // through `safe`, and the engine never hands over code strings or comments, so the agent cannot
@@ -172,15 +172,6 @@ export function warnText(vs: Violation[], lock: Lock): Text {
 
 export function violationMessage(v: Violation, lock: Lock): string {
   return message(v, ruleOf(lock, v.rule));
-}
-
-// MH-09: one text for a call that changes several files: the chosen file's, then one line per other
-// file with something to say.
-export function alsoInCall(full: string, compacts: string[]): string {
-  const head = `${full}\n\nAlso in this call:`;
-  if (compacts.length === 0 || head.length + MORE_MAX > TEXT_MAX) return full;
-  const items = compacts.map((c) => `\n- ${c}`);
-  return head + fit(items, items.length, TEXT_MAX - MORE_MAX - head.length, more);
 }
 
 // `halt`: the turn stops here (turn cap or a run of form denies), so the agent must not resend.
@@ -382,7 +373,7 @@ function severityText(r: LockRule): string {
   return `${gate.severity} when ${gate.package} ${gate.range}, otherwise ${r.severity}`;
 }
 
-export function adoptedFitness(lock: Lock): boolean {
+function adoptedFitness(lock: Lock): boolean {
   return Object.keys(lock.fitness ?? {}).length > 0;
 }
 

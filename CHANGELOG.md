@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.18] - 2026-11-27
+
+Patch release removing dead shell-guard plumbing, unused functions, single-caller wrapper modules, and unused exports across `src/` with zero behavioral or security regressions.
+
+### Changed
+
+- Removed dead shell-guard and gate leftovers (`harnessGated`, `proposal`, `importPreview`, `BROWSER_DRIVE`, `DESKTOP_DRIVE`, `hostDrive`, `orcaInspect`, unused `stdinOnly` / `guideAllowed` parameters, and dead `gatedHarnesses` / `shell-write` plumbing in `src/gate.ts`).
+- Removed 10 unused functions, 8 dead `delegate()` call sites, the dead `gate.redirect()` hot-path branch in `src/main.ts`, 11 unused imports, 2 unused re-exports, and 80 unused `export` modifiers across `src/`.
+- Inlined single-caller `src/inline-sinks.ts` into `src/shell.ts` and `src/dispute.ts` into `src/dispute-command.ts` (-2 bundled modules), and removed the eliminated `src/loosening.ts` catch-all from `scripts/catch-all-baseline.txt`.
+
 ## [0.0.17] - 2026-11-27
 
 `pregate update` installs the new engine and stops there. 0.0.16 still prepared a review for every registered project and worktree, which took more than ten minutes on a machine with 77 of them and changed nothing. 0.0.16 was released on GitHub and not published to npm; this version carries its changes.

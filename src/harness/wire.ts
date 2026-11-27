@@ -38,14 +38,14 @@ export function absoluteLocation(path: unknown): path is string {
   return typeof path === "string" && (/^(?:\/|[a-z]:[\\/]|\\\\)/i.test(path));
 }
 
-export function json(o: object): string {
+function json(o: object): string {
   return `${JSON.stringify(o)}\n`;
 }
 
 const HookBrand = Symbol("pregate.hook");
 const EnabledBrand = Symbol("pregate.enabled");
 
-export type Budget<Chars extends number, Lines extends number> = { readonly chars: Chars; readonly lines: Lines };
+type Budget<Chars extends number, Lines extends number> = { readonly chars: Chars; readonly lines: Lines };
 export type HookMessage<Chars extends number, Lines extends number> = string & {
   readonly [HookBrand]: { readonly chars: Chars; readonly lines: Lines; readonly repairFirst: true };
 };
@@ -79,11 +79,11 @@ function line<Chars extends number, Lines extends number>(
   return budgeted(budget, next, text);
 }
 
-export type EnabledScope = { readonly [EnabledBrand]: true; readonly root: string };
-export type InactiveScope = { readonly kind: "inactive" };
-export type ProtocolScope = { readonly kind: "protocol" };
-export type PassiveDecision = Omit<Decision, "verdict" | "halt"> & { readonly verdict: "none"; readonly halt: false };
-export type ProtocolDecision = Omit<Decision, "cause"> & { readonly cause: "payload-unrecognized" };
+type EnabledScope = { readonly [EnabledBrand]: true; readonly root: string };
+type InactiveScope = { readonly kind: "inactive" };
+type ProtocolScope = { readonly kind: "protocol" };
+type PassiveDecision = Omit<Decision, "verdict" | "halt"> & { readonly verdict: "none"; readonly halt: false };
+type ProtocolDecision = Omit<Decision, "cause"> & { readonly cause: "payload-unrecognized" };
 export type Place = "enforced" | "protocol" | "off";
 export type WireDecision =
   | { readonly scope: EnabledScope; readonly decision: Decision }

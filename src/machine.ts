@@ -1,6 +1,6 @@
 import {
   chmodSync, closeSync, copyFileSync, existsSync, fsyncSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readlinkSync,
-  readdirSync, renameSync, rmSync, type Stats, statSync, symlinkSync, writeFileSync, writeSync,
+  readdirSync, renameSync, rmSync, type Stats, statSync, symlinkSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

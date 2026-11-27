@@ -45,7 +45,6 @@ src/issue-submission.ts	catch (error) { return (error as NodeJS.ErrnoException).
 src/lock-cache.ts	catch { return null; }
 src/lock-cache.ts	catch { return null; }
 src/lock-cache.ts	catch { return null; }
-src/loosening.ts	catch { return false; }
 src/machine.ts	catch (e) { if (i.wrote) save(i.target, i.before); return fail(`Codex: ${(e as Error).message}. Left ${i.file} unchanged; rerun pregate setup.`); }
 src/machine.ts	catch (e) { return (e as Error).message; }
 src/machine.ts	catch (e) { return (e as NodeJS.ErrnoException).code === "EPERM"; } // EPERM: alive, owned by another user

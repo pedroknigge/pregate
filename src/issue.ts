@@ -4,7 +4,7 @@ export interface IssueReproduction {
   files: Files; result: string; versions: NonNullable<CallEvent["versions"]>;
 }
 
-export interface IssueEvidence {
+interface IssueEvidence {
   harness: string; note: string; code: string | null; fingerprint: string; reproduction?: IssueReproduction; title?: string;
   versions?: CallEvent["versions"];
 }

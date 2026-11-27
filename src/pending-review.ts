@@ -63,7 +63,7 @@ export function engineNote(proposal: Proposal, installed = launcherVersion(dataH
 }
 
 // What one proposal changes: the WARNING, file diffs, contract summary and consent line.
-export function reviewLines(root: string, proposal: Proposal, full = false, globs = true): string[] {
+function reviewLines(root: string, proposal: Proposal, full = false, globs = true): string[] {
   const diff = proposalDiff(proposal);
   return [...(diff.warning ? ["WARNING: this may weaken protection."] : []), ...writeDiffs(root, proposal.writes, full),
     ...diff.summary, ...(globs ? presetGlobLines(root, proposal) : []), ...(full ? ["Per-rule changes:", ...diff.lines] : []), consentLine(proposal)];
@@ -94,7 +94,7 @@ export function literalPregate(command: string, launcher: string): string | null
 // A literal `pregate approve` the shell guard allows. `code` is the operand or the `--digest`
 // value. `{ yes: true }` is bare `--yes`: it approves the pending review in the working directory
 // and names no digest. null for a code combined with `--digest`, or for anything else.
-export function literalApproval(rest: string): { code: string } | { yes: true } | null {
+function literalApproval(rest: string): { code: string } | { yes: true } | null {
   const words = rest.split(" ");
   if (words[0] !== "approve") return null;
   let yes = false, digest: string | null = null, code: string | null = null;
@@ -115,14 +115,6 @@ export function literalApproval(rest: string): { code: string } | { yes: true } 
   if (yes && digest !== null && code === null) return { code: digest };
   if (yes && code === null && digest === null) return { yes: true };
   return null;
-}
-
-// The code or digest a literal `pregate approve` names, or null when it does not. `--no-commit`
-// may sit on either side. `--yes` without a digest names nothing (it approves the pending review
-// in the working directory). A code operand and `--digest` together are not a command.
-export function namedApprovalCode(rest: string): string | null {
-  const parsed = literalApproval(rest);
-  return parsed !== null && "code" in parsed ? parsed.code : null;
 }
 
 // The review a native permission prompt can show for one allowed `pregate approve`. null when the
@@ -157,13 +149,6 @@ export function approvalAskReview(cwd: string, argv: string[]): { warning: boole
     if (!(e instanceof Error)) throw e;
     return null; // fail-closed: a review that cannot be summarized does not get a native prompt
   }
-}
-
-// The pending batch one literal approval command names. That command is answered by the engine
-// that wrote the batch, never by the older engine a project in it still pins.
-export function batchApproval(command: string, launcher: string): Batch | null {
-  const code = namedApprovalCode(literalPregate(command, launcher) ?? "");
-  return code === null ? null : pendingBatch(code);
 }
 
 // Why one project of a batch can no longer be approved by it; null while its review stands.

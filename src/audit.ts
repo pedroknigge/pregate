@@ -61,12 +61,6 @@ function auditParsed(lock: Lock, rel: string, parsed: Parsed, host: Host): { fin
   } finally { parsed.root.tree.delete(); }
 }
 
-export function auditSummary(findings: AuditFinding[], errors: AuditError[]) {
-  const summary = auditSummaryCollector();
-  summary.add(findings, errors);
-  return summary.finish();
-}
-
 export function auditSummaryCollector() {
   const rules = new Map<string, { rule: string; check: string; count: number; files: Set<string> }>();
   const affected = new Set<string>(), unresolved = new Set<string>();

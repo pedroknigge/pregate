@@ -245,7 +245,7 @@ function unapprovable(proposal: Proposal, checked: ReturnType<typeof validate>):
 
 // Why this engine cannot validate a review that another engine prepared, or null when they agree.
 // The compile errors name the exact bundled pack or engine pin the review requires.
-export function engineMismatch(proposal: Proposal, errors: string[]): string | null {
+function engineMismatch(proposal: Proposal, errors: string[]): string | null {
   const here = engineStamp(), there = proposal.engine;
   const needs = errors.flatMap((error) => {
     const pack = /^sources: (\S+): bundled version does not match (\S+);/.exec(error);

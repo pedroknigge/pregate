@@ -1,6 +1,6 @@
 # Engine requests
 
-Evaluation of the gaps found while building this library, current as of engine 0.0.17. See
+Evaluation of the gaps found while building this library, current as of engine 0.0.18. See
 [architecture decisions O52–O56, O68–O73](../docs/ARCHITECTURE.md).
 
 ## 1. Per-rule shadow

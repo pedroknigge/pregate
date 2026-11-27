@@ -5,7 +5,7 @@ import { classify, type CiSignal, type RawGitHubSignal } from "./provider.ts";
 const BODY_LIMIT = 1024 * 1024;
 const PAGE = 100;
 
-export interface GitHubCiSource {
+interface GitHubCiSource {
   api: string;
   token: string | null;
   // Tests inject a fetch. The compiled binary uses curl: its fetch does not complete an http loopback.

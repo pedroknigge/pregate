@@ -107,7 +107,7 @@ function savedPreset(root: string): Preset | null {
 }
 
 // Inspect repository metadata and recorded evidence; no proposal, consent or code writes.
-export async function inspectProject(directory: string) {
+async function inspectProject(directory: string) {
   const root = projectRoot(directory), established = existsSync(join(root, PRESET));
   const status = protectionStatus(established ? root : null);
   const diagnosis = established ? contractDiagnosis(root) : null;

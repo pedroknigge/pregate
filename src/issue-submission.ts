@@ -3,7 +3,7 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { writeAtomic } from "./disk.ts";
 
-export interface SubmissionOwner {
+interface SubmissionOwner {
   dir: string; file: string; text: string; phase: "checking" | "creating"; state: "alive" | "dead" | "unknown";
 }
 export interface SubmissionLease { beforeCreate: () => void; confirmed: () => void; release: () => void }

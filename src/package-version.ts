@@ -3,7 +3,7 @@
 // understand, does not match: a Next 15 app must not pick up a Next 16 denial.
 import type { Read, VersionGate } from "./types.ts";
 
-export interface Semver { major: number; minor: number; patch: number }
+interface Semver { major: number; minor: number; patch: number }
 
 const FIELDS = ["dependencies", "peerDependencies", "devDependencies"] as const;
 const PART = "(?:0|[1-9][0-9]*|x|X|\\*)";
@@ -16,7 +16,7 @@ interface Interval { lower: Bound | null; upper: Bound | null }
 // The nearest manifest that names `dependency` wins. A manifest that does not name it
 // does not hide a parent. An unreadable manifest is skipped; a non-string declaration
 // is present but unknown, so the walk stops.
-export function declaredPackageSpec(read: Read, rel: string, dependency: string): string | null {
+function declaredPackageSpec(read: Read, rel: string, dependency: string): string | null {
   const segments = rel.split("/").slice(0, -1);
   for (;;) {
     const path = segments.length === 0 ? "package.json" : `${segments.join("/")}/package.json`;
@@ -36,7 +36,7 @@ export function versionGateMatches(read: Read, rel: string, gate: VersionGate): 
   return spec !== null && minimum !== null && entirelyAtLeast(spec, minimum);
 }
 
-export function minimumOf(range: string): Semver | null {
+function minimumOf(range: string): Semver | null {
   const match = MINIMUM.exec(range.trim());
   return match ? { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) } : null;
 }
@@ -239,13 +239,13 @@ function compare(left: Bound, right: Bound): number {
 const PIN_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock)$/;
 const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
 
-export interface DependencyPin { package: string; introduced: string; fixed: string }
+interface DependencyPin { package: string; introduced: string; fixed: string }
 
 export function isDependencyPinFile(rel: string): boolean {
   return PIN_FILE.test(rel) && !rel.split("/").includes("node_modules");
 }
 
-export interface PinWindow { introduced: string; fixed: string }
+interface PinWindow { introduced: string; fixed: string }
 
 // `ranges` is the window list. Without it, `introduced` and `fixed` are the one window.
 export function pinWindows(params: Record<string, unknown>): PinWindow[] {

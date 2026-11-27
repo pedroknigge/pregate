@@ -5,8 +5,8 @@ import { loadCompilerOptions } from "./resolve.ts";
 import type { Node, Parsed } from "./ts.ts";
 import type { Read } from "./types.ts";
 
-export type TypescriptFact = "prefer-const" | "type-only-import" | "boundary-parse" | "parameter-sort" | "readonly-array" | "rethrow-cause" | "interface-prefix" | "boolean-mode";
-export interface FactHit { line: number; warn: boolean }
+type TypescriptFact = "prefer-const" | "type-only-import" | "boundary-parse" | "parameter-sort" | "readonly-array" | "rethrow-cause" | "interface-prefix" | "boolean-mode";
+interface FactHit { line: number; warn: boolean }
 
 const REQUIRED_FLAGS = ["noUncheckedIndexedAccess", "noImplicitOverride", "noImplicitReturns", "noFallthroughCasesInSwitch", "forceConsistentCasingInFileNames", "verbatimModuleSyntax"];
 const STRICT_FLAGS = ["strictNullChecks", "noImplicitAny", "strictFunctionTypes", "strictBindCallApply", "strictPropertyInitialization", "noImplicitThis", "useUnknownInCatchVariables", "alwaysStrict"];

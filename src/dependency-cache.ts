@@ -9,7 +9,7 @@ const MAX_PROJECTS = 32;
 // Bump when import extraction, candidate filtering or resolver reads change.
 const RESOLVER = "dependency-reads-v2";
 interface Input { path: string; hash: string | null; identity: string }
-export interface DependencyInputs { path: string; hash: string; context: string; inputs: Input[] }
+interface DependencyInputs { path: string; hash: string; context: string; inputs: Input[] }
 interface DependencyValidation { hash: (path: string) => string | null; identity?: (path: string) => string }
 interface DependencyReadSet { inputs: Map<string, string | null>; identity?: (path: string) => string }
 export interface DependencyCache extends DependencyGraph {
@@ -96,7 +96,7 @@ export function rememberDependencyInputs(cache: DependencyCache, path: string, t
   cache.entries.set(path, entry); cache.bytes += bytes; cache.dirty = true;
 }
 
-export function pruneDependencyCache(cache: DependencyCache, paths: Set<string>): void {
+function pruneDependencyCache(cache: DependencyCache, paths: Set<string>): void {
   for (const [path, entry] of cache.entries) if (!paths.has(path)) {
     cache.entries.delete(path); cache.bytes -= entryBytes(entry); cache.dirty = true;
   }

@@ -13,7 +13,7 @@ export interface DemoContext {
   nativeReason: { python: string | null; go: string | null; rust: string | null };
 }
 
-export function demoProcess(c: DemoContext, phase: string, executable: string, args: string[], input?: string, timeout = 30_000) {
+function demoProcess(c: DemoContext, phase: string, executable: string, args: string[], input?: string, timeout = 30_000) {
   const out = Bun.spawnSync([executable, ...args], { cwd: c.root, env: c.env, stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
     stdout: "pipe", stderr: "pipe", timeout });
   const stdout = out.stdout.toString(), stderr = out.stderr.toString();
@@ -21,7 +21,7 @@ export function demoProcess(c: DemoContext, phase: string, executable: string, a
   return { code: out.exitCode, stdout, stderr };
 }
 
-export function demoAssert(condition: unknown, message: string): asserts condition {
+function demoAssert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
@@ -29,7 +29,7 @@ function cli(c: DemoContext, phase: string, args: string[], input?: string) {
   return demoProcess(c, phase, c.binary, args, input);
 }
 
-export function demoPrepare(c: DemoContext, sample: DemoSample) {
+function demoPrepare(c: DemoContext, sample: DemoSample) {
   const version = cli(c, "binary-identity", ["--version"]);
   demoAssert(version.code === 0 && version.stdout.trim() === `pregate ${VERSIONS.engine} (core ${VERSIONS.core})`, "Demo requires the compiled binary of this engine/core version.");
   for (const [file, text] of Object.entries(sample.files)) {
@@ -73,7 +73,7 @@ function demoApprove(c: DemoContext, preview: ReturnType<typeof cli>): void {
   demoAssert(cli(c, "owned-sample-approval", ["approve", "--yes", "--digest", digests[0]![1]!]).code === 0, "Owned sample approval failed.");
 }
 
-export function demoWrite(c: DemoContext, path: string, text: string, call: string) {
+function demoWrite(c: DemoContext, path: string, text: string, call: string) {
   const payload = { session_id: "pregate-owned-demo", prompt_id: call, cwd: c.root, permission_mode: "acceptEdits",
     hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: call, tool_input: { file_path: join(c.root, path), content: text } };
   const before = readFileSync(join(c.root, path), "utf8");
@@ -83,7 +83,7 @@ export function demoWrite(c: DemoContext, path: string, text: string, call: stri
   return { ...out, decision: response.hookSpecificOutput?.permissionDecision ?? "none", beforeWrite: true };
 }
 
-export function demoAudit(c: DemoContext, rule: string) {
+function demoAudit(c: DemoContext, rule: string) {
   // --strict keeps the complete-compliance code: missing fitness evidence still reports 2.
   const out = cli(c, "whole-tree-audit", ["audit", "--json", "--strict"]);
   const result = JSON.parse(out.stdout);

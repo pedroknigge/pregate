@@ -8,7 +8,7 @@ import type { CallEvent, Snapshot } from "./types.ts";
 
 interface StoredFile { path: string; bytes: number; hash: string }
 interface Inventory { session: string; files: StoredFile[]; snapshots: Snapshot[]; events: CallEvent[] }
-export interface PruneSession { session: string; fingerprint: string; files: StoredFile[] }
+interface PruneSession { session: string; fingerprint: string; files: StoredFile[] }
 export interface PrunePlan { root: string; cutoff: number; at: number; sessions: PruneSession[] }
 
 function sessions(): string[] {

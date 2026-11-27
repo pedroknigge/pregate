@@ -36,7 +36,7 @@ export function issueReview(root: string, id: string): IssueDraft {
   return draft;
 }
 
-export function issuePreview(draft: IssueDraft, id: string): string {
+function issuePreview(draft: IssueDraft, id: string): string {
   return visible([`Destination: https://github.com/${draft.repo}/issues`, `Includes source code: ${draft.includesCode ? "yes" : "no"}`,
     `Title: ${draft.title}`, "", draft.body, "", `Digest: ${id}`,
     ...humanApprovalInstructions(`pregate issue submit ${id} --yes`, "harness")].join("\n"));

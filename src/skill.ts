@@ -5,7 +5,7 @@ import { writeAtomic } from "./disk.ts";
 import pkg from "../package.json" with { type: "json" };
 import { homeDir } from "./platform.ts";
 
-export function skillText(): string {
+function skillText(): string {
   return ASSETS["pregate/SKILL.md"]!.replaceAll("@ENGINE_VERSION@", pkg.version);
 }
 

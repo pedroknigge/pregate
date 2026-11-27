@@ -1,8 +1,8 @@
 import type { FitnessBinding, FitnessReceipt } from "./types.ts";
 
-export type FitnessStatus = "pass" | "fail" | "unverified";
-export interface FitnessResult { status: FitnessStatus; reason: string }
-export interface FitnessSnapshot { contractHash: string; inputHash: string; now: number }
+type FitnessStatus = "pass" | "fail" | "unverified";
+interface FitnessResult { status: FitnessStatus; reason: string }
+interface FitnessSnapshot { contractHash: string; inputHash: string; now: number }
 export type ProjectFitness = FitnessResult & { rule: string; requirement: string; statement: string; fixHint: string; verifier: string; rationale: string | null; inputs: string[]; diagnostics?: string };
 export interface FitnessCandidate {
   id: string; command: string[]; inputs: string[]; timeoutMs: number; maxAgeMs?: number;

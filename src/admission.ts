@@ -7,7 +7,7 @@ import { absolutePath, pathKey } from "./paths.ts";
 import { WINDOWS } from "./platform.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { pendingRoot, readBatch } from "./proposal.ts";
-import { guideCommandMention, literalPaths } from "./shell.ts";
+import { literalPaths } from "./shell.ts";
 import { hasPostInvocation, key, roots, sessionDir } from "./state.ts";
 import { FIXABLE_BY } from "./types.ts";
 import { VERSIONS } from "./versions.ts";
@@ -130,12 +130,6 @@ function namesProjectUpdate(command: string): boolean {
 export function projectUpdateMention(command: string): boolean {
   if (readBatch() !== null) return true;
   return namesProjectUpdate(command);
-}
-
-// The guide can select projects outside its cwd. This is only a conservative loading hint;
-// the ordinary shell parser still decides whether a mention is an invocation or quoted data.
-export function guideMention(command: string): boolean {
-  return /p.*r.*e.*g.*a.*t.*e/i.test(command) && guideCommandMention(command);
 }
 
 // The engine the installed launcher runs, as setup and update wrote it. null: no launcher.

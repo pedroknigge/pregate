@@ -10,7 +10,7 @@ export interface DetectedProvider {
   checks: string[];
 }
 
-export interface CiConfiguration {
+interface CiConfiguration {
   providers: DetectedProvider[];
   text: string;
 }

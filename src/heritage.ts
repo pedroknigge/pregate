@@ -12,7 +12,7 @@ const MAX_FILES = 32;
 interface ClassFact { name: string; symbol: string; line: number; parent: { kind: "none" } | { kind: "stop" } | { kind: "name"; name: string } }
 interface Binding { local: string; remote: string; spec: string }
 interface Loaded { classes: ClassFact[]; imports: Binding[] }
-export interface HeritageHit { symbol: string; line: number; measured: number; own: null }
+interface HeritageHit { symbol: string; line: number; measured: number; own: null }
 
 export function heritageDepths(parsed: Parsed, read: Read): HeritageHit[] {
   const grammar = grammarOf(parsed.rel);

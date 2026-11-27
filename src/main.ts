@@ -72,14 +72,6 @@ async function main(argv: string[]): Promise<number> {
   }
   checkpoint("admission");
   const gate = await import("./gate.ts");
-  const pin = input.invalid ? null : gate.redirect(e);
-  // Older pinned engines retain parent Stop; they may not understand the new child events.
-  const childLifecycle = harness === "codex" && e.kind !== "pre-edit" && e.kind !== "pre-command" && e.session?.agentId != null;
-  if (pin !== null && (subagent || childLifecycle)) return 0;
-  if (pin !== null) {
-    writeAll(1, `${pin}\n${kind === "pre" ? raw : ""}`);
-    return gate.REDIRECT;
-  }
   // Cursor's third encode argument is the native preToolUse reply. Other harnesses use it for a subagent.
   const replyFlag = harness === "cursor" ? flag === "cursor" && kind === "pre" : subagent;
   const decision = "cause" in e ? rejection(e, harness, gate, input.timedOut) : await dispatch(e, gate);

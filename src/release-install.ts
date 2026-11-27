@@ -6,7 +6,7 @@ import { ENGINE_FILE, WINDOWS } from "./platform.ts";
 import { join } from "node:path";
 import { PS_MODULES, psQuote } from "./windows-command.ts";
 
-export const RELEASE_TARGETS = ["darwin-arm64", "darwin-x64", "linux-x64", "linux-arm64", "windows-x64"];
+const RELEASE_TARGETS = ["darwin-arm64", "darwin-x64", "linux-x64", "linux-arm64", "windows-x64"];
 
 function onPath(name: string): string | null {
   return Bun.which(name, { PATH: process.env.PATH ?? process.env.Path ?? "" });
@@ -17,7 +17,7 @@ function spawn(cmd: string[]): { exit: number | null; stdout: string; stderr: st
   return { exit: r.exitCode, stdout: r.stdout.toString(), stderr: r.stderr.toString() };
 }
 
-export function releaseAssetName(version: string): string | { error: string } {
+function releaseAssetName(version: string): string | { error: string } {
   const target = `${WINDOWS ? "windows" : process.platform}-${process.arch}`;
   if (!RELEASE_TARGETS.includes(target)) return { error: `No PREGATE release for ${target}; available: ${RELEASE_TARGETS.join(", ")}.` };
   if (!ENGINE_VERSION.test(version)) return { error: `Invalid version: ${version} (expected X.Y.Z or X.Y.Z-pre).` };
@@ -36,7 +36,7 @@ function verifyArchiveDigest(archive: string, expected: string, label: string): 
   return actual === normalized ? null : `SHA-256 of ${label} differs from SHA256SUMS; nothing installed.`;
 }
 
-export type VerifiedExtract = { binary: string; notices: string[] };
+type VerifiedExtract = { binary: string; notices: string[] };
 
 // Download or accept a local archive, verify checksum and optional signatures, extract the engine binary.
 export function verifiedEngineExtract(version: string, workDir: string): VerifiedExtract | { error: string } {

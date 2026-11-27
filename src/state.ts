@@ -1,5 +1,5 @@
 import { existsSync, linkSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 import { markReached } from "./consent.ts";
 import { writeAtomic } from "./disk.ts";
 import { catFileBatch, git, gitFailure } from "./git.ts";

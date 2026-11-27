@@ -1,14 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { applyReviews } from "./approval-command.ts";
-import { consentedRoots } from "./consent.ts";
 import { canonical, findRoot } from "./disk.ts";
 import { git } from "./git.ts";
 import { projectUpdate } from "./pack-command.ts";
 import { compareVersions, ENGINE_VERSION } from "./product.ts";
 import { proposeBatch, readProposal } from "./proposal.ts";
 import { sha256 } from "./state.ts";
-import { VERSIONS } from "./versions.ts";
 import { humanApprovalInstructions } from "./approval.ts";
 
 type Result = { code: number; text: string; held?: string[] };
@@ -152,8 +150,4 @@ function lockEngine(file: string): string {
   } catch {
     return "";
   }
-}
-
-function quotedPaths(dirs: string[]): string {
-  return dirs.map((dir) => (/^[\w./-]+$/.test(dir) ? dir : JSON.stringify(dir))).join(" ");
 }

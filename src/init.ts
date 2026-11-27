@@ -22,7 +22,7 @@ import type { Files, Preset } from "./types.ts";
 import { contextFile, hasRepository, trackedWorkspacePaths, workspaceFile, workspacePaths, workspaceRegularFile } from "./workspace.ts";
 
 type Result = { code: number; text: string; notes?: string[] };
-export interface InitSelection {
+interface InitSelection {
   packs?: string[];
   customPacks?: string[];
   methodologies?: string[];
@@ -37,8 +37,6 @@ export interface InitSelection {
   customDraft?: { ns: string; files: Files };
 }
 const USAGE = "usage: pregate init [--preview|--yes] [--preset <name>]";
-
-export { INIT_PRESET_NAMES } from "./init-presets.ts";
 
 // Git controls ignored files; standalone projects use the same explicit traversal exclusions.
 // Unsupported language names are evidence, but their bodies and binary assets need not be read.
