@@ -99,6 +99,7 @@ These are heuristics over text, not a sandbox.
 | Git `merge`/`rebase`/`pull`/`am` | Judged after the fact | Stop, pre-commit, CI |
 
 Stop and pre-commit judge the resulting files against the enforced rules. The CI check is the boundary for everything else Pre does not establish from the command text alone.
+- Stop judges the roots the session reached. A shell command in one root reaches another enabled root only when the guard knows a literal file it writes there: the target of a write redirection (`echo x > ../other/src/a.ts`), a literal write target in interpreter code, or a file a history-moving Git command changes. `cp`, `mv`, `tee`, `sed -i`, `tar`, `rsync`, a formatter, or any other tool that writes into another root does not register that root, so this session's Stop does not judge it. That root's pre-commit check and CI do.
 - Git history commands are judged by the files Git reports for them before they run. A hook, a filter or an alias that Git runs as part of the command is not.
 - Consent records can be rewritten by any process of the same user. No local record accepts a loosened contract. Only the CI ratchet with a repository variable does, and it is outside the agent's reach.
 - A direct `pregate prepare`, `pregate setup` and `pregate update`, including `--yes`, runs from the harness. A wrapper (`sh -c`, `env`) of those commands stays denied. They do not ask the human for `y` on a terminal when `--yes` is present: they add or refresh protection rather than remove it.

@@ -7,7 +7,7 @@ import { decide } from "./decide.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
-import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
+import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, slash } from "./paths.ts";
 import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
@@ -213,7 +213,6 @@ function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, st
     ...base, shellDetail: noted,
     isProtected: (p) => elsewhere(p) && base.isProtected(p),
     inScope: (p) => elsewhere(p) && base.inScope(p),
-    under: (p) => elsewhere(p) && base.under(p),
   };
   const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
   if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
@@ -286,12 +285,6 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
       const abs = judged(p);
       const h = reach(abs, dirname(abs));
       return h !== null && inScope(h.lock, h.rel);
-    },
-    // A directory written whole writes into every root it holds, as well as below itself.
-    under: (p) => {
-      const abs = judged(p);
-      const h = reach(abs, abs);
-      return known.some((r) => within(abs, r)) || (h !== null && scopeUnder(h.lock, h.rel));
     },
   };
 }

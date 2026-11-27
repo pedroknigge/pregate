@@ -55,13 +55,13 @@ export function commandHelp(args: string[]): boolean {
 // A source edit (`sed -i src/a.ts`, `echo > src/a.ts`, `git checkout -- file`) is not one of those:
 // source gating belongs to the edit tools, and the guard says nothing about it. Unfinished syntax
 // and a token the heuristic does not classify are not a cause either. Stop, pre-commit and CI see
-// the resulting tree. A literal write target is still shown to `inScope` or `under`, which is how
-// the gate learns that the command reaches another root.
+// the resulting tree. The few literal write targets the guard knows are shown to `inScope`, which
+// is how the gate learns that the command reaches another root.
 
-// `under`: whether an in-scope path can lie at or below `abs`, for a directory written whole.
-// `touched`: whether a path the guard asked about (isProtected, inScope or under) reached a root.
+// `inScope`: asked for each literal file the guard knows the command writes. The answer is not used.
+// `touched`: whether a path the guard asked about (isProtected or inScope) reached a root.
 export interface GuardContext {
-  launcher: string | null; isProtected: (abs: string) => boolean; inScope: (abs: string) => boolean; under: (abs: string) => boolean;
+  launcher: string | null; isProtected: (abs: string) => boolean; inScope: (abs: string) => boolean;
   touched: () => boolean;
   gated?: Pick<ReadonlySet<string>, "has">;
   engines?: string;
@@ -263,11 +263,6 @@ const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh", "mksh", "fish"]);
 const EDITORS = new Set(["ed", "ex", "vi", "vim", "nvim", "nano", "emacs"]);
 const EXPORTS = new Set(["export", "declare", "typeset", "readonly", "local"]);
 const CD = new Set(["cd", "pushd", "popd", "chdir", "set-location", "sl", "push-location", "pop-location"]);
-const COPIES = new Set(["cp", "mv", "ln", "install", "copy-item", "move-item", "copy", "move", "cpi", "mi"]);
-const PS_WRITERS = new Set(["set-content", "add-content", "out-file", "tee-object", "sc", "ac"]);
-const PS_PATHS = ["path", "literalpath", "filepath", "pspath"];
-const PS_VALUED = ["value", "encoding", "inputobject", "width", "itemtype", "name", "stream", "filter", "include",
-  "exclude", "delimiter", "credential", "variable"];
 
 // Options that take a value, per command whose operands are another command or a script. The
 // package runners (`npm exec`, `pnpm dlx`…) take npx's.
@@ -282,8 +277,6 @@ const WRAPPERS = new Map<string, string[]>([
   ["npx", ["-p", "--package", "-c", "--call"]], ["bunx", ["-p", "--package"]], ["pnpx", []], ["uvx", ["--from", "--with"]],
 ]);
 const RUNNERS = new Set(["npm exec", "npm x", "pnpm dlx", "pnpm exec", "yarn dlx", "yarn exec", "bun x", "pipx run"]);
-// A curl option that takes a value ends its cluster: `-XPOST` is not -O.
-const CURL_VALUED = [..."AbcCdDeEFHKmoPQrtTuUwxXyYz"].map((c) => `-${c}`).concat("--output");
 
 // The flag that gives inline code, per interpreter.
 const NODE = /^(-[A-Za-z]*[ep]|--eval|--print)$/;
@@ -683,7 +676,7 @@ function literalWrite(target: Word, what: string, cwd: string | null, ctx: Ctx):
     if ((error as { code?: string }).code !== "ENAMETOOLONG") throw error;
     return null;
   }
-  return writes([target], cwd, ctx.inScope);
+  return writes([target], cwd, ctx);
 }
 
 // The program writes whatever path its arguments name (`open(sys.argv[1], "w")`, `unlink $ARGV`).
@@ -699,27 +692,24 @@ function shown(text: string): string {
   return one.length > 160 ? `${one.slice(0, 157)}...` : one;
 }
 
-// A source write is not a cause, so this always answers null. It shows each literal target to the
-// gate: `inScope` for a file, `ctx.under` for a path that may be a directory written whole. The
-// gate registers the root such a path reaches, and Stop judges that root. A name no file system
-// accepts is not shown.
-function writes(targets: Word[], cwd: string | null, inScope: (abs: string) => boolean): null {
+// A source write is not a cause, so this always answers null. It shows the gate each literal file
+// the guard knows the command writes: the target of a write redirection, a literal write target in
+// interpreter code, and the files a history-moving git command changes. The gate registers the
+// root such a path reaches, and Stop judges that root. A name no file system accepts is not shown.
+function writes(targets: Word[], cwd: string | null, ctx: Ctx): null {
   for (const t of targets) {
     const abs = t.literal ? resolve(cwd, t.text) : null;
     if (abs === null || abs.split(/[\\/]/).some((name) => name.length > 255)) continue;
-    try { inScope(abs); }
+    try { ctx.inScope(abs); }
     catch (error) { if ((error as { code?: string }).code !== "ENAMETOOLONG") throw error; }
   }
   return null;
 }
 
 // Text an editor or `patch` reads from the command (a heredoc): a protected path it names is
-// protected-path. Any dotted or slashed token may name a file, so each one is shown to the gate.
+// protected-path.
 function code(w: Word, cwd: string | null, ctx: Ctx): Cause | null {
-  if (!w.literal) return null;
-  if (mentionsProtected(w, cwd, ctx)) return "protected-path";
-  const files = w.text.split(PIECES).filter((p) => /[./]/.test(p) && /[^./]/.test(p)).map((p) => ({ text: p, literal: true, subs: [] }));
-  return writes(files, cwd, ctx.inScope);
+  return w.literal && mentionsProtected(w, cwd, ctx) ? "protected-path" : null;
 }
 
 // A script given as text (sh -c, eval, a heredoc or a pipe to a shell) is analyzed again when the
@@ -911,7 +901,7 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
   const unread = input?.op === "<" && !input.target.literal ? UNKNOWN : UNREAD;
   const stdin = input === undefined ? (pipedIn ? UNKNOWN : null) : input.stdin ?? (fromFile === null ? unread : { ...UNREAD, file: fromFile });
   const outputs = redirs.filter((r) => WRITE_REDIRS.has(r.op) && !(r.op === ">&" && /^(\d+-?|-)$/.test(r.target.text)));
-  return run(words, cwd, ctx, stdin) ?? writes(outputs.map((r) => r.target), cwd, ctx.inScope);
+  return run(words, cwd, ctx, stdin) ?? writes(outputs.map((r) => r.target), cwd, ctx);
 }
 
 const GIT_READS: ReadonlySet<string> = new Set(["status", "log", "diff", "show", "ls-files", "blame", "rev-parse", "cat-file", "ls-tree"]);
@@ -1192,18 +1182,15 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
 // The policy applies once the guard can place files (`outsideRoots` is set), which is both the
 // consent path and the inactive-consent path. A context that cannot place the file still reads
 // the launcher as a project script. A drive or inventory command is not a project write: the
-// launcher text is read for control commands only. An output path still goes through `writes`.
+// launcher text is read for control commands only. An output path is an ordinary write.
 // Switching an agent's hooks off through orca is hook-switch. Every other orca verb is allowed.
 // For agent-browser and agent-desktop, a verb that is not a drive verb, on a launcher inside a
 // project, has that launcher read like a project script.
 const HOST_TOOLS = new Set(["orca", "orca-dev", "orca-ide", "agent-browser", "agent-desktop"]);
-const OUTPUT_FLAGS = ["--output", "--out", "-o", "--path", "--file", "--trace", "--screenshot", "--annotate"];
-const HOST_VALUED = [...OUTPUT_FLAGS, "--url", "--element", "--value", "--text", "--worktree", "--page", "--limit", "--selector",
+const HOST_VALUED = ["--output", "--out", "-o", "--path", "--file", "--trace", "--screenshot", "--annotate", "--url", "--element", "--value", "--text", "--worktree", "--page", "--limit", "--selector",
   "--depth", "--name", "--index", "--command", "--expression", "--input", "--files", "--key", "--direction", "--amount",
   "--timeout", "--timeout-ms", "--host", "--environment", "--agent", "--prompt", "--model", "--effort", "--device", "--app",
   "--window-id", "--screen", "--session", "--fps", "--threshold", "--agent-id", "--wait-timeout"];
-const OUTPUT_COMMANDS = new Set(["screenshot", "full-screenshot", "pdf", "record", "download"]);
-const OUTPUT_EXT = /\.(?:png|jpe?g|gif|webp|pdf|html?|jsonl|webm|mp4|mkv|txt)$/i;
 const BROWSER_DRIVE = new Set(["open", "back", "forward", "reload", "read", "snapshot", "get", "is", "click", "dblclick", "fill", "type",
   "press", "keyboard", "hover", "focus", "select", "check", "uncheck", "scroll", "drag", "upload", "mouse", "find", "wait", "screenshot",
   "pdf", "record", "download", "diff", "cookies", "storage", "network", "set", "clipboard", "eval", "pushstate", "tab", "frame", "dialog",
@@ -1224,7 +1211,6 @@ function hostPolicy(name: string, head: Word, args: Word[], cwd: string | null, 
   const words = operands.map((word) => word.text);
   const orca = name === "orca" || name === "orca-dev" || name === "orca-ide";
   if (orca && !orcaInspect(words, flags) && words[0] === "agent" && words[1] === "hooks" && words[2] === "off") return "hook-switch";
-  hostOutputs(words, flags, operands, cwd, ctx);
   if (orca || hostDrive(name, words)) return null;
   if (located !== null && ctx.outsideRoots(located)) return null;
   return undefined;
@@ -1255,22 +1241,6 @@ function orcaInspect(words: string[], flags: Flag[]): boolean {
   if (a === "ports" || a === "doctor" || a === "version" || a === "info" || a === "help" || a === "list" || a === "agent-context") return true;
   if (a === "diagnostics" && (b === undefined || b === "memory")) return true;
   return b === "list" || b === "info" || b === "help" || b === "version";
-}
-
-// A screenshot or other output path is an ordinary write: it is shown to the gate.
-function hostOutputs(words: string[], flags: Flag[], operands: Word[], cwd: string | null, ctx: Ctx): null {
-  const flagged = flags.flatMap((entry): Word[] => {
-    const [flag, value] = entry;
-    return OUTPUT_FLAGS.includes(flag) && value !== undefined ? [value] : [];
-  });
-  const at = words.findIndex((word) => OUTPUT_COMMANDS.has(word));
-  const positional = at < 0 ? [] : operands.slice(at + 1).filter((word) => !word.literal || outputPath(word.text));
-  return writes([...flagged, ...positional], cwd, ctx.inScope);
-}
-
-function outputPath(text: string): boolean {
-  if (text === "" || text.startsWith("-") || text.startsWith("@")) return false;
-  return text.startsWith(".") || text.startsWith("~") || text.includes("/") || text.includes("\\") || OUTPUT_EXT.test(text);
 }
 
 // Registry reads, installs, and build/test/dev runners write dependency and build output,
@@ -1356,10 +1326,8 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (WRAPPERS.has(name) || runner) return wrapped(runner ? "npx" : name, runner ? args.slice(1) : args, cwd, ctx, stdin);
   if (name === "find") return find(args, cwd, ctx);
   if (name === "git") return git(args, cwd, ctx);
-  if (name === "rsync") return rsync(args, cwd, ctx);
-  if (ARCHIVES.has(name)) return archiveTar(args, cwd, ctx);
-  if (name === "unzip") return unzip(args, cwd, ctx);
-  if (FIXERS.has(name)) return fixer(name, args, cwd, ctx);
+  // Copy, archive and formatter tools write source or build output. Their launcher is not read.
+  if (name === "rsync" || name === "unzip" || ARCHIVES.has(name) || FIXERS.has(name)) return null;
   if (SHELLS.has(name)) return shell(args, cwd, ctx, stdin);
   if (name === "pwsh" || name === "powershell") return powershell(args, cwd, ctx, stdin);
   if (name === "cmd" || name === "cmd.exe") {
@@ -1370,33 +1338,29 @@ function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: W
   if (name === "eval" || name === "invoke-expression" || name === "iex") return inline(joined(args), cwd, ctx);
   const interpreter = name.replace(/^python[\d.]*$/, "python");
   if (INTERPRETERS.has(interpreter)) return interpret(interpreter, args, cwd, ctx, stdin);
-  if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd, ctx) ?? writes(targets(name, args), cwd, ctx.inScope);
+  if (name === "make" || name === "gmake" || name === "mingw32-make") return makefile(args, cwd, ctx);
   const hosted = hostPolicy(name, head, args, cwd, ctx);
   if (hosted !== undefined) return hosted;
   const scripted = recognized(name, head, args, cwd, ctx);
   if (scripted !== null) return scripted;
-  if (COPIES.has(name)) return copies(name === "copy" || name === "move" ? args.filter((w) => !/^\/-?[yabvndz]$/i.test(w.text)) : args, cwd, ctx);
   if (EDITORS.has(name) && stdin !== null) return first([...args, stdin], (w) => code(w, cwd, ctx));
   // A patch names its files inside: read like code when it comes in the command (a heredoc).
   if (name === "patch" || name === "apply_patch" || name === "applypatch") {
     return stdin === null || args.some((w) => /^(--dry-run|--check|-C)$/.test(w.text)) ? null : code(stdin, cwd, ctx);
   }
-  return writes(targets(name, args), cwd, ctx.inScope);
+  return null;
 }
 
 // A command name the shell builds (`${T}fia`, `$(echo pregate)`, `` `…` ``, `$'\x74…'`, a brace or
 // glob) may be any command, PREGATE's own approval included: shell-admin. When only its directory
-// expands (`"$DIR"/tool`, `~/bin/tool`) the name is known; such a command might still write any of
-// its operands. A PowerShell value names no command, but an assignment runs its right-hand side.
+// expands (`"$DIR"/tool`, `~/bin/tool`) the name is known and is judged like a literal one.
+// A PowerShell value names no command, but an assignment runs its right-hand side.
 function unnamed(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
   const value = psValue(head, args, ctx.bound);
   if (value !== null) return run(value, cwd, ctx, stdin);
   const name = head.text.slice(head.text.lastIndexOf("/") + 1);
   if (/[$`\\{}()*?[]/.test(name)) return null;
-  const cause = invoke({ ...head, literal: true }, args, cwd, ctx, stdin);
-  // Under the home folder the path is as known as a literal one: `~/bin/tool` is `/home/u/bin/tool`.
-  // Only the home prefix may expand: `$HOME/$DIR/tool` is as unknown as `"$DIR"/tool`.
-  return cause ?? (/^(~|\$HOME|\$\{HOME\})\/[^$`\\{}()*?[]*$/.test(head.text) ? null : writes(getopt(args, []).operands, cwd, ctx.inScope));
+  return invoke({ ...head, literal: true }, args, cwd, ctx, stdin);
 }
 
 // A variable, its member or element, an increment or a list item, or the target of `=`.
@@ -1776,181 +1740,6 @@ function xargs(flags: Flag[], options: Word[], inner: Word[]): Word[] {
   return inner.map((w) => (w.text.includes(replace) ? { ...w, text: w.text.replaceAll(replace, "$(xargs)"), literal: false } : w));
 }
 
-function targets(name: string, args: Word[]): Word[] {
-  if (name === "del" || name === "erase") return args.filter((w) => !/^\/[a-z]+$/i.test(w.text));
-  if (PS_WRITERS.has(name)) return psTargets(args);
-  if (name === "new-item" || name === "ni") return args.some((w) => /^-va/i.test(w.text)) ? psTargets(args) : [];
-  switch (name) {
-    case "tee": return getopt(args, []).operands;
-    case "sed": case "gsed": return sed(args);
-    case "dd": return args.filter((w) => w.text.startsWith("of=")).map((w) => ({ ...w, text: w.text.slice(3) }));
-    case "truncate": return getopt(args, ["-s", "--size", "-r", "--reference"]).operands;
-    case "curl": return curl(args);
-    case "wget": return wget(args);
-    default: return [];
-  }
-}
-
-// cp/mv/ln/install and Copy-Item/Move-Item write the destination (an explicit target directory, or
-// the last operand) and each source's name inside it, which may be a whole directory (`cp -r x .`).
-// A source with an unknown name, or whose contents are copied (`x/`), may put anything there.
-function copies(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
-  let explicit: Word | undefined;
-  const sources: Word[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const w = args[i]!;
-    const [flag, value] = w.text.split(/[=:](.*)/s) as [string, string | undefined];
-    const lower = flag.toLowerCase();
-    if (/^-[A-Za-z]*t$/.test(flag) || lower === "--target-directory" || (lower.length >= 3 && "-destination".startsWith(lower))) {
-      explicit = value === undefined ? args[++i] : { ...w, text: value };
-    } else if (!/^-./.test(w.text)) {
-      sources.push(w);
-    }
-  }
-  const dest = explicit ?? (sources.length > 1 ? sources.pop() : undefined);
-  if (dest === undefined) return null;
-  const inside = sources.map((s) => ({ ...dest, text: posix.join(dest.text, s.literal && !s.text.endsWith("/") ? basename(s.text) : ".") }));
-  return writes([dest], cwd, ctx.inScope) ?? writes(inside, cwd, ctx.under);
-}
-
-// PowerShell binds parameters by any unambiguous prefix (`-Pa`), or `-Name:value`. The first
-// positional argument is the path when no path parameter names it.
-function psTargets(args: Word[]): Word[] {
-  const named: Word[] = [];
-  const operands: Word[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const m = /^-([a-z]+)(?::(.*))?$/is.exec(args[i]!.text);
-    if (m === null) {
-      operands.push(args[i]!);
-      continue;
-    }
-    const param = m[1]!.toLowerCase();
-    const isTarget = PS_PATHS.some((p) => p.startsWith(param));
-    if (!isTarget && !PS_VALUED.some((p) => p.startsWith(param))) continue;   // a switch
-    const value = m[2] === undefined ? args[++i] : { ...args[i]!, text: m[2] };
-    if (isTarget && value !== undefined) named.push(value);
-  }
-  return named.length > 0 ? named : operands.slice(0, 1);
-}
-
-// sed edits in place with -i/-I/--in-place; its first operand is the script unless -e/-f gave one.
-// BSD sed takes the backup suffix of a bare -i as the next word, possibly empty.
-function sed(args: Word[]): Word[] {
-  const bsd = args.findIndex((w, k) => /^-[iI]$/.test(w.text) && /^(\.[^/]*)?$/.test(args[k + 1]?.text ?? "/"));
-  const { flags, operands } = getopt(bsd < 0 ? args : args.toSpliced(bsd + 1, 1), ["-e", "-f", "--expression", "--file"]);
-  if (!flags.some(([flag]) => /^(-[iI]|--in-place)$/.test(flag))) return [];
-  if (flags.some(([flag]) => /^(-[ef]|--expression|--file)$/.test(flag))) return operands;
-  // `sed -i src/a.ts` has no expression. The one operand is the file when it looks like a path.
-  if (operands.length === 1 && /[\\/]|\.[A-Za-z0-9]+$/.test(operands[0]!.text)) return operands;
-  return operands.slice(1);
-}
-
-// curl writes -o's file, and a name taken from the URL or the response with -O or -J.
-function curl(args: Word[]): Word[] {
-  return getopt(args, CURL_VALUED).flags.flatMap(([flag, value]): Word[] => {
-    if (/^(-[OJ]|--remote-(header-)?name)/.test(flag)) return [UNKNOWN];
-    return (flag === "-o" || flag === "--output") && value !== undefined && value.text !== "-" ? [value] : [];
-  });
-}
-
-// wget saves under the remote name unless -O names the file (`-O -` is stdout); -o and -a write
-// its log.
-function wget(args: Word[]): Word[] {
-  const { flags } = getopt(args, ["-O", "--output-document", "-o", "--output-file", "-a", "--append-output"]);
-  const logs = flags.filter(([flag]) => /^(-[oa]|--output-file|--append-output)$/.test(flag)).map(([, v]) => v ?? UNKNOWN);
-  const output = flags.find(([flag]) => flag === "-O" || flag === "--output-document");
-  const saved = flags.some(([flag]) => flag === "--spider") || output?.[1]?.text === "-" ? [] : [output?.[1] ?? UNKNOWN];
-  return [...logs, ...saved];
-}
-
-function rsync(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
-  if (args.some((w) => w.literal && (w.text === "--dry-run" || w.text === "-n" || w.text === "--list-only"))) return null;
-  const operands = args.filter((w) => !/^-./.test(w.text));
-  if (operands.length < 2) return null;
-  const dest = operands.at(-1)!;
-  return writes([dest], cwd, ctx.inScope) ?? (dest.literal && dest.text.endsWith("/") ? writes([{ ...dest, text: posix.join(dest.text, ".") }], cwd, ctx.under) : null);
-}
-
-// tar lists with -t; create writes an archive; extract writes into -C or the cwd.
-function archiveTar(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
-  let extract = false, list = false, create = false;
-  for (const w of args) {
-    if (!w.literal) return null;
-    if (w.text === "-x" || w.text === "--extract") extract = true;
-    else if (w.text === "-t" || w.text === "--list") list = true;
-    else if (w.text === "-c" || w.text === "--create") create = true;
-    else if (/^--(?:extract|list|create)=/.test(w.text)) {
-      const mode = w.text.split("=")[0]!.slice(2);
-      if (mode.startsWith("extract")) extract = true;
-      else if (mode.startsWith("list")) list = true;
-      else if (mode.startsWith("create")) create = true;
-    }     else if (/^-[^-]+$/.test(w.text) && !w.text.startsWith("--")) {
-      if (w.text.includes("x")) extract = true;
-      if (w.text.includes("t")) list = true;
-      if (w.text.includes("c")) create = true;
-    } else if (/^[A-Za-z0-9]*[ctx][A-Za-z0-9]*$/.test(w.text)) {
-      if (w.text.includes("x")) extract = true;
-      if (w.text.includes("t")) list = true;
-      if (w.text.includes("c")) create = true;
-    }
-  }
-  if (list && !extract && !create) return null;
-  let dest: Word = { text: ".", literal: true, subs: [] };
-  for (let i = 0; i < args.length; i++) {
-    const w = args[i]!;
-    if (w.text === "-C" || w.text === "--directory") {
-      const value = args[i + 1];
-      if (value !== undefined) dest = value;
-    } else if (w.text.startsWith("-C") && w.text.length > 2) {
-      dest = { ...w, text: w.text.slice(2) };
-    } else if (w.text.startsWith("--directory=")) {
-      dest = { ...w, text: w.text.slice("--directory=".length) };
-    }
-  }
-  if (extract) {
-    if (dest.text === ".") {
-      return writes([dest], cwd, ctx.inScope) ?? writes([dest], cwd, ctx.under);
-    }
-    return writes([dest], cwd, ctx.inScope) ?? (dest.literal && dest.text.endsWith("/") ? writes([{ ...dest, text: posix.join(dest.text, ".") }], cwd, ctx.under) : null);
-  }
-  if (create && !extract) {
-    for (let i = 0; i < args.length; i++) {
-      const w = args[i]!;
-      if (w.text === "-f" || w.text === "--file") {
-        const archive = args[i + 1];
-        return archive === undefined ? null : writes([archive], cwd, ctx.inScope);
-      }
-    }
-    return null;
-  }
-  return null;
-}
-
-function unzip(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
-  if (args.some((w) => w.literal && (w.text === "-l" || w.text === "-t" || w.text === "--list" || w.text === "--test"))) return null;
-  const { flags, operands } = getopt(args, ["-d", "-o", "-x"]);
-  const dest = flags.find(([flag]) => flag === "-d")?.[1];
-  const targets = dest !== undefined ? [dest] : operands.length > 0 ? [{ text: ".", literal: true, subs: [] }] : [];
-  return targets.length === 0 ? null : writes(targets, cwd, ctx.inScope);
-}
-
-function fixer(name: string, args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
-  const writesInPlace = (() => {
-    if (name === "prettier") return args.some((w) => w.literal && (w.text === "--write" || w.text === "-w" || /^--write=/.test(w.text) || /^-[^-]*w/.test(w.text)));
-    if (name === "eslint") return args.some((w) => w.literal && (w.text === "--fix" || /^--fix(?:=|$)/.test(w.text)));
-    if (name === "ruff") return args.some((w) => w.literal && (w.text === "--fix" || /^--fix(?:=|$)/.test(w.text)));
-    if (name === "biome") return args.some((w) => w.literal && (w.text === "--write" || /^--write(?:=|$)/.test(w.text) || (w.text === "format" && args.some((x) => x.literal && x.text === "--write"))));
-    if (name === "gofmt") return args.some((w) => w.literal && (w.text === "-w" || w.text === "-write"));
-    if (name === "rustfmt") return !args.some((w) => w.literal && (w.text === "--check" || w.text === "--emit=stdout"));
-    if (name === "clang-format") return args.some((w) => w.literal && (w.text === "-i" || w.text === "--inplace"));
-    return false;
-  })();
-  if (!writesInPlace) return null;
-  const paths = args.filter((w) => !/^-./.test(w.text) && !["format", "check", "lint"].includes(w.text));
-  return writes(paths, cwd, ctx.inScope)
-    ?? writes(paths.filter((w) => w.literal && !w.text.endsWith("/")).map((w) => ({ ...w, text: posix.join(w.text, ".") })), cwd, ctx.under);
-}
-
 function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
   const { flags, operands } = getopt(args, ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"], true);
   const base = flags.reduce((dir, [flag, v]) => (flag !== "-C" ? dir : v?.literal ? resolve(dir, v.text) : null), cwd);
@@ -1964,7 +1753,6 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
     if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "git commit -n skips a pregate-installed git hook.";
     return "shell-admin";
   }
-  const has = (re: RegExp) => rest.some((w) => re.test(w.text));
   const dash = rest.findIndex((w) => w.text === "--");
   if (sub !== undefined && movesHistory(sub, rest, dash)) {
     const literal = base !== null && rest.every((w) => w.literal)
@@ -1974,15 +1762,9 @@ function git(args: Word[], cwd: string | null, ctx: Ctx): Cause | null {
     // Index entries are not edits. A clean checkout of an existing branch lists its files there
     // so a protected path still denies, and leaves the worktree list empty.
     if ([...change.worktree, ...change.index].some((p) => ctx.isProtected(p))) return "protected-path";
-    return writes(change.worktree.map((text) => ({ text, literal: true, subs: [] })), base, ctx.inScope);
+    return writes(change.worktree.map((text) => ({ text, literal: true, subs: [] })), base, ctx);
   }
-  // Without `--` the first operand is a revision, unless it is `.`, which cannot name one.
-  const changed = sub === "apply" ? (has(/^--(check|stat|numstat|summary)$/) ? [] : [UNKNOWN])
-    : sub === "checkout" ? (dash >= 0 ? rest.slice(dash + 1) : getopt(rest, ["-b", "-B", "--orphan"]).operands.filter((w, k) => k > 0 || w.text === "."))
-    : sub === "restore" ? (has(/^(--staged|-S)$/) && !has(/^(--worktree|-W)$/) ? [] : getopt(rest, ["-s", "--source"]).operands)
-    : [];
-  // Git expands pathspecs itself: a glob or a `:(magic)` pathspec may name any file.
-  return writes(changed.map((w) => (/^:|[*?[]/.test(w.text) ? UNKNOWN : w)), base, ctx.under);
+  return null;
 }
 
 // A git command that rewrites the worktree or the index from another commit, a stash or nothing
@@ -2206,10 +1988,5 @@ function interpret(name: string, args: Word[], cwd: string | null, ctx: Ctx, std
   const text = program.filter((w) => w.literal && w.file === undefined).map((w) => w.text).join("\n");
   const wrote = text === "" ? null : programWrites(text, cwd, ctx);
   if (wrote !== null) return wrote;
-  const fromArgv = argvWrites(name, program.map((w) => w.text).join("\n"), operands, cwd, ctx);
-  if (fromArgv !== null) return fromArgv;
-  // perl and ruby edit files in place with -i, checked on every option: in `perl -pie`, -i takes
-  // "e" as its backup suffix.
-  const inPlace = (name === "perl" || name === "ruby") && args.some((w) => /^-[A-Za-z0-9]*i/.test(w.text));
-  return inPlace ? writes(inlined ? operands : operands.slice(1), cwd, ctx.inScope) : null;
+  return argvWrites(name, program.map((w) => w.text).join("\n"), operands, cwd, ctx);
 }
