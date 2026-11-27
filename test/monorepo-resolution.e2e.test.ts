@@ -69,8 +69,8 @@ test("an enforced layer rule denies a package that imports a forbidden workspace
   type Source = { ns: string; kind: string; version: string };
   const preset = JSON.parse(readFileSync(presetFile, "utf8")) as { sources: Source[]; methodologies: string[]; layers: unknown };
   const catalog = JSON.parse(readFileSync(join(import.meta.dir, "../catalog/presets/backend-clean-ddd.json"), "utf8")) as { sources: Source[] };
-  preset.sources.push(catalog.sources.find((source) => source.ns === "architecture")!);
-  preset.methodologies.push("architecture/clean-architecture");
+  if (!preset.sources.some((source) => source.ns === "architecture")) preset.sources.push(catalog.sources.find((source) => source.ns === "architecture")!);
+  if (!preset.methodologies.includes("architecture/clean-architecture")) preset.methodologies.push("architecture/clean-architecture");
   preset.layers = LAYERS;
   writeFileSync(presetFile, `${JSON.stringify(preset, null, 2)}\n`);
   const compiled = p.cli("preset", "compile", "--yes");
