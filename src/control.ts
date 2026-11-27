@@ -26,11 +26,11 @@ const APPROVAL_VARIABLE = /\bPREGATE_(?:TEST(?:ING|_ANSWER)|UNATTENDED_APPROVAL|
 // PREGATE's consent and session records, which a script must not rewrite or delete.
 const STATE_PATH = /\bpregate[\\/]+(?:consent|sessions|contract-approvals|pending|proposals|reached)\b/i;
 
-// A pregate invocation a script, Makefile or inline program must not run: approve/disable/enable,
-// install/setup/update/uninstall, a pack mutation, a contract compile or apply, init/promote --yes,
-// a review application, or a hook-trust edit. A literal shell `pregate approve` with a code or
-// `--yes` is a different path (the shell guard allows that one command). Read-only previews
-// (`approve --preview`, `update --preview`, `pack … --preview` without `--yes`) stay visible.
+// A pregate invocation a script, Makefile or inline program must not run: enable and disable,
+// install/setup/update/uninstall and project setup, or a hook-trust edit. approve, a pack change,
+// and a contract compile or apply are not in that set: they run from the harness shell. A verb
+// built at run time (`pregate "$verb"`) is not text this scan can read, so it is not judged here;
+// `pregate disable` keeps its terminal for that reason.
 // Comments are removed before and after joining continued lines, and the stronger finding wins:
 // a continued line may or may not be part of a comment.
 export function pregateControlCause(input: string): Cause | null {
