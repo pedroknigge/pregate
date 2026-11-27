@@ -1,11 +1,17 @@
 // Sample precision for a pack audit. A pack with no matching label stays unmeasured.
-// Precision is true positives / labeled findings, and it does not describe unlabeled findings.
+// Precision is true positives / (true positives + false positives). An uncertain label counts as
+// labeled and is on neither side of that fraction. Unlabeled findings have no precision.
 // Every label names who wrote it: the maintainer, or an AI coding agent. The report keeps them apart.
 
-export type SampleVerdict = "true-positive" | "false-positive";
+export type SampleVerdict = "true-positive" | "false-positive" | "uncertain";
 export type Labeler = "maintainer" | "agent";
 export const LABELERS: Labeler[] = ["maintainer", "agent"];
-export const AGENT_SAMPLE = 5;
+export const AGENT_SAMPLE = 12;
+
+// The one bar for a pack. Below either number the pack is not validated.
+export const VALID_LABELS = 6;
+export const VALID_PRECISION = 0.7;
+export type PackStatus = "validated" | "low-precision" | "small-sample" | "unmeasured";
 
 export interface FindingSite {
   corpus: string;
@@ -38,7 +44,9 @@ export interface PackPrecision {
   labeled: number;
   truePositives: number;
   falsePositives: number;
+  uncertain: number;
   precision: number | null;
+  status: PackStatus;
 }
 
 export interface CorpusRow {
@@ -54,7 +62,7 @@ export interface CorpusRow {
 // `sample` holds the labels that match a finding. `resolved` holds false-positive labels whose site
 // the rules no longer report. `labels` counts the sample by labeler, and the resolved labels.
 export interface PrecisionReport {
-  schemaVersion: 2;
+  schemaVersion: 3;
   engine: string;
   core: string;
   labels: LabelCounts;
@@ -66,12 +74,14 @@ export interface PrecisionReport {
 }
 
 export const LIMITS = [
-  "Sample precision is true positives divided by the labeled findings of that pack. Unlabeled findings are not in the denominator and have no precision.",
-  "A pack with no matching label is unmeasured. This report does not give it a precision.",
-  "A sample of five or six findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings match the rule.",
+  "Sample precision is true positives divided by true positives plus false positives of that pack. Uncertain labels and unlabeled findings are not in the denominator and have no precision.",
+  "A pack with no true-positive or false-positive label is unmeasured. This report does not give it a precision.",
+  `A sample of at most ${AGENT_SAMPLE} findings does not estimate the precision of a pack with hundreds of findings. It says whether the sampled findings are correct.`,
+  `Validated means only this: at least ${VALID_LABELS} labeled findings and a sample precision of at least ${Math.round(VALID_PRECISION * 100)}% on this corpus. It describes the rules of that pack that reported a finding here. The rules of that pack that reported nothing are not measured.`,
   "Agent labels were written by an AI coding agent. They are not an independent human review, and the maintainer has not confirmed them. The Labeled by column separates them from maintainer labels.",
   "A resolved false positive says the rule no longer reports that site. It is not evidence about the findings that remain.",
-  "A label says whether the finding matches the rule's stated condition. It is not a judgment that a project should adopt the rule.",
+  "A label is not a judgment that a project should adopt the rule. A rule that states a project choice, such as no var or no require, is correct where the code has that construct.",
+  "The labels were written under two bars. The maintainer labels and the agent labels in the `.agent.json` files say whether the finding matches the rule's stated condition. The agent labels in the `.agent-2.json` files are stricter: true-positive only when the rule's stated reason applies to that line. A pack fraction can mix both.",
   "The corpus is the pinned commits in the manifest. It is not a random sample of public code.",
   "The audit records static matches in the checked-out tree. It is not the no-new ratchet used on an edit, and it does not run fitness, diff, or placement checks.",
   "Vue and Svelte single-file components use the TypeScript grammar. This corpus has no .vue or .svelte file, so a zero there is not evidence about those rules.",
@@ -92,8 +102,25 @@ export function precisionRatio(truePositives: number, falsePositives: number): n
 }
 
 export function precisionText(row: PackPrecision): string {
-  if (row.precision === null || row.labeled === 0) return "unmeasured";
-  return `${row.truePositives}/${row.labeled}`;
+  if (row.precision === null) return "unmeasured";
+  return `${row.truePositives}/${row.truePositives + row.falsePositives}`;
+}
+
+export function packStatus(labeled: number, precision: number | null): PackStatus {
+  if (precision === null) return "unmeasured";
+  if (labeled < VALID_LABELS) return "small-sample";
+  return precision < VALID_PRECISION ? "low-precision" : "validated";
+}
+
+const STATUS_TEXT: Record<PackStatus, string> = {
+  validated: "validated",
+  "low-precision": `not validated: precision below ${Math.round(VALID_PRECISION * 100)}%`,
+  "small-sample": `not validated: fewer than ${VALID_LABELS} labels`,
+  unmeasured: "unmeasured",
+};
+
+export function statusText(status: PackStatus): string {
+  return STATUS_TEXT[status];
 }
 
 export function applyLabels<T extends SampleLabel>(packNames: string[], findings: FindingSite[], labels: T[]): {
@@ -219,16 +246,17 @@ function splitLabels<T extends SampleLabel>(labels: T[], known: Set<string>): {
 }
 
 function packRow(pack: string, rows: FindingSite[], labels: Map<string, SampleLabel>): PackPrecision {
-  let truePositives = 0;
-  let falsePositives = 0;
+  const count: Record<SampleVerdict, number> = { "true-positive": 0, "false-positive": 0, uncertain: 0 };
   for (const row of rows) {
     const label = labels.get(siteKey(row));
-    if (!label) continue;
-    if (label.verdict === "true-positive") truePositives += 1;
-    else falsePositives += 1;
+    if (label) count[label.verdict] += 1;
   }
-  const labeled = truePositives + falsePositives;
-  return { pack, findings: rows.length, labeled, truePositives, falsePositives, precision: precisionRatio(truePositives, falsePositives) };
+  const labeled = count["true-positive"] + count["false-positive"] + count.uncertain;
+  const precision = precisionRatio(count["true-positive"], count["false-positive"]);
+  return {
+    pack, findings: rows.length, labeled, truePositives: count["true-positive"], falsePositives: count["false-positive"],
+    uncertain: count.uncertain, precision, status: packStatus(labeled, precision),
+  };
 }
 
 function byVolume(a: PackPrecision, b: PackPrecision): number {
@@ -258,8 +286,8 @@ function labelerOf(value: string, at: string): Labeler {
 }
 
 function verdictOf(value: string, at: string): SampleVerdict {
-  if (value === "true-positive" || value === "false-positive") return value;
-  throw new Error(`${at}: verdict must be true-positive or false-positive`);
+  if (value === "true-positive" || value === "false-positive" || value === "uncertain") return value;
+  throw new Error(`${at}: verdict must be true-positive, false-positive or uncertain`);
 }
 
 function lineOf(value: unknown, at: string): number {
@@ -293,7 +321,8 @@ function labeledBy(report: PrecisionReport, pack: string): string {
 function sampleSummary(report: PrecisionReport): string {
   const tp = report.sample.filter((item) => item.verdict === "true-positive").length;
   const fp = report.sample.filter((item) => item.verdict === "false-positive").length;
-  return `${tp} true-positive, ${fp} false-positive`;
+  const uncertain = report.sample.filter((item) => item.verdict === "uncertain").length;
+  return `${tp} true-positive, ${fp} false-positive, ${uncertain} uncertain`;
 }
 
 function methodSection(): string[] {
@@ -302,8 +331,9 @@ function methodSection(): string[] {
     "",
     "1. Shallow-fetch each git entry at its pinned commit into `.cache/precision` (or `--cache`). Reuse a clean cache whose HEAD is that commit. Check the scanned source sha256 against the manifest. With `--skip-offline`, a failed fetch leaves the written report untouched. A path entry must already be a checkout of its commit.",
     "2. For each pack, compile a shadow preset of the builtin core plus that pack's methodologies. If those methodologies do not compile together, compile each one on its own. Count static findings from the same file audit `pregate audit` uses. One finding is one site: corpus, pack, rule, path, line, and symbol.",
-    "3. Read every file in `bench/labels`. Each file names one pack and one labeler, `maintainer` or `agent`, and holds labels: `true-positive` or `false-positive`, plus a note. A `true-positive` label that does not match a finding is an error. A `false-positive` label that does not match a finding is recorded as resolved: the rules no longer report that site. Precision is `true-positive / (true-positive + false-positive)` for packs with at least one matching label.",
+    "3. Read every file in `bench/labels`. Each file names one pack and one labeler, `maintainer` or `agent`, and holds labels: `true-positive`, `false-positive` or `uncertain`, plus a note. A `true-positive` or `uncertain` label that does not match a finding is an error. A `false-positive` label that does not match a finding is recorded as resolved: the rules no longer report that site. Precision is `true-positive / (true-positive + false-positive)` for packs with at least one such label. An `uncertain` label counts as labeled and is not in that fraction.",
     `4. An agent does not choose the findings it labels. Take the findings of one pack in the order of the \`--findings\` file (sorted as text by corpus, pack, rule, path, line and symbol). With n findings and k the smaller of ${AGENT_SAMPLE} and n, the sample is the findings at positions floor(i × n / k) for i from 0 to k − 1. \`bench/agent-sample.json\` records the sites offered so far, and \`--sample <file>\` writes that record plus the sample of this run. An agent label for a site that is not in the record or in the sample of this run is an error. A rule change moves the positions; a label written before the change keeps the site it was offered.`,
+    `5. One bar gives each pack a status. A pack is validated when it has at least ${VALID_LABELS} labeled findings and a sample precision of at least ${Math.round(VALID_PRECISION * 100)}%. A pack below either number is not validated. A pack with no true-positive or false-positive label is unmeasured, which is also not validated.`,
     "",
     "Engine and core versions are recorded on the report. Re-running the command on the same pins and the same engine reproduces the counts.",
     "",
@@ -326,14 +356,14 @@ function corpusSection(report: PrecisionReport): string[] {
 }
 
 function countSection(report: PrecisionReport): string[] {
-  const rows = report.packs.map((row) => `| ${row.pack} | ${row.findings} | ${row.labeled} | ${row.truePositives} | ${row.falsePositives} | ${precisionText(row)} | ${labeledBy(report, row.pack)} |`);
+  const rows = report.packs.map((row) => `| ${row.pack} | ${row.findings} | ${row.labeled} | ${row.truePositives} | ${row.falsePositives} | ${row.uncertain} | ${precisionText(row)} | ${statusText(row.status)} | ${labeledBy(report, row.pack)} |`);
   return [
     "## Per-pack counts",
     "",
-    "A fraction is the labeled sample only. Labeled by says how many of those labels the maintainer wrote and how many an agent wrote. Unmeasured means this report states no precision for that pack.",
+    "A fraction is correct labels over correct plus false-positive labels, in the labeled sample only. Correct is the `true-positive` verdict. Labeled by says how many of those labels the maintainer wrote and how many an agent wrote. Unmeasured means this report states no precision for that pack.",
     "",
-    "| Pack | Findings | Labeled | True positives | False positives | Sample precision | Labeled by |",
-    "| --- | ---: | ---: | ---: | ---: | --- | --- |",
+    "| Pack | Findings | Labeled | Correct | False positives | Uncertain | Sample precision | Status | Labeled by |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",
     ...rows,
     "",
   ];

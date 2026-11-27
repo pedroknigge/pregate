@@ -67,7 +67,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **process**. Version: `1.2.1`. 97 distinct check IDs.
 
-Methodologies: `pstack/boundaries` (complete), `pstack/effects` (complete), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (complete), `pstack/reader-load` (complete), `pstack/workspace` (preview).
+Methodologies: `pstack/boundaries` (preview), `pstack/effects` (preview), `pstack/operations` (preview), `pstack/playbooks` (preview), `pstack/principles` (preview), `pstack/proof` (preview), `pstack/reader-load` (preview), `pstack/workspace` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

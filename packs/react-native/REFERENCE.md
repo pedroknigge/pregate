@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## react-native/platform
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### react-native/RN-PLAT-001
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## react-native/security
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### react-native/RN-SECRET-001
 

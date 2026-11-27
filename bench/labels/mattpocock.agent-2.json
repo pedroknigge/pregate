@@ -1,0 +1,76 @@
+{
+  "labeler": "agent",
+  "pack": "mattpocock",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "examples/resource/index.js",
+      "line": 53,
+      "symbol": "User.range",
+      "verdict": "true-positive",
+      "note": "range takes req, res, a, b and format. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.js",
+      "line": 293,
+      "symbol": "__classPrivateFieldSet",
+      "verdict": "true-positive",
+      "note": "__classPrivateFieldSet takes receiver, state, value, kind and f. That is five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.js",
+      "line": 66,
+      "symbol": "__esDecorate",
+      "verdict": "true-positive",
+      "note": "__esDecorate takes six inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.mjs",
+      "line": 293,
+      "symbol": "__classPrivateFieldSet",
+      "verdict": "true-positive",
+      "note": "__classPrivateFieldSet takes five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.es6.mjs",
+      "line": 66,
+      "symbol": "__esDecorate",
+      "verdict": "true-positive",
+      "note": "__esDecorate takes six inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.js",
+      "line": 342,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The function assigned to __classPrivateFieldSet takes five inputs and the limit is four."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "mattpocock",
+      "rule": "mattpocock/MP-PARAMS-001",
+      "path": "tslib.js",
+      "line": 419,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The String.replace callback takes m, tsx, d, ext and cm. Its arity follows the capture groups of the regular expression, so it is not a caller-facing interface. An earlier agent label marks the same callback true-positive."
+    }
+  ]
+}

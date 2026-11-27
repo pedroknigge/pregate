@@ -1,0 +1,126 @@
+{
+  "labeler": "agent",
+  "pack": "javascript",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "javascript",
+      "rule": "javascript/JS-AWAIT-001",
+      "path": "benchmarks/benchmarks.js",
+      "line": 47,
+      "symbol": "runBenchmarks.bench",
+      "verdict": "false-positive",
+      "note": "The loop runs one benchmark at a time on purpose. Running them together would spoil the timings, so the work could not run together."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-CJS-001",
+      "path": "examples/route-separation/site.js",
+      "line": 3,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "exports.index = function ... publishes through the CommonJS exports object. Express is a CommonJS package; the label does not judge that choice."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-CJS-001",
+      "path": "test/support/utils.js",
+      "line": 18,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "exports.shouldNotHaveHeader = ... is a CommonJS export."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "examples/mvc/index.js",
+      "line": 8,
+      "symbol": "logger",
+      "verdict": "true-positive",
+      "note": "require('morgan') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "examples/view-constructor/index.js",
+      "line": 9,
+      "symbol": "md",
+      "verdict": "true-positive",
+      "note": "require('marked') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "lib/response.js",
+      "line": 25,
+      "symbol": "statuses",
+      "verdict": "true-positive",
+      "note": "require('statuses') is a require call in library code."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/acceptance/error-pages.js",
+      "line": 3,
+      "symbol": "request",
+      "verdict": "true-positive",
+      "note": "require('supertest') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/app.param.js",
+      "line": 3,
+      "symbol": "express",
+      "verdict": "true-positive",
+      "note": "require('../') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/express.raw.js",
+      "line": 8,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "require('node:buffer') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/req.ip.js",
+      "line": 4,
+      "symbol": "request",
+      "verdict": "true-positive",
+      "note": "require('supertest') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/res.download.js",
+      "line": 3,
+      "symbol": "after",
+      "verdict": "true-positive",
+      "note": "require('after') is a require call."
+    },
+    {
+      "corpus": "express",
+      "pack": "javascript",
+      "rule": "javascript/JS-REQ-001",
+      "path": "test/res.sendFile.js",
+      "line": 13,
+      "symbol": "utils",
+      "verdict": "true-positive",
+      "note": "require('./support/utils') is a require call."
+    }
+  ]
+}

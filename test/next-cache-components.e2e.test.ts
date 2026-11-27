@@ -88,7 +88,7 @@ test("Cache Components rules run through rules test, check, and the Pre hook", (
 
   p.git("init", "-q");
   p.approve(["init", "--preview", "--preset", "integrity-only"]);
-  p.approve(["pack", "add", "--library", "nextjs", "--preview"]);
+  for (const methodology of ["nextjs/rendering", "nextjs/routing"]) p.approve(["pack", "enable", methodology, "--preview"]);
   p.request([
     { op: "add", path: "/enforcement", value: "enforce" },
     { op: "add", path: "/overrides", value: { "nextjs/NEXT-CACHE-001": "deny" } },

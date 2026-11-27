@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "solana/key-custody",
   "version": "1.0.1",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

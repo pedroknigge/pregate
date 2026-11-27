@@ -52,6 +52,6 @@
       "why": "A TCP service that relied on an empty host to accept other hosts now binds to localhost and looks up while remaining unreachable."
     }
   ],
-  "status": "complete",
+  "status": "preview",
   "version": "1.0.0"
 }

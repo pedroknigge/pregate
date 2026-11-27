@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## trpc/client
 
-Manifest version: `1.1.1`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **preview**.
 
 ### trpc/TRPC-BATCH-001
 
@@ -176,7 +176,7 @@ Source metadata:
 
 ## trpc/router
 
-Manifest version: `1.3.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **preview**.
 
 ### trpc/TRPC-PROC-001
 

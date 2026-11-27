@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## rust/architecture
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### rust/RUST-LAYER-001
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ## rust/quality
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### rust/RUST-FN-001
 

@@ -38,7 +38,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.0.0`. 2 distinct check IDs.
 
-Methodologies: `tanstack-query/client` (complete), `tanstack-query/keys` (complete).
+Methodologies: `tanstack-query/client` (preview), `tanstack-query/keys` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

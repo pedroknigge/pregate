@@ -85,7 +85,7 @@ test("the compiled hook denies Next 16 removals and does not deny Next 15", () =
     { op: "add", path: "/enforcement", value: "enforce" },
   ] }));
   expect(p.run(["preset", "apply", ".pregate/requests/scope.json", "--yes"]).code).toBe(0);
-  p.approve(["pack", "add", "--library", "nextjs", "--preview"]);
+  for (const methodology of ["nextjs/rendering", "nextjs/routing"]) p.approve(["pack", "enable", methodology, "--preview"]);
   p.git("add", "-A");
   p.git("commit", "-qm", "baseline");
 

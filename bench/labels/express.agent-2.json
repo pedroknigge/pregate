@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "express",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-NEXT-001",
+      "path": "test/app.param.js",
+      "line": 13,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "return next('route') passes the string route to next."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-NEXT-001",
+      "path": "test/app.router.js",
+      "line": 854,
+      "symbol": "fn",
+      "verdict": "true-positive",
+      "note": "next('route') passes the string route to next."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "examples/error-pages/index.js",
+      "line": 64,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "res.status(404) is followed by res.format(...), whose branches render or send. The response is sent."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "examples/mvc/index.js",
+      "line": 78,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Line 78 is the app.use(...) call. Inside it, res.status(500).render('5xx') sends the response. render is not in the rule's sender list, and the rule reports the enclosing statement."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "examples/web-service/index.js",
+      "line": 109,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "res.send(...) is the next statement. The request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/app.route.js",
+      "line": 182,
+      "symbol": "handleError",
+      "verdict": "false-positive",
+      "note": "res.send(...) is the next statement. The request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/express.raw.js",
+      "line": 357,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "res.send(...) is the next statement. The request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/express.static.js",
+      "line": 756,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The middleware sets 501 and calls next(), and express.static then sends the file. The test is about that hand-over."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/res.format.js",
+      "line": 109,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "res.send(...) is the next statement. The request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/res.format.js",
+      "line": 75,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "res.send(...) is the next statement. The request does not stay open."
+    },
+    {
+      "corpus": "express",
+      "pack": "express",
+      "rule": "express/EX-STATUS-001",
+      "path": "test/res.sendFile.js",
+      "line": 15,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Line 15 is the describe('res', ...) call that wraps the whole test file. It is not a handler that sets a status."
+    }
+  ]
+}

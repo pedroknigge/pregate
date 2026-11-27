@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "prisma/client",
   "version": "1.2.0",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

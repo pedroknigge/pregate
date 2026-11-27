@@ -19,6 +19,9 @@ The [complete generated inventory](../docs/packs.md) lists every pack, category,
 methodology ID, preset recipe and rule reference. Individual `REFERENCE.md` files
 show defaults, provenance, repair guidance and limits; `BACKLOG.md` records coverage
 that is not implemented. Manifest status does not certify the entire framework.
+A `preview` methodology belongs to a pack whose precision is not validated on the
+pinned corpus, or to a manifest that is not finished; `pack add` does not select
+it. See [rule precision](../docs/guides/rule-precision.md#pack-status-from-the-0015-measurement).
 
 ```sh
 pregate pack list --library

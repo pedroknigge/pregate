@@ -1,0 +1,106 @@
+{
+  "labeler": "agent",
+  "pack": "vibe-proof",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/auth/index.js",
+      "line": 61,
+      "symbol": "authenticate",
+      "verdict": "true-positive",
+      "note": "console.log('authenticating %s:%s', name, pass) prints the user name and the password."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/ejs/index.js",
+      "line": 56,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "console.log('Express started on port 3000') is the intended start message of the example, not a leftover debug print."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/markdown/index.js",
+      "line": 43,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The line is the intended start message of the example."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/mvc/lib/boot.js",
+      "line": 76,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "verbose && console.log(...) is output the caller asks for with the verbose option."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/session/index.js",
+      "line": 36,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The line is the intended start message of the example."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/static-files/index.js",
+      "line": 42,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The line is part of the usage text the example prints at start."
+    },
+    {
+      "corpus": "express",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "examples/view-constructor/index.js",
+      "line": 47,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The line is the intended start message of the example."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "script/load-jsx.js",
+      "line": 43,
+      "symbol": "createLoader.load",
+      "verdict": "false-positive",
+      "note": "console.log(warning.location) reports a build warning from a loader script. That is the purpose of the lines."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "test.jsx",
+      "line": 1205,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "console.info(...) tells the person who runs the tests that the next error is expected. test.jsx is a test file."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "vibe-proof",
+      "rule": "vibe-proof/VP-CONSOLE-001",
+      "path": "test/runTests.js",
+      "line": 31,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "console.log(\"Skipping\") is the progress output of a command-line test runner."
+    }
+  ]
+}

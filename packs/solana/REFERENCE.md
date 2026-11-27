@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## solana/key-custody
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### solana/SOL-SEC-001
 
@@ -108,7 +108,7 @@ Source metadata:
 
 ## solana/kit-client
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### solana/SOL-KIT-001
 
@@ -240,7 +240,7 @@ Source metadata:
 
 ## solana/pda-safety
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### solana/SOL-PDA-001
 
@@ -276,7 +276,7 @@ Source metadata:
 
 ## solana/rpc-env
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### solana/SOL-RPC-001
 
@@ -344,7 +344,7 @@ Source metadata:
 
 ## solana/tx-safety
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### solana/SOL-TX-001
 

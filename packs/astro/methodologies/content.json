@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "astro/content",
   "version": "1.0.0",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## python/architecture
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### python/PY-LAYER-001
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ## python/effects
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### python/PY-IO-001
 
@@ -87,7 +87,7 @@ Source metadata:
 
 ## python/legacy
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### python/PY-315-NT-001
 
@@ -559,7 +559,7 @@ Source metadata:
 
 ## python/quality
 
-Manifest version: `1.3.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **preview**.
 
 ### python/PY-FN-001
 

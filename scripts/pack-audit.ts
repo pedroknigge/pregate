@@ -67,7 +67,7 @@ export async function measurePrecision(options: Options): Promise<PrecisionRepor
   const recorded = recordedSample(options.agentSample);
   if (options.sample) writeFileSync(options.sample, stableJson(distinct([...recorded, ...agentSample(found)])));
   const applied = applyLabels(prepared.map((pack) => pack.ns), found, labels);
-  const lost = applied.unmatched.filter((label) => label.verdict === "true-positive");
+  const lost = applied.unmatched.filter((label) => label.verdict !== "false-positive");
   if (lost.length) {
     const sample = lost.slice(0, 8).map((label) => `${label.pack} ${label.path}:${label.line}`).join("; ");
     throw new Error(`${lost.length} labels did not match a finding: ${sample}`);
@@ -146,7 +146,7 @@ function takePrecision(options: Options, args: string[], root: string): void {
 
 function reportOf(repos: Loaded[], packs: PrecisionReport["packs"], sample: LabeledSample[], resolved: LabeledSample[]): PrecisionReport {
   return {
-    schemaVersion: 2, engine: VERSIONS.engine, core: VERSIONS.core, labels: labelCounts(sample, resolved),
+    schemaVersion: 3, engine: VERSIONS.engine, core: VERSIONS.core, labels: labelCounts(sample, resolved),
     corpus: repos.map(corpusRow), packs, sample: [...sample].sort(bySite), resolved: [...resolved].sort(bySite), limits: LIMITS,
   };
 }

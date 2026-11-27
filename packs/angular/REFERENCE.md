@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## angular/components
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### angular/ANG-IO-001
 
@@ -236,7 +236,7 @@ Source metadata:
 
 ## angular/rxjs
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### angular/ANG-SUB-001
 

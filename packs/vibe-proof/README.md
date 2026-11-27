@@ -52,7 +52,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **practice**. Version: `1.1.0`. 17 distinct check IDs.
 
-Methodologies: `vibe-proof/hygiene` (complete), `vibe-proof/secrets` (complete), `vibe-proof/transport` (complete).
+Methodologies: `vibe-proof/hygiene` (preview), `vibe-proof/secrets` (preview), `vibe-proof/transport` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

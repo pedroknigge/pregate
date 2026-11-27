@@ -166,7 +166,7 @@ test("library addition selects no rules; selective enable, update and removal ar
   const before = readFileSync(join(p.root, ".pregate/preset.json"), "utf8");
   const proposed = p.run(["pack", "add", "--library", "python", "--preview"]);
   expect(proposed.code).toBe(0);
-  expect(proposed.text).toMatch(/^Selected: python\/legacy, python\/quality\. Skipped: python\/architecture \(.*\); python\/effects \(/m);
+  expect(proposed.text).toContain("Selected: none. Skipped: python/architecture (preview methodology); python/effects (preview methodology); python/legacy (preview methodology); python/quality (preview methodology).");
   expect(readFileSync(join(p.root, ".pregate/preset.json"), "utf8")).toBe(before);
   p.approve(["pack", "add", "--library", "python", "--source-only", "--preview"]);
   expect(JSON.parse(p.run(["audit", "--json"]).text).uncovered).toContain("a.py");

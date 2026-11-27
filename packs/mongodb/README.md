@@ -85,7 +85,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.3.1`. 12 distinct check IDs.
 
-Methodologies: `mongodb/models` (complete), `mongodb/queries` (complete).
+Methodologies: `mongodb/models` (preview), `mongodb/queries` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

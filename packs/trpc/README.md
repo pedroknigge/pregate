@@ -47,7 +47,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.3.0`. 13 distinct check IDs.
 
-Methodologies: `trpc/client` (complete), `trpc/router` (complete).
+Methodologies: `trpc/client` (preview), `trpc/router` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "senior",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-CHAIN-001",
+      "path": "test/acceptance/web-service.js",
+      "line": 99,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "request(app).get(...).expect(...).expect(...) is the supertest fluent builder. Each call returns the same test object, so the caller does not walk through objects it does not own."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-CHAIN-001",
+      "path": "test/express.static.js",
+      "line": 667,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "request(this.app).get(...).set(...).expect(...) is the supertest fluent builder, not a chain of getters."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-CHAIN-001",
+      "path": "test/res.format.js",
+      "line": 208,
+      "symbol": "test",
+      "verdict": "false-positive",
+      "note": "request(app).get(...).set(...).expect(...) is the supertest fluent builder, not a chain of getters."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "examples/content-negotiation/index.js",
+      "line": 3,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var express declares a binding with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "lib/response.js",
+      "line": 19,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var escapeHtml declares a binding with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "test/app.listen.js",
+      "line": 16,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var app2 declares a binding with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "test/app.use.js",
+      "line": 38,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var blog, forum and app are declared with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "test/express.urlencoded.js",
+      "line": 599,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var test declares a binding with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "test/res.download.js",
+      "line": 472,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var app declares a binding with var."
+    },
+    {
+      "corpus": "express",
+      "pack": "senior",
+      "rule": "senior/SR-VAR-001",
+      "path": "test/res.sendFile.js",
+      "line": 674,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "var app declares a binding with var."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "senior",
+      "rule": "senior/SR-CHAIN-001",
+      "path": "tslib.es6.js",
+      "line": 217,
+      "symbol": "__spreadArray",
+      "verdict": "uncertain",
+      "note": "Array.prototype.slice.call walks three members, which is the counted shape. It is a standard idiom on a builtin, not the layout of an object the caller does not own."
+    }
+  ]
+}

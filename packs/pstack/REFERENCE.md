@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## pstack/boundaries
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### pstack/PS-ZOD-001
 
@@ -147,7 +147,7 @@ Source metadata:
 
 ## pstack/effects
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### pstack/PS-IDEM-001
 
@@ -2785,7 +2785,7 @@ Source metadata:
 
 ## pstack/proof
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### pstack/PS-WEAK-001
 
@@ -2885,7 +2885,7 @@ Source metadata:
 
 ## pstack/reader-load
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### pstack/PS-LET-001
 
