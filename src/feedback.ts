@@ -3,7 +3,7 @@ import type { Recorded } from "./report.ts";
 import type { Violation } from "./types.ts";
 
 export type FeedbackVerdict = "correct" | "false-positive" | "uncertain";
-export interface FeedbackItem {
+interface FeedbackItem {
   id: string; root: string; session: string; at: number; eventHash: string;
   channel: "violation" | "warning"; rule: string; path: string; line: number;
   symbol: string; measured: number | null; limit: number | null;
@@ -11,7 +11,7 @@ export interface FeedbackItem {
 export interface FeedbackLabel {
   item: FeedbackItem; verdict: FeedbackVerdict; note: string; confirmedAt: number;
 }
-export interface CalibrationCount {
+interface CalibrationCount {
   findings: number; correct: number; falsePositive: number; uncertain: number;
   unlabeled: number; reviewedPrecision: number | null;
 }

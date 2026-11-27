@@ -21,7 +21,7 @@ import { canonical, findRoot, readStdin, readTree, STDIN_TIMEOUT, writeAtomic } 
 import { disable, disableProject, enable } from "./consent.ts";
 import { testCheck, testFixture } from "./fixtures.ts";
 import { readFixture } from "./fixture-replay.ts";
-import { check, clock, delegate, grammars, launcher, LOCK, lockOf, PRESET, readText, sourceDirs, sourcesOf, VERSIONS } from "./gate.ts";
+import { check, clock, grammars, launcher, LOCK, lockOf, PRESET, readText, sourceDirs, sourcesOf, VERSIONS } from "./gate.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { install, projectClaudeSetup, projectHooks, projectLauncher } from "./install.ts";
 import { doctor, prepare, setup, uninstall, update } from "./machine.ts";
@@ -261,8 +261,6 @@ async function checkCommand(args: string[]): Promise<Result> {
     const abs = canonical(resolve(path));
     const root = findRoot(dirname(abs), () => true);
     if (root === null) return noPreset(dirname(abs));
-    const delegated = delegate(root, ["check", ...args]);
-    if (delegated !== null) return delegated;
     const input = await readStdin();
     return input.timedOut ? { code: 1, text: `${STDIN_TIMEOUT}.` }
       : input.invalid ? { code: 1, text: "stdin must be valid UTF-8 and at most 16 MiB." }
@@ -272,7 +270,7 @@ async function checkCommand(args: string[]): Promise<Result> {
   if (root === null) return noPreset(process.cwd());
   const mode = o.opts.has("--all") || (modes === 0 && !hasRepository(root)) ? { kind: "tree" } as const
     : o.opts.has("--staged") ? { kind: "staged" } as const : { kind: "base", sha: base ?? "HEAD", ratchet: o.opts.has("--ratchet") } as const;
-  return delegate(root, ["check", ...args]) ?? finish(root, await check(root, mode, format));
+  return finish(root, await check(root, mode, format));
 }
 
 function withTsconfigNotice(root: string, result: Result): Result {
@@ -288,8 +286,6 @@ function explain(args: string[]): Result {
   const abs = path === undefined ? null : canonical(resolve(path));
   const root = abs === null ? here() : findRoot(dirname(abs), () => true);
   if (root === null) return noPreset(process.cwd());
-  const delegated = delegate(root, ["explain", ...args]);
-  if (delegated !== null) return delegated;
   const loaded = lockOf(root);
   if (typeof loaded === "string") return { code: 1, text: formText({ cause: loaded, line: null }, null).full };
   if (abs !== null) return { code: 0, text: `${applying(loaded.lock, relative(root, abs))}\n\n${POLICY_ADAPTATION}` };
@@ -316,8 +312,6 @@ function preset(args: string[]): Promise<Result> | Result {
     // JSON is the editable document, not an admission claim. Keep it readable
     // during migration even when the existing contract cannot be evaluated.
     if (rest[0] === "--json") return { code: 0, text: readFileSync(join(root, PRESET), "utf8").trimEnd() };
-    const delegated = delegate(root, ["preset", ...args]);
-    if (delegated !== null) return delegated;
     const loaded = lockOf(root);
     return typeof loaded === "string" ? { code: 1, text: formText({ cause: loaded, line: null }, null).full }
       : { code: 0, text: contract(loaded.lock, launcher()) };

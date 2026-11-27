@@ -6,7 +6,7 @@ import { compile, packCatalog } from "./compile.ts";
 import { validateContract, visible } from "./contract.ts";
 import { enable } from "./consent.ts";
 import { canonical, findRoot, readTree, writeAtomic } from "./disk.ts";
-import { clock, delegate, grammars, LOCK, PRESET, readText, sourcesOf, VERSIONS } from "./gate.ts";
+import { clock, grammars, LOCK, PRESET, readText, sourcesOf, VERSIONS } from "./gate.ts";
 import { removeSelection, selectMethodology } from "./pack-compose.ts";
 import { packTemplate } from "./pack-template.ts";
 import { cachedPack, fetchPack, testPack } from "./packs.ts";
@@ -44,8 +44,6 @@ async function packCommand(args: string[]): Promise<Result> {
   const root = findRoot(canonical(process.cwd()), () => true);
   if (root === null && options.library && ["list", "show"].includes(options.cmd)) return discoverLibrary(null, options);
   if (root === null) return { code: 1, text: "Run pregate init first, or use pack show --path <dir>." };
-  const delegated = options.cmd === "update" ? null : delegate(root, ["pack", ...args]);
-  if (delegated !== null) return delegated;
   const presetText = readFileSync(join(root, PRESET), "utf8");
   const context = { root, preset: JSON.parse(presetText) as Preset, presetText, lockText: readText(join(root, LOCK)) };
   if (options.cmd === "update") {
@@ -155,7 +153,7 @@ export function importReviewCost(root: string, lock: Lock): string[] {
 
 type UpdateCandidate = { preset: Preset; changes: string[]; held: string[] };
 
-export function updateCandidate(text: string, lockText: string | null): UpdateCandidate | { errors: string[] } {
+function updateCandidate(text: string, lockText: string | null): UpdateCandidate | { errors: string[] } {
   const value: unknown = JSON.parse(text);
   const changes: string[] = [];
   // A common agent error confuses severity strings with enforcement. Propose the

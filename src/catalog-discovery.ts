@@ -7,7 +7,7 @@ import { ENGINE_FILE } from "./platform.ts";
 import { VERSIONS } from "./versions.ts";
 import type { Preset } from "./types.ts";
 
-export interface CatalogEntry { ns: string; version: string; category?: string | null; checks: number; methodologies: string[] }
+interface CatalogEntry { ns: string; version: string; category?: string | null; checks: number; methodologies: string[] }
 
 export function availableCatalog(): CatalogEntry[] {
   return librarySources().map(pin => {

@@ -36,7 +36,7 @@ function draftFile(id: string): string {
   return join(dataHome(), "feedback", "drafts", id + ".json");
 }
 
-export function feedbackReview(root: string, id: string): Draft {
+function feedbackReview(root: string, id: string): Draft {
   const text = readFileSync(draftFile(id), "utf8");
   if (sha256(text) !== id) throw new Error("Feedback draft changed; review a new draft.");
   const draft = JSON.parse(text) as Draft;
@@ -50,7 +50,7 @@ export function feedbackReview(root: string, id: string): Draft {
   return draft;
 }
 
-export function feedbackPreview(draft: Draft, id: string): string {
+function feedbackPreview(draft: Draft, id: string): string {
   const { label } = draft, { item } = label;
   return visible([
     "Local human feedback; nothing is sent to GitHub or a model.",

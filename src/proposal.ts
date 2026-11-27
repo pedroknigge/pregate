@@ -21,7 +21,7 @@ export interface Proposal {
 
 // The engine that prepared a review: its version, the bundled pack versions its lock was compiled
 // with, and whether it ran from source. Another engine may validate the same review differently.
-export interface EngineStamp { version: string; packs: Record<string, string>; source: boolean }
+interface EngineStamp { version: string; packs: Record<string, string>; source: boolean }
 
 export function engineStamp(): EngineStamp {
   return { version: VERSIONS.engine, packs: Object.fromEntries(librarySources().map((s) => [s.ns, s.version])),

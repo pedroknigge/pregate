@@ -10,7 +10,7 @@ const CVE = /^CVE-\d{4}-\d{4,}$/;
 const PRERELEASE_TAG = /^(?:rc|alpha|beta|pre|nightly|dev|canary|next)(?=$|[\d.-])/i;
 export const NODE_PIN_DETAIL = /^Bump this exact Node\.js pin to \d+\.\d+\.\d+\. It is below the security patch for its release line\.$/;
 
-export interface NodePinHit { line: number; floor: string }
+interface NodePinHit { line: number; floor: string }
 
 interface Pin { line: number; value: string }
 interface Triple { major: number; minor: number; patch: number }

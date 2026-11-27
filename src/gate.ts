@@ -6,7 +6,6 @@ import { delegate, form, globsOf, grammars, inputOf, type Loaded, locate, locate
 import { decide } from "./decide.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
-import { gatedHarnesses } from "./machine.ts";
 import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, slash } from "./paths.ts";
 import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
@@ -196,7 +195,7 @@ function storageRecovery(command: string): boolean {
 
 // A named shell-admin denial carries its own sentence. Every other cause keeps the generic text.
 function commandForm(cause: Cause | null, detail: string | null) {
-  return cause === null ? null : form(cause, undefined, cause === "shell-admin" || cause === "shell-write" ? detail : null);
+  return cause === null ? null : form(cause, undefined, cause === "shell-admin" ? detail : null);
 }
 
 // The human disabled this checkout. Nothing here is denied: shell-admin, hook-switch, approval,
@@ -215,9 +214,9 @@ function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, st
     inScope: (p) => elsewhere(p) && base.inScope(p),
   };
   const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
-  if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
+  if (guarded !== "protected-path") return notice;
   const call: Call = { session: c.session, kind: "pre-command", callId: c.callId, abs: null, root: own, rel: null, startedAt };
-  return blockAt(settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: guarded === "protected-path" }), others[0] ?? null);
+  return blockAt(settle(call, { ...NOTHING, form: commandForm(guarded, noted.text), protectedPath: true }), others[0] ?? null);
 }
 
 // True only when the path is inside some other enabled root. A path in the disabled checkout, a
@@ -245,7 +244,6 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
   let touched = false;
   let failure: Cause | null = null;
   const registered = new Set(root === null ? [] : [root]);
-  let gated: Set<string> | null = null;
   const reach = (abs: string, from: string): Held | null => {
     const h = held(abs, from);
     touched ||= h !== null;
@@ -265,7 +263,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     return escapedRoot(p, abs, enabled) === null ? abs : slash(resolve(p));
   };
   return {
-    launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
+    launcher: launcher(), engines: engineHome(), touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
     configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
     readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges, pregateGitHook,

@@ -17,7 +17,7 @@ export function commandOnPath(name: string): string | null {
   return Bun.which(name, { PATH: process.env.PATH ?? process.env.Path ?? "" });
 }
 
-export type ScriptRead = { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
+type ScriptRead = { kind: "text"; text: string } | { kind: "native" } | { kind: "admin" } | { kind: "missing" } | { kind: "unreadable" };
 
 export function readScriptFile(path: string): ScriptRead {
   let fd: number | null = null;
@@ -60,7 +60,7 @@ function native(head: Buffer): boolean {
 }
 
 // The text of a script, or null when its bytes are no text PowerShell, a shell or an interpreter reads.
-export function decode(buf: Buffer): string | null {
+function decode(buf: Buffer): string | null {
   const starts = (...bytes: number[]) => bytes.every((byte, i) => buf[i] === byte);
   if (starts(0xff, 0xfe, 0x00, 0x00)) return utf32(buf.subarray(4), true);
   if (starts(0x00, 0x00, 0xfe, 0xff)) return utf32(buf.subarray(4), false);

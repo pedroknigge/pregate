@@ -30,7 +30,7 @@ export function unattendedApproval(): boolean {
 // That is not what stops the agent: `pregate approve --yes` names no code, and a code the human
 // already has works in the harness shell. A non-terminal approval is written to the approval log.
 // `PREGATE_TESTING=1` is the test hook; the shell guard rejects an agent setting it.
-export function approvalCodeVisible(): boolean {
+function approvalCodeVisible(): boolean {
   if (process.stdout.isTTY) return true;
   if (process.env.PREGATE_TESTING === "1") return true;
   return unattendedApproval();
@@ -106,14 +106,6 @@ function openTerminal(): number | null {
   } catch {
     return null;
   }
-}
-
-export function hasTerminal(): boolean {
-  if (testAnswer() !== undefined) return true;
-  const fd = tty();
-  if (fd === null) return false;
-  closeSync(fd);
-  return true;
 }
 
 // Why a caller was not allowed to apply. A code or `--yes` on `pregate approve` does not need a

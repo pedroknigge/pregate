@@ -6,7 +6,7 @@ import type { ImportsOf, Read } from "./types.ts";
 import { resolveGo, resolvePython } from "./module-resolve.ts";
 import { resolveRust } from "./rust-resolve.ts";
 
-export interface TsPaths {
+interface TsPaths {
   baseUrl: string | null;                            // root-relative folder; "" is the root
   paths: { pattern: string; targets: string[] }[];   // targets root-relative, `*` kept
   missing?: string[];                                // extended packages that are not installed
@@ -399,7 +399,7 @@ function dirname(rel: string): string {
   return i < 0 ? "" : rel.slice(0, i);
 }
 
-export interface CompilerOptionsLoad {
+interface CompilerOptionsLoad {
   options: Record<string, unknown>;
   missing: string[];
   invalid: boolean;

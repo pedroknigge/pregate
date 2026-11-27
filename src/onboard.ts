@@ -5,7 +5,7 @@ import { grammarOf, imports, parse, type Parsed } from "./ts.ts";
 import type { Clock, Files, Layer, LibrarySource, Lock, Preset, Read } from "./types.ts";
 import { inScope, layerOf as layerIn, matches } from "./paths.ts";
 
-export interface Stack {
+interface Stack {
   languages: string[]; frameworks: string[]; layers: string[]; edges: string[];
   recommended: "backend-clean-ddd" | "functional-ts" | "legacy-safe" | "integrity-only" | "python-starter" | "go-starter" | "rust-starter" | "mixed-starter";
 }
@@ -194,7 +194,7 @@ function importsOf(files: Files, paths: string[]): LayerEdge[] {
 // What a layer map reports on the code as it is, before anyone approves it: per layer, the
 // production imports that already break its direction, and the sibling folders the map leaves
 // unrestricted. It is evidence for the review, not a verdict; the engine checks tests as well.
-export interface LayerEvidence {
+interface LayerEvidence {
   layers: { name: string; files: number; broken: { to: string; count: number; example: string }[] }[];
   unplaced: { dir: string; files: number; imports: string[] }[];
 }

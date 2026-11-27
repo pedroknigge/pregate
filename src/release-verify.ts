@@ -67,7 +67,7 @@ function verifyOfflineSignatures(archive: string): string | null {
   return result.exitCode === 0 ? null : `minisign signature mismatch for ${archive}; nothing installed`;
 }
 
-export type SignatureNotice = { kind: "notice" | "warning"; text: string };
+type SignatureNotice = { kind: "notice" | "warning"; text: string };
 
 // Sigstore bundles beside a downloaded release, or offline cosign/minisign when PREGATE_ARCHIVE is set.
 export function verifyReleaseArtifacts(o: { version: string; archive: string; archiveName: string; sums: string; offline: boolean }): (string | SignatureNotice)[] {

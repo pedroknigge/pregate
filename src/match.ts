@@ -7,7 +7,7 @@ import type { Clock, Form, Grammar, PatternConfig, ScopeKind } from "./types.ts"
 import { grammarPath } from "./languages.ts";
 
 export interface Compiled { grammar: Grammar; rule: Test; constraints: [string, Test][]; kinds?: number[] }
-export interface Match { node: Node; env: Record<string, Node | Node[]> }   // "$A" → node, "$$$A" → nodes
+interface Match { node: Node; env: Record<string, Node | Node[]> }   // "$A" → node, "$$$A" → nodes
 
 // The tree as plain records, built once per parse: rules visit every node many times and each
 // web-tree-sitter accessor is a WASM call. Native nodes and field caches are materialized on demand.

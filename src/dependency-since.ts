@@ -5,7 +5,7 @@ import { allowsBelow } from "./package-version.ts";
 import { compareVersions } from "./product.ts";
 import type { Read } from "./types.ts";
 
-export interface DependencySince { dependencies: string[]; version: string }
+interface DependencySince { dependencies: string[]; version: string }
 
 const FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
 const COMPARATOR = /^(<=|>=|<|>|\^|~|==|=)?\s*(v?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?)$/;

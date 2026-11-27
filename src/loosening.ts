@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { dataHome } from "./consent.ts";
 import { bundledBetween, reviewDiff } from "./contract.ts";
@@ -19,8 +19,8 @@ import type { Lock } from "./types.ts";
 // variable or a workflow_dispatch input, outside anything the agent's commits can change (see
 // docs/guarantees.md for protecting the workflow and .pregate/ with CODEOWNERS).
 export type ApprovalVia = "terminal" | "yes" | "unattended" | "test";
-export interface Loosening { digest: string; lines: string[] }
-export interface Contract { lockText: string | null; presetText: string | null }
+interface Loosening { digest: string; lines: string[] }
+interface Contract { lockText: string | null; presetText: string | null }
 
 const MAX_LINES = 80;
 
@@ -64,17 +64,6 @@ export function recordApproval(root: string, lockText: string, via: ApprovalVia 
   mkdirSync(dirname(file), { recursive: true });
   writeAtomic(file, JSON.stringify(entry));
   appendFileSync(join(dirname(file), "log.jsonl"), `${JSON.stringify(entry)}\n`);
-}
-
-export function approvedLocally(root: string, lockHash: string): boolean {
-  const file = recordFile(root, lockHash);
-  if (!existsSync(file)) return false;
-  try {
-    const record = JSON.parse(readFileSync(file, "utf8")) as { root?: string; lock?: string };
-    return record.root === canonical(root) && record.lock === lockHash;
-  } catch {
-    return false;
-  }
 }
 
 // What check prints for a loosening it does not accept. The digest is not an approval code: it

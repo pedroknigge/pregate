@@ -75,7 +75,7 @@ export function projectClaudeMissing(text: string | null, windows = WINDOWS): st
   return EVENTS.filter((event) => projectPlaced(text, windows)[event]! < 0);
 }
 
-export function projectPreCommand(text: string | null): string | null {
+function projectPreCommand(text: string | null): string | null {
   const list = parse(text ?? "")?.hooks;
   const groups = isObject(list) ? list.PreToolUse : null;
   if (!Array.isArray(groups)) return null;
@@ -93,8 +93,8 @@ export function workspaceTrustAccepted(text: string | null, root: string): boole
   return Object.entries(projects).some(([key, value]) => sameRoot(key, root) && isObject(value) && value.hasTrustDialogAccepted === true);
 }
 
-export interface ScopeLine { level: "ok" | "info" | "warn" | "fail"; text: string }
-export interface ProjectScope {
+interface ScopeLine { level: "ok" | "info" | "warn" | "fail"; text: string }
+interface ProjectScope {
   active: boolean;
   exact: boolean;
   lines: ScopeLine[];

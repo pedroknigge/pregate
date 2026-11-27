@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, statSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { finishContract } from "./approval.ts";
 import { BUILTIN, setUpGrammars } from "./assets.ts";
@@ -14,13 +14,11 @@ import { cachedSourcesMatch, loadCompiledLock, loadCompiledPreset, storeCompiled
 import { briefing, formText, notice, violationMessage } from "./message.ts";
 import { cachedPack } from "./packs.ts";
 import { inScope, machineGlobs, pathKey, protectedGlobs, slash } from "./paths.ts";
-import { ENGINE_FILE, homeDir, WINDOWS } from "./platform.ts";
+import { homeDir } from "./platform.ts";
 import { ruleEvaluationProgress, sharedResolutionProgress } from "./progress.ts";
-import { batchApproval } from "./pending-review.ts";
 import { pendingRoot } from "./proposal.ts";
 import { normalize } from "./reconstruct.ts";
 import { validate } from "./schema.ts";
-import { recoveryCommand } from "./shell.ts";
 import * as state from "./state.ts";
 import { accepted, contextFile } from "./workspace.ts";
 import type { CallEvent, Cause, Check, Decision, DecideInput, Files, Form, HookEvent, Lock, Preset, Rejected, Session, Violation } from "./types.ts";
@@ -91,14 +89,8 @@ function protectedRoot(dir: string): boolean {
   return findRoot(path, enabled) !== null || pendingRoot(path) !== null;
 }
 
-// [-x] && [-s], as the launcher asks of an engine: an empty one would run as an empty script.
-function runnable(path: string): boolean {
-  const s = statSync(path, { throwIfNoEntry: false });
-  return s !== undefined && s.isFile() && s.size > 0 && (WINDOWS || (s.mode & 0o111) !== 0);
-}
-
 // MH-20: semver order against FLOOR, where a pre-release sorts before its release.
-export function belowFloor(v: string): boolean {
+function belowFloor(v: string): boolean {
   if (!ENGINE_VERSION.test(v) || v.trim() !== v) return true;
   const [release, pre] = v.split("-");
   const a = release!.split(".").map(Number);

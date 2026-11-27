@@ -30,7 +30,7 @@ const MAIN = new Set(["main", "composition", "compositionroot", "bootstrap", "ke
 const OWNED_NOTE = "ArkGate enforces layer direction from this config. PREGATE lists those invariants in ownedByArkgate and does not evaluate them.";
 const OPEN_NOTE = "ArkGate's config declares no blanket layer deny. PREGATE still evaluates layer direction.";
 
-export interface ArkgateFold {
+interface ArkgateFold {
   preset: Preset;
   notes: string[];
   evidenceLines: string[];

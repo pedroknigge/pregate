@@ -6,7 +6,7 @@ import { LANGUAGE_COVERAGE } from "./capabilities.ts";
 import { enforcementOf } from "./enforcement.ts";
 import { visible } from "./contract.ts";
 import { canonical, findRoot } from "./disk.ts";
-import { delegate, grammars, LOCK, PRESET, readText } from "./gate.ts";
+import { grammars, PRESET, readText } from "./gate.ts";
 import { tsconfigNotice } from "./resolve.ts";
 import { inScope } from "./paths.ts";
 import { auditExclusionReview } from "./exclude-scan.ts";
@@ -93,8 +93,6 @@ async function runAudit(args: string[], output: Emit): Promise<{ code: number; t
   const { repo, json, jsonl, sarif, full, plan, incremental, fresh, strict } = options;
   const root = findRoot(canonical(resolve(repo ?? process.cwd())), () => true);
   if (root === null) return { code: 2, text: "Audit needs an established preset and compiled lock. Run pregate init first." };
-  const delegated = delegate(root, ["audit", ...args]);
-  if (delegated !== null) return delegated;
   const start = performance.now(), contract = contractState(root);
   if (contract.lock === null || contract.text === null) return { code: 2, text: contract.errors.join("\n") };
   // The contract in effect, not the lock file: the file may be missing or behind the preset.
@@ -375,8 +373,6 @@ async function runPromote(args: string[]): Promise<{ code: number; text: string 
   if (options === null) return { code: 1, text: PROMOTE_USAGE };
   const root = findRoot(canonical(resolve(options.repo ?? process.cwd())), () => true);
   if (root === null) return { code: 1, text: "Promote needs an established preset and compiled lock. Run pregate init first." };
-  const delegated = delegate(root, ["promote", ...args]);
-  if (delegated !== null) return delegated;
   const contract = contractState(root);
   if (contract.lock === null) return { code: 1, text: contract.errors.join("\n") };
   await grammars();

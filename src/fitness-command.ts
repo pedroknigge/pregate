@@ -4,8 +4,7 @@ import { visible } from "./contract.ts";
 import { canonical as canonicalJSON } from "./compile.ts";
 import { canonical, findRoot, writeAtomic } from "./disk.ts";
 import { fitnessResult, fitnessSummary, type ProjectFitness } from "./fitness.ts";
-export type { ProjectFitness } from "./fitness.ts";
-import { delegate, grammars, lockOf } from "./contract-diagnostic.ts";
+import { grammars, lockOf } from "./contract-diagnostic.ts";
 import { PRESET } from "./admission.ts";
 import { applyPreset } from "./approval-command.ts";
 import { inScope, matches } from "./paths.ts";
@@ -117,8 +116,6 @@ export async function fitness(args: string[]): Promise<{ code: number; text: str
       : rest.length !== 1 || rest[0] === "--json")) return { code: 1, text: "usage: pregate fitness status [--json] | run <verifier|--all> | plan [--candidates <project-file>] [--json] | plan --template [--auto]" };
     const root = findRoot(canonical(process.cwd()), () => true);
     if (!root) return { code: 1, text: "Fitness verification requires an established project contract." };
-    const delegated = delegate(root, ["fitness", ...args]);
-    if (delegated !== null) return delegated;
     const loaded = lockOf(root);
     if (typeof loaded === "string") return { code: 1, text: `Fitness verification unavailable: ${loaded}.` };
     const current = contractState(root);

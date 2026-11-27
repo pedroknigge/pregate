@@ -5,11 +5,11 @@ import { visible } from "./contract.ts";
 import { sessionDir, sha256 } from "./state.ts";
 import { humanApprovalInstructions } from "./approval.ts";
 
-export interface StorageMarker {
+interface StorageMarker {
   path: string; hash: string | null; pid: number | null; kind: "writer" | "cleanup";
   state: "alive" | "dead" | "unknown"; reason: string;
 }
-export interface RecoverySession { session: string; roots: string[]; markers: StorageMarker[] }
+interface RecoverySession { session: string; roots: string[]; markers: StorageMarker[] }
 export interface RecoveryPlan { kind: "recover"; root: string; at: number; sessions: RecoverySession[] }
 
 function processState(pid: number): StorageMarker["state"] {

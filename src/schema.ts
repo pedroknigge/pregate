@@ -8,7 +8,7 @@ import source from "../schema/source.v1.json" with { type: "json" };
 // Interpreter for the JSON Schema subset the product uses (A13). It trusts its schemas: the six
 // files and every check's params pass `unsupported` first, so no keyword is ever silently ignored.
 export type SchemaName = "preset" | "check" | "methodology" | "fixture" | "source" | "request";
-export type Schema = Record<string, unknown>;
+type Schema = Record<string, unknown>;
 
 const SCHEMAS: Record<SchemaName, Schema> = { preset, check, methodology, fixture, source, request };
 const TYPES = new Set(["object", "array", "string", "integer", "number", "boolean", "null"]);

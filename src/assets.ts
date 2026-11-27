@@ -26,7 +26,7 @@ export const BUILTIN: Files = lazyFiles(() => embedded.builtinCatalog());
 // launcher.sh, pre-commit.sh and ci-github.yml, which `install` writes into the repo.
 export const ASSETS: Files = lazyFiles(() => embedded.installAssets());
 
-export function parserWasm(): Uint8Array {
+function parserWasm(): Uint8Array {
   return readFileSync(parserPath);
 }
 

@@ -2,14 +2,14 @@
 // repository may use one, the other, or both. Callers aggregate the required set and fail
 // closed. Nothing in here reads the network or the filesystem.
 
-export const CI_PROVIDER_IDS = ["github-actions", "vercel"] as const;
+const CI_PROVIDER_IDS = ["github-actions", "vercel"] as const;
 export type CiProviderId = (typeof CI_PROVIDER_IDS)[number];
 
-export type CiVerdict = "pass" | "fail" | "pending" | "missing";
+type CiVerdict = "pass" | "fail" | "pending" | "missing";
 
 const RANK: Record<CiVerdict, number> = { pass: 0, pending: 1, missing: 2, fail: 3 };
 
-export function worse(left: CiVerdict, right: CiVerdict): CiVerdict {
+function worse(left: CiVerdict, right: CiVerdict): CiVerdict {
   return RANK[left] >= RANK[right] ? left : right;
 }
 
@@ -35,7 +35,7 @@ export interface CiSignal {
   url: string | null;
 }
 
-export interface ProviderJudgement {
+interface ProviderJudgement {
   id: CiProviderId;
   required: boolean;
   /** Check names that must each pass. Vercel leaves this empty and requires every Vercel signal. */
@@ -103,7 +103,7 @@ function signal(provider: CiProviderId, raw: RawGitHubSignal, verdict: CiVerdict
 
 // A GitHub Actions check belongs to Pregate when its name is one this repository's workflows
 // require, or the generated workflow's job name. Checks from other apps are not Actions.
-export function classifyActions(raw: RawGitHubSignal, requiredNames: readonly string[]): CiSignal | null {
+function classifyActions(raw: RawGitHubSignal, requiredNames: readonly string[]): CiSignal | null {
   if (raw.kind !== "check-run") return null;
   if (raw.appSlug !== null && raw.appSlug !== "github-actions") return null;
   const known = requiredNames.includes(raw.name) || raw.name === "pregate" || raw.name === "PREGATE";
@@ -112,7 +112,7 @@ export function classifyActions(raw: RawGitHubSignal, requiredNames: readonly st
 }
 
 // A Vercel deployment status or check run. The Vercel GitHub app's other checks stay out.
-export function classifyVercel(raw: RawGitHubSignal): CiSignal | null {
+function classifyVercel(raw: RawGitHubSignal): CiSignal | null {
   if (!isVercelContext(raw.name)) return null;
   if (raw.appSlug === "github-actions") return null;
   if (raw.kind === "check-run" && raw.appSlug !== null && raw.appSlug !== "vercel") return null;

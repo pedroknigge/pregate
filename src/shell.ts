@@ -3,7 +3,6 @@ import { absolutePath, matches, pathKey, PROTECTED_NAMES, REQUESTS, slash } from
 import type { Cause, HarnessId } from "./types.ts";
 import { pregateControlCause } from "./control.ts";
 import { nodeInspection, pythonInspection } from "./python-inspection.ts";
-import { literalWriteTargets } from "./inline-sinks.ts";
 
 // Executable names each supported harness is launched as. `claude` and `cursor-agent` stay in the
 // list because status and the shell guard already look those up. Any one of a harness's names being
@@ -19,7 +18,7 @@ export const HARNESS_NAMES: Record<HarnessId, readonly string[]> = {
 
 // Recognized CLIs that PREGATE cannot register. Launching one stays denied, and the message says so
 // instead of inventing a `pregate setup` step that would not gate them.
-export const UNGATED_HARNESSES: readonly string[] = [
+const UNGATED_HARNESSES: readonly string[] = [
   "gemini", "gemini-cli", "qwen", "qwen-code", "copilot", "kilo", "kilocode", "amp", "cline", "junie",
   "kiro-cli", "droid", "auggie", "aider", "aider-chat",
 ];
@@ -28,7 +27,7 @@ const ID_BY_NAME = new Map<string, HarnessId>(
   (Object.entries(HARNESS_NAMES) as [HarnessId, readonly string[]][]).flatMap(([id, names]) => names.map((name) => [name, id])),
 );
 
-export function harnessIdOf(name: string): HarnessId | null {
+function harnessIdOf(name: string): HarnessId | null {
   return ID_BY_NAME.get(name) ?? null;
 }
 
@@ -659,6 +658,33 @@ function expansions(text: string): string[] {
   }, [""]);
 }
 
+// Literal write targets in interpreter code (`python -c`, `node -e`, `perl -e`, `ruby -e`, `php -r`,
+// heredocs, or literal script files). Only string literals are extracted; computed paths are opaque.
+const PYTHON_READ_MODE = /^[rbtU]*$/;
+const WRITE_CALL = /\b(?:writeFileSync|writeFile|appendFileSync|appendFile|rmSync|unlinkSync|renameSync|copyFileSync|mkdirSync|truncateSync|writeTextFileSync|writeTextFile|write_text|write_bytes|file_put_contents)\s*\(\s*(['"`])([^'"`\n]+)\1(?!\s*\+)/g;
+const BUN_WRITE = /\bBun\.write\s*\(\s*(['"`])([^'"`\n]+)\1/g;
+const RUBY_WRITE = /\bFile\.write\s*\(\s*(['"`])([^'"`\n]+)\1/g;
+const PATH_WRITE = /\bPath\s*\(\s*(['"])([^'"]+)\1\s*\)\s*\.\s*(?:write_text|write_bytes|unlink)\b/g;
+const PY_OPEN = /\bopen\s*\(\s*(['"])([^'"]+)\1\s*,\s*(['"])([^'"]*)\3/g;
+const PERL_REDIRECT = /['"]>([^'"\n]+)['"]/g;
+const PERL_MODE = /['"]\s*>\s*['"]\s*,\s*['"]([^'"]+)['"]/g;
+
+function literalWriteTargets(program: string): string[] {
+  const found: string[] = [];
+  const add = (value: string | undefined) => {
+    if (value === undefined || value === "" || value.includes("${") || value.includes("$(")) return;
+    found.push(value);
+  };
+  for (const pattern of [WRITE_CALL, BUN_WRITE, RUBY_WRITE, PATH_WRITE, PERL_REDIRECT, PERL_MODE]) {
+    for (const match of program.matchAll(pattern)) add(match[2] ?? match[1]);
+  }
+  for (const match of program.matchAll(PY_OPEN)) {
+    const mode = match[4] ?? "";
+    if (/[wax+]/.test(mode) && !PYTHON_READ_MODE.test(mode)) add(match[2]);
+  }
+  return found;
+}
+
 // A literal path a program writes. A protected path is protected-path. Any other path is not a cause.
 function programWrites(program: string, cwd: string | null, ctx: Ctx): Cause | null {
   return first(literalWriteTargets(program), (target) => literalWrite({ text: target, literal: true, subs: [] }, "write target", cwd, ctx));
@@ -867,13 +893,13 @@ function simple(cmd: Command, cwd: string | null, ctx: Ctx, pipedIn: boolean): C
   const head = words.find((w) => !ASSIGNMENT.test(w.text));
   const precheck = head !== undefined && ctx.launcher !== null && head.literal
     && pathKey(resolve(cwd, head.text) ?? "") === pathKey(ctx.launcher)
-    && readOnlyPregate(words.slice(words.indexOf(head) + 1), false);
+    && readOnlyPregate(words.slice(words.indexOf(head) + 1));
   const enginePath = head?.literal ? resolve(cwd, head.text) : null;
   const engineRoot = ctx.engines === undefined ? null : pathKey(ctx.engines) + "/";
   const engineRelative = enginePath !== null && engineRoot !== null && pathKey(enginePath).startsWith(engineRoot)
     ? pathKey(enginePath).slice(engineRoot.length) : "";
   const engineInspection = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?\/pregate(?:\.exe)?$/.test(engineRelative)
-    && readOnlyPregate(words.slice(words.indexOf(head!) + 1), false);
+    && readOnlyPregate(words.slice(words.indexOf(head!) + 1));
   const contractInput = head !== undefined && head.literal && (precheck || basename(slash(head.text)).replace(/\.exe$/i, "") === "pregate")
     ? readContractInput(words.slice(words.indexOf(head) + 1), cwd) : null;
   const guideInputs = ctx.guideInspection && head !== undefined ? guideInputPaths(words.slice(words.indexOf(head) + 1)) : [];
@@ -924,7 +950,7 @@ function policyReadKind(words: Word[]): "admitted" | "inspect" | "inventory" | n
 
 // Only this literal operand is input data. Redirections and other commands remain protected.
 function readContractInput(args: Word[], cwd: string | null): Word | null {
-  if (!args.every((w) => w.literal) || !readOnlyPregate(args, false)) return null;
+  if (!args.every((w) => w.literal) || !readOnlyPregate(args)) return null;
   if (args[0]?.text === "preset" && args[1]?.text === "apply") {
     const input = args.slice(2).find(w => w.text !== "--preview");
     const abs = input === undefined ? null : resolve(cwd, input.text);
@@ -1022,7 +1048,7 @@ function guideInputPaths(args: Word[]): Word[] {
   return inputs;
 }
 
-function readOnlyPregate(args: Word[], stdinOnly: boolean): boolean {
+function readOnlyPregate(args: Word[]): boolean {
   if (guideInspection(args) || contractRecovery(args)) return true;
   if (args.length === 4 && args.every(word => word.literal) && args[0]?.text === "session" && args[1]?.text === "rebase"
     && /^[\w-][\w.:-]*$/.test(args[2]!.text) && args[3]?.text === "--preview") return true;
@@ -1053,8 +1079,7 @@ function readOnlyPregate(args: Word[], stdinOnly: boolean): boolean {
   if (args.length === 1 && ["--version", "doctor", "report", "status"].includes(args[0]!.text)) return true;
   if (ciInspection(args)) return true;
   const [sub, second] = args.filter((w) => !w.text.startsWith("-")).map((w) => w.text);
-  if (sub === "check") return !stdinOnly || args.some((w) => w.text === "--stdin");
-  return sub === "explain" || (sub === "preset" && second === "show") || (sub === "rules" && second === "test");
+  return sub === "check" || sub === "explain" || (sub === "preset" && second === "show") || (sub === "rules" && second === "test");
 }
 
 // A recovery preview must reach the installed engine even when the lock pins an
@@ -1178,42 +1203,24 @@ function run(words: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): C
   return admin === null || (cause !== null && ALWAYS.has(cause)) ? cause : admin;
 }
 
-// Host-automation CLIs drive a browser or a desktop for an agent. They are not harnesses.
-// The policy applies once the guard can place files (`outsideRoots` is set), which is both the
-// consent path and the inactive-consent path. A context that cannot place the file still reads
-// the launcher as a project script. A drive or inventory command is not a project write: the
-// launcher text is read for control commands only. An output path is an ordinary write.
-// Switching an agent's hooks off through orca is hook-switch. Every other orca verb is allowed.
-// For agent-browser and agent-desktop, a verb that is not a drive verb, on a launcher inside a
-// project, has that launcher read like a project script.
-const HOST_TOOLS = new Set(["orca", "orca-dev", "orca-ide", "agent-browser", "agent-desktop"]);
+// Host-automation CLIs (orca) are not harnesses. Switching an agent's hooks off through orca
+// is hook-switch. Other orca verbs are allowed unless the launcher itself runs a control command.
+const ORCA_TOOLS = new Set(["orca", "orca-dev", "orca-ide"]);
 const HOST_VALUED = ["--output", "--out", "-o", "--path", "--file", "--trace", "--screenshot", "--annotate", "--url", "--element", "--value", "--text", "--worktree", "--page", "--limit", "--selector",
   "--depth", "--name", "--index", "--command", "--expression", "--input", "--files", "--key", "--direction", "--amount",
   "--timeout", "--timeout-ms", "--host", "--environment", "--agent", "--prompt", "--model", "--effort", "--device", "--app",
   "--window-id", "--screen", "--session", "--fps", "--threshold", "--agent-id", "--wait-timeout"];
-const BROWSER_DRIVE = new Set(["open", "back", "forward", "reload", "read", "snapshot", "get", "is", "click", "dblclick", "fill", "type",
-  "press", "keyboard", "hover", "focus", "select", "check", "uncheck", "scroll", "drag", "upload", "mouse", "find", "wait", "screenshot",
-  "pdf", "record", "download", "diff", "cookies", "storage", "network", "set", "clipboard", "eval", "pushstate", "tab", "frame", "dialog",
-  "console", "errors", "highlight", "inspect", "trace", "profiler", "vitals", "react", "a11y", "session", "state", "auth", "profiles",
-  "close", "connect", "goto", "navigate", "scrollintoview", "key", "keydown", "keyup", "confirm", "deny"]);
-const DESKTOP_DRIVE = new Set(["snapshot", "find", "get", "is", "screenshot", "list-surfaces", "click", "double-click", "triple-click",
-  "right-click", "type", "set-value", "clear", "focus", "select", "toggle", "check", "uncheck", "expand", "collapse", "scroll", "scroll-to",
-  "press", "hover", "drag", "mouse-move", "mouse-click", "mouse-wheel", "key-down", "key-up", "mouse-down", "mouse-up", "launch", "close-app",
-  "list-apps", "list-windows", "list-displays", "focus-window", "resize-window", "move-window", "minimize", "maximize", "restore",
-  "open-system-surface", "notifications", "clipboard", "wait", "status", "permissions", "version"]);
 
 function hostPolicy(name: string, head: Word, args: Word[], cwd: string | null, ctx: Ctx): Cause | null | undefined {
-  if (!HOST_TOOLS.has(name) || ctx.outsideRoots === undefined) return undefined;
+  if (!ORCA_TOOLS.has(name) || ctx.outsideRoots === undefined) return undefined;
   const located = hostPath(head, cwd, ctx);
   const control = controlFile(ctx, located);
   if (control !== null) return control;
   const { flags, operands } = getopt(args, HOST_VALUED);
   const words = operands.map((word) => word.text);
-  const orca = name === "orca" || name === "orca-dev" || name === "orca-ide";
-  if (orca && !orcaInspect(words, flags) && words[0] === "agent" && words[1] === "hooks" && words[2] === "off") return "hook-switch";
-  if (orca || hostDrive(name, words)) return null;
-  if (located !== null && ctx.outsideRoots(located)) return null;
-  return undefined;
+  const help = flags.some(([flag]) => flag === "--help" || flag === "-h");
+  if (!help && words[0] === "agent" && words[1] === "hooks" && words[2] === "off") return "hook-switch";
+  return null;
 }
 
 function hostPath(head: Word, cwd: string | null, ctx: Ctx): string | null {
@@ -1221,26 +1228,6 @@ function hostPath(head: Word, cwd: string | null, ctx: Ctx): string | null {
   if (ctx.commandPath === undefined || head.text === "" || head.text.includes("\0")) return null;
   const found = ctx.commandPath(head.text);
   return found === null || found === "" ? null : found;
-}
-
-function hostDrive(name: string, words: string[]): boolean {
-  const [a, b] = words;
-  const verbs = name === "agent-browser" ? BROWSER_DRIVE : DESKTOP_DRIVE;
-  return (a !== undefined && verbs.has(a)) || (a === "skills" && (b === "get" || b === "list"));
-}
-
-// Read-only inventory. The real orca CLI has `ports`, `diagnostics memory`, `agent-context`,
-// `status`, bare help, and `--help`/`--version` (version only when no subcommand is present).
-// `doctor`, `info`, `version`, `list` and a second word `list`/`info`/`help`/`version`
-// (`worktree list`, `project list`) are the same kind of read: they do not launch an agent.
-// `--help`/`-h` returns before dispatch, including on a command that would otherwise be denied.
-function orcaInspect(words: string[], flags: Flag[]): boolean {
-  if (words.length === 0) return true;
-  if (flags.some(([flag]) => flag === "--help" || flag === "-h")) return true;
-  const [a, b] = words;
-  if (a === "ports" || a === "doctor" || a === "version" || a === "info" || a === "help" || a === "list" || a === "agent-context") return true;
-  if (a === "diagnostics" && (b === undefined || b === "memory")) return true;
-  return b === "list" || b === "info" || b === "help" || b === "version";
 }
 
 // Registry reads, installs, and build/test/dev runners write dependency and build output,
@@ -1333,7 +1320,7 @@ function invoked(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: 
   // A sourced script runs like a command: `. pregate approve` runs the launcher in this shell.
   if (name === "source" || name === ".") return run(args, cwd, ctx, stdin);
   if (name === "pregate") {
-    const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.guideInspection, ctx.direct);
+    const cause = ctx.ciSet ? "hook-switch" : pregate(args, ctx.direct);
     if (cause === "shell-admin" && ctx.shellDetail && ctx.shellDetail.text === null) {
       const sub = args.find((w) => w.literal && !w.text.startsWith("-"));
       if (sub?.text === "enable" || sub?.text === "disable") ctx.shellDetail.text = sub.text === "enable" ? "pregate enable is the user's command: they run pregate enable --yes in a terminal or on a Claude Code ! line"
@@ -1407,14 +1394,6 @@ function launchedHarness(command: string): string | null {
   const base = basename(slash(command).toLowerCase().replace(/\.(exe|cmd|bat)$/, ""));
   if (base === "agent" || harnessIdOf(base) !== null || UNGATED_HARNESSES.includes(base)) return base;
   return HARNESS.exec(command)?.[2] ?? null;
-}
-
-function harnessGated(name: string, gated: GuardContext["gated"]): boolean {
-  if (gated === undefined) return false;
-  if (gated.has(name)) return true;
-  const id = harnessIdOf(name);
-  if (id === null) return false;
-  return gated.has(id) || HARNESS_NAMES[id].some((alias) => gated.has(alias));
 }
 
 // What the denial tells the agent: the harness, and the command a human runs to gate it.
@@ -1624,20 +1603,14 @@ function commandAllowsHooks(words: Word[], depth: number): boolean {
 
 // The read-only subcommands run; setup, update and uninstall, or one that cannot be named, change
 // what every harness runs (MH-17).
-function pregate(args: Word[], guideAllowed: boolean, direct: boolean): Cause | null {
+function pregate(args: Word[], direct: boolean): Cause | null {
   // enable and disable stay on a separate terminal, including inside `sh -c`. Every other
   // pregate command is an ordinary shell command. A non-literal name, or a wrapper around
   // prepare/setup/update/uninstall, can still switch the installed hooks off.
   const subWord = args.find((w) => !w.text.startsWith("-"));
   if (subWord?.literal && (subWord.text === "enable" || subWord.text === "disable")) return "shell-admin";
   if (direct && args.every((w) => w.literal && w.subs.length === 0)) return null;
-  if (args.every((w) => w.literal) && args[0]?.text === "pack" && args[1]?.text === "init") return null;
-  if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "draft") return null;
-  if (args.every((w) => w.literal) && args[0]?.text === "rules" && args[1]?.text === "add" && !args.some((w) => w.text === "--yes")) return null;
-  if (proposal(args)) return null;
-  if (args[0]?.text === "guide" && guideAllowed) return null;
-  if (readOnlyPregate(args, false)) return null;
-  if (direct && inHarnessApproval(args)) return null;
+  if (readOnlyPregate(args)) return null;
   return subWord !== undefined && (!subWord.literal || MACHINE.test(subWord.text)) ? "hook-switch" : null;
 }
 
@@ -1690,27 +1663,6 @@ export function directApprovalArgv(command: string): string[][] {
     }
   }
   return found;
-}
-
-// `layers` and `compile` read the project, or prepare one pending review that only the human
-// approves, like `rules add`. Every word is literal and no form applies anything.
-function proposal(args: Word[]): boolean {
-  if (!args.every((w) => w.literal && w.subs.length === 0) || args.some((w) => w.text === "--yes" || w.text === "--digest")) return false;
-  const [verb, ...rest] = args.map((w) => w.text);
-  if (verb === "import") return importPreview(rest);
-  if (verb !== "layers" && verb !== "compile") return false;
-  const flags = rest.filter((text) => text.startsWith("-")), operands = rest.filter((text) => !text.startsWith("-"));
-  if (operands[0] === "apply") return operands.length === 2 && flags.includes("--preview") && flags.every((flag) => flag === "--preview" || (verb === "layers" && flag === "--complete"));
-  if (verb === "layers") return operands.length === 0 && flags.every((flag) => flag === "--json");
-  return operands.length === 1 && flags.length <= 1 && flags.every((flag) => ["--json", "--template", "--preview"].includes(flag));
-}
-
-// `import arkgate --preview` prepares one pending review. The config path is one literal operand.
-function importPreview(rest: string[]): boolean {
-  const flags = rest.filter((text) => text.startsWith("-")), operands = rest.filter((text) => !text.startsWith("-"));
-  const config = flags.filter((flag) => flag === "--config").length;
-  return operands[0] === "arkgate" && config <= 1 && flags.filter((flag) => flag === "--preview").length === 1
-    && flags.every((flag) => flag === "--preview" || flag === "--config") && operands.length === (config === 0 ? 1 : 2);
 }
 
 function wrapped(name: string, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
