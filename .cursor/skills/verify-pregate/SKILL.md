@@ -59,10 +59,10 @@ test "$("$PREGATE" --version)" = "pregate $version (core $core)"
 test "$(command -v pregate)" = "$PREGATE"
 doctor_text=$("$PREGATE" doctor || true)
 printf '%s\n' "$doctor_text" | grep -F "Local consent is inactive"
-printf '%s\n' "$doctor_text" | grep -F "ERROR: No harness found; PREGATE gates nothing on this machine."
+printf '%s\n' "$doctor_text" | grep -E "No harness found; PREGATE gates nothing on this machine|Runtime canary skipped for claude-code, codex, cursor, grok, agy, opencode: no PREGATE registration to exercise"
 ```
 
-`pregate doctor` exits 1 in this home. The inactive-consent line is `status` in [src/consent.ts](../../../src/consent.ts): a preset in the checkout is not consent. The error line is `doctor` in [src/machine.ts](../../../src/machine.ts) when no Claude Code, Codex, Cursor, Grok, agy, or OpenCode install is visible. A warning that `pregate` on `PATH` is not `$XDG_DATA_HOME/pregate/bin/pregate` is expected: that path is the `pregate setup` launcher, and this binary is the checkout compile.
+`pregate doctor` exits 1 in this home. The inactive-consent line is `status` in [src/consent.ts](../../../src/consent.ts): a preset in the checkout is not consent. The last asserted line depends on the machine. Where no harness install is visible, `doctor` in [src/machine.ts](../../../src/machine.ts) prints `ERROR: No harness found; PREGATE gates nothing on this machine.` Where harness binaries are on PATH, doctor detects them; with no PREGATE registration anywhere the runtime canaries are skipped with one `INFO: Runtime canary skipped for ...` line instead of one guaranteed `canary was not denied` failure per harness (a canary without a registration could only reach the missing-launcher fallback that the lines above already report). A warning that `pregate` on `PATH` is not `$XDG_DATA_HOME/pregate/bin/pregate` is expected: that path is the `pregate setup` launcher, and this binary is the checkout compile.
 
 The fixture is one pinned commit of `sindresorhus/ky`, the same pin as `REPOS` in [scripts/real-repo-evidence.ts](../../../scripts/real-repo-evidence.ts). `init` writes the contract and, with `--yes` and `PREGATE_UNATTENDED_APPROVAL=1` already set, activates it (`activate: true` in [src/init.ts](../../../src/init.ts)). `enable` records consent again. Ordinary rules stay in shadow (`onboardingPreset` in [src/onboard.ts](../../../src/onboard.ts)). The shell guard and protected paths still deny.
 

@@ -1,7 +1,7 @@
 {
   "name": "go-starter",
   "version": "1.0.0",
-  "engine": "0.0.19",
+  "engine": "0.0.20",
   "sources": [
     {
       "ns": "core",

@@ -25,7 +25,7 @@ bun run scripts/build.ts darwin-arm64   # or linux-x64, linux-arm64, darwin-x64,
 
 `scripts/build.ts` first runs the fixtures of every catalog rule, then writes `dist/pregate-<version>-<target>.tar.gz` (`.zip` for Windows), `install.sh`, `install.ps1` and one `SHA256SUMS` for all of them. It refuses an installer whose default version is not the one in `package.json`.
 
-`bun run scripts/verify-candidate.ts evidence.json` runs the typecheck, the complete suite, the host build, the packaged smoke test and the latency benchmark, and writes one JSON record with the commit, the tree state, the Bun version and the result of each step.
+`bun run scripts/verify-candidate.ts evidence.json` runs the typecheck, the complete suite (at four workers), the host build, the packaged smoke test and the latency gate (on macOS the §8 merge gate against the frozen v0.0.12 reference), and writes one JSON record with the commit, the tree state, the Bun version and the result of each step.
 
 ### What a rebuild proves
 

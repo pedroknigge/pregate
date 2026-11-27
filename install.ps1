@@ -8,7 +8,7 @@
 param([string]$Version, [switch]$NoModifyPath)
 $env:PSModulePath = $PSHOME + '\Modules;' + $env:PSModulePath
 $ErrorActionPreference = 'Stop'
-$DEFAULT_VERSION = '0.0.19'
+$DEFAULT_VERSION = '0.0.20'
 $repo = 'pedroknigge/pregate'
 if (!$Version) { $Version = $DEFAULT_VERSION }
 $Version = $Version -replace '^v', ''

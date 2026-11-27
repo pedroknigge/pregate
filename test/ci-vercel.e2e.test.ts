@@ -130,7 +130,11 @@ test("the compiled binary recognizes Vercel statuses and check runs, with and wi
   }
 });
 
-if (!WINDOWS) test("the Vercel build recipe fails the build on deny and passes when the tree is clean", async () => {
+// The recipe refuses a machine uname that is not x86_64/amd64 before it reaches cosign, so the
+// assertion pair below needs an x64 host: linux-x64 (CI) or macOS x64. On arm64 the recipe exits
+// at its arch guard with an empty cosign log and the test would fail on its own host, not on the
+// recipe's behavior.
+if (!WINDOWS && process.arch === "x64") test("the Vercel build recipe fails the build on deny and passes when the tree is clean", async () => {
   const repo = join(area, "build");
   const bin = join(area, "fake-bin");
   const stage = join(area, "curl-stage");

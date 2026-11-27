@@ -5,7 +5,17 @@ All notable changes to **Pregate** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.0.20] - 2026-11-27
+
+Patch release that stops `pregate doctor` from running runtime canaries that cannot pass.
+
+### Changed
+
+- The candidate verification record runs the suite at four workers instead of one worker per core, because scheduler contention from the default 18 inflates the timing tests (the launcher-overhead medians and the built-release build timeout) on the reference machine itself. On macOS its latency step is now the §8 merge gate the CI macOS job runs: the frozen v0.0.12 reference checkout, interleaved samples, the absolute table reported with `--inform`, and the gate at 1.31× the reference p95 on the four Pre routes. The plain absolute bench had drifted 2-5% over two budgets on routes that measure 1.00× against the previous release's engine on the same machine.
+
+### Fixed
+
+- `pregate doctor` runs the runtime canary only where a PREGATE registration exists. On a machine whose harnesses are detected through PATH while `pregate setup` never ran, the canary could only reach the missing-launcher fallback, so doctor printed one guaranteed `canary was not denied` error per harness beside the launcher error it already names. One line now lists the harnesses whose canary is skipped and names `pregate setup` as what establishes a registration. A registration that exists but is modified, and a launcher that is gone, still run their canary: those are the states the canary is the only proof of.
 
 ## [0.0.19] - 2026-11-27
 

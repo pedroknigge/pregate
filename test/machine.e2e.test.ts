@@ -487,6 +487,15 @@ describe("doctor", () => {
     expect(missing.stdout).toContain(`${config}: the PREGATE plugin is not listed in plugins; run pregate setup.`);
   });
 
+  test("no registration anywhere: one skip line, not one guaranteed canary failure per harness", () => {
+    const m = machine(ALL);
+    const out = pregate(m, "doctor");
+    expect(out.code).toBe(1);
+    expect(out.stdout).toContain(`INFO: Runtime canary skipped for ${ALL.join(", ")}: no PREGATE registration to exercise; run pregate setup.`);
+    expect(out.stdout).not.toContain("canary was not denied");
+    expect(out.stdout).not.toContain("canary denied in its native dialect");
+  });
+
   test("a launcher that is gone: the installation and the canary fail", () => {
     const m = machine(["claude-code"]);
     ok(pregate(m, "setup"), "setup");

@@ -489,8 +489,10 @@ function unregister(file: string, t: Target, p: Paths): Line | null {
 // ── doctor ───────────────────────────────────────────────────────────────────────────
 
 // MH-27: the installation, each harness's CLI against the version its adapter was verified on, the
-// drift of every registration, Codex trust as Codex reports it, and a canary per harness: the
-// registered command, literal, through $SHELL -c, has to deny in that harness's dialect.
+// drift of every registration, Codex trust as Codex reports it, and a canary per harness with a
+// registration: the registered command, literal, through $SHELL -c, has to deny in that harness's
+// dialect. Where no registration exists the canary would only reach the missing-launcher fallback,
+// so it is skipped with one line instead of failing once per harness.
 export async function doctor(): Promise<Result> {
   const p = paths();
   const found = detect(p);
@@ -582,7 +584,12 @@ export async function doctor(): Promise<Result> {
   lines.push(which("gh") !== null && spawn(["gh", "auth", "status"]).exit === 0 ? ok("gh authenticated; private release fallback is available.")
     : warn("Public releases use anonymous HTTPS. Private pilot releases require gh auth login and repository read access; no release access was tested."));
   if (setupExact && setup.consentActive && setup.preCommand !== null && root !== null) lines.push(projectCanary(root, setup.preCommand));
-  for (const h of machine.keys()) lines.push(canary(p, h));
+  // The canary exercises the registered command (MH-27). Where no registration exists the call only
+  // reaches the missing-launcher fallback that the lines above already report, so the canary could
+  // not pass: one skip line instead of one guaranteed failure per harness.
+  const unregistered = [...machine.keys()].filter((h) => !canaryTarget(m, p, h));
+  if (unregistered.length > 0) lines.push(info(`Runtime canary skipped for ${unregistered.join(", ")}: no PREGATE registration to exercise; run pregate setup.`));
+  for (const h of machine.keys()) if (canaryTarget(m, p, h)) lines.push(canary(p, h));
   return report(lines);
 }
 
@@ -947,6 +954,20 @@ const CANARY: Record<HarnessId, { exit: number; env: (dir: string) => Record<str
     }),
   },
 };
+
+// Whether a registration for this harness exists, so the canary has a pregate command to exercise:
+// the shared Claude settings (Cursor and Grok read it too), Codex hooks.json, the agy plugin, or
+// the OpenCode plugin file or config. Presence, not exactness: a modified pregate command still
+// gives the canary something to exercise, which is how a direct-engine registration is caught. A
+// file without a pregate reference would only send the call to the missing-launcher fallback that
+// the lines above already report.
+function canaryTarget(m: MachineFiles, p: Paths, h: HarnessId): boolean {
+  const texts = h === "codex" ? [m.codexHooks]
+    : h === "agy" ? [m.agyHooks]
+    : h === "opencode" ? [read(join(opencodePluginDir(p), "index.ts")), read(opencodeConfigFile(p))]
+    : [...m.claude];
+  return texts.some((text) => text !== null && /pregate/i.test(text));
+}
 
 function canary(p: Paths, h: HarnessId): Line {
   return runCanary(p, h, canonical(mkdtempSync(join(tmpdir(), "pregate-canary-"))));
