@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-11-26
+
+The first real session on 0.0.14 ended every turn without a block, and the agent still handed commands to the user. A plain `pregate check` no longer refuses a looser contract, a contract change no longer reviews every importer in the project, and the agent runs the check and git itself.
+
 ### Fixed
 
 - A plain `pregate check` no longer refuses a looser contract or asks for `PREGATE_ACCEPT_CONTRACT`. It prints the `contract-loosened` note and judges the rules, like the pre-commit check. Only `check --ratchet --base <sha>`, which CI runs, refuses it.
 - The shell guard allows a read-only pregate command run by the launcher's absolute path, such as `<launcher> check` and `<launcher> status --verbose`. Before, only `check --stdin` was allowed by that path, and a plain `check` was denied as `protected-path`.
 - The `/pregate` skill says that git is the agent's to run, including `git add` and `git commit` of `.pregate/` files the user changed or approved. An agent that read the earlier text handed those commands to the user.
+- A change to `.pregate/preset.json` or `.pregate/pregate.lock.json` alone no longer sends every importer in the project through the dependency review. No resolver reads those two files, so that review could find nothing. In a project of 23,000 files a plain `pregate check` after a contract change took 2 minutes 27 seconds; it takes 2.5 seconds. Stop and the pre-commit check take the same path.
+- `pregate doctor` no longer says that a newer harness version may cause `payload-unrecognized` denials. Such a call passes with a note.
 
 ## [0.0.14] - 2026-11-26
 

@@ -368,3 +368,20 @@ test("a warm graph retains exhaustive denials for all 4500 affected importers", 
   expect(actual.every(review => review.violations[0]?.line === 2)).toBe(true);
   console.log(JSON.stringify({ affectedDependencyBenchmark: { importers: 4500, warmMs, exhaustiveMs, ...cache.stats } }));
 }), 60_000);
+
+// A contract change alone used to review every importer of a 23,000-file project for two and a half
+// minutes. No resolver reads the contract pair, so the inventory is not even listed for it.
+test("a change to the contract pair alone lists no inventory and reviews no importer", () => {
+  const after: Files = { "src/domain/a.ts": 'import { b } from "../infra/b";\nexport const a = b;\n', "src/infra/b.ts": "export const b = 1;\n",
+    ".pregate/preset.json": '{"scope":{"exclude":["backups/**"]}}\n', ".pregate/pregate.lock.json": '{"lockVersion":1,"scope":{}}\n' };
+  const before: Files = { ...after, ".pregate/preset.json": "{}\n", ".pregate/pregate.lock.json": '{"lockVersion":1}\n' };
+  let listed = 0;
+  const inventory = () => { listed++; return Object.keys(after); };
+  const contract = new Set([".pregate/preset.json", ".pregate/pregate.lock.json"]);
+  expect(dependencyReviews(inventory, { lock, phase: "pre", changed: contract, read: read(after), before: read(before), now: performance.now })).toEqual([]);
+  expect(listed).toBe(0);
+  // Another JSON file may be a resolver configuration, so it still starts the review.
+  const config = { ...after, "tsconfig.json": '{"compilerOptions":{"baseUrl":"."}}\n' };
+  dependencyReviews(inventory, { lock, phase: "pre", changed: new Set(["tsconfig.json", ...contract]), read: read(config), before: read(before), now: performance.now });
+  expect(listed).toBe(1);
+});
