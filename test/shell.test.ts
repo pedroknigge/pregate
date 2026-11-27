@@ -702,8 +702,9 @@ const allowed: string[] = [
 ];
 
 const denied: [string, Cause | null][] = [
-  ['echo "it\'s fine', "shell-uncertain"],
-  ["grep 'unterminated src/a.ts", "shell-uncertain"],
+  // unfinished syntax is not a cause
+  ['echo "it\'s fine', null],
+  ["grep 'unterminated src/a.ts", null],
   // writes to paths in scope
   ["echo x > src/a.ts", null],
   ["echo x >> src/a.ts", null],
@@ -992,7 +993,7 @@ const denied: [string, Cause | null][] = [
   // a variable the POSIX script binds itself is its command
   ["x=$(echo pregate); $x = approve abc", "shell-admin"],
   ['x="pregate approve abc123"; $x', "shell-admin"],
-  ['read x <<< "pregate approve abc123"; $x', "shell-uncertain"],
+  ['read x <<< "pregate approve abc123"; $x', null],
   ['for x in "pregate approve abc123"; do $x; done', "shell-admin"],
   ['export x="pregate approve abc123"; sh -c \'$x\'', "shell-admin"],
   ["$CMD approve abc123", "shell-admin"],

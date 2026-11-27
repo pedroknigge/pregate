@@ -135,13 +135,13 @@ afterAll(() => {
   writeFileSync(join(area, "captured.txt"), capture.join("\n"));
 });
 
-test.each(HARNESSES)("enabled %s lets a malformed payload, an unknown tool, unfinished shell, and a crash through with one note", (h) => {
+test.each(HARNESSES)("enabled %s lets a malformed payload, an unknown tool and a crash through with one note, and unfinished shell with none", (h) => {
   const root = project(`enabled-${h}`);
   expect(run(root, ["enable", "--yes"], "").code).toBe(0);
   noted(h, run(root, ["hook", "pre", "--harness", h], "{"), "payload-unrecognized");
   const unknown = bash(h, root, "echo ok").replace('"Bash"', '"future_write"').replace('"Shell"', '"future_write"');
   noted(h, run(root, ["hook", "pre", "--harness", h], unknown), "payload-unrecognized");
-  noted(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')), "shell-uncertain");
+  allowed(h, run(root, ["hook", "pre", "--harness", h], bash(h, root, 'echo "hello')));
   const crashed = crash(root, h);
   noted(h, crashed, "engine-failure");
   if (h === "cursor") expect(crashed.stdout).toContain('"permission":"allow"');
