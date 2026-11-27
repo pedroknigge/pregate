@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-11-27
+
+This release answers two outside reviews. Layer rules work across the packages of a monorepo. The shell guard is a quarter smaller and blocks the same things. Each bundled pack now says whether a measurement on real code validated it. The README leads with what Pregate does that a linter does not. Eight engine bugs from a code review are fixed. 0.0.15 was released on GitHub and not published to npm; this version carries its changes too.
+
+### Added
+
+- Monorepos: an import of a workspace package by name (`@acme/infra`, `@acme/infra/sub`) resolves to the file in that package (`exports`, then `module`, `main` or `types`, then `src/index`, then `index`). `layer-edge`, `banned-import` chains and `import-cycles` see it as an edge inside the project. Workspaces are read from the root `package.json` `workspaces` and from `pnpm-workspace.yaml`. The package folder must be named after the package (`@acme/infra` in `packages/infra`); a package in a folder with another name stays external, as before.
+- Monorepos: a file uses the nearest `tsconfig.json` at or above it (`paths`, `baseUrl`, `extends`), then the root one. A package's own alias is no longer an `unresolvable-import`.
+- Rule precision: 203 labeled findings (17 by the maintainer, 186 by an agent) out of 5,948 on eight pinned public repositories. A pack is validated with at least six labels and a sample precision of 70%. Nine packs pass: architecture, clean-code, go, javascript, maintainability, mattpocock, musk, node and senior. `docs/guides/rule-precision.md` has the table, how the sample was drawn, and its limits. The tooling has an `uncertain` verdict, an agent sample of 12 per pack, and a pack status in `bench/precision-report.json` (`schemaVersion` 3).
+
+### Changed
+
+- Packs: every methodology of a pack the measurement does not validate is `preview`: 77 methodologies in 31 packs, including pstack, typescript, express and vibe-proof, which measured below the bar, and the packs that reported nothing on the corpus. `pregate pack add` registers such a pack and selects none of its rules; `pregate pack enable <ns>/<methodology>` selects one. No rule, pattern or severity changed. The guided setup still proposes the language pack of the project (`typescript`, `python`, `rust`) although those are not validated.
+- The shell guard is 1,992 lines, down from 2,464, and `src/inline-sinks.ts` is 32, down from 197. The removed code decided `shell-write`, which no longer blocked or said anything. Every control cause is unchanged: a write to `.pregate/`, to Pregate state or to harness settings, also through an interpreter one-liner or a literal script; `pregate enable` and `pregate disable`; a switch of a harness's hooks; an approval variable.
+- The shell guard no longer reports `shell-uncertain`. A command with unfinished shell syntax runs with no note; the words the lexer read are still checked for the control causes.
+- A shell command registers another enabled project for the end-of-turn check only through a write redirection, a literal write target in interpreter code, or a history-moving Git command. A target of `cp`, `mv`, `tee`, `sed -i`, `tar` or a formatter no longer registers it; the pre-commit check and CI still judge that project.
+- A change to a package's `package.json` or `tsconfig.json` re-judges the importers that read it. The dependency cache format is `dependency-reads-v2`; old cache files are rebuilt.
+- The README leads with what Pregate does that a linter does not (instruction files to rules, architecture boundaries before the write, the no-new ratchet, Why, Fix and Avoid in six harnesses), states the cost of running without CI, and points to the rule precision guide. It is 241 lines, down from 391.
+
 ### Fixed
 
 - The CI ratchet reports a preset that no longer says `"uncertainty": "closed"`. The lock does not hold that key, so removing it let a failing engine pass with no loosening reported and no acceptance needed.
@@ -16,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A value import beside an `import type` of the same module on one line is still an edge for `import-cycles`.
 - A brace group or a bracket class in a layer glob no longer counts as literal characters, so `src/{alpha,beta}/**` does not outrank `src/alpha/foo.ts`. The comment about ties now says what the code does: the first layer in name order wins.
 - A `<script>` inside an HTML comment of a Vue or Svelte file is not read as code.
+- `script`, `screen`, `tmux`, `expect`, `unbuffer`, `socat` or `setsid` in front of `pregate enable` or `pregate disable` is denied, and so is a shell with clustered options (`bash -oc pipefail 'pregate disable'`). Such a wrapper gives its command a terminal, which is what `pregate disable` waits for.
+- `git -C <dir> commit --no-verify` is denied when the Git hook of `<dir>` is Pregate's. The guard asked about the working directory only.
 
 ## [0.0.15] - 2026-11-26
 

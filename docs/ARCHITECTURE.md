@@ -4,7 +4,7 @@
 
 > **Note, as of 0.0.14.** A local hook blocks only on a rule the project set to enforce and on the control causes (`protected-path`, `request-invalid`, `shell-admin`, `hook-switch`, `approval`). Every other cause is a one-line note and the call goes through. An engine crash or a timeout also lets the call through unless the preset sets `"uncertainty": "closed"`. See [what blocks locally](guarantees.md#what-blocks-locally). Sections below that describe fail-closed admission in a hook, the redirect to a pinned engine (MH-19, MH-20), and Stop comparing the session-start contract with the current one describe the earlier design. `pregate check` in CI is still strict.
 
-**Current source: published engine 0.0.15, core 0.0.1:** 68 default rules (64 project fitness requirements and four
+**Current source: published engine 0.0.16, core 0.0.1:** 68 default rules (64 project fitness requirements and four
 general change guards); language/practice/pattern policies are optional packs.
 Human-reviewed off overrides are supported. The pure evidence gate is
 [fitness.ts](../src/fitness.ts); execution and file fingerprints live in
@@ -12,7 +12,7 @@ Human-reviewed off overrides are supported. The pure evidence gate is
 defines its approval, staleness, scope and semantic limits. Earlier core names,
 non-disableable integrity claims and default rule counts below are historical.
 
-**Current status:** 0.0.15 is the public release. macOS ARM64 is stable. Linux and
+**Current status:** 0.0.16 is the public release. macOS ARM64 is stable. Linux and
 Windows builds are experimental. It adds
 Python/Go/Rust demos, bounded Rust source analysis and public-ready HTTPS downloads
 with private fallback. Core is unchanged. See

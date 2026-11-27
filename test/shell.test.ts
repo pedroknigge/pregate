@@ -1609,3 +1609,28 @@ test("host-automation CLIs may drive a browser or a desktop, and may not launch 
   expect(shellDetail.text).toBeNull();
   expect(guard("orca not-a-verb", ROOT, host)).toBeNull();
 });
+
+// A wrapper that gives its command a terminal could type the y that `pregate disable` waits for.
+test("a terminal-giving wrapper or a clustered shell option does not hide pregate enable or disable", () => {
+  for (const command of [
+    "script -q /dev/null pregate disable",
+    "printf 'y\\n' | script -q /dev/null pregate disable --yes",
+    "script -c 'pregate disable' /dev/null",
+    "screen pregate disable",
+    "tmux new -d 'pregate disable'",
+    "expect -c 'spawn pregate disable'",
+    "bash -oc pipefail 'pregate disable'",
+    "bash -euo pipefail -c 'pregate --verbose enable --yes'",
+    "setsid pregate disable",
+  ]) expect(guard(command, ROOT, ctx), command).toBe("shell-admin");
+  for (const command of ["script -q /dev/null ls", "tmux new -d 'pnpm dev'", "bash -oc pipefail 'pregate status'", "screen -ls", "bash -c 'echo pregate is enabled'"]) {
+    expect(guard(command, ROOT, ctx), command).toBeNull();
+  }
+});
+
+test("git -C names the repository whose hook --no-verify skips", () => {
+  const hooked = { ...ctx, pregateGitHook: (dir: string) => dir === "/other" };
+  expect(guard("git -C /other commit --no-verify -m x", ROOT, hooked)).toBe("shell-admin");
+  expect(guard("git -C /elsewhere commit --no-verify -m x", ROOT, hooked)).toBeNull();
+  expect(guard("git commit --no-verify -m x", ROOT, hooked)).toBeNull();
+});

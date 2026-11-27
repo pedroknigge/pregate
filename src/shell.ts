@@ -1306,7 +1306,27 @@ function recognized(name: string, head: Word, args: Word[], cwd: string | null, 
   return head.literal ? namedScript(head, name, cwd, ctx) : null;
 }
 
+// Programs that hand their command a terminal or a shell of their own. `pregate disable` waits for
+// a typed y on a terminal, and one of these could supply it, so their words are read as text for
+// that one command, whatever option carries it (`script -q /dev/null pregate disable`,
+// `tmux new -d 'pregate disable'`, `bash -oc pipefail 'pregate disable'`).
+const TERMINAL_GIVERS = new Set(["script", "screen", "tmux", "expect", "unbuffer", "socat", "setsid"]);
+const SWITCH_TEXT = /\bpregate(?:\.exe)?['"]?\s+(?:--?[\w-]+\s+)*(?:enable|disable)\b/;
+
 function invoke(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
+  // The ordinary reading comes first, so a more exact cause (an approval variable, a protected
+  // path) is the one reported. The text check is the backstop for what that reading let through.
+  const cause = invoked(head, args, cwd, ctx, stdin);
+  if (cause !== null || !head.literal) return cause;
+  const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
+  if ((TERMINAL_GIVERS.has(name) || SHELLS.has(name)) && SWITCH_TEXT.test(args.map((w) => w.text).join(" "))) {
+    if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "pregate enable and pregate disable are the user's commands: they run them in a terminal";
+    return "shell-admin";
+  }
+  return null;
+}
+
+function invoked(head: Word, args: Word[], cwd: string | null, ctx: Ctx, stdin: Word | null): Cause | null {
   const name = basename(slash(head.text)).toLowerCase().replace(/\.(exe|cmd|bat)$/, "");
   if (!head.literal) return unnamed(head, args, cwd, ctx, stdin);
   if (EXPORTS.has(name)) return run(args.filter((w) => ASSIGNMENT.test(w.text)), cwd, ctx, stdin);
@@ -1465,7 +1485,10 @@ function administers({ words, assigned, head, args }: { words: Word[]; assigned:
   // skip is PREGATE's. Another project's husky or lefthook is not this guard's job.
   const query = words.some((w) => /core\.hookspath/i.test(w.text)) && commandAllowsHooks(words, 0);
   const bypass = words.some((w) => query ? /--no-veri/i.test(w.text) : ADMIN_WORD.test(w.text)) || names.some((n) => GIT_SWITCH.test(n));
-  if (!bypass || !pregateOwnsGitHook(cwd, ctx)) return null;
+  // `git -C <dir> commit --no-verify` skips the hook of <dir>, not of the working directory.
+  const at = words.findIndex((w) => w.text === "-C");
+  const elsewhere = command === "git" && at > 0 && words[at + 1]?.literal ? resolve(cwd, words[at + 1]!.text) : null;
+  if (!bypass || !(pregateOwnsGitHook(cwd, ctx) || pregateOwnsGitHook(elsewhere, ctx))) return null;
   if (ctx.shellDetail && ctx.shellDetail.text === null) ctx.shellDetail.text = "this skips a pregate-installed git hook. core.hooksPath points at .pregate/git-hooks, or the pre-commit script runs pregate.";
   return "shell-admin";
 }

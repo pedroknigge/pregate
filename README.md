@@ -4,7 +4,7 @@
 
 An agent can skip an instruction in `AGENTS.md`. A rule in a Pregate contract is checked on every edit, and CI checks the same contract again. Pregate works alongside your linters, tests, CI and review. It does not replace them, and it does not prove that code is correct.
 
-[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.15 release notes](docs/releases/0.0.15.md)
+[MIT license](LICENSE) · [Guarantees and limits](docs/guarantees.md) · [0.0.16 release notes](docs/releases/0.0.16.md)
 
 ## What it does that a linter does not
 
@@ -84,7 +84,7 @@ A contract has three sources: a small core that is always on, your own rules and
 | Linux x64 and arm64 | Experimental test builds |
 | Windows x64 | Experimental test builds |
 
-Intel Mac archives are produced but are not declared stable. 0.0.15 is this release. Windows users of 0.0.2 must upgrade: two bugs in that release could let an edit through without a finding. See the [Windows verification guide](docs/guides/windows-verification.md).
+Intel Mac archives are produced but are not declared stable. 0.0.16 is this release. Windows users of 0.0.2 must upgrade: two bugs in that release could let an edit through without a finding. See the [Windows verification guide](docs/guides/windows-verification.md).
 
 - Pregate parses TypeScript, JavaScript, Python, Go and Rust. Coverage differs by language and rule. Python, Go and Rust need explicit language rules. The exact list is below.
 - A framework pack is not a parser for that framework's files. The `astro` pack checks TypeScript and JavaScript; `.astro` templates are not parsed.
@@ -102,9 +102,9 @@ The Pre hook has a 150 ms p95 budget on the reference machine; a passing CI job 
 
 Generated from the current CLI and source manifests by `bun scripts/docs-reference.ts`. Do not edit this section by hand.
 
-This page describes engine 0.0.15.
+This page describes engine 0.0.16.
 
-[Release v0.0.15](https://github.com/pedroknigge/pregate/releases/tag/v0.0.15)
+[Release v0.0.16](https://github.com/pedroknigge/pregate/releases/tag/v0.0.16)
 
 Supported harnesses, from `src/capabilities.ts`. A harness that is not in this table is not supported.
 
@@ -230,7 +230,7 @@ Regenerate the version, harness, language, and pack blocks with `bun scripts/doc
 - Measurements: [hook latency](docs/benchmarks/hook-latency.md), [one production repository](docs/benchmarks/case-study-production-repository.md), [shell guard friction](docs/benchmarks/shell-guard-friction.md), [session trial](docs/benchmarks/session-trial.md)
 - [Maintenance, reproducible build and rollback](docs/guides/maintenance.md)
 - [Architecture and scope limits](docs/ARCHITECTURE.md)
-- [Release notes for 0.0.15](docs/releases/0.0.15.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
+- [Release notes for 0.0.16](docs/releases/0.0.16.md) · [First public release (`v0.0.1`)](docs/releases/0.0.1.md) · [Changelog](CHANGELOG.md)
 
 ## Contributing
 
