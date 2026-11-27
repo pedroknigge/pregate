@@ -182,7 +182,7 @@ function dependencyAffected(rel: string, text: string, context: DependencyContex
   const inspect = () => {
     if (grammar === "rust" ? /\b(use|mod|extern|include|crate|self|super|std|core|alloc)\b/.test(text)
       : /\b(import|require|__import__)\b|importlib\.import_module\b/.test(text) || (/\bexport\b/.test(text) && /\bfrom\b/.test(text))) {
-      const ts = grammar === "typescript" || grammar === "tsx" ? loadTsPaths(current) : null;
+      const ts = grammar === "typescript" || grammar === "tsx" ? loadTsPaths(current, rel) : null;
       for (const imp of importsOf!(rel, text).imports.filter((i) => i.literal)) {
         const target = resolve(rel, imp.spec, ts, current, imp.base);
         if (typeof target === "object") reexportTargets(target.rel, ts, current, importsOf);

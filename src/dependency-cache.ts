@@ -7,7 +7,7 @@ import type { DependencyGraph } from "./dependencies.ts";
 const MAX_BYTES = 16 * 1024 * 1024;
 const MAX_PROJECTS = 32;
 // Bump when import extraction, candidate filtering or resolver reads change.
-const RESOLVER = "dependency-reads-v1";
+const RESOLVER = "dependency-reads-v2";
 interface Input { path: string; hash: string | null; identity: string }
 export interface DependencyInputs { path: string; hash: string; context: string; inputs: Input[] }
 interface DependencyValidation { hash: (path: string) => string | null; identity?: (path: string) => string }

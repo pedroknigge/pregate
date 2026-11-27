@@ -13,12 +13,11 @@ export function importCycles(lock: Lock, rule: LockRule, rel: string, text: stri
   const selected = new Set<string>();
   for (const path of host.list?.() ?? []) if (scriptFile(lock, rule, path)) selected.add(path);
   if (grammarOf(rel) !== null && SCRIPT.has(grammarOf(rel)!)) selected.add(rel);
-  const ts = loadTsPaths(host.read);
   const adj = new Map<string, { to: string; line: number; spec: string }[]>();
   for (const path of selected) {
     const body = path === rel ? text : host.read(path);
     if (body === null) continue;
-    adj.set(path, edgesOf(path, body, ts, host.read, selected));
+    adj.set(path, edgesOf(path, body, loadTsPaths(host.read, path), host.read, selected));
   }
   const component = componentOf(rel, adj);
   const self = (adj.get(rel) ?? []).some((edge) => edge.to === rel);
