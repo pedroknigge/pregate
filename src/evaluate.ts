@@ -317,10 +317,13 @@ function checkImports(lock: Lock, p: Parsed, rules: LockRule[], host: Host, repo
   const grammar = grammarOf(rel);
   if (restricted && ["python", "go", "rust"].includes(grammar!) && all.some((i) => !i.literal)) return { cause: "unresolvable-import", line: all.find((i) => !i.literal)!.line };
   const found = all.filter((x) => x.literal);
-  const ts = found.length && (grammar === "typescript" || grammar === "tsx") ? resolutionProgress(host, () => loadTsPaths(read)) : null;
+  const ts = found.length && (grammar === "typescript" || grammar === "tsx") ? resolutionProgress(host, () => loadTsPaths(read, rel)) : null;
   for (const i of found) {
     const to = resolutionProgress(host, () => resolve(rel, i.spec, ts, read, i.base));
-    const chain = resolutionProgress(host, () => typeof to === "object" ? reexportTargets(to.rel, ts, read, host.importsOf) : []);
+    const followed = resolutionProgress(host, () => typeof to === "object" ? reexportTargets(to.rel, ts, read, host.importsOf) : []);
+    // A workspace package was external before, with no chain at all: a barrel past the caps, or with
+    // a re-export that does not resolve, keeps the edges that are known and is not an unresolvable import.
+    const chain = typeof to === "object" && to.workspace ? (followed === "too-deep" ? [] : followed.filter((e) => e.to !== "unresolved")) : followed;
     const reached: Edge[] = [{ spec: i.spec, to }, ...(chain === "too-deep" ? [] : chain)];
     const lost = reached.find((e) => e.to === "unresolved");
     const byTsconfig = ts === "invalid" && lost !== undefined && !/^\.\.?(\/|$)|[?\\]|.#/.test(lost.spec);
