@@ -1,6 +1,6 @@
 ---
 name: pregate
-description: "0.0.18 — PREGATE: set a project up, read its status, check changes, explain a rule, and fix or report a finding"
+description: "0.0.19 — PREGATE: set a project up, read its status, check changes, explain a rule, and fix or report a finding"
 ---
 
 # PREGATE
@@ -11,7 +11,7 @@ yourself, answer in the user's language, and give one next action. Keep a
 summary under eight lines. Say "rule", "informs" and "blocks"; leave out lock,
 digest, ratchet and pack unless the user asks how it works.
 
-Skill version: 0.0.18.
+Skill version: 0.0.19.
 
 ## What blocks
 

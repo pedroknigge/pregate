@@ -40,13 +40,14 @@ function memoOf(read: Read): Memo {
 }
 
 // The config that governs `fromRel`: the nearest tsconfig.json at or above its folder, with the root
-// one behind it. Without `fromRel`, or when the nearer config is broken, the root one alone, as before.
-// null: there is no tsconfig.json. "invalid": the root one, or a config it extends, is missing or unreadable.
+// one behind it. null: there is no tsconfig.json. "invalid": that config, or a config it extends,
+// is missing or unreadable (fail closed rather than falling back silently to root).
 export function loadTsPaths(read: Read, fromRel?: string): TsPaths | null | "invalid" {
   const root = loadConfig("tsconfig.json", read);
   const at = fromRel === undefined ? null : nestedConfig(dirname(fromRel), read);
   const own = at === null ? null : loadConfig(at, read);
-  if (own === null || own === "invalid") return root;
+  if (own === "invalid") return "invalid";
+  if (own === null) return root;
   return root === null || root === "invalid" ? own : { ...own, outer: root };
 }
 
@@ -260,20 +261,23 @@ function workspaceModule(spec: string, read: Read): string | null {
   return null;
 }
 
-// `exports` for "." or one subpath: a string, conditions, or a `./*` pattern.
+// `exports` for "." or one subpath: a string, conditions, or a `./*` pattern (longest prefix wins).
+const EXPORT_CONDITIONS = ["source", "development", "bun", "node", "import", "require", "default", "types"];
 function exportTargets(exports: unknown, sub: string): string[] {
   const key = sub ? `./${sub}` : ".";
   const targets = (v: unknown): string[] => typeof v === "string" ? [v] : Array.isArray(v) ? v.flatMap(targets)
-    : isObject(v) ? ["import", "default", "types"].flatMap((condition) => targets(v[condition])) : [];
+    : isObject(v) ? EXPORT_CONDITIONS.flatMap((condition) => targets(v[condition])) : [];
   if (!isObject(exports) || !Object.keys(exports).some((k) => k.startsWith("."))) return key === "." ? targets(exports) : [];
   if (Object.hasOwn(exports, key)) return targets(exports[key]);
+  let best: { head: number; tail: number; value: unknown; match: string } | null = null;
   for (const [pattern, value] of Object.entries(exports)) {
     const star = pattern.indexOf("*"), head = pattern.slice(0, star), tail = pattern.slice(star + 1);
-    if (star >= 0 && key.length >= head.length + tail.length && key.startsWith(head) && key.endsWith(tail)) {
-      return targets(value).map((t) => t.replaceAll("*", key.slice(head.length, key.length - tail.length)));
+    if (star < 0 || key.length < head.length + tail.length || !key.startsWith(head) || !key.endsWith(tail)) continue;
+    if (best === null || head.length > best.head || (head.length === best.head && tail.length > best.tail)) {
+      best = { head: head.length, tail: tail.length, value, match: key.slice(head.length, key.length - tail.length) };
     }
   }
-  return [];
+  return best === null ? [] : targets(best.value).map((t) => t.replaceAll("*", best.match));
 }
 
 // A Read cannot list folders, so a workspace glob is not expanded: its one wildcard is tried with the

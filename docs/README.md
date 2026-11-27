@@ -1,8 +1,8 @@
 # PREGATE documentation
 
-Use this index for the current product contract. 0.0.18 is the published release.
+Use this index for the current product contract. 0.0.19 is the published release.
 [v0.0.1 release notes](releases/0.0.1.md) record the first public tag, and the
-[changelog](../CHANGELOG.md) records 0.0.18. Historical research is evidence for
+[changelog](../CHANGELOG.md) records 0.0.19. Historical research is evidence for
 its recorded candidate, not proof that a later candidate passes.
 
 ## Start and use the tool
@@ -158,6 +158,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 | [releases/0.0.16.md](releases/0.0.16.md) | Product/reference |
 | [releases/0.0.17.md](releases/0.0.17.md) | Product/reference |
 | [releases/0.0.18.md](releases/0.0.18.md) | Product/reference |
+| [releases/0.0.19.md](releases/0.0.19.md) | Product/reference |
 | [releases/0.0.3-windows-report-2026-11-03.md](releases/0.0.3-windows-report-2026-11-03.md) | Product/reference |
 | [releases/0.0.3.md](releases/0.0.3.md) | Product/reference |
 | [releases/0.0.4.md](releases/0.0.4.md) | Product/reference |

@@ -1,7 +1,7 @@
 {
   "name": "python-starter",
   "version": "1.0.0",
-  "engine": "0.0.18",
+  "engine": "0.0.19",
   "sources": [
     {
       "ns": "core",
