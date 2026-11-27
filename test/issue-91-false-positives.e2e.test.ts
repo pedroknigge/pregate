@@ -169,6 +169,11 @@ beforeAll(() => {
   gate.git("init", "-q");
   expect(gate.run(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
   for (const ns of packs) expect(gate.run(["pack", "add", "--library", ns, "--yes"]).code).toBe(0);
+  // These packs are preview: adding one registers it and selects no rule, so each methodology is enabled by name.
+  for (const methodology of ["supabase/client", "supabase/storage", "nextjs/rendering", "nextjs/routing", "react/components", "react/hooks", "testing/tdd"]) {
+    const enabled = gate.run(["pack", "enable", methodology, "--yes"]);
+    expect(enabled.code, enabled.text).toBe(0);
+  }
   gate.put(".pregate/requests/scope.json", JSON.stringify({
     why: "Exercise the four packs on the reported false positives.",
     patch: [
