@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.19] - 2026-11-27
+
+Patch release fixing Unicode escape decoding in TypeScript import specifiers, fail-closed handling for invalid per-package `tsconfig.json` files, and workspace `exports` matching.
+
+### Fixed
+
+- `unquoted()` in `src/ts.ts` now decodes `\u{...}` escapes with more than six hex digits (leading zeros) and guards against code points above `0x10ffff` so malformed escapes do not throw an uncaught `RangeError`.
+- `loadTsPaths()` in `src/resolve.ts` returns `"invalid"` when a file's nearest package `tsconfig.json` is broken instead of falling back silently to the root config.
+- `exportTargets()` in `src/resolve.ts` recognizes `source`, `development`, `bun`, `node`, and `require` conditions and chooses the longest matching `*` prefix rather than the first entry.
+
 ## [0.0.18] - 2026-11-27
 
 Patch release removing dead shell-guard plumbing, unused functions, single-caller wrapper modules, and unused exports across `src/` with zero behavioral or security regressions.

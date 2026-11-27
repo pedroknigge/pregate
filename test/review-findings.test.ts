@@ -43,8 +43,8 @@ test("a version gate or a when added to a rule is a change that may loosen, not 
 });
 
 test("an escaped import specifier names the module the runtime loads", () => {
-  const found = imports(parse("src/a.ts", 'import fs from "\\u0066s";\nconst child = require("child_\\x70rocess");\nimport("\\u{6e}ode:os");\n'));
-  expect(found.map((edge) => edge.spec)).toEqual(["fs", "child_process", "node:os"]);
+  const found = imports(parse("src/a.ts", 'import fs from "\\u0066s";\nconst child = require("child_\\x70rocess");\nimport("\\u{6e}ode:os");\nimport p from "\\u{0000066}s";\nimport bad from "\\u{999999}";\n'));
+  expect(found.map((edge) => edge.spec)).toEqual(["fs", "child_process", "node:os", "fs", "\\u{999999}"]);
 });
 
 test("destructured exports count as the names they bind", () => {

@@ -407,7 +407,7 @@ describe("monorepo: workspace packages and per-package tsconfig", () => {
     expect(at("packages/domain/src/a.ts", "@root/db")).toEqual({ rel: "packages/infra/src/db.ts" });                        // the root config, behind it
     expect(at("packages/ab/src/a.ts", "#shared/index")).toEqual({ rel: "packages/ab/src/index.ts" });                       // through extends
     expect(at("apps/web/page.ts", "@/main")).toEqual({ rel: "apps/web/main.ts" });                                          // no nearer config: the root one
-    expect(at("packages/a/x.ts", "@/main")).toEqual({ rel: "apps/web/main.ts" });                                           // a broken nearer config: the root one
+    expect(at("packages/a/x.ts", "@/main")).toBe("unresolved");                                                             // a broken nearer config fails closed
     expect(loadTsPaths(read)).toEqual({ baseUrl: null, paths: [{ pattern: "@root/*", targets: ["packages/infra/src/*"] }, { pattern: "@/*", targets: ["apps/web/*"] }] });
   });
 
@@ -481,5 +481,23 @@ describe("monorepo: layer rules see a workspace import as an internal edge", () 
       { ...files, [rel]: aliased, "packages/domain/tsconfig.json": config("./src/index.ts") }, ["packages/domain/tsconfig.json"])).toMatchObject([{ rel, violations: [{ line: 1 }] }]);
     // A manifest no import reads does not send the importer to review.
     expect(review({ ...files, [rel]: USE, "packages/other/package.json": "{}" }, { ...files, [rel]: USE }, ["packages/other/package.json"])).toEqual([]);
+  });
+
+  test("broken per-package tsconfig fails closed instead of falling back to root, and exports pick longest prefix and node/source conditions", () => {
+    const broken: Files = { ...files, "tsconfig.json": "{}", "packages/domain/tsconfig.json": "{ broken" };
+    expect(loadTsPaths(reader(broken), "packages/domain/src/order.ts")).toBe("invalid");
+    expect(analyze(lock, "pre", "packages/domain/src/order.ts", 'import { x } from "~alias";\nexport const a = x;\n', { read: reader(broken), now: clock }))
+      .toMatchObject({ cause: "unresolvable-import" });
+    const exported: Files = {
+      ...files,
+      "packages/infra/package.json": JSON.stringify({
+        name: "@acme/infra",
+        exports: { "./*": "./src/general/*.ts", "./db/*": { source: "./src/db/*.ts", node: "./src/node-db/*.ts" } },
+      }),
+      "packages/infra/src/general/db/client.ts": "export const g = 1;\n",
+      "packages/infra/src/db/client.ts": "export const d = 1;\n",
+    };
+    expect(resolve("packages/domain/src/order.ts", "@acme/infra/db/client", null, reader(exported)))
+      .toEqual({ rel: "packages/infra/src/db/client.ts", workspace: true });
   });
 });

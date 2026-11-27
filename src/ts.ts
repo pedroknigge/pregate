@@ -317,10 +317,13 @@ function statementImport(n: Node): Import | null {
 // The module a quoted specifier names. "\u0066s" and "\x66s" are the module fs to Node and Bun, so
 // the escapes are decoded before a rule compares the name.
 function unquoted(quoted: string): string {
-  return quoted.slice(1, -1).replace(/\\(?:u\{([0-9a-fA-F]{1,6})\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|([\s\S]))/g,
-    (_all, brace?: string, unicode?: string, hex?: string, other?: string) => {
+  return quoted.slice(1, -1).replace(/\\(?:u\{([0-9a-fA-F]+)\}|u([0-9a-fA-F]{4})|x([0-9a-fA-F]{2})|([\s\S]))/g,
+    (all, brace?: string, unicode?: string, hex?: string, other?: string) => {
       const code = brace ?? unicode ?? hex;
-      if (code !== undefined) return String.fromCodePoint(Number.parseInt(code, 16));
+      if (code !== undefined) {
+        const cp = Number.parseInt(code, 16);
+        return cp <= 0x10ffff ? String.fromCodePoint(cp) : all;
+      }
       return ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f", v: "\v", "0": "\0", "\n": "" } as Record<string, string>)[other!] ?? other!;
     });
 }
