@@ -1,6 +1,6 @@
 # react-native
 
-Data-only PREGATE rule pack for React Native + Expo apps (TypeScript, `.ts`/`.tsx`). Source version **1.0.0**, for engine **0.0.15**. Nine checks across `platform`, `security`, and `navigation`: no DOM tags in render paths, text outside `<Text>`, FlatList keys, process lifetime, unencrypted storage, client-visible secrets, dev-channel links, computed route names, and secrets in navigation params.
+Data-only PREGATE rule pack for React Native + Expo apps (TypeScript, `.ts`/`.tsx`). Source version **1.0.0**, for engine **0.0.16**. Nine checks across `platform`, `security`, and `navigation`: no DOM tags in render paths, text outside `<Text>`, FlatList keys, process lifetime, unencrypted storage, client-visible secrets, dev-channel links, computed route names, and secrets in navigation params.
 
 ## User control
 
@@ -45,7 +45,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.0`. 10 distinct check IDs.
 
-Methodologies: `react-native/platform` (complete), `react-native/security` (complete).
+Methodologies: `react-native/platform` (preview), `react-native/security` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

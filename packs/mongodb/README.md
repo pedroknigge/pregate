@@ -1,6 +1,6 @@
 # mongodb
 
-TypeScript client-side MongoDB driver/mongoose rules. Source version **1.3.1**, for engine **0.0.15**.
+TypeScript client-side MongoDB driver/mongoose rules. Source version **1.3.1**, for engine **0.0.16**.
 The engine parses TS/JS only: this pack enforces client-side usage (queries, ObjectIds,
 connections, sessions, schema options). Everything the engine cannot see — index selection,
 `$jsonSchema` validation, replica-set topology, GridFS chunking, change-stream resume
@@ -85,7 +85,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.3.1`. 12 distinct check IDs.
 
-Methodologies: `mongodb/models` (complete), `mongodb/queries` (complete).
+Methodologies: `mongodb/models` (preview), `mongodb/queries` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

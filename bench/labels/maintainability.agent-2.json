@@ -1,0 +1,126 @@
+{
+  "labeler": "agent",
+  "pack": "maintainability",
+  "items": [
+    {
+      "corpus": "classnames",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "tests/bind.test-d.ts",
+      "line": 38,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "bound(42) passes an arbitrary number to show that a number is rejected by the types. The value has no unit and no reason to name."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "examples/route-separation/index.js",
+      "line": 53,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "app.listen(3000) uses a bare port number. A named port constant is what the rule asks for."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "test/Router.js",
+      "line": 508,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "42 stands for any value that is not a function in a test of the argument check. A name would add nothing."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "test/express.json.js",
+      "line": 402,
+      "symbol": "app.verify",
+      "verdict": "true-positive",
+      "note": "buf[0] === 0x5b compares with the byte of an opening bracket. The reader must know the character code."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "test/express.text.js",
+      "line": 318,
+      "symbol": "app.verify",
+      "verdict": "true-positive",
+      "note": "buf[0] !== 0x20 compares with the byte of a space. The reader must know the character code."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "test/express.urlencoded.js",
+      "line": 401,
+      "symbol": "parameterLimit",
+      "verdict": "false-positive",
+      "note": "parameterLimit: 10.1 is named by its property key, and the test title says it is a floating point limit."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "test/res.send.js",
+      "line": 185,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "Buffer.alloc(999, ...) is a test body size. The expected ETag two lines below depends on it, so a name could help, but the size itself is arbitrary."
+    },
+    {
+      "corpus": "express",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "lib/response.js",
+      "line": 679,
+      "symbol": "header",
+      "verdict": "uncertain",
+      "note": "The if on line 679 is at a third level, and its body is only a throw. The rule text says such a guard clause does not add a level. The engine exempts a guard only directly under a function or a loop, not under another if."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-MAGIC-001",
+      "path": "tslib.es6.js",
+      "line": 234,
+      "symbol": "__asyncGenerator.resume",
+      "verdict": "true-positive",
+      "note": "q[0][3] reads the reject callback by its position in a four-item tuple. The index 3 has no name."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.es6.js",
+      "line": 132,
+      "symbol": "__generator.step",
+      "verdict": "uncertain",
+      "note": "The if on line 132 is inside a try, inside a while loop, and its body is only return t. By the rule text a guard clause does not add a level; the engine counts this one because its parent is a try."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.es6.mjs",
+      "line": 132,
+      "symbol": "__generator.step",
+      "verdict": "uncertain",
+      "note": "Same shape as tslib.es6.js:132: an if with only a return, inside a try, inside a while loop."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "maintainability",
+      "rule": "maintainability/MAINT-NEST-001",
+      "path": "tslib.js",
+      "line": 107,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The if (d = decorators[i]) is inside the for loop, which is the else branch of the if on line 106. That is a third level and the limit is two."
+    }
+  ]
+}

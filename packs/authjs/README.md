@@ -1,6 +1,6 @@
 # authjs
 
-Data-only rule pack for Auth.js / NextAuth v5 configuration shapes (NextAuth config, callbacks, providers, middleware session access). Source version **1.2.1** in engine **0.0.15**. TypeScript only: the engine parses TS/JS, so provider-side OAuth behavior and adapter SQL stay in BACKLOG.md.
+Data-only rule pack for Auth.js / NextAuth v5 configuration shapes (NextAuth config, callbacks, providers, middleware session access). Source version **1.2.1** in engine **0.0.16**. TypeScript only: the engine parses TS/JS, so provider-side OAuth behavior and adapter SQL stay in BACKLOG.md.
 
 ## User control
 
@@ -62,7 +62,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.1`. 12 distinct check IDs.
 
-Methodologies: `authjs/config` (complete), `authjs/session` (complete).
+Methodologies: `authjs/config` (preview), `authjs/session` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

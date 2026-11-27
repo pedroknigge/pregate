@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "clean-code",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/acceptance/auth.js",
+      "line": 8,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback runs from line 8 to line 117, over the limit of 20. It is a test suite container with no steps of its own, so the stated reason, mixed levels of abstraction, is doubtful. The maintainer labeled the same shape true-positive."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/app.render.js",
+      "line": 397,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback runs from line 397 to line 477. It only groups it() cases, so it is a long function by count and not by the stated reason."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/app.routes.error.js",
+      "line": 7,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback spans the whole 62-line file. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/express.static.js",
+      "line": 17,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback runs from line 17 to line 135. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/req.acceptsEncodings.js",
+      "line": 6,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback spans the 39-line file. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/req.stale.js",
+      "line": 6,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback spans the 50-line file. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/res.links.js",
+      "line": 7,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback runs from line 7 to line 64. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "test/res.sendFile.js",
+      "line": 951,
+      "symbol": "<module>",
+      "verdict": "uncertain",
+      "note": "The describe callback runs from line 951 to line 1007. It only groups test cases."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-002",
+      "path": "test/app.param.js",
+      "line": 144,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Express fixes the app.param callback signature as (req, res, next, value). The author cannot remove a parameter, so no unnamed concept hides in the list."
+    },
+    {
+      "corpus": "express",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-002",
+      "path": "test/res.location.js",
+      "line": 141,
+      "symbol": "testRequestedRedirect",
+      "verdict": "true-positive",
+      "note": "testRequestedRedirect is a local helper with five parameters: app, inputUrl, expected, expectedHost and done. The limit is three."
+    },
+    {
+      "corpus": "tslib",
+      "pack": "clean-code",
+      "rule": "clean-code/CC-FN-001",
+      "path": "tslib.es6.js",
+      "line": 305,
+      "symbol": "__addDisposableResource",
+      "verdict": "true-positive",
+      "note": "__addDisposableResource runs from line 305 to line 327. That is 23 lines and the limit is 20."
+    }
+  ]
+}

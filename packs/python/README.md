@@ -44,7 +44,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **language**. Version: `1.4.0`. 25 distinct check IDs.
 
-Methodologies: `python/architecture` (complete), `python/effects` (complete), `python/legacy` (complete), `python/quality` (complete).
+Methodologies: `python/architecture` (preview), `python/effects` (preview), `python/legacy` (preview), `python/quality` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

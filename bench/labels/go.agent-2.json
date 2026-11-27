@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "go",
+  "items": [
+    {
+      "corpus": "errors",
+      "pack": "go",
+      "rule": "go/GO-FN-002",
+      "path": "format_test.go",
+      "line": 481,
+      "symbol": "testFormatCompleteCompare",
+      "verdict": "true-positive",
+      "note": "testFormatCompleteCompare takes t, n, arg, format, want and detectStackBoundaries. That is six parameters and the limit is four."
+    },
+    {
+      "corpus": "errors",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "format_test.go",
+      "line": 507,
+      "symbol": "testFormatCompleteCompare",
+      "verdict": "true-positive",
+      "note": "The if on line 507 is in the else branch of the if on line 495, inside the for loop. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-FN-001",
+      "path": "decode_test.go",
+      "line": 98,
+      "symbol": "TestDecodeEmbedded",
+      "verdict": "true-positive",
+      "note": "TestDecodeEmbedded runs from line 98 to line 149. That is 52 lines and the limit is 50."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-FN-001",
+      "path": "error_test.go",
+      "line": 100,
+      "symbol": "TestParseError",
+      "verdict": "true-positive",
+      "note": "TestParseError runs from line 100 to line 356. That is 257 lines and the limit is 50."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-FN-002",
+      "path": "encode_test.go",
+      "line": 1364,
+      "symbol": "encodeExpected",
+      "verdict": "true-positive",
+      "note": "encodeExpected takes t, label, val, want and wantErr. That is five parameters and the limit is four."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "decode.go",
+      "line": 342,
+      "symbol": "MetaData.unifyStruct",
+      "verdict": "true-positive",
+      "note": "The else if on line 342 belongs to if isUnifiable(subv), inside if f != nil, inside the for loop over the mapping. That is a third level."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "encode.go",
+      "line": 305,
+      "symbol": "Encoder.eElement",
+      "verdict": "true-positive",
+      "note": "The if on line 305 is inside else if math.IsInf, inside the switch on the kind. That is a third level and the limit is two."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "internal/toml-test/runner.go",
+      "line": 295,
+      "symbol": "Runner.Run",
+      "verdict": "true-positive",
+      "note": "The if on line 295 is in the else branch of if t.Failed(), inside if r.SkipMustError, inside the test loop. That is more than two levels."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "internal/toml-test/runner.go",
+      "line": 621,
+      "symbol": "floatToInt",
+      "verdict": "true-positive",
+      "note": "The if on line 621 is inside a type switch, inside a for loop, inside the outer type switch. That is more than two levels."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "meta.go",
+      "line": 108,
+      "symbol": "Key.String",
+      "verdict": "true-positive",
+      "note": "The for on line 108 is in the else branch of if kk == \"\", inside the outer for loop. That is a third level."
+    },
+    {
+      "corpus": "toml",
+      "pack": "go",
+      "rule": "go/GO-NEST-001",
+      "path": "parse.go",
+      "line": 749,
+      "symbol": "parser.stripEscapedNewlines",
+      "verdict": "true-positive",
+      "note": "The switch on line 749 is inside the whitespace for loop, inside the outer for loop. That is a third level."
+    }
+  ]
+}

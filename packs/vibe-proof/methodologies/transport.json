@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "vibe-proof/transport",
   "version": "1.1.0",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

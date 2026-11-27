@@ -179,8 +179,10 @@ test("hook and check deny a string query key and a QueryClient created in render
   p.put("src/ok.tsx", "export const ready = true;\n");
   p.git("init", "-q");
   expect(p.run(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
-  const added = p.run(["pack", "add", "--library", "tanstack-query", "--yes"]);
-  expect(added.code, added.text).toBe(0);
+  for (const methodology of ["tanstack-query/keys", "tanstack-query/client"]) {
+    const enabled = p.run(["pack", "enable", methodology, "--yes"]);
+    expect(enabled.code, enabled.text).toBe(0);
+  }
   p.put(".pregate/requests/enforce.json", JSON.stringify({
     why: "Judge the TanStack Query rules in enforcing mode.",
     patch: [{ op: "add", path: "/enforcement", value: "enforce" }],

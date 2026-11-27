@@ -7,7 +7,7 @@ import { decide } from "./decide.ts";
 import { canonical, escapedRoot, findRoot } from "./disk.ts";
 import { type Call, clock, commandGuarded, ENGINE_VERSION, engineHome, FLOOR, isCause, LAUNCHER, launcher, LOCK, NOTHING, PRESET, readText, REDIRECT, told, VERSIONS, within } from "./admission.ts";
 import { gatedHarnesses } from "./machine.ts";
-import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, scopeUnder, slash } from "./paths.ts";
+import { harnessConfigFiles, inScope, matches, pathKey, protects, relativePath as relative, slash } from "./paths.ts";
 import { approvalAskReview, literalPregate } from "./pending-review.ts";
 import { homeDir } from "./platform.ts";
 import type { CheckMode } from "./recorded.ts";
@@ -213,7 +213,6 @@ function disabledProjectCommand(c: ProposedCommand, sid: string, own: string, st
     ...base, shellDetail: noted,
     isProtected: (p) => elsewhere(p) && base.isProtected(p),
     inScope: (p) => elsewhere(p) && base.inScope(p),
-    under: (p) => elsewhere(p) && base.under(p),
   };
   const guarded = guard(c.command, canonical(c.cwd), { ...ctx, machineOnly: false, harness: c.session.harness });
   if (guarded !== "shell-write" && guarded !== "protected-path") return notice;
@@ -269,7 +268,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
     launcher: launcher(), engines: engineHome(), gated: { has: (name) => (gated ??= gatedHarnesses(root)).has(name) }, touched: () => touched, failure: () => failure,
     policyRead: (p, kind) => policyRead(sid, root, p, kind, load),
     configurationRead: (p) => configurationRead(sid, root, p, false), skillRead: (p) => configurationRead(sid, root, p, true),
-    sessionBase: (p) => sessionBase(sid, p), readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges, pregateGitHook,
+    readControlFile: controlInFile, readScriptFile, commandPath: commandOnPath, gitChanges, pregateGitHook,
     // The real file decides: a link on PATH into a project is that project's code.
     outsideRoots: (p) => {
       const abs = canonical(p);
@@ -287,30 +286,7 @@ function shellContext(sid: string, root: string | null, load: () => Loaded | Cau
       const h = reach(abs, dirname(abs));
       return h !== null && inScope(h.lock, h.rel);
     },
-    // A directory written whole writes into every root it holds, as well as below itself.
-    under: (p) => {
-      const abs = judged(p);
-      const h = reach(abs, abs);
-      return known.some((r) => within(abs, r)) || (h !== null && scopeUnder(h.lock, h.rel));
-    },
   };
-}
-
-// The text the session's snapshot gives as the file's "before": the session's base commit, or the
-// dirty text recorded at the session start. null for a file the session added, an untracked or
-// ignored file, a file outside every enabled root, and a root the session has no snapshot of.
-function sessionBase(sid: string, path: string): string | null {
-  try {
-    const actual = canonical(path), holder = findRoot(dirname(actual), enabled);
-    if (holder === null) return null;
-    const snap = state.snapshot(sid, holder);
-    if (snap === null || snap === "missing") return null;
-    const before = state.beforeText(sid, snap, relative(holder, actual));
-    return typeof before === "string" && !isCause(before) ? before : null;
-  } catch (error) {
-    if (["ENOENT", "ENOTDIR", "ENAMETOOLONG", "ELOOP"].includes((error as { code?: string }).code ?? "")) return null;
-    throw error;
-  }
 }
 
 // `skill`: the question is about the installed skill file, not about a harness configuration file.

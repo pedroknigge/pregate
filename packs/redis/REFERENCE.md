@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## redis/client
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### redis/REDIS-CONNECT-001
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## redis/keys
 
-Manifest version: `1.1.1`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **preview**.
 
 ### redis/REDIS-KEY-001
 

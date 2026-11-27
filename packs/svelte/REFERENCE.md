@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## svelte/runes
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### svelte/SV-RUNE-001
 
@@ -340,7 +340,7 @@ Source metadata:
 
 ## svelte/stores
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### svelte/SV-EVT-001
 

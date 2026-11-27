@@ -1,6 +1,6 @@
 # postgres
 
-TypeScript client-side pack for PostgreSQL access via node-postgres (`pg` / `pg-pool`), postgres.js, and compatible `.query` clients. Source version **1.2.0**, for engine **0.0.15**. TypeScript client only: the engine parses TS/JS, so server-side SQL rules (RLS policies, index selection, migrations) wait for a SQL grammar and live in BACKLOG.md until then.
+TypeScript client-side pack for PostgreSQL access via node-postgres (`pg` / `pg-pool`), postgres.js, and compatible `.query` clients. Source version **1.2.0**, for engine **0.0.16**. TypeScript client only: the engine parses TS/JS, so server-side SQL rules (RLS policies, index selection, migrations) wait for a SQL grammar and live in BACKLOG.md until then.
 
 Relation to `vibe-proof/security/sql-interpolation`: that rule matches template `${}` inside `.(query|execute|raw|unsafe)(`, so it already fires on `pool.query`/`` ` `` `` `client.query` templates. This pack does not duplicate it. PG-CONCAT-001 complements it by catching `+` string concatenation in query arguments, which the template-only shape misses; its template arm is a second spelling of the same concat family.
 
@@ -61,7 +61,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.0`. 11 distinct check IDs.
 
-Methodologies: `postgres/client` (complete), `postgres/safety` (complete).
+Methodologies: `postgres/client` (preview), `postgres/safety` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

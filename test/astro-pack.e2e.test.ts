@@ -170,7 +170,7 @@ test("hook and check deny Astro mistakes and accept the documented forms", () =>
   p.put("src/pages/index.ts", "export const GET = () => new Response('ok');\n");
   p.git("init", "-q");
   expect(p.run(["init", "--yes", "--preset", "integrity-only"]).code).toBe(0);
-  expect(p.run(["pack", "add", "--library", "astro", "--yes"]).code).toBe(0);
+  for (const methodology of ["astro/config", "astro/content", "astro/routing"]) expect(p.run(["pack", "enable", methodology, "--yes"]).code).toBe(0);
   p.put(".pregate/requests/enforce.json", JSON.stringify({
     why: "Judge the Astro rules in enforcing mode.",
     patch: [{ op: "add", path: "/enforcement", value: "enforce" }],

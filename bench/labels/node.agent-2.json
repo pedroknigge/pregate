@@ -1,0 +1,106 @@
+{
+  "labeler": "agent",
+  "pack": "node",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-ENVPARSE-001",
+      "path": "test/app.js",
+      "line": 113,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "process.env.NODE_ENV = this.env is a write that restores the variable after a test. The rule is about a scattered read of the environment."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-HEADERS-001",
+      "path": "examples/error-pages/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and sets no security header. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-HEADERS-001",
+      "path": "examples/vhost/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and sets no security header. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-OBSERVE-001",
+      "path": "examples/markdown/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and has no logger and no request id. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-OBSERVE-001",
+      "path": "examples/web-service/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and has no logger and no request id. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-ROUTE-001",
+      "path": "examples/online/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and registers neither /health nor /ready. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-ROUTE-001",
+      "path": "test/res.sendFile.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "This is a mocha test file. Its app.listen() calls start short-lived servers inside test cases, which no platform probes."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-SIGNAL-001",
+      "path": "examples/route-map/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and handles no SIGTERM or SIGINT. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-TIMEOUT-001",
+      "path": "examples/route-map/index.js",
+      "line": 1,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "The file starts a server with app.listen(3000) and sets no header, request or keep-alive timeout. It is an example server."
+    },
+    {
+      "corpus": "express",
+      "pack": "node",
+      "rule": "node/NODE-URL-001",
+      "path": "test/res.location.js",
+      "line": 159,
+      "symbol": "testRequestedRedirect.locationHost",
+      "verdict": "true-positive",
+      "note": "url.parse(...) is the legacy parser."
+    }
+  ]
+}

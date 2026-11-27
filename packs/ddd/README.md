@@ -10,7 +10,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **pattern**. Version: `1.1.0`. 3 distinct check IDs.
 
-Methodologies: `ddd/ddd-tactical` (complete).
+Methodologies: `ddd/ddd-tactical` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

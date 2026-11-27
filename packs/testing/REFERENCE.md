@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## testing/tdd
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### testing/TDD-FOCUS-001
 

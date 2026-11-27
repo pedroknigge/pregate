@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## mongodb/models
 
-Manifest version: `1.1.2`. Status: **complete**.
+Manifest version: `1.1.2`. Status: **preview**.
 
 ### mongodb/MONGO-SCHEMA-001
 
@@ -214,7 +214,7 @@ Source metadata:
 
 ## mongodb/queries
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### mongodb/MONGO-FIND-001
 

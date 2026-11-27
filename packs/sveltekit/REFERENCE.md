@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## sveltekit/data
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### sveltekit/SK-ENV-001
 
@@ -144,7 +144,7 @@ Source metadata:
 
 ## sveltekit/routing
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### sveltekit/SK-PAGE-001
 

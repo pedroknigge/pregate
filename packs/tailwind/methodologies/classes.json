@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "tailwind/classes",
   "version": "1.2.1",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

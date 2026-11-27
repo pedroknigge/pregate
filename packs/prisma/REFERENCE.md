@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## prisma/client
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### prisma/PRISMA-RAW-001
 
@@ -341,7 +341,7 @@ Source metadata:
 
 ## prisma/writes
 
-Manifest version: `1.3.0`. Status: **complete**.
+Manifest version: `1.3.0`. Status: **preview**.
 
 ### prisma/PRISMA-DELETE-001
 

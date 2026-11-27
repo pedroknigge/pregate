@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import {
-  applyLabels, assertAgentSample, assertUniqueLabels, labelCounts, parseLabelFile, precisionRatio, precisionText, renderPrecision, strideSample,
+  applyLabels, assertAgentSample, assertUniqueLabels, labelCounts, packStatus, parseLabelFile, precisionRatio, precisionText, renderPrecision, strideSample,
   type FindingSite, type LabeledSample, type Labeler, type PackPrecision, type PrecisionReport, type SampleLabel,
 } from "../scripts/precision.ts";
 
@@ -17,8 +17,37 @@ test("precision is true positives over labeled findings and is unmeasured at zer
   expect(precisionRatio(3, 1)).toBe(0.75);
   expect(precisionRatio(0, 4)).toBe(0);
   expect(precisionRatio(5, 0)).toBe(1);
-  expect(precisionText({ pack: "redis", findings: 10, labeled: 0, truePositives: 0, falsePositives: 0, precision: null })).toBe("unmeasured");
-  expect(precisionText({ pack: "clean-code", findings: 20, labeled: 4, truePositives: 3, falsePositives: 1, precision: 0.75 })).toBe("3/4");
+  expect(precisionText({ pack: "redis", findings: 10, labeled: 0, truePositives: 0, falsePositives: 0, uncertain: 0, precision: null, status: "unmeasured" })).toBe("unmeasured");
+  expect(precisionText({ pack: "clean-code", findings: 20, labeled: 4, truePositives: 3, falsePositives: 1, uncertain: 0, precision: 0.75, status: "small-sample" })).toBe("3/4");
+});
+
+test("an uncertain label counts as labeled and is on neither side of the precision fraction", () => {
+  const senior = [1, 2, 3, 4].map((line) => site("senior", "senior/SR-EQ-001", line));
+  const labels = [label(senior[0]!, "true-positive"), label(senior[1]!, "false-positive", "This == compares with null."), label(senior[2]!, "uncertain", "The reader cannot tell which value is compared.")];
+  const applied = applyLabels(["senior"], senior, labels);
+  expect(applied.packs[0]).toEqual({
+    pack: "senior", findings: 4, labeled: 3, truePositives: 1, falsePositives: 1, uncertain: 1, precision: 0.5, status: "small-sample",
+  });
+  expect(precisionText(applied.packs[0]!)).toBe("1/2");
+  const only = applyLabels(["senior"], senior, [label(senior[2]!, "uncertain", "The reader cannot tell which value is compared.")]);
+  expect(only.packs[0]).toMatchObject({ labeled: 1, uncertain: 1, precision: null, status: "unmeasured" });
+  expect(renderPrecision(report(applied.packs, labels))).toContain("| senior | 4 | 3 | 1 | 1 | 1 | 1/2 | not validated: fewer than 6 labels |");
+});
+
+test("a pack is validated only with six labels and a sample precision of seventy percent", () => {
+  expect(packStatus(0, null)).toBe("unmeasured");
+  expect(packStatus(5, 1)).toBe("small-sample");
+  expect(packStatus(6, 1)).toBe("validated");
+  expect(packStatus(10, 0.7)).toBe("validated");
+  expect(packStatus(10, 0.69)).toBe("low-precision");
+  expect(packStatus(17, 5 / 17)).toBe("low-precision");
+  const go = Array.from({ length: 10 }, (_, index) => site("go", "go/GO-FN-001", index + 1));
+  const labels = go.map((finding, index) => label(finding, index < 7 ? "true-positive" : "false-positive", "The function is under the limit."));
+  expect(applyLabels(["go"], go, labels).packs[0]).toMatchObject({ labeled: 10, precision: 0.7, status: "validated" });
+  const worse = go.map((finding, index) => label(finding, index < 6 ? "true-positive" : "false-positive", "The function is under the limit."));
+  const row = applyLabels(["go"], go, worse).packs[0]!;
+  expect(row.status).toBe("low-precision");
+  expect(renderPrecision(report([row], worse))).toContain("| go | 10 | 10 | 6 | 4 | 0 | 6/10 | not validated: precision below 70% |");
 });
 
 test("unlabeled packs stay unmeasured and a sample does not absorb unlabeled findings", () => {
@@ -28,14 +57,14 @@ test("unlabeled packs stay unmeasured and a sample does not absorb unlabeled fin
   const applied = applyLabels(["senior", "redis", "go"], [...senior, ...redis], labels);
   expect(applied.unmatched).toEqual([]);
   expect(applied.packs.find((pack) => pack.pack === "senior")).toEqual({
-    pack: "senior", findings: 3, labeled: 2, truePositives: 1, falsePositives: 1, precision: 0.5,
+    pack: "senior", findings: 3, labeled: 2, truePositives: 1, falsePositives: 1, uncertain: 0, precision: 0.5, status: "small-sample",
   });
   expect(applied.packs.find((pack) => pack.pack === "redis")?.precision).toBeNull();
   expect(applied.packs.find((pack) => pack.pack === "go")).toMatchObject({ findings: 0, labeled: 0, precision: null });
   const rendered = renderPrecision(report(applied.packs, labels));
-  expect(rendered).toContain("| senior | 3 | 2 | 1 | 1 | 1/2 |");
-  expect(rendered).toContain("| redis | 1 | 0 | 0 | 0 | unmeasured |");
-  expect(rendered).not.toContain("redis | 1 | 0 | 0 | 0 | 0/");
+  expect(rendered).toContain("| senior | 3 | 2 | 1 | 1 | 0 | 1/2 |");
+  expect(rendered).toContain("| redis | 1 | 0 | 0 | 0 | 0 | unmeasured | unmeasured |");
+  expect(rendered).not.toContain("redis | 1 | 0 | 0 | 0 | 0 | 0/");
 });
 
 test("a label that misses every finding is unmatched and duplicates are rejected", () => {
@@ -55,7 +84,8 @@ test("label files are maintainer samples with a note and a closed verdict", () =
   });
   expect(parseLabelFile(text, "clean-code.json")).toHaveLength(1);
   expect(() => parseLabelFile(text.replace("maintainer", "model"), "clean-code.json")).toThrow("maintainer");
-  expect(() => parseLabelFile(text.replace("true-positive", "correct"), "clean-code.json")).toThrow("verdict");
+  expect(() => parseLabelFile(text.replace("true-positive", "correct"), "clean-code.json")).toThrow("verdict must be true-positive, false-positive or uncertain");
+  expect(parseLabelFile(text.replace("true-positive", "uncertain"), "clean-code.json")[0]?.verdict).toBe("uncertain");
   expect(() => parseLabelFile(text.replace("app occupies more lines than the rule's limit.", "  "), "clean-code.json")).toThrow("note");
 });
 
@@ -69,12 +99,13 @@ test("a label file names its labeler and each label keeps it", () => {
 });
 
 test("the agent sample is fixed by the number of findings and an agent label outside it is rejected", () => {
-  const go = Array.from({ length: 12 }, (_, index) => site("go", "go/GO-FN-001", index + 1));
-  expect(strideSample(go).map((finding) => finding.line)).toEqual([1, 3, 5, 8, 10]);
+  const go = Array.from({ length: 30 }, (_, index) => site("go", "go/GO-FN-001", index + 1));
+  expect(strideSample(go).map((finding) => finding.line)).toEqual([1, 3, 6, 8, 11, 13, 16, 18, 21, 23, 26, 28]);
+  expect(strideSample(go, 5).map((finding) => finding.line)).toEqual([1, 7, 13, 19, 25]);
   expect(strideSample(go.slice(0, 3)).map((finding) => finding.line)).toEqual([1, 2, 3]);
   expect(strideSample([])).toEqual([]);
   const node = [site("node", "node/NODE-SYNC-001", 40)];
-  const inside = labeled(label(go[2]!, "true-positive"), "agent");
+  const inside = labeled(label(go[5]!, "true-positive"), "agent");
   const outside = labeled(label(go[1]!, "true-positive"), "agent");
   expect(() => assertAgentSample([...go, ...node], [inside, labeled(label(node[0]!, "true-positive"), "agent")])).not.toThrow();
   expect(() => assertAgentSample([...go, ...node], [outside])).toThrow("agent label outside the stride sample: go go/GO-FN-001 lib/app.js:2");
@@ -98,9 +129,9 @@ test("the page separates maintainer labels, agent labels and resolved false posi
   const full: PrecisionReport = { ...report(applied.packs, []), sample: applied.matched, resolved: applied.unmatched, labels: labelCounts(applied.matched, applied.unmatched) };
   expect(full.labels).toEqual({ maintainer: 1, agent: 2, resolved: 1 });
   const rendered = renderPrecision(full);
-  expect(rendered).toContain("| senior | 2 | 2 | 1 | 1 | 1/2 | maintainer 1, agent 1 |");
-  expect(rendered).toContain("| go | 1 | 1 | 1 | 0 | 1/1 | agent 1 |");
-  expect(rendered).toContain("| redis | 0 | 0 | 0 | 0 | unmeasured | - |");
+  expect(rendered).toContain("| senior | 2 | 2 | 1 | 1 | 0 | 1/2 | not validated: fewer than 6 labels | maintainer 1, agent 1 |");
+  expect(rendered).toContain("| go | 1 | 1 | 1 | 0 | 0 | 1/1 | not validated: fewer than 6 labels | agent 1 |");
+  expect(rendered).toContain("| redis | 0 | 0 | 0 | 0 | 0 | unmeasured | unmeasured | - |");
   expect(rendered).toContain("The maintainer wrote 1 of these labels and an AI coding agent wrote 2. Agent labels are not an independent human review. 1 earlier false-positive label no longer matches a finding and is listed as resolved.");
   const agentSection = rendered.slice(rendered.indexOf("## Agent-labeled sample"), rendered.indexOf("## Resolved false positives"));
   expect(agentSection).toContain("They are not an independent human review");
@@ -119,7 +150,7 @@ function labeled(item: SampleLabel, labeler: Labeler): LabeledSample {
 function report(packs: PackPrecision[], sample: SampleLabel[]): PrecisionReport {
   const maintainer = sample.map((item) => labeled(item, "maintainer"));
   return {
-    schemaVersion: 2, engine: "0.0.2", core: "0.0.1", labels: labelCounts(maintainer, []),
+    schemaVersion: 3, engine: "0.0.2", core: "0.0.1", labels: labelCounts(maintainer, []),
     corpus: [{ id: "express", language: "javascript", kind: "git", url: "https://github.com/expressjs/express.git", commit: "1".repeat(40), sourceFiles: 3, parsed: 3 }],
     packs, sample: maintainer, resolved: [], limits: ["A pack with no matching maintainer label is unmeasured."],
   };

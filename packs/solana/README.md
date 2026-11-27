@@ -1,6 +1,6 @@
 # solana
 
-Hackathon pack for the Superteam AR Solana stack (Anchor + @solana/kit v8 + Triton + devnet). Source version **1.2.0**, for engine **0.0.15**. TypeScript client only: the engine parses TS/JS, so Anchor/Rust program rules wait for a Rust language pack and live in BACKLOG.md until then.
+Hackathon pack for the Superteam AR Solana stack (Anchor + @solana/kit v8 + Triton + devnet). Source version **1.2.0**, for engine **0.0.16**. TypeScript client only: the engine parses TS/JS, so Anchor/Rust program rules wait for a Rust language pack and live in BACKLOG.md until then.
 
 ## User control
 
@@ -63,7 +63,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.0`. 12 distinct check IDs.
 
-Methodologies: `solana/key-custody` (complete), `solana/kit-client` (complete), `solana/pda-safety` (complete), `solana/rpc-env` (complete), `solana/tx-safety` (complete).
+Methodologies: `solana/key-custody` (preview), `solana/kit-client` (preview), `solana/pda-safety` (preview), `solana/rpc-env` (preview), `solana/tx-safety` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

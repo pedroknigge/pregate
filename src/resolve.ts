@@ -1,6 +1,6 @@
-// Import resolution for the layer and package rules: relative paths, the root tsconfig's paths,
-// baseUrl and extends, and re-export chains. Layers are decided by path, so a target that does not
-// exist yet (written in the same batch) still resolves to where it would be.
+// Import resolution for the layer and package rules: relative paths, the nearest tsconfig's paths,
+// baseUrl and extends, workspace packages by name, and re-export chains. Layers are decided by path,
+// so a target that does not exist yet (written in the same batch) still resolves to where it would be.
 import { grammarOf, imports, parse, type Parsed } from "./ts.ts";
 import type { ImportsOf, Read } from "./types.ts";
 import { resolveGo, resolvePython } from "./module-resolve.ts";
@@ -10,8 +10,10 @@ export interface TsPaths {
   baseUrl: string | null;                            // root-relative folder; "" is the root
   paths: { pattern: string; targets: string[] }[];   // targets root-relative, `*` kept
   missing?: string[];                                // extended packages that are not installed
+  outer?: TsPaths;                                   // the root config, tried after a package's own
 }
-export type Resolved = { rel: string } | "external" | "unresolved";
+// `workspace`: reached by a workspace package's name, which was an external import before.
+export type Resolved = { rel: string; workspace?: true } | "external" | "unresolved";
 export interface Edge { spec: string; to: Resolved }
 type Found = { baseUrl?: string; paths?: TsPaths["paths"]; pathsDir?: string };   // tsconfig values as the extends chain sets them
 
@@ -21,11 +23,53 @@ const MAX_FILES = 32;
 // A package name, optionally scoped, with a subpath: `#x`, `~/x` and `@/x` are aliases, not packages.
 const PACKAGE = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*(\/.*)?$/i;
 
-// null: the repo has no tsconfig.json. "invalid": it, or a config it extends, is missing or unreadable.
+// One Read is one consistent view of the project, so what resolution learns from manifests and
+// configs is kept per reader: a run reads each of them once, not once per import.
+interface Memo {
+  configs: Map<string, TsPaths | null | "invalid">;
+  nested: Map<string, string | null>;      // folder -> nearest tsconfig.json below the root
+  packages: Map<string, { dir: string; manifest: Record<string, unknown> } | null>;   // by workspace package name
+  root?: { name: string | null; globs: string[] };   // the root package.json and pnpm-workspace.yaml
+}
+const memos = new WeakMap<Read, Memo>();
+
+function memoOf(read: Read): Memo {
+  let memo = memos.get(read);
+  if (!memo) memos.set(read, memo = { configs: new Map(), nested: new Map(), packages: new Map() });
+  return memo;
+}
+
+// The config that governs `fromRel`: the nearest tsconfig.json at or above its folder, with the root
+// one behind it. Without `fromRel`, or when the nearer config is broken, the root one alone, as before.
+// null: there is no tsconfig.json. "invalid": the root one, or a config it extends, is missing or unreadable.
+export function loadTsPaths(read: Read, fromRel?: string): TsPaths | null | "invalid" {
+  const root = loadConfig("tsconfig.json", read);
+  const at = fromRel === undefined ? null : nestedConfig(dirname(fromRel), read);
+  const own = at === null ? null : loadConfig(at, read);
+  if (own === null || own === "invalid") return root;
+  return root === null || root === "invalid" ? own : { ...own, outer: root };
+}
+
+function nestedConfig(dir: string, read: Read): string | null {
+  if (dir === "" || outside(dir)) return null;
+  const { nested } = memoOf(read);
+  if (!nested.has(dir)) {
+    const file = `${dir}/tsconfig.json`;
+    nested.set(dir, read(file) !== null ? file : nestedConfig(dirname(dir), read));
+  }
+  return nested.get(dir)!;
+}
+
+function loadConfig(file: string, read: Read): TsPaths | null | "invalid" {
+  const { configs } = memoOf(read);
+  if (!configs.has(file)) configs.set(file, parseConfig(file, read));
+  return configs.get(file)!;
+}
+
 // An extended package that is not installed (a fresh clone) is not a broken repo: shared presets
 // practically never set paths or baseUrl, so the chain goes on without it and `missing` names it.
-export function loadTsPaths(read: Read): TsPaths | null | "invalid" {
-  if (read("tsconfig.json") === null) return null;
+function parseConfig(config: string, read: Read): TsPaths | null | "invalid" {
+  if (read(config) === null) return null;
   const found: Found = {};
   const missing: string[] = [];
   const extended = (dir: string, spec: string): string | "missing" | null => {
@@ -46,7 +90,7 @@ export function loadTsPaths(read: Read): TsPaths | null | "invalid" {
       return parent === "missing" || (parent !== null && visit(parent, [...chain, file]));
     });
   };
-  if (!visit("tsconfig.json", [])) return "invalid";
+  if (!visit(config, [])) return "invalid";
   const baseUrl = found.baseUrl ?? null;
   const from = baseUrl ?? found.pathsDir ?? "";
   const paths = (found.paths ?? []).map(({ pattern, targets }) => ({ pattern, targets: targets.map((t) => join(from, t)) }));
@@ -89,16 +133,25 @@ export function resolve(fromRel: string, spec: string, ts: TsPaths | null | "inv
   if (/[?\\]|.#/.test(spec)) return "unresolved";   // a leading `#` is a subpath alias (`#db`)
   if (spec === "." || spec === ".." || spec.startsWith("./") || spec.startsWith("../")) return local(join(dirname(fromRel), spec), read);
   if (ts === "invalid" || spec.split("/").some((seg) => seg === "." || seg === "..")) return "unresolved";
-  const alias = ts && aliasOf(spec, ts);
+  const byConfig = ts && (configured(spec, ts, read) ?? (ts.outer ? configured(spec, ts.outer, read) : null));
+  if (byConfig) return byConfig;
+  if (/^(node|bun):/.test(spec)) return "external";
+  if (!PACKAGE.test(spec) || packageOf(spec) === ownName(read)) return "unresolved";
+  // A workspace package that does not resolve to a file stays external, as every package was.
+  const rel = workspaceModule(spec, read);
+  return rel === null ? "external" : { rel, workspace: true };
+}
+
+function configured(spec: string, ts: TsPaths, read: Read): Resolved | null {
+  const alias = aliasOf(spec, ts);
   if (alias) {
     // The wildcard may end next to a `..` of its own (`@d*` with `@d../infra`): normalize as TypeScript does.
     const candidates = alias.targets.map((t) => join("", t.replace("*", alias.rest)));
     const found = candidates.map((c) => (outside(c) ? null : locate(c, read))).find((c) => c !== null);
     return found ? { rel: found } : local(candidates[0]!, read);
   }
-  const underBase = ts?.baseUrl != null ? locate(join(ts.baseUrl, spec), read) : null;
-  if (underBase) return { rel: underBase };
-  return /^(node|bun):/.test(spec) || (PACKAGE.test(spec) && packageOf(spec) !== ownName(read)) ? "external" : "unresolved";
+  const underBase = ts.baseUrl != null ? locate(join(ts.baseUrl, spec), read) : null;
+  return underBase ? { rel: underBase } : null;
 }
 
 // What a module re-exports (`export … from`), followed through local modules: MAX_HOPS re-exports deep
@@ -118,6 +171,8 @@ export function reexportTargets(rel: string, ts: TsPaths | null | "invalid", rea
   };
   let frontier = grammarOf(rel) ? modules(rel) : [];
   const seen = new Set(frontier);
+  // A module in another package resolves its own imports with that package's config.
+  const tsOf = (file: string) => (grammarOf(file) === "typescript" || grammarOf(file) === "tsx") && nestedConfig(dirname(file), read) !== null ? loadTsPaths(read, file) : ts;
   let reads = 0;
   for (let hop = 1; ; hop++) {
     const texts = frontier.flatMap((file) => {
@@ -132,7 +187,7 @@ export function reexportTargets(rel: string, ts: TsPaths | null | "invalid", rea
       if (exported === "too-deep") return "too-deep";
       if (exported.length && hop > MAX_HOPS) return "too-deep";
       for (const i of exported) {
-        const to = i.literal ? resolve(file, i.spec, ts, read, i.base) : "unresolved";
+        const to = i.literal ? resolve(file, i.spec, tsOf(file), read, i.base) : "unresolved";
         edges.push({ spec: i.spec, to });
         if (typeof to === "object" && grammarOf(to.rel)) {
           for (const module of modules(to.rel)) if (!seen.has(module)) {
@@ -187,8 +242,98 @@ function local(path: string, read: Read): Resolved {
 
 // A package that imports itself by name reaches its own files through `exports` in package.json.
 function ownName(read: Read): string | null {
-  const name = jsonc(read("package.json") ?? "")?.name;
-  return typeof name === "string" ? name : null;
+  return rootManifest(read).name;
+}
+
+// The file `spec` names inside a workspace package: what its package.json declares, then the usual
+// source entries. null: not a workspace package, or nothing it declares is a file here.
+function workspaceModule(spec: string, read: Read): string | null {
+  const name = packageOf(spec), found = workspacePackage(name, read);
+  if (found === null) return null;
+  const { dir, manifest: pkg } = found, sub = spec.slice(name.length + 1);
+  const declared = [...exportTargets(pkg.exports, sub), ...(sub ? [sub] : [pkg.module, pkg.main, pkg.types, "src/index", "index"])];
+  for (const target of declared) {
+    const path = typeof target === "string" ? join(dir, target) : null;
+    const file = path !== null && `${path}/`.startsWith(`${dir}/`) ? locate(path, read) : null;
+    if (file) return file;
+  }
+  return null;
+}
+
+// `exports` for "." or one subpath: a string, conditions, or a `./*` pattern.
+function exportTargets(exports: unknown, sub: string): string[] {
+  const key = sub ? `./${sub}` : ".";
+  const targets = (v: unknown): string[] => typeof v === "string" ? [v] : Array.isArray(v) ? v.flatMap(targets)
+    : isObject(v) ? ["import", "default", "types"].flatMap((condition) => targets(v[condition])) : [];
+  if (!isObject(exports) || !Object.keys(exports).some((k) => k.startsWith("."))) return key === "." ? targets(exports) : [];
+  if (Object.hasOwn(exports, key)) return targets(exports[key]);
+  for (const [pattern, value] of Object.entries(exports)) {
+    const star = pattern.indexOf("*"), head = pattern.slice(0, star), tail = pattern.slice(star + 1);
+    if (star >= 0 && key.length >= head.length + tail.length && key.startsWith(head) && key.endsWith(tail)) {
+      return targets(value).map((t) => t.replaceAll("*", key.slice(head.length, key.length - tail.length)));
+    }
+  }
+  return [];
+}
+
+// A Read cannot list folders, so a workspace glob is not expanded: its one wildcard is tried with the
+// package's name (`@acme/infra` -> `infra`, then `acme-infra`) and the package.json there must carry
+// that exact name. A package in a folder named otherwise is not found and stays external. Every
+// probe goes through `read`, so the dependency review sees a manifest appear or change.
+function workspacePackage(name: string, read: Read): { dir: string; manifest: Record<string, unknown> } | null {
+  const { packages } = memoOf(read);
+  if (packages.has(name)) return packages.get(name)!;
+  const { globs } = rootManifest(read);
+  const base = name.slice(name.indexOf("/") + 1);
+  const names = base === name ? [base] : [base, name.slice(1).replace("/", "-")];
+  const excluded = globs.filter((g) => g.startsWith("!")).map((g) => globPattern(join("", g.slice(1))));
+  const dirs = globs.filter((g) => !g.startsWith("!")).flatMap((g) => {
+    const wildcards = g.match(/\*+/g)?.length ?? 0;
+    return wildcards === 0 ? [g] : wildcards === 1 ? names.map((n) => g.replace(/\*+/, n)) : [];
+  }).map((g) => join("", g));
+  let found: { dir: string; manifest: Record<string, unknown> } | null = null;
+  for (const dir of dirs) {
+    if (found !== null || dir === "" || outside(dir) || excluded.some((no) => no.test(dir))) continue;
+    const manifest = jsonc(read(`${dir}/package.json`) ?? "");
+    if (manifest?.name === name) found = { dir, manifest };
+  }
+  packages.set(name, found);
+  return found;
+}
+
+function globPattern(glob: string): RegExp {
+  const escaped = glob.replace(/[.+?^$(){}|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped.replace(/\*+/g, (stars) => (stars.length > 1 ? ".*" : "[^/]*"))}$`);
+}
+
+// The root package's name, and the workspace globs: package.json `workspaces` (npm, yarn, bun) and
+// pnpm-workspace.yaml `packages`.
+function rootManifest(read: Read): { name: string | null; globs: string[] } {
+  const memo = memoOf(read);
+  if (memo.root) return memo.root;
+  const manifest = jsonc(read("package.json") ?? "");
+  const listed = isObject(manifest?.workspaces) ? manifest.workspaces.packages : manifest?.workspaces;
+  const globs = [...(Array.isArray(listed) ? listed : []), ...pnpmPackages(read("pnpm-workspace.yaml") ?? "")];
+  return memo.root = { name: typeof manifest?.name === "string" ? manifest.name : null, globs: globs.filter((g): g is string => typeof g === "string" && g !== "") };
+}
+
+// The `packages` list of pnpm-workspace.yaml, block or flow style; nothing else in the file is read.
+function pnpmPackages(text: string): string[] {
+  const out: string[] = [];
+  const unquote = (item: string): string => item.trim().replace(/^(['"])(.*)\1$/, "$2");
+  let inside = false;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.replace(/(^|\s)#.*$/, "");
+    const item = /^\s*-\s+(.+)$/.exec(line);
+    if (item) {
+      if (inside) out.push(unquote(item[1]!));
+    } else if (/^\S/.test(line)) {
+      const flow = /^packages\s*:\s*(?:\[(.*)\])?\s*$/.exec(line);
+      inside = flow !== null;
+      if (flow?.[1]) out.push(...flow[1].split(",").map(unquote));
+    }
+  }
+  return out;
 }
 
 function packageOf(spec: string): string {

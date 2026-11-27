@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## react/components
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### react/REACT-KEY-001
 
@@ -332,7 +332,7 @@ Source metadata:
 
 ## react/hooks
 
-Manifest version: `1.0.2`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **preview**.
 
 ### react/REACT-HOOK-001
 

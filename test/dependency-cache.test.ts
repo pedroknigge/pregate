@@ -42,7 +42,7 @@ test("unknown resolver versions and corrupted hashes cause an empty checkpoint",
   const saved = JSON.parse(readFileSync(cache.file, "utf8"));
   saved.resolver = "future"; writeFileSync(cache.file, JSON.stringify(saved));
   expect(openDependencyCache(root).entries.size).toBe(0);
-  saved.resolver = "dependency-reads-v1"; saved.entries[0].inputs = []; writeFileSync(cache.file, JSON.stringify(saved));
+  saved.resolver = "dependency-reads-v2"; saved.entries[0].inputs = []; writeFileSync(cache.file, JSON.stringify(saved));
   expect(openDependencyCache(root).entries.size).toBe(0);
 }));
 

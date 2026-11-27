@@ -1,0 +1,116 @@
+{
+  "labeler": "agent",
+  "pack": "pstack",
+  "items": [
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/downloads/index.js",
+      "line": 29,
+      "symbol": "<module>",
+      "verdict": "true-positive",
+      "note": "non-404 error repeats the condition err.status !== 404 on the same line."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/error/index.js",
+      "line": 14,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The block explains why Express error middleware takes four arguments. The code after it does not say that."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/mvc/lib/boot.js",
+      "line": 33,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "\"reserved\" exports gives the meaning of the name list in the next line. The code does not say the names are reserved."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/search/index.js",
+      "line": 3,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "install redis first: is a setup instruction for the reader of the example."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/view-constructor/index.js",
+      "line": 26,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The comment says the views value is a GitHub repository. app.set('views', 'expressjs/express') does not say that."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "examples/web-service/index.js",
+      "line": 107,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The block explains why the 404 middleware is registered last. It does not restate the code."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "lib/application.js",
+      "line": 220,
+      "symbol": "use",
+      "verdict": "false-positive",
+      "note": "non-express app gives the meaning of the duck-type test !fn || !fn.handle || !fn.set. The condition does not say that."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "lib/response.js",
+      "line": 195,
+      "symbol": "send",
+      "verdict": "true-positive",
+      "note": "freshness repeats req.fresh in the next line."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "lib/response.js",
+      "line": 928,
+      "symbol": "sendfile",
+      "verdict": "true-positive",
+      "note": "request aborted repeats the name of function onaborted in the next line."
+    },
+    {
+      "corpus": "express",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "test/express.static.js",
+      "line": 726,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "The line is an empty // that opens a NOTE block. It has no words."
+    },
+    {
+      "corpus": "react-markdown",
+      "pack": "pstack",
+      "rule": "pstack/PS-COMMENT-001",
+      "path": "test.jsx",
+      "line": 1129,
+      "symbol": "<module>",
+      "verdict": "false-positive",
+      "note": "Note: hooks are not supported on the server. states a limit that the test below does not say."
+    }
+  ]
+}

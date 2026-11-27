@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## nuxt/data
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### nuxt/NUXT-FETCH-001
 
@@ -236,7 +236,7 @@ Source metadata:
 
 ## nuxt/security
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### nuxt/NUXT-PIN-001
 
@@ -346,7 +346,7 @@ Source metadata:
 
 ## nuxt/server
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### nuxt/NUXT-SERVER-001
 

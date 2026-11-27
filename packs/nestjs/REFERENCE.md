@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## nestjs/controllers
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### nestjs/NEST-CTRL-001
 
@@ -212,7 +212,7 @@ Source metadata:
 
 ## nestjs/providers
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### nestjs/NEST-INJ-001
 
@@ -380,7 +380,7 @@ Source metadata:
 
 ## nestjs/transport
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### nestjs/NEST-LIMIT-001
 

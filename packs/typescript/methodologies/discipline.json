@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "typescript/discipline",
   "version": "1.0.2",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

@@ -17,7 +17,7 @@ export interface HeritageHit { symbol: string; line: number; measured: number; o
 export function heritageDepths(parsed: Parsed, read: Read): HeritageHit[] {
   const grammar = grammarOf(parsed.rel);
   if (grammar !== "typescript" && grammar !== "tsx") return [];
-  const ts = loadTsPaths(read);
+  const ts = loadTsPaths(read, parsed.rel);
   const cache = new Map<string, Loaded>();
   const load = (rel: string): Loaded => {
     const hit = cache.get(rel);
@@ -54,7 +54,7 @@ export function heritageDepths(parsed: Parsed, read: Read): HeritageHit[] {
     if (load(rel).classes.some((item) => item.name === parent)) return 1 + depth(rel, parent, next);
     const bound = load(rel).imports.find((item) => item.local === parent);
     if (!bound) return 1;
-    const to = resolve(rel, bound.spec, ts, read);
+    const to = resolve(rel, bound.spec, rel === parsed.rel ? ts : loadTsPaths(read, rel), read);
     if (typeof to !== "object") return 1;
     const targetGrammar = grammarOf(to.rel);
     if (targetGrammar !== "typescript" && targetGrammar !== "tsx") return 1;

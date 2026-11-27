@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## typescript/anti-evasion
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### typescript/EVA-DYN-001
 
@@ -108,7 +108,7 @@ Source metadata:
 
 ## typescript/async-results
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### typescript/TS-FLOAT-001
 
@@ -183,7 +183,7 @@ Source metadata:
 
 ## typescript/checked
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### typescript/TS-IMPORT-001
 
@@ -507,7 +507,7 @@ Source metadata:
 
 ## typescript/compiler
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### typescript/TS-CFG-001
 
@@ -543,7 +543,7 @@ Source metadata:
 
 ## typescript/discipline
 
-Manifest version: `1.0.2`. Status: **complete**.
+Manifest version: `1.0.2`. Status: **preview**.
 
 ### typescript/TS-RET-001
 
@@ -647,7 +647,7 @@ Source metadata:
 
 ## typescript/framework-entries
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### typescript/TS-ENTRY-001
 
@@ -683,7 +683,7 @@ Source metadata:
 
 ## typescript/legacy
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### typescript/TS-LEGACY-001
 
@@ -885,7 +885,7 @@ Source metadata:
 
 ## typescript/named-exports
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### typescript/TS-DEFAULT-001
 
@@ -926,7 +926,7 @@ Source metadata:
 
 ## typescript/strict-types
 
-Manifest version: `1.5.0`. Status: **complete**.
+Manifest version: `1.5.0`. Status: **preview**.
 
 ### typescript/TS-ANY-001
 

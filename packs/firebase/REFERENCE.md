@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## firebase/auth
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### firebase/FB-ADMIN-001
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## firebase/firestore
 
-Manifest version: `1.1.0`. Status: **complete**.
+Manifest version: `1.1.0`. Status: **preview**.
 
 ### firebase/FB-READ-001
 

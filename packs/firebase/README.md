@@ -1,6 +1,6 @@
 # firebase
 
-TypeScript Firebase client/admin-SDK usage pack. Source version **1.2.0**, for engine **0.0.15**. The engine parses only TS/JS, so this pack enforces TypeScript Firebase usage; Firestore/Storage Security Rules languages live in BACKLOG.md until a rules-language pack exists.
+TypeScript Firebase client/admin-SDK usage pack. Source version **1.2.0**, for engine **0.0.16**. The engine parses only TS/JS, so this pack enforces TypeScript Firebase usage; Firestore/Storage Security Rules languages live in BACKLOG.md until a rules-language pack exists.
 
 Firebase `apiKey` is public by design (it identifies the project; Security Rules protect the data), so this pack deliberately does NOT forbid it — unlike real secrets, which stay covered by the vibe-proof client-secret rules. COMPLEMENT, don't duplicate: hardcoded private keys and service-account JSON stay with the secrets rules.
 
@@ -49,7 +49,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.0`. 11 distinct check IDs.
 
-Methodologies: `firebase/auth` (complete), `firebase/firestore` (complete).
+Methodologies: `firebase/auth` (preview), `firebase/firestore` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

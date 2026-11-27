@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## authjs/config
 
-Manifest version: `1.1.1`. Status: **complete**.
+Manifest version: `1.1.1`. Status: **preview**.
 
 ### authjs/AUTH-SECRET-001
 
@@ -208,7 +208,7 @@ Source metadata:
 
 ## authjs/session
 
-Manifest version: `1.2.0`. Status: **complete**.
+Manifest version: `1.2.0`. Status: **preview**.
 
 ### authjs/AUTH-CALLBACK-001
 

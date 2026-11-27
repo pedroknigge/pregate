@@ -2,7 +2,7 @@
   "$schema": "../../../schema/methodology.v1.json",
   "id": "firebase/firestore",
   "version": "1.1.0",
-  "status": "complete",
+  "status": "preview",
   "conflicts": [],
   "invariants": [
     {

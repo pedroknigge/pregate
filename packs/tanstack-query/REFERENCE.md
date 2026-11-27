@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## tanstack-query/client
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### tanstack-query/TQ-CLIENT-001
 
@@ -44,7 +44,7 @@ Source metadata:
 
 ## tanstack-query/keys
 
-Manifest version: `1.0.0`. Status: **complete**.
+Manifest version: `1.0.0`. Status: **preview**.
 
 ### tanstack-query/TQ-KEY-001
 

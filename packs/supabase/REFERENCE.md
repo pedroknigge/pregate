@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## supabase/client
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### supabase/SB-KEY-001
 
@@ -204,7 +204,7 @@ Source metadata:
 
 ## supabase/storage
 
-Manifest version: `1.0.1`. Status: **complete**.
+Manifest version: `1.0.1`. Status: **preview**.
 
 ### supabase/SB-STORAGE-001
 

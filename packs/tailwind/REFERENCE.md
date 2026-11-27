@@ -8,7 +8,7 @@ These are manifest defaults. All core rules activate automatically and enforce u
 
 ## tailwind/classes
 
-Manifest version: `1.2.1`. Status: **complete**.
+Manifest version: `1.2.1`. Status: **preview**.
 
 ### tailwind/TW-DYN-001
 

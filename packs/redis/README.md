@@ -1,6 +1,6 @@
 # redis
 
-TypeScript client-side Redis pack (node-redis / ioredis). Source version **1.2.1**, for engine **0.0.15**. The engine parses only TS/JS. Rules requiring key-lifetime intent or multi-statement tracking are off; naming conventions are advisory. Server-side policy (ACL users, persistence, eviction, cluster) needs the server config and lives in [BACKLOG.md](BACKLOG.md).
+TypeScript client-side Redis pack (node-redis / ioredis). Source version **1.2.1**, for engine **0.0.16**. The engine parses only TS/JS. Rules requiring key-lifetime intent or multi-statement tracking are off; naming conventions are advisory. Server-side policy (ACL users, persistence, eviction, cluster) needs the server config and lives in [BACKLOG.md](BACKLOG.md).
 
 ## User control
 
@@ -51,7 +51,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.1`. 11 distinct check IDs.
 
-Methodologies: `redis/client` (complete), `redis/keys` (complete).
+Methodologies: `redis/client` (preview), `redis/keys` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->

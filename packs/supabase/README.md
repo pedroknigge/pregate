@@ -1,6 +1,6 @@
 # supabase
 
-Data-only rule pack for TypeScript `supabase-js` client usage. Source version **1.2.1**, for engine **0.0.15**. The engine parses TS/JS, so this pack enforces client call shapes; RLS policies, storage bucket policies, and edge function bodies need SQL and the Deno runtime and live in BACKLOG.md until then.
+Data-only rule pack for TypeScript `supabase-js` client usage. Source version **1.2.1**, for engine **0.0.16**. The engine parses TS/JS, so this pack enforces client call shapes; RLS policies, storage bucket policies, and edge function bodies need SQL and the Deno runtime and live in BACKLOG.md until then.
 
 Complements `vibe-proof`: that pack's client-public-secret rule covers `NEXT_PUBLIC` service_role *names*, while this pack flags the `createClient` call that *uses* the key. The vibe BACKLOG explicitly punts open RLS; this pack does not claim it.
 
@@ -60,7 +60,7 @@ Generated from the current CLI and source manifests by `bun scripts/docs-referen
 
 Category: **library**. Version: `1.2.1`. 10 distinct check IDs.
 
-Methodologies: `supabase/client` (complete), `supabase/storage` (complete).
+Methodologies: `supabase/client` (preview), `supabase/storage` (preview).
 
 [Every rule's severity, defaults, provenance, repair guidance and limits](REFERENCE.md). The reviewed preset determines effective policy; these defaults are not a claim of complete framework compliance.
 <!-- END generated reference -->
