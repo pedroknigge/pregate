@@ -4,6 +4,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { inflateRawSync } from "node:zlib";
 import { ASSETS } from "./assets.ts";
 import { canonical, removeReleased, renameReleased } from "./disk.ts";
 import { describeCi } from "./ci/detect.ts";
@@ -955,18 +956,34 @@ const CANARY: Record<HarnessId, { exit: number; env: (dir: string) => Record<str
   },
 };
 
-// Whether a registration for this harness exists, so the canary has a pregate command to exercise:
-// the shared Claude settings (Cursor and Grok read it too), Codex hooks.json, the agy plugin, or
-// the OpenCode plugin file or config. Presence, not exactness: a modified pregate command still
-// gives the canary something to exercise, which is how a direct-engine registration is caught. A
-// file without a pregate reference would only send the call to the missing-launcher fallback that
-// the lines above already report.
+// Whether a registration for this harness exists, so the canary has a pregate command to
+// exercise. Exactness first: the registration the setup of this engine writes (on Windows it
+// travels packed, so the exact check compares against the same builder and needs no decoding).
+// A modified command still names the pregate engine or launcher, which is how a direct-engine
+// registration is caught; the scan decodes the EncodedCommand form and the deflated packed form
+// before looking for the name. A file with no pregate reference would only send the call to the
+// missing-launcher fallback that the lines above already report.
 function canaryTarget(m: MachineFiles, p: Paths, h: HarnessId): boolean {
-  const texts = h === "codex" ? [m.codexHooks]
-    : h === "agy" ? [m.agyHooks]
-    : h === "opencode" ? [read(join(opencodePluginDir(p), "index.ts")), read(opencodeConfigFile(p))]
-    : [...m.claude];
-  return texts.some((text) => text !== null && /pregate/i.test(text));
+  if (h === "opencode") return [read(join(opencodePluginDir(p), "index.ts")), read(opencodeConfigFile(p))].some((t) => t !== null && /pregate/i.test(t));
+  const exact = h === "codex" ? registered(m.codexHooks, "codex", p.data)
+    : h === "agy" ? registered(m.agyHooks, "agy", p.data)
+    : m.claude.some((text) => text !== null && registered(text, "shared", p.data));
+  if (exact) return true;
+  const texts = h === "codex" ? [m.codexHooks] : h === "agy" ? [m.agyHooks] : [...m.claude];
+  return texts.some((text) => text !== null && mentionsPregate(text));
+}
+
+function mentionsPregate(text: string): boolean {
+  if (/pregate/i.test(text)) return true;
+  for (const m of text.matchAll(/-EncodedCommand ([A-Za-z0-9+/=]+)/g)) {
+    const encoded = m[1];
+    if (encoded === undefined) continue;
+    const decoded = Buffer.from(encoded, "base64").toString("utf16le");
+    if (/pregate/i.test(decoded)) return true;
+    const packed = /FromBase64String\('([A-Za-z0-9+/=]+)'\)/.exec(decoded)?.[1];
+    if (packed !== undefined && /pregate/i.test(inflateRawSync(Buffer.from(packed, "base64")).toString("utf8"))) return true;
+  }
+  return false;
 }
 
 function canary(p: Paths, h: HarnessId): Line {
